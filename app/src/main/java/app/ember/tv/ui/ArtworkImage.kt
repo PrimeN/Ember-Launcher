@@ -37,10 +37,15 @@ internal fun artworkPhase(hasModel:Boolean,loaded:Boolean,failed:Boolean)=when {
     var failed by remember(model){mutableStateOf(false)}
     val phase=artworkPhase(model!=null,loaded,failed)
     val request=tileImageRequest(model,fade)
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val cached=request is coil.request.ImageRequest && IconArtworkCache.cached(request)
+    val cacheReady=!cached || IconArtworkCache.epoch!="loading"
+    val loader=if(cached && cacheReady)IconArtworkCache.loader(context)
+        else coil.Coil.imageLoader(context)
     Box(modifier.then(if(description.isNullOrBlank())Modifier else Modifier.semantics {contentDescription=description})) {
         if(phase!=ArtworkPhase.READY)ArtworkPlaceholder(null,Modifier.matchParentSize())
-        if(model!=null)key(request) {
-            AsyncImage(request,null,Modifier.matchParentSize(),contentScale=contentScale,
+        if(model!=null && cacheReady)key(request) {
+            AsyncImage(request,null,imageLoader=loader,modifier=Modifier.matchParentSize(),contentScale=contentScale,
                 onSuccess={loaded=true;failed=false;onSuccess(it.result.drawable)},
                 onError={failed=true;onError()})
         }

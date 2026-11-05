@@ -87,9 +87,20 @@ may differ between runners or from an existing installation. Configure a persist
 release keystore for normal in-place updates. Public workflow builds exclude private
 bundles and test add-on links, including when publishing a debug APK.
 
-All builds check the public `PrimeN/Ember-Launcher` repository for app updates,
-regardless of the repository used to compile them. Users need no GitHub account,
-API key or token. GitHub Actions uses its own repository token for publication.
+Standard updates check published releases in the public `PrimeN/Ember-Launcher`
+repository, regardless of where the APK was compiled. They require no credentials.
+Beta updates check the private repository's `beta-build` release. The beta repository
+defaults to `PrimeN/Ash-Launcher`; forks can override `BETA_UPDATE_REPO` through the
+build environment or `local.properties` (`owner/repository`). Users enter a
+[fine-grained token](https://github.com/settings/personal-access-tokens) with access
+to that repository and **Contents: Read-only** in Settings → API keys → Private beta
+updates. The token stays encrypted on the device and is never built into an APK.
+GitHub Actions uses its separate repository token only for publication.
+
+Catalog thumbnails and collection covers use a bounded disk cache that survives
+restarts. Catalog/collection configuration changes invalidate its bytes and decoded
+images, including unchanged URLs. Refreshing a catalog or collection folder also
+reloads its images; clearing the artwork cache clears these files as well.
 
 Android version codes use build time rather than a repository's run counter, so
 moving builds between repositories does not reset update ordering. CI sets one

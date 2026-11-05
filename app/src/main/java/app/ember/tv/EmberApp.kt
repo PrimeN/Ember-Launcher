@@ -9,6 +9,7 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         app.ember.tv.data.Net.init(this)
+        app.ember.tv.ui.IconArtworkCache.init(this)
         app.ember.tv.data.CrashLog.install(this)
         ApiKeys.init(this)
         app.ember.tv.data.SourceFreshness.init(this)
@@ -27,7 +28,10 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
     override fun onTrimMemory(level:Int) {
         super.onTrimMemory(level)
         app.ember.tv.ui.RuntimeBudgets.trim(level)
-        if(app.ember.tv.ui.RuntimeBudgets.pressureLevel(level))initializedImages?.memoryCache?.clear()
+        if(app.ember.tv.ui.RuntimeBudgets.pressureLevel(level)) {
+            initializedImages?.memoryCache?.clear()
+            app.ember.tv.ui.IconArtworkCache.trimMemory()
+        }
     }
 
     /**

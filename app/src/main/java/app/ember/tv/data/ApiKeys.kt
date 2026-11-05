@@ -27,6 +27,12 @@ object ApiKeys {
 
     val SERVICES = listOf(
         Service(
+            "Private beta updates",
+            "Only for private beta builds. Standard public releases never need a token.",
+            "github.com/settings/personal-access-tokens: select the beta repository and Contents: Read-only. Enter the token here; it is stored encrypted on this device.",
+            listOf(Field("GITHUB_BETA_TOKEN", "Repository read token")),
+        ),
+        Service(
             "Streaming Availability",
             "Optional Where to watch provider alongside TMDB and Watchmode. Select it in Streaming services settings.",
             "rapidapi.com/movie-of-the-night/api/streaming-availability: subscribe to a plan and copy X-RapidAPI-Key.",

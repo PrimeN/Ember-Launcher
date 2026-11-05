@@ -77,10 +77,13 @@ internal fun Modifier.focusBackdrop(binding: FocusTileBinding) = onFocusChanged 
     val context = LocalContext.current
     val enabled = tileNeedsSoftwarePixels()
     val duration=if(fade)PolishMotion.duration(TvTokens.Motion.Image,LocalRenderOptions.current,LocalReduceMotion.current) else 0
-    return remember(context, model, enabled,duration) {
-        if(model==null || !enabled && duration==0)model else {
+    val remote = IconArtworkCache.remote(model)
+    val epoch = if (remote) IconArtworkCache.epoch else ""
+    return remember(context, model, enabled,duration,epoch) {
+        if(model==null || !remote && !enabled && duration==0)model else {
             val builder=if(model is ImageRequest)model.newBuilder() else ImageRequest.Builder(context).data(model)
             if(enabled)builder.allowHardware(false)
+            if(remote)IconArtworkCache.configure(builder, model, epoch)
             builder.crossfade(duration).build()
         }
     }
