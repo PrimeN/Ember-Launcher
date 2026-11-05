@@ -2,14 +2,19 @@ name: Build APK
 
 # Work happens on "beta" and reaches "main" through a reviewed pull request (beta -> main).
 # Builds on every push to main and beta, on pull requests, and when started by hand from the
-# Actions tab. Public main publishes new app versions and refreshes the latest-build download.
-# Version tags and rolling main/beta downloads include the matching in-app changelog.
+# Actions tab. Releases are published only for explicit version tags or a manual publish request.
 on:
   push:
     branches: [main, beta]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish an APK release after validation
+        type: boolean
+        required: false
+        default: false
 
 # A newer branch push cancels its older run so an outdated main build cannot publish later.
 # Explicit version-tag builds run to completion.
@@ -32,6 +37,7 @@ jobs:
     # Shared by the test and build steps: Gradle reads these while configuring the project, so
     # giving both steps the same values lets the build reuse the classes compiled for the tests.
     env:
+      PUBLISH_RELEASE: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish_release) }}
       # API keys, from Settings > Secrets and variables > Actions. Missing ones are left blank.
       TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
       TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
@@ -307,6 +313,7 @@ jobs:
           fi
 
       - name: Prepare release notes
+        if: env.PUBLISH_RELEASE == 'true'
         id: release
         shell: bash
         run: |
@@ -316,6 +323,7 @@ jobs:
             --output "$RUNNER_TEMP/release-notes.md"
 
       - name: Check version publication
+        if: env.PUBLISH_RELEASE == 'true'
         id: version_release
         shell: bash
         env:
@@ -334,7 +342,7 @@ jobs:
           echo "publish_version=$publish" >> "$GITHUB_OUTPUT"
 
       - name: Publish version release
-        if: steps.version_release.outputs.publish_version == 'true'
+        if: env.PUBLISH_RELEASE == 'true' && steps.version_release.outputs.publish_version == 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.release.outputs.tag }}
@@ -346,7 +354,7 @@ jobs:
 
       # Public builds publish even without a release keystore; notes identify debug/testing APKs.
       - name: Remove the previous "latest build"
-        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
+        if: env.PUBLISH_RELEASE == 'true' && (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -354,7 +362,7 @@ jobs:
           gh release delete latest-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
 
       - name: Publish "latest build"
-        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
+        if: env.PUBLISH_RELEASE == 'true' && (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: latest-build
@@ -368,7 +376,7 @@ jobs:
       # "Beta build" channel: one pre-release, refreshed by each signed push to beta, for testing on
       # the TV before beta is merged into main.
       - name: Remove the previous "beta build"
-        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/beta' && github.event_name == 'push'
+        if: env.PUBLISH_RELEASE == 'true' && (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/beta'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -376,7 +384,7 @@ jobs:
           gh release delete beta-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
 
       - name: Publish "beta build"
-        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/beta' && github.event_name == 'push'
+        if: env.PUBLISH_RELEASE == 'true' && (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/beta'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: beta-build

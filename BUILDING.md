@@ -53,9 +53,13 @@ Fork or create a repository, enable GitHub Actions and push your source.
 The workflow runs release-automation tests, JVM tests, native-library checks and
 Android lint before publishing downloads.
 
-- A successful push to public `main` creates a versioned release when the app's
-  `v<versionName>` tag does not exist, and refreshes the `latest-build` prerelease.
-- Public `beta` pushes refresh the `beta-build` prerelease.
+- Ordinary pushes to `main` or `beta` run validation and keep APKs as Actions
+  artifacts. They do not create, replace or delete GitHub releases.
+- To publish explicitly, open **Actions → Build APK → Run workflow**, choose
+  `main` or `beta`, and enable **Publish an APK release after validation**.
+- A manual publication from public `main` creates a versioned release when the
+  app's `v<versionName>` tag does not exist, and refreshes `latest-build`.
+- A manual publication from public `beta` refreshes `beta-build`.
 - Pushing a matching version tag publishes its APK to that version's release.
 - Release notes come from the matching user-facing entry in Settings → About.
   A missing changelog entry or mismatched version tag stops publication.
