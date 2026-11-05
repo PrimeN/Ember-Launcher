@@ -242,7 +242,7 @@
     <string name="ui_received_from_your_phone">Received from your phone</string>
     <string name="ui_recommended_because_you_watched_hidden_gems">Recommended, Because you watched, Hidden gems and your lists.</string>
     <string name="ui_refresh_in_the_background">Refresh in the background</string>
-    <string name="ui_releases_are_tagged_versions_every_build">Releases are tagged versions; Every build is the newest signed build from GitHub. A private repository needs a GitHub token in Settings &gt; API keys.</string>
+    <string name="ui_releases_are_tagged_versions_every_build">Updates come from the public Ember repository without a GitHub account or API key. Releases are tagged versions; Every build is the latest published main build.</string>
     <string name="ui_remove">Remove</string>
     <string name="ui_remove_pin">Remove PIN</string>
     <string name="ui_rename">Rename</string>

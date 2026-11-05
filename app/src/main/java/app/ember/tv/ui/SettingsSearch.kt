@@ -42,7 +42,7 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.PROFILES to "Profiles: who's watching, kids, PIN, allowed apps and catalogs, ask at start, content lock, genre, maximum age TV rating, parental controls",
     SettingsTab.TRACKERS to "Trackers: Trakt, Simkl, AniList, MyAnimeList, WeTrakr, sign in, watchlist, scrobble",
     SettingsTab.SERVERS to "Media servers: Library sections hide rows recently added movies shows hero banner source list, Plex Home user switch profile PIN, Jellyfin Emby username password, find servers on network, sign in",
-    SettingsTab.KEYS to "API keys: Mistral AI discovery, Streaming Availability RapidAPI, TMDB, Fanart.tv hero artwork backgrounds logos, RPDB, MDBList, Watchmode, Trakt client id, OpenSubtitles, GitHub token",
+    SettingsTab.KEYS to "API keys: Mistral AI discovery, Streaming Availability RapidAPI, TMDB, Fanart.tv hero artwork backgrounds logos, RPDB, MDBList, Watchmode, Trakt client id, OpenSubtitles",
     SettingsTab.DEFAULT_HOME to "Startup: Ember as Home, default launcher, Home button, accessibility service, ADB, Google TV home, start with the TV boot wake standby destination app input HDMI presentation",
     SettingsTab.DEVICE_TOOLS to "TV and device: display inputs calibration patterns 4K UHD sharpness overscan brightness contrast grayscale colors judder motion SDR HDR10 Dolby Vision clips menus MediaTek Amlogic Xiaomi FengOS Formovie XGIMI projector focus picture HDMI AV input shortcuts, engineering menus firmware factory service menu",
     SettingsTab.PHONE to "Phone setup: on off switch, 15 minute timer, session expiry, QR code, add from phone, keys, backup to phone, badges, collections",

@@ -29,9 +29,9 @@ import java.util.concurrent.TimeUnit
 /**
  * In-app updates (Settings > System > Updates) from the GitHub repository's releases:
  * "Releases" are tagged versions, "Every build" is the rolling "latest-build" release the
- * workflow refreshes on each signed build of main, and "Beta" the "beta-build" release refreshed
- * by each signed push to the beta branch. A private repository needs a GitHub token
- * (Settings > API keys > GitHub). Android asks before installing; an update installs over the
+ * workflow refreshes on each published build of main, and "Beta" the "beta-build" release refreshed
+ * by each published push to the beta branch. All builds check the public Ember repository
+ * without account credentials. Android asks before installing; an update installs over the
  * current app only when both are signed with the same key.
  */
 object Updater {
@@ -39,7 +39,7 @@ object Updater {
         val tag: String,
         val name: String,
         val notes: String,
-        /** API link of the APK asset (works for private repositories with a token). */
+        /** Public APK download link, with the API asset URL as a compatibility fallback. */
         val assetApiUrl: String,
         val assetName: String,
         val sizeBytes: Long,
@@ -57,11 +57,10 @@ object Updater {
     // A cancelled transfer must finish deleting its partial file before a replacement opens it.
     private val downloadLock = Mutex()
 
-    private fun request(url: String, accept: String) = Request.Builder().url(url).apply {
+    internal fun request(url: String, accept: String) = Request.Builder().url(url).apply {
         header("Accept", accept)
         header("X-GitHub-Api-Version", "2022-11-28")
         header("User-Agent", "EmberTV/${BuildConfig.VERSION_NAME}")
-        ApiKeys.get("GITHUB_TOKEN").takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
     }.build()
 
     /** The newest release on the chosen channel ("releases", "builds" or "beta"), or an error message. */
@@ -72,27 +71,11 @@ object Updater {
             withResponse(http.newCall(request(url, "application/vnd.github+json"))) { r ->
                 when (r.code) {
                     200 -> Unit
-                    404 -> return@runCatching null.also {
-                        if (ApiKeys.get("GITHUB_TOKEN").isBlank()) error("No release found. If the repository is private, add a GitHub token in Settings > API keys.")
-                    }
-                    401, 403 -> error("GitHub refused the request (${r.code}). Check the GitHub token in Settings > API keys.")
+                    404 -> return@runCatching null
+                    403, 429 -> error("GitHub is temporarily limiting update checks. Try again later.")
                     else -> error("GitHub answered ${r.code}.")
                 }
-                val o = json.parseToJsonElement(r.body!!.string()) as JsonObject
-                val assets = (o["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
-                val apk = assets.firstOrNull { (it["name"]?.jsonPrimitive?.contentOrNull ?: "").endsWith(".apk") } ?: return@runCatching null
-                val notes = o["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                val assetName = apk["name"]!!.jsonPrimitive.content
-                Release(
-                    tag = o["tag_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-                    name = o["name"]?.jsonPrimitive?.contentOrNull ?: assetName,
-                    notes = notes,
-                    assetApiUrl = apk["url"]!!.jsonPrimitive.content,
-                    assetName = assetName,
-                    sizeBytes = apk["size"]?.jsonPrimitive?.longOrNull ?: 0L,
-                    versionCode = versionCodeOf(notes, assetName),
-                    sha256 = sha256Of(apk["digest"]?.jsonPrimitive?.contentOrNull),
-                )
+                releaseOf(json.parseToJsonElement(r.body!!.string()) as JsonObject)
             }
         }.also { ensureActive() }
     }
@@ -108,7 +91,7 @@ object Updater {
             dir.listFiles()?.forEach { it.delete() }
             val digest = MessageDigest.getInstance("SHA-256")
             var done = 0L
-            // GitHub answers with a redirect to its file storage; OkHttp drops the token on the way there.
+            // Public downloads may redirect to GitHub's file storage; no account headers are sent.
             withResponse(http.newCall(request(r.assetApiUrl, "application/octet-stream"))) { resp ->
                 if (!resp.isSuccessful) error("Download failed (${resp.code}).")
                 val body = resp.body!!
@@ -144,6 +127,23 @@ object Updater {
             Result.failure(e)
         }
     } }
+
+    internal fun releaseOf(o: JsonObject): Release? {
+        val apk = (o["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+            .firstOrNull { it["name"]?.jsonPrimitive?.contentOrNull?.endsWith(".apk") == true } ?: return null
+        val notes = o["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val assetName = apk["name"]!!.jsonPrimitive.content
+        val download = apk["browser_download_url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+            ?: apk["url"]?.jsonPrimitive?.contentOrNull ?: return null
+        return Release(
+            tag = o["tag_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            name = o["name"]?.jsonPrimitive?.contentOrNull ?: assetName,
+            notes = notes, assetApiUrl = download, assetName = assetName,
+            sizeBytes = apk["size"]?.jsonPrimitive?.longOrNull ?: 0L,
+            versionCode = versionCodeOf(notes, assetName),
+            sha256 = sha256Of(apk["digest"]?.jsonPrimitive?.contentOrNull),
+        )
+    }
 
     /** "builds" is main's rolling "latest-build" release, "beta" the "beta-build" one, anything else the newest tagged release. */
     internal fun releaseUrl(repo: String, channel: String): String = when (channel) {

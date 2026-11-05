@@ -115,12 +115,6 @@ object ApiKeys {
             listOf(Field("SUBDL_API_KEY", "API key")),
         ),
         Service(
-            "GitHub (updates)",
-            "Only needed when Ember's repository is private: lets Settings > System > Updates see new versions.",
-            "github.com > Settings > Developer settings > Fine-grained tokens: this repository only, Contents: read-only.",
-            listOf(Field("GITHUB_TOKEN", "Token")),
-        ),
-        Service(
             "Watchmode",
             "Where to watch on title screens. Free plan: about 1,000 requests a month.",
             "api.watchmode.com > sign up; the key is on your account page.",

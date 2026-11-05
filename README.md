@@ -9,7 +9,7 @@
 
 **Your apps. Your media. Your home screen.**
 
-**Version 0.9.5** · Android 10+ · ARM64 and ARMv7
+**Version 9.5.1** · Android 10+ · ARM64 and ARMv7
 
 Ember is an ad-free Home screen replacement for **Android TV and Google TV**. It brings your apps, movies, shows, personal media libraries and live channels into one customizable interface built for a TV remote.
 
@@ -168,7 +168,7 @@ Tracker app registrations identify Ember to a service; they are separate from yo
 | **Open-Meteo / MET Norway / wttr.in** | Weather forecasts with provider selection and fallback. | No personal API key for the integrated public endpoints. |
 | **ipapi.co** | Approximate location when you choose to look it up. | No personal API key for the integrated lookup. |
 | **Cleveland Museum of Art / NASA Image and Video Library** | Optional artwork and space-image screensaver sources. | No personal API key. |
-| **GitHub updates** | Update checks and downloads from the configured repository. | No token for a public repository. Private repositories require an appropriate read-only GitHub token. [Create a fine-grained token](https://github.com/settings/personal-access-tokens/new) with repository Contents read access. |
+| **GitHub updates** | Update checks and downloads from the public [Ember releases](https://github.com/PrimeN/Ember-Launcher/releases). | No account, personal API key or GitHub token. All builds use the public update source. |
 
 Add-ons, IPTV providers and network shares may require their own subscription, login, key or connection details. Those requirements belong to the source you configure. External services apply their own terms, availability limits and privacy policies.
 

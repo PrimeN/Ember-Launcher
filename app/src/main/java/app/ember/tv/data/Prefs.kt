@@ -479,7 +479,7 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.TEXT_SIZE) ?: "default"
         set(v) = sp.edit { putString(PreferenceKeys.TEXT_SIZE.name, v) }
 
-    /** Stable updates from main: "releases" (tagged versions, default) or "builds" (every signed build). */
+    /** Updates from public main: "releases" (tagged versions, default) or "builds" (published main builds). */
     var updateChannel: String
         get() = (sp.read(PreferenceKeys.UPDATE_CHANNEL) ?: "releases").let { if (it == "beta") "builds" else it }
         set(v) = sp.edit { putString(PreferenceKeys.UPDATE_CHANNEL.name, v) }

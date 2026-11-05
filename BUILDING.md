@@ -50,9 +50,20 @@ those private test manifest links.
 ## Signing and GitHub builds
 
 Fork or create a repository, enable GitHub Actions and push your source.
-The existing workflow validates pushes to `beta` and `main` and produces build
-artifacts. Signed beta builds update the beta prerelease; signed main builds
-update the main build release. Version tags also produce releases.
+The workflow runs release-automation tests, JVM tests, native-library checks and
+Android lint before publishing downloads.
+
+- A successful push to public `main` creates a versioned release when the app's
+  `v<versionName>` tag does not exist, and refreshes the `latest-build` prerelease.
+- Public `beta` pushes refresh the `beta-build` prerelease.
+- Pushing a matching version tag publishes its APK to that version's release.
+- Release notes come from the matching user-facing entry in Settings → About.
+  A missing changelog entry or mismatched version tag stops publication.
+
+Existing version tags keep their original source association. Bump `versionName`
+and add its in-app changelog entry to publish a new version; later main builds of
+the same version remain available under `latest-build`. APKs are direct release
+attachments, not just expiring Actions artifacts.
 
 For a stable signing identity, create and retain a keystore:
 
@@ -65,6 +76,20 @@ Keep the keystore and its passwords private and backed up. GitHub signing uses
 `EMBER_KEY_PASSWORD`. Local signing uses `EMBER_KEYSTORE_FILE` and the same password/alias environment
 variables. Updates can install over an existing app only when
 its package and signing identity match.
+
+Without release-signing secrets, public builds still publish an installable
+debug/testing APK, clearly identified in the release notes. Its debug signing key
+may differ between runners or from an existing installation. Configure a persistent
+release keystore for normal in-place updates. Public workflow builds exclude private
+bundles and test add-on links, including when publishing a debug APK.
+
+All builds check the public `PrimeN/Ember-Launcher` repository for app updates,
+regardless of the repository used to compile them. Users need no GitHub account,
+API key or token. GitHub Actions uses its own repository token for publication.
+
+Android version codes use build time rather than a repository's run counter, so
+moving builds between repositories does not reset update ordering. CI sets one
+`EMBER_VERSION_CODE` for the entire job; local builds derive a value automatically.
 
 Develop on `beta`, validate on a TV, then merge into `main`. APKs and validation
 reports are available from the workflow run or its configured release channel.

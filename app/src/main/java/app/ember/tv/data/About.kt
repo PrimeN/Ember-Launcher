@@ -14,6 +14,14 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "9.5.1", "Simpler in-app updates",
+            listOf(
+                "Check for and download public Ember updates without a GitHub account, API key or token.",
+                "Release, Every build and Beta channels use public APK downloads with matching release notes.",
+                "More reliable detection of newer builds, with download integrity checks and clearer request-limit messages.",
+            ),
+        ),
+        Release(
             "0.9.5", "Your TV, your way",
             listOf(
                 "Modern, Light and Ember X Home interfaces, custom heroes, app folders, themes and independent player layouts.",

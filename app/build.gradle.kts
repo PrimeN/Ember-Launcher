@@ -8,6 +8,7 @@ import java.util.zip.ZipFile
 import java.security.MessageDigest
 import java.util.Properties
 import java.security.SecureRandom
+import java.time.Instant
 import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
@@ -181,9 +182,13 @@ android {
         // Android TV 10 and newer (Google TV Streamer, onn boxes, current TVs and projectors).
         minSdk = 29
         targetSdk = 35
-        // On GitHub each build gets a higher number, so a new APK always counts as an update.
-        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "0.9.5"
+        // Seconds since 2020 keep builds ordered across repositories whose run counters differ.
+        // CI pins the value for all Gradle invocations in the same build.
+        val buildVersionCode = System.getenv("EMBER_VERSION_CODE")?.toInt()
+            ?: Math.toIntExact(Instant.now().epochSecond - 1577836800L)
+        require(buildVersionCode in 1..2100000000) { "EMBER_VERSION_CODE is outside Android's supported range" }
+        versionCode = buildVersionCode
+        versionName = "9.5.1"
         // ARM only: 64-bit, plus 32-bit for TV boxes that run a 32-bit Android on a 64-bit chip
         // (common on streaming boxes). x86 and x86_64 (emulators on PCs) are left out.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
@@ -197,8 +202,8 @@ android {
             buildConfigField("String", name, javaString(key(name)))
         }
         buildConfigField("String", "PRIVATE_BUNDLE", "\"${privateBundle()}\"")
-        // Where Settings > About > Updates looks for new versions.
-        buildConfigField("String", "UPDATE_REPO", "\"${System.getenv("GITHUB_REPOSITORY") ?: "PrimeN/Ember-Launcher"}\"")
+        // All installations use the public update source, regardless of where the APK was built.
+        buildConfigField("String", "UPDATE_REPO", "\"PrimeN/Ember-Launcher\"")
     }
 
     // Optional release signing, set up by the GitHub workflow from repository secrets.

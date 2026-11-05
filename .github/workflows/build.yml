@@ -2,9 +2,8 @@ name: Build APK
 
 # Work happens on "beta" and reaches "main" through a reviewed pull request (beta -> main).
 # Builds on every push to main and beta, on pull requests, and when started by hand from the
-# Actions tab. Pushing a tag like v0.9.0 also publishes a GitHub Release with the APK attached.
-# Signed builds of main refresh the "latest build" release and signed pushes to beta refresh the
-# "beta build" release; the app's updater reads both (Settings > About > Updates channels).
+# Actions tab. Public main publishes new app versions and refreshes the latest-build download.
+# Version tags and rolling main/beta downloads include the matching in-app changelog.
 on:
   push:
     branches: [main, beta]
@@ -19,7 +18,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
-  contents: write # needed only to publish Releases for tags
+  contents: write # publish APK releases and their tags
   actions: write # lets the run delete the oldest artifacts when the storage quota is full
 
 jobs:
@@ -46,16 +45,22 @@ jobs:
       # are deliberately not built in: anyone could extract them from the APK and use your plan.
       FANART_API_KEY: ${{ secrets.FANART_API_KEY }}
       # Test-only addon manifest links, comma-separated. Debug builds only.
-      TEST_ADDONS: ${{ secrets.TEST_ADDONS }}
+      TEST_ADDONS: ${{ github.event.repository.private && secrets.TEST_ADDONS || '' }}
       # Your private set (API keys, addons, IPTV), shipped encrypted with the password below.
-      EMBER_PRIVATE_BUNDLE: ${{ secrets.EMBER_PRIVATE_BUNDLE }}
-      EMBER_PRIVATE_PASSWORD: ${{ secrets.EMBER_PRIVATE_PASSWORD }}
+      EMBER_PRIVATE_BUNDLE: ${{ github.event.repository.private && secrets.EMBER_PRIVATE_BUNDLE || '' }}
+      EMBER_PRIVATE_PASSWORD: ${{ github.event.repository.private && secrets.EMBER_PRIVATE_PASSWORD || '' }}
       # Optional signing key. With it, every build installs over the last one.
       EMBER_KEYSTORE_PASSWORD: ${{ secrets.EMBER_KEYSTORE_PASSWORD }}
       EMBER_KEY_ALIAS: ${{ secrets.EMBER_KEY_ALIAS }}
       EMBER_KEY_PASSWORD: ${{ secrets.EMBER_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Pin Android build number
+        shell: bash
+        run: |
+          code=$(python3 -c 'import time; print(int(time.time()) - 1577836800)')
+          echo "EMBER_VERSION_CODE=$code" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v5
         with:
@@ -82,6 +87,9 @@ jobs:
           else
             echo "No signing key set: building a debug APK (and checking that the R8 release build still works)."
           fi
+
+      - name: Release automation tests
+        run: python3 -m unittest discover -s .github/scripts/tests -p 'test_*.py'
 
       # Compiles the app and runs every JVM unit test (app/src/test). A failing test stops the run
       # before the APK is built; each failure is listed on the run's summary page.
@@ -154,7 +162,9 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          gradle lintDebug --continue > lint.log 2>&1 || true
+          lint_status=0
+          gradle lintDebug --continue > lint.log 2>&1 || lint_status=$?
+          echo "LINT_STATUS=$lint_status" >> "$GITHUB_ENV"
           r=app/build/reports/lint-results-debug.xml
           if [ -f "$r" ]; then
             errors=$(grep -cE 'severity="(Error|Fatal)"' "$r" || true)
@@ -226,13 +236,13 @@ jobs:
             dir=$(dirname "$f")
             kind=$(basename "$dir")
             suffix=$([ "$kind" = "release" ] && echo "" || echo "-$kind")
-            new="$dir/ember-tv-${ver}-${GITHUB_RUN_NUMBER}${suffix}.apk"
+            new="$dir/ember-tv-${ver}-${EMBER_VERSION_CODE}${suffix}.apk"
             mv "$f" "$new"
             n=$((n+1))
             echo "Named: $new"
           done
           [ "$n" -gt 0 ] || { echo "::error title=Name the APK::No APK found"; exit 1; }
-          echo "artifact=ember-tv-${ver}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "artifact=ember-tv-${ver}-${EMBER_VERSION_CODE}" >> "$GITHUB_OUTPUT"
           echo "::notice title=APK::$(ls app/build/outputs/apk/*/*.apk | xargs -n1 basename | tr '\n' ' ')"
 
       # Artifacts count against the account's Actions storage quota (about 500 MB on a free plan), so
@@ -289,22 +299,54 @@ jobs:
         if: success()
         shell: bash
         run: |
+          [ -f app/build/reports/lint-results-debug.xml ] || { echo "::error::Lint report missing; release publication stopped."; exit 1; }
+          [ "${LINT_STATUS:-1}" -eq 0 ] || { echo "::error::Lint failed; release publication stopped."; exit 1; }
           if [ "${LINT_ERRORS:-0}" -gt 0 ]; then
             echo "::error title=Lint errors::$LINT_ERRORS lint error(s); see the Lint annotation and the lint-report artifact."
             exit 1
           fi
 
-      - name: Publish Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Prepare release notes
+        id: release
+        shell: bash
+        run: |
+          python3 .github/scripts/release-notes.py \
+            --ref "$GITHUB_REF" --version-code "$EMBER_VERSION_CODE" \
+            --commit "$GITHUB_SHA" --signed "${SIGNED:-false}" \
+            --output "$RUNNER_TEMP/release-notes.md"
+
+      - name: Check version publication
+        id: version_release
+        shell: bash
+        env:
+          IS_PUBLIC: ${{ !github.event.repository.private }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          publish=false
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            publish=true
+          elif [[ "$GITHUB_REF" == refs/heads/main && "$IS_PUBLIC" == true ]]; then
+            # Existing version tags retain their original source/binary association.
+            # Subsequent pushes of that version still refresh the rolling main download.
+            existing=$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG")
+            if [[ -z "$existing" ]]; then publish=true; fi
+          fi
+          echo "publish_version=$publish" >> "$GITHUB_OUTPUT"
+
+      - name: Publish version release
+        if: steps.version_release.outputs.publish_version == 'true'
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.name }}
+          target_commitish: ${{ github.sha }}
           files: app/build/outputs/apk/**/*.apk
-          append_body: true
-          body: "versionCode: ${{ github.run_number }}"
+          fail_on_unmatched_files: true
+          body_path: ${{ steps.release.outputs.notes_file }}
 
-      # "Every build" channel for in-app updates: one pre-release, refreshed by each signed build of main.
+      # Public builds publish even without a release keystore; notes identify debug/testing APKs.
       - name: Remove the previous "latest build"
-        if: env.SIGNED == 'true' && github.ref == 'refs/heads/main'
+        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -312,22 +354,21 @@ jobs:
           gh release delete latest-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
 
       - name: Publish "latest build"
-        if: env.SIGNED == 'true' && github.ref == 'refs/heads/main'
+        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: latest-build
           name: Latest build (${{ github.run_number }})
           prerelease: true
           target_commitish: ${{ github.sha }}
-          files: app/build/outputs/apk/release/*.apk
-          body: |
-            Built from ${{ github.sha }}.
-            versionCode: ${{ github.run_number }}
+          files: app/build/outputs/apk/**/*.apk
+          fail_on_unmatched_files: true
+          body_path: ${{ steps.release.outputs.notes_file }}
 
       # "Beta build" channel: one pre-release, refreshed by each signed push to beta, for testing on
       # the TV before beta is merged into main.
       - name: Remove the previous "beta build"
-        if: env.SIGNED == 'true' && github.ref == 'refs/heads/beta' && github.event_name == 'push'
+        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/beta' && github.event_name == 'push'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -335,14 +376,13 @@ jobs:
           gh release delete beta-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
 
       - name: Publish "beta build"
-        if: env.SIGNED == 'true' && github.ref == 'refs/heads/beta' && github.event_name == 'push'
+        if: (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/beta' && github.event_name == 'push'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: beta-build
           name: Beta build (${{ github.run_number }})
           prerelease: true
           target_commitish: ${{ github.sha }}
-          files: app/build/outputs/apk/release/*.apk
-          body: |
-            Beta: not yet merged into main. Built from ${{ github.sha }}.
-            versionCode: ${{ github.run_number }}
+          files: app/build/outputs/apk/**/*.apk
+          fail_on_unmatched_files: true
+          body_path: ${{ steps.release.outputs.notes_file }}
