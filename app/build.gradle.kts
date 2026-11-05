@@ -183,7 +183,7 @@ android {
         targetSdk = 35
         // On GitHub each build gets a higher number, so a new APK always counts as an update.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "0.9.0"
+        versionName = "0.9.5"
         // ARM only: 64-bit, plus 32-bit for TV boxes that run a 32-bit Android on a 64-bit chip
         // (common on streaming boxes). x86 and x86_64 (emulators on PCs) are left out.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }

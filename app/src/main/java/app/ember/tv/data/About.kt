@@ -14,6 +14,22 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "0.9.5", "Your TV, your way",
+            listOf(
+                "Modern, Light and Ember X Home interfaces, custom heroes, app folders, themes and independent player layouts.",
+                "Discover Top 100 with genre, year, rating, cast, director, studio, service and Oscar filters; optional Mistral suggestions.",
+                "Editable collections, animated covers, individual catalog ordering and visibility, and configurable technical source badges.",
+                "Live TV guide with playlist and group browsing, favourites, custom channel lists and hidden channels.",
+                "Custom Library rows and server heroes, server-user switching, combined personal lists and watched/spoiler controls.",
+                "Internal Compatibility player, network folders, queues, repeat controls, dual subtitles and optional IntroDB skip markers.",
+                "More playback recovery and codec options, profile-aware HDR handling and optional video deinterlacing.",
+                "Profile app locks, child-content filters, administrator PIN controls and timed phone setup with TV approval.",
+                "Optional Fanart.tv artwork, Streaming Availability lookups and additional weather providers.",
+                "Performance presets and custom rendering budgets, calibration clips and supported firmware/input shortcuts.",
+                "Startup destinations, photo/video presentations and supported apps' Now Playing controls.",
+            ),
+        ),
+        Release(
             "0.9", "Home cinema",
             listOf(
                 "Built-in player for high-end setups: Dolby TrueHD, Atmos and DTS-HD sent straight to your receiver, FFmpeg decoding for audio the TV can't play, and a choice of formats for receivers on ARC.",
