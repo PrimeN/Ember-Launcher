@@ -1,0 +1,10 @@
+{
+  "artworkQuality": "high",
+  "navigationGlass": false,
+  "heroAnalysis": false,
+  "colorAnalysis": false,
+  "animations": false,
+  "progressiveArtwork": false,
+  "collectionMotion": false,
+  "prefetch": 0
+}

@@ -1,0 +1,40 @@
+# Copy this file to local.properties and fill in the keys you have.
+# local.properties is not committed. Leave a key blank to hide that service's sign-in.
+# sdk.dir is added by Android Studio.
+
+# App registration from https://trakt.tv/oauth/applications (enable device code).
+# Supply BOTH values in ignored local.properties or injected environment variables.
+# Nonblank environment variables take priority. Never put personal account tokens here.
+TRAKT_CLIENT_ID=
+TRAKT_CLIENT_SECRET=
+
+# Your WeTrakr app credentials
+WETRAKR_CLIENT_ID=
+WETRAKR_CLIENT_SECRET=
+
+# https://simkl.com/settings/developer/
+SIMKL_CLIENT_ID=
+
+# https://myanimelist.net/apiconfig  (client id only, used to read public lists)
+MAL_CLIENT_ID=
+
+# Test-only addon manifest links, separated by commas. Added on first start of debug builds only;
+# release builds never include them.
+TEST_ADDONS=
+
+# https://api.watchmode.com  (free key, used for "Where to watch")
+WATCHMODE_API_KEY=
+
+# https://www.themoviedb.org/settings/api  (v3 key, used for hero artwork, posters and titles)
+TMDB_API_KEY=
+
+# Optional hero backgrounds and HD title logos: https://fanart.tv/get-an-api-key/
+# Can also be entered on the TV under Settings > API keys (encrypted storage).
+FANART_API_KEY=
+
+# Optional Where to watch provider (requires a Streaming Availability subscription on RapidAPI).
+STREAMING_AVAILABILITY_API_KEY=
+
+# Optional AI-assisted Discover; disabled until enabled in Discover settings.
+# You review suggested filters before applying. Requests may incur your provider's charges.
+MISTRAL_API_KEY=

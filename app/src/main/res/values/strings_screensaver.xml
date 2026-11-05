@@ -1,0 +1,9 @@
+<resources>
+    <string name="screensaver_loading">Loading screensaver pictures…</string>
+    <string name="screensaver_clock_mode">Ember screensaver</string>
+    <string name="screensaver_no_pictures">No pictures available yet. Choose sources in Settings → Screensaver. Press Back or a navigation key to return.</string>
+    <string name="screensaver_picture_unavailable">This picture could not be loaded. Trying the next picture…</string>
+    <string name="screensaver_launch_failed">Could not open Ember screensaver. See Settings → System → Debug &amp; diagnostics → Crash log.</string>
+    <string name="screensaver_tv_settings">TV screensaver settings</string>
+    <string name="screensaver_manual_summary">Screensaver now opens Ember directly. For automatic idle activation, choose Ember in your TV’s screensaver settings.</string>
+</resources>

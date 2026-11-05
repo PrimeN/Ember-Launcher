@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <!-- Quick settings lists the TV's HDMI inputs where there are any. -->
+    <uses-feature android:name="android.software.live_tv" android:required="false" />
+    <!-- Wi-Fi is optional: many TVs and boxes use Ethernet. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Optional Light carousel: public apps' Watch Next/preview rows, when the TV grants access. -->
+    <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
+    <!-- Quick settings: shows whether the TV is on Wi-Fi or Ethernet. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Wi-Fi link speed in Quick settings. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Volume boost in the player (LoudnessEnhancer on Ember's own sound session). -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Settings > About > Updates: installs a new Ember APK downloaded from GitHub (asks first). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Finding media servers on the home network. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Screensaver: your own pictures, only after you allow it in Settings. -->
+    <!-- Whole-folder access is requested for slideshows; partial "selected photos" access is not offered. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:ignore="SelectedPhotoAccess" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <!-- Needed on Android 11+ so the launcher can see the apps it lists. -->
+    <queries>
+        <!-- Narrow visibility for detected manufacturer menus; no QUERY_ALL_PACKAGES. -->
+        <package android:name="mediatek.factorymenu.ui" />
+        <package android:name="com.mediatek.engineermode" />
+        <package android:name="com.mediatek.tvsettings" />
+        <package android:name="com.droidlogic.tv.settings" />
+        <package android:name="com.droidlogic.settings" />
+        <package android:name="com.xiaomi.mitv.settings" />
+        <package android:name="com.formovie.gsettings" />
+        <package android:name="com.formovie.fmmediaselect" />
+        <package android:name="com.fengmi.testsuite" />
+        <package android:name="com.fengmi.autofocustest" />
+        <package android:name="com.fengos.settings" />
+        <package android:name="com.xgimi.settings" />
+        <package android:name="com.xgimi.systemsettings" />
+        <package android:name="com.xgimi.setting" />
+        <package android:name="com.xgimi.tv.settings" />
+        <package android:name="com.mediatek.wwtv.tvcenter" />
+        <package android:name="com.google.android.tvlauncher" />
+        <package android:name="com.mitv.tvhome.atv" />
+        <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
+        <intent><action android:name="mediatek.tvsetting.factory.intent.action.MainmenuActivity" /></intent>
+        <intent><action android:name="com.xiaomi.mitv.settings.SCREENSCALE" /></intent>
+        <intent><action android:name="android.settings.TV_INPUT_SETTINGS" /></intent>
+        <intent><action android:name="com.xiaomi.mitv.settings.INPUTSOURCE_POPUP" /></intent>
+        <intent><action android:name="com.mitv.tvhome.atv.app.tv.INPUTSOURCE_POPUP" /></intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- Installed video players, for "Play with..." and the default player setting. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:mimeType="video/*" />
+        </intent>
+        <!-- Apps that open torrent (magnet) links. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="magnet" />
+        </intent>
+    </queries>
+
+    <!-- Picture-in-picture is started from the remote (Home while playing), not by gesture. -->
+    <application
+        tools:ignore="PictureInPictureIssue"
+        android:name=".EmberApp"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Ember"
+        android:usesCleartextTraffic="true"
+        android:largeHeap="true">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode">
+            <!-- Home screen. The app-list entries are the aliases below, one per icon colour. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Opens MainActivity by name (see LauncherTrampoline.kt); the icon aliases below lead here.
+             No affinity, so it never shares a task with MainActivity. -->
+        <activity
+            android:name=".LauncherTrampoline"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <!-- App icon and TV banner per accent colour (data/AppIcon.kt switches on the chosen one). -->
+        <activity-alias
+            android:name=".IconEmber"
+            android:enabled="true"
+            android:exported="true"
+            android:targetActivity=".LauncherTrampoline"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:banner="@drawable/banner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconEmberGrey"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".LauncherTrampoline"
+            android:icon="@mipmap/ic_launcher_grey"
+            android:roundIcon="@mipmap/ic_launcher_grey_round"
+            android:banner="@drawable/banner_grey">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconBlue"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".LauncherTrampoline"
+            android:icon="@mipmap/ic_launcher_blue"
+            android:roundIcon="@mipmap/ic_launcher_blue_round"
+            android:banner="@drawable/banner_blue">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconGreen"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".LauncherTrampoline"
+            android:icon="@mipmap/ic_launcher_green"
+            android:roundIcon="@mipmap/ic_launcher_green_round"
+            android:banner="@drawable/banner_green">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconRose"
+            android:enabled="false"
+            android:exported="true"
+            android:targetActivity=".LauncherTrampoline"
+            android:icon="@mipmap/ic_launcher_rose"
+            android:roundIcon="@mipmap/ic_launcher_rose_round"
+            android:banner="@drawable/banner_rose">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity android:name=".device.CalibrationActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" android:theme="@style/Theme.Ember.Player" />
+
+        <activity android:name=".player.MediaFilesActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
+        <activity
+            android:name=".player.PlayerActivity"
+            android:exported="false"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:taskAffinity="app.ember.tv.player"
+            android:theme="@style/Theme.Ember.Player"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode" />
+
+        <!-- Settings > Ember as Home: opens Ember when the TV's own home screen appears (or Home is
+             pressed). Off until switched on in the TV's Accessibility settings. -->
+        <service
+            android:name=".home.HomeButtonService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/home_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/home_button_service" />
+        </service>
+
+        <!-- Manual ambient mode does not depend on a private system Start now activity. -->
+        <activity
+            android:name=".screensaver.ScreensaverActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:theme="@style/Theme.Ember.Player" />
+
+        <!-- Screensaver: appears as "Ember" in the TV's screensaver settings. -->
+        <service
+            android:name=".screensaver.EmberDream"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+        <receiver android:name=".home.LauncherBootReceiver" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
+        <service android:name=".home.PlaybackAccessService" android:label="Ember Now Playing" android:exported="true" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+        <activity android:name=".home.PresentationActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" android:theme="@style/Theme.Ember.Player" />
+    </application>
+</manifest>

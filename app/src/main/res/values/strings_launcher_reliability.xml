@@ -1,0 +1,4 @@
+<resources>
+    <string name="launcher_app_unavailable">%1$s could not be opened. It may be unavailable or blocked by the device.</string>
+    <string name="launcher_player_unavailable">That player could not be opened. Check its permissions or choose another in Settings.</string>
+</resources>

@@ -1,0 +1,29 @@
+package app.ember.tv.player
+
+import app.ember.tv.data.InterfaceStyles
+
+/** Player layout is independent of the launcher once a user makes an explicit choice. */
+object PlayerInterfaces {
+    const val BASIC = "basic"
+    const val MODERN = "modern"
+    const val EMBER_X = "ember_x"
+    /** Streaming-app layout: transport top left, title top right, logo on the left, tracks under the bar. */
+    const val STREAMING = "streaming"
+    val options = listOf(BASIC to "Basic", MODERN to "Ember Modern", EMBER_X to "Ember X", STREAMING to "Streaming")
+
+    fun normalize(value: String?): String = when (value) {
+        BASIC, "simple" -> BASIC
+        EMBER_X -> EMBER_X
+        STREAMING -> STREAMING
+        else -> MODERN
+    }
+
+    /** Old settings/backups retain their previous effective layout until explicitly changed. */
+    fun resolve(config: PlaybackConfig, launcher: String): String = config.playerInterface?.let(::normalize)
+        ?: if (InterfaceStyles.normalize(launcher) == InterfaceStyles.EMBER_X) EMBER_X else normalize(config.playerLook)
+
+    fun customControls(style: String, live: Boolean, trailer: Boolean): Boolean =
+        normalize(style) != BASIC && !live && !trailer
+
+    fun layoutStyle(style: String): String = if (normalize(style) == EMBER_X) InterfaceStyles.EMBER_X else InterfaceStyles.MODERN
+}

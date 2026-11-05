@@ -1,0 +1,901 @@
+package app.ember.tv.ui
+
+import app.ember.tv.isSaved
+import app.ember.tv.resumeLabel
+import app.ember.tv.toggleWatchlist
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.runtime.CompositionLocalProvider
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Search as IcSearch
+import androidx.compose.material.icons.outlined.Settings as IcSettings
+import androidx.compose.material.icons.outlined.Home as IcHome
+import androidx.compose.material.icons.outlined.BookmarkBorder as IcBookmarkBorder
+import androidx.compose.material.icons.outlined.LiveTv as IcLiveTv
+import androidx.compose.material.icons.outlined.Explore as IcExplore
+import androidx.compose.material.icons.outlined.VideoLibrary as IcVideoLibrary
+import androidx.compose.material.icons.outlined.Dns as IcDns
+import androidx.compose.material.icons.outlined.Apps as IcApps
+import androidx.compose.material.icons.outlined.Tune as IcTune
+import androidx.compose.material.icons.outlined.Circle as IcCircle
+import androidx.compose.material.icons.outlined.Wallpaper as IcScreensaver
+import androidx.compose.material.icons.outlined.Person as IcProfile
+
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.animation.animateContentSize
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import app.ember.tv.data.resumeLabel
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
+import app.ember.tv.HomeViewModel
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.unit.Dp
+import app.ember.tv.data.HeroBanner
+import app.ember.tv.data.CatalogRow
+import app.ember.tv.data.AppEntry
+import app.ember.tv.data.Meta
+import app.ember.tv.data.mediaKey
+import app.ember.tv.data.NavTabs
+import app.ember.tv.iptv.Channel
+import app.ember.tv.iptv.IptvController
+import coil.compose.AsyncImage
+import kotlinx.coroutines.delay
+
+/*
+ * The modern look (Settings > Appearance > Interface):
+ * full-bleed artwork behind the top of Home, pill tabs, wide 16:9 cards,
+ * a row of app banners, and live cards with a LIVE badge. Light Home provides the apps-first layout.
+ */
+
+private val CardW = 268.dp
+private val CardH = 151.dp
+
+// ---------------------------------------------------------------- Top bar
+
+/** Profile, a shared navigation capsule, two quick actions, then branding and live status. */
+@Composable
+fun ModernTopBar(
+    tabs: List<String>,
+    tab: String,
+    onTab: (String) -> Unit,
+    weather: String?,
+    profile: app.ember.tv.data.Profile? = null,
+    openOnFocus: Boolean = true,
+    searchFocus: androidx.compose.ui.focus.FocusRequester? = null,
+    onProfile: () -> Unit = {},
+) {
+    val sceneFocus = LocalNavigationFocus.current
+    val time=rememberLauncherTime()
+    // Search leads the capsule; other tabs retain the user's saved order.
+    val navigation = tabs.filter { it == NavTabs.SEARCH } +
+        tabs.filter { it != NavTabs.SEARCH && it != NavTabs.SETTINGS }
+    val activeTab = navigationTabForPage(tab, navigation)
+    val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compact = maxWidth < 900.dp
+        val gap = if (compact) 8.dp else 12.dp
+        val capsule = Modifier.navigationGlass()
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = if (compact) 24.dp else 48.dp,
+                end = if (compact) 24.dp else 40.dp, top = 16.dp, bottom = 12.dp)
+                .navigationFocusGroup { runCatching { sceneFocus?.tab(activeTab)?.requestFocus() == true }.getOrDefault(false) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            if (profile != null) {
+                ProfileMenuButton(profile, size = 42.dp,
+                    modifier = Modifier.semantics { contentDescription = "Profile: ${profile.name}" },
+                    onFallback = onProfile)
+            } else {
+                NavigationAction("Profile", Icons.Outlined.IcProfile, onProfile)
+            }
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalAlignment = Alignment.CenterVertically) {
+                // Only the tabs scroll. Their pill wraps content until the status and
+                // action buttons leave insufficient room, then becomes a bounded viewport.
+                FrostedPill(Modifier.weight(1f, fill = false)) {
+                Row(
+                    modifier = Modifier.then(capsule)
+                        .clip(CircleShape).horizontalScroll(rememberScrollState()).padding(6.dp).focusGroup(),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    navigation.forEachIndexed { index, id -> key(id) {
+                        val selected = activeTab == id
+                        Focusable(
+                            onClick = { onTab(id) },
+                            modifier = Modifier.height(42.dp)
+                                .let { m -> (sceneFocus?.tab(id) ?: searchFocus?.takeIf { id == NavTabs.SEARCH })?.let { m.focusRequester(it) } ?: m }
+                                .let { m -> if (sceneFocus != null) m.focusProperties {
+                                    // Explicit neighbors avoid scroll-group geometry restarting at Search.
+                                    left = navigation.getOrNull(index+choiceStep(right=false,rtl=rtl))?.let(sceneFocus::tab) ?: androidx.compose.ui.focus.FocusRequester.Default
+                                    right = navigation.getOrNull(index+choiceStep(right=true,rtl=rtl))?.let(sceneFocus::tab) ?: androidx.compose.ui.focus.FocusRequester.Default
+                                    if (openOnFocus) down = sceneFocus.content(tab)
+                                } else m }
+                                .semantics { this.selected = selected; role = Role.Tab }
+                                .openNavigationTab(id, selected, enabled = openOnFocus) { onTab(id) },
+                            radius = TvTokens.Shape.Pill,
+                            container = if (selected) WashHi else Color.Transparent,
+                            focusedContainer = PillColor,
+                            focusedContent = OnPillColor,
+                            outline = false,
+                            focusedScale = 1.02f,
+                        ) {
+                            if (id == NavTabs.SEARCH) {
+                                Box(Modifier.size(42.dp).semantics { contentDescription = "Search" }, contentAlignment = Alignment.Center) {
+                                    SearchGlyph(androidx.tv.material3.LocalContentColor.current)
+                                }
+                            } else {
+                                // Surface places bare content at the top. Match the icon
+                                // tabs' explicit height and center the label within it.
+                                Box(Modifier.height(42.dp).padding(horizontal = if (compact) 14.dp else 18.dp),
+                                    contentAlignment = Alignment.Center) {
+                                    Text(tabTitle(id),
+                                        fontSize = TvTokens.Type.Navigation.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                        color = Color.Unspecified, maxLines = 1, softWrap = false)
+                                }
+                            }
+                        }
+                    } }
+                }
+                }
+                FrostedPill {
+                Row(capsule.padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    NavigationAction(stringResource(R.string.ui_screensaver_now), Icons.Outlined.IcScreensaver) { onTab(NavTabs.SCREENSAVER) }
+                    NavigationAction(stringResource(R.string.ui_quick_settings), Icons.Outlined.IcSettings) { onTab(NavTabs.QUICK) }
+                }
+                }
+            }
+            Column(Modifier.widthIn(max = if (compact) 150.dp else 210.dp),
+                horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    EmberLogo(height = if (compact) 22.dp else 26.dp, tint = Fg)
+                    Text(time, fontSize = if (compact) 14.sp else 16.sp, color = Fg, maxLines = 1, softWrap = false)
+                }
+                weather?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, fontSize = 12.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+/** Icon-only action with a spoken label; it never activates just because focus passes over it. */
+@Composable
+private fun NavigationAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Focusable(onClick = onClick,
+        modifier = Modifier.size(42.dp).semantics { contentDescription = label }
+            .onFocusChanged { focused = it.isFocused || it.hasFocus },
+        radius = TvTokens.Shape.Pill, container = Color.Transparent, focusedContainer = PillColor,
+        focusedContent = OnPillColor, outline = false, focusedScale = 1.04f,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            MaterialGlyph(icon, if (focused) OnPillColor else Fg, 22.dp)
+        }
+    }
+}
+
+/** Quick settings, shown as your profile's avatar when there are profiles (the panel lists them at the top). */
+@Composable
+internal fun QuickButton(profile: app.ember.tv.data.Profile?, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, selected: Boolean = false, onClick: () -> Unit) {
+    if (profile != null) ProfileAvatar(profile, size, modifier, onClick)
+    else RoundIcon(selected = selected, onClick = onClick, modifier = modifier) { c -> NavGlyph(NavTabs.QUICK, c) }
+}
+
+/** A profile's round avatar: its first letter on its colour. */
+@Composable
+fun ProfileAvatar(p: app.ember.tv.data.Profile, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val color = Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })
+    Focusable(onClick = onClick, modifier = modifier.size(size), radius = TvTokens.Shape.Pill, container = color, focusedContainer = color, focusedContent = Color(0xFF1F1F1F), focusedScale = 1.1f) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(p.name.take(1).uppercase(), fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
+        }
+    }
+}
+
+/** A round button with a drawn icon; the icon turns dark when the button is focused. */
+@Composable
+internal fun RoundIcon(selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, glyph: @Composable (Color) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Focusable(
+        onClick = onClick,
+        modifier = modifier.size(42.dp).onFocusChanged { focused = it.isFocused || it.hasFocus },
+        radius = TvTokens.Shape.Pill,
+        container = if (selected) WashHi else Wash,
+        focusedContainer = PillColor,
+        focusedContent = OnPillColor,
+        outline = false,
+        focusedScale = 1.08f,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { glyph(if (focused) OnPillColor else Fg) }
+    }
+}
+
+@Composable
+internal fun SearchGlyph(color: Color) = MaterialGlyph(Icons.Outlined.IcSearch, color)
+
+@Composable
+internal fun GearGlyph(color: Color) = MaterialGlyph(Icons.Outlined.IcSettings, color)
+
+
+// ---------------------------------------------------------------- Backdrop
+
+/**
+ * Full-bleed artwork behind the top of the screen, faded into the background at the bottom and
+ * left so text stays readable. [dim] goes from 0 (full picture) to 1 (almost hidden).
+ */
+@Composable
+fun ModernBackdrop(meta: Meta?, dim: Float, backgroundColor: Color = Ink, heightFraction: Float = .78f, shade: Float = 1f, onPresented: (Meta?) -> Unit = {}) {
+    val art = rememberReadyArtwork(meta)
+    val presented by androidx.compose.runtime.rememberUpdatedState(onPresented)
+    val sink = LocalArtworkPresented.current
+    var viewport by remember {mutableStateOf<HeroViewport?>(null)}
+    LaunchedEffect(art,viewport) { presented(art.meta); sink(art.copy(viewport=viewport)) }
+    // Low replaces the full-screen picture directly rather than blending two large layers.
+    val duration = PolishMotion.duration(TvTokens.Motion.Hero,LocalRenderOptions.current,LocalReduceMotion.current)
+    val a by animateFloatAsState(1f - 0.75f * dim, tween(duration), label = "backdrop")
+    Box(Modifier.fillMaxWidth().fillMaxHeight(heightFraction.coerceIn(.5f,1f)).alpha(a).onGloballyPositioned {coordinates->
+        val position=coordinates.positionInRoot()
+        viewport=HeroViewport(position.x,position.y,coordinates.size.width.toFloat(),coordinates.size.height.toFloat())
+    }) {
+        if(art.drawable==null)Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Panel,PanelHi))))
+        if(duration==0)FramedHeroImage(art,Modifier.fillMaxSize())
+        else {
+            // Metadata/logo refreshes do not restart a full-screen image crossfade.
+            Crossfade(targetState = art.drawable to art.focus, animationSpec = tween(duration), label = "backdrop") { layer ->
+                FramedHeroImage(ReadyArtwork(null,layer.first,layer.second),Modifier.fillMaxSize())
+            }
+        }
+        // Protect the text edge while leaving upper/right artwork and colours clearer.
+        val opacity = shade.coerceIn(0f, 1f)
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to backgroundColor.copy(alpha = opacity),
+            0.26f to backgroundColor.copy(alpha = (if(isModernEmber).66f else .76f) * opacity),
+            0.46f to backgroundColor.copy(alpha=(if(isModernEmber).38f else .48f) * opacity),0.80f to Color.Transparent)))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to backgroundColor.copy(alpha = (if(isModernEmber).18f else .28f) * opacity),
+            0.16f to Color.Transparent, 0.70f to Color.Transparent, 1f to backgroundColor)))
+    }
+}
+
+// ---------------------------------------------------------------- Home
+
+/**
+ * Modern Home: the featured title over the backdrop, then Continue watching, Your apps and the
+ * rows. [heroIndex] is shared with the backdrop drawn behind; [onAmbient] reports the focused
+ * card so the backdrop can follow it further down the page.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun ModernHome(
+    vm: HomeViewModel,
+    state: LazyListState,
+    heroIndex: Int,
+    onHeroIndex: (Int) -> Unit,
+    onAmbient: (Meta?) -> Unit,
+    onOpenTitle: (Meta) -> Unit,
+    onLaunch: (AppEntry) -> Unit,
+    onAppOptions: (AppEntry) -> Unit,
+    onList: (String) -> Unit = {},
+    onSeeAll: (CatalogRow) -> Unit = {},
+    interactive: Boolean = true,
+    presentedHero: Meta? = null,
+) {
+    val hero = vm.heroItems
+    val wide = !isEmberX && vm.look.modernCards != "poster"
+    val row: @Composable (List<Meta>, Boolean) -> Unit = { items, saved ->
+        MediaRow(items, wide, isSaved = { saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle)
+    }
+    val blocks = vm.homeBlocks
+    val heroPosition = HeroLayout.index(blocks.map { it.key })
+    val heroVisible by remember(state) { derivedStateOf {
+        state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "hero" }?.let {
+            HeroLayout.visibleFraction(it.offset, it.size, state.layoutInfo.viewportStartOffset, state.layoutInfo.viewportEndOffset) >= 0.75f
+        } == true
+    } }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var heroHasFocus by remember {mutableStateOf(false)}
+    val heroFits=remember {mutableStateOf(true)}
+    val defaultBring=androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
+    val bring=remember(defaultBring) {object:androidx.compose.foundation.gestures.BringIntoViewSpec {
+        override fun calculateScrollDistance(offset:Float,size:Float,containerSize:Float)=
+            HeroLayout.focusScroll(heroHasFocus,defaultBring.calculateScrollDistance(offset,size,containerSize),heroFits.value)
+    }}
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val heroHeight = (if(isEmberX)EmberXLayout.heroHeight(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else HeroLayout.height(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale)).dp
+        androidx.compose.runtime.SideEffect {heroFits.value=heroHeight<=maxHeight}
+        CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bring) {
+        LazyColumn(
+            state = state,
+            modifier = Modifier.fillMaxSize().clipToBounds(),
+            contentPadding = PaddingValues(start = (if(isEmberX)EmberXLayout.Gutter else TvTokens.Space.Page).dp, end = (if(isEmberX)EmberXLayout.Gutter else TvTokens.Space.Page).dp, top = 4.dp, bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Settings > Home layout decides which sections show and in what order.
+            if (blocks.firstOrNull() !is HomeViewModel.HomeBlock.Hero) item(key = "top") { Spacer(Modifier.height(8.dp)) }
+            items(blocks, key = { it.key }) { b ->
+                when (b) {
+                    is HomeViewModel.HomeBlock.Hero -> ModernHero(hero, heroIndex, onHeroIndex, heroHeight, vm::isSaved, vm::toggleWatchlist, onOpenTitle, presented = presentedHero, rotating = interactive && LocalSceneInteractive.current && heroVisible && !state.isScrollInProgress, onFocus = {
+                        onAmbient(null)
+                        // The banner's buttons: show the whole banner, title included.
+                        if (heroHeight<=maxHeight && heroPosition >= 0 && (state.firstVisibleItemIndex != heroPosition || state.firstVisibleItemScrollOffset > 0)) scope.launch { state.animateScrollToItem(heroPosition) }
+                    },onFocusState={heroHasFocus=it})
+                    is HomeViewModel.HomeBlock.Apps -> ModernSection(stringResource(R.string.ui_your_apps)) {
+                        HomeFolderLinks(vm)
+                        AppsGrid(vm, circles = vm.look.appIcons == "circle", onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
+                    }
+                    is HomeViewModel.HomeBlock.Row -> ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() }) {
+                        MediaRow(
+                            b.row.items, wide, isSaved = { b.saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle,
+                            onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
+                        )
+                    }
+                    is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids) { f -> vm.collections.openFolder(b.collection, f) }
+                    is HomeViewModel.HomeBlock.Shortcuts -> ListButtons(vm, b.ids, onList)
+                    is HomeViewModel.HomeBlock.Loading -> ModernSection(b.title) {LoadingCards(wide)}
+                    is HomeViewModel.HomeBlock.Pinned -> ModernSection("Your shortcuts") {
+                        LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(6.dp)) {
+                            items(b.items,key={it.id}) {shortcut->
+                                Focusable(onClick={vm.openHomeShortcut(shortcut)?.let(onList)},onLongClick={vm.homeShortcuts.toggle(shortcut)},modifier=Modifier.width(180.dp).height(68.dp)) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Text(shortcut.label,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                        Text(when(shortcut.kind){"server"->"Media library";"network"->"Network folder";else->"Collection"},fontSize=11.sp,color=Mute)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Catalog rows come through homeBlocks (Settings > Home layout > Your catalogs), so they are not listed again here.
+            item(key = "status") { HomeRecovery(vm) }
+            item(key = "end") {
+                Text(
+                    stringResource(R.string.ui_no_sponsored_rows_everything_here_comes),
+                    color = Mute,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+        }
+    }
+}
+
+@Composable
+fun ModernSection(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(start = 4.dp)) {
+            Text(title, fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg)
+            if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = Mute)
+        }
+        content()
+    }
+}
+
+/** The featured title: large name, a details line, the description, two pill buttons and page dots. */
+@Composable
+internal fun ModernHero(
+    items: List<Meta>, index: Int, onIndex: (Int) -> Unit, height: Dp,
+    isSaved: (Meta) -> Boolean, onToggleSaved: (Meta) -> Unit, onOpen: (Meta) -> Unit,
+    onFocus: () -> Unit, rotating: Boolean, presented: Meta? = null,
+    onFocusState:(Boolean)->Unit={},
+) {
+    if (items.isEmpty()) return
+    if(isEmberX) {
+        EmberXHero(items,index,onIndex,height,isSaved,onToggleSaved,onOpen,onFocus,rotating,presented,onFocusState)
+        return
+    }
+    androidx.compose.runtime.DisposableEffect(Unit){onDispose {onFocusState(false)}}
+    val reduceMotion = LocalReduceMotion.current
+    val render = LocalRenderOptions.current
+    val focusBackdrop = LocalFocusBackdrop.current
+    var focused by remember { mutableStateOf(false) }
+    val watchFocus = remember { FocusRequester() }
+    val saveFocus = remember { FocusRequester() }
+    val safe = HeroBanner.index(index, items.size)
+    LaunchedEffect(items, focused, safe, rotating, reduceMotion, presented?.mediaKey()) {
+        if (items.size > 1 && !focused && rotating && !reduceMotion && (presented == null || presented.mediaKey() == items[safe].mediaKey())) {
+            delay(8000)
+            onIndex(HeroBanner.next(safe, items.size))
+        }
+    }
+    val meta = presented?.takeIf { shown -> items.any { it.mediaKey() == shown.mediaKey() } } ?: items[safe]
+    val shown = HeroBanner.displayIndex(index,items,presented)
+    val heroRtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
+    PrefetchHeroArtwork(items, safe, enabled = rotating)
+    Box(Modifier.fillMaxWidth().height(height)) {
+        Column(Modifier.align(Alignment.BottomStart)
+            .fillMaxWidth(HeroLayout.textFraction(androidx.compose.ui.platform.LocalDensity.current.fontScale))
+            .padding(start = 4.dp, top = 24.dp, bottom = 44.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Crossfade(targetState = meta, animationSpec = tween(PolishMotion.duration(TvTokens.Motion.Text,render,reduceMotion)), label = "heroText") { title ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    HeroTitle(title, expanded = !render.lowPower)
+                    Text(listOfNotNull(title.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() },
+                        title.releaseInfo?.takeIf { it.isNotBlank() }, title.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() },
+                        title.runtime?.takeIf { it.isNotBlank() }).joinToString("  ·  "),
+                        fontSize = 14.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    ReadableDescription(title.description.orEmpty(),minLines=3)
+                }
+            }
+            // The actions remain mounted during artwork/text transitions, so paging retains focus.
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp).onFocusChanged {
+                    focused = it.hasFocus
+                    onFocusState(it.hasFocus)
+                    if (it.hasFocus) { focusBackdrop?.clear(); onFocus() }
+                }) {
+                DetailsActionButton("Watch now", Icons.Outlined.PlayArrow, text = "Watch now", width = 148.dp,
+                    modifier = Modifier.focusRequester(watchFocus).focusProperties { if(heroRtl)left=saveFocus else right=saveFocus }.restoreFocus(meta.mediaKey())
+                        .onPreviewKeyEvent { event ->
+                            if (event.key != heroEdgeKey(previous=true,rtl=heroRtl) || items.size <= 1) false else {
+                                if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size))
+                                    onIndex(HeroBanner.previous(safe, items.size))
+                                true
+                            }
+                        }) { onOpen(meta) }
+                val saved = isSaved(meta)
+                DetailsActionButton(if (saved) "Remove from watchlist" else "Add to watchlist",
+                    if (saved) Icons.Outlined.Check else Icons.Outlined.Add, selected = saved, width = 44.dp,
+                    modifier = Modifier.focusRequester(saveFocus).focusProperties { if(heroRtl)right=watchFocus else left=watchFocus }.onPreviewKeyEvent { event ->
+                        if (event.key != heroEdgeKey(previous=false,rtl=heroRtl) || items.size <= 1) false else {
+                            if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size))
+                                onIndex(HeroBanner.next(safe, items.size))
+                            true
+                        }
+                    }) { onToggleSaved(meta) }
+            }
+        }
+        Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp)
+            .clearAndSetSemantics { contentDescription = "Featured title ${shown + 1} of ${items.size}" },
+            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            items.forEachIndexed { i, _ ->
+                Box(Modifier.size(width = if (i == shown) 16.dp else 4.dp, height = 3.dp).clip(CircleShape)
+                    .background(if (i == shown) Fg else Fg.copy(alpha = .4f)))
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Cards
+
+/** A row of wide 16:9 cards, or of posters when Settings > Appearance says so. */
+@Composable
+fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFocus: (Meta?) -> Unit = {}, onSeeAll: (() -> Unit)? = null, onOpen: (Meta) -> Unit) {
+    // Six landscape cards or eight posters across the row (CardSizes), whatever the screen.
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val gap = if (wide) 16.dp else 14.dp
+        val uniqueItems = remember(items) { items.distinctBy { it.mediaKey() } }
+        val w = CardSizes.width(maxWidth, if(isEmberX && !wide)EmberXLayout.posterCount(maxWidth.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else LocalRenderOptions.current.count(wide), gap, 4.dp)
+        val rowState=androidx.compose.foundation.lazy.rememberLazyListState()
+        PrefetchRowArtwork(items,rowState,wide,w)
+        LazyRow(
+            state=rowState,
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp),
+        ) {
+            items(uniqueItems, key = { it.mediaKey() }) { m ->
+                if (wide) {
+                    WideCard(m, isSaved(m), width = w, onFocus = { onFocus(m) }) { onOpen(m) }
+                } else {
+                    Box(Modifier.onFocusChanged { if (it.hasFocus) onFocus(m) }) { TitleCard(m, isSaved(m), width = w) { onOpen(m) } }
+                }
+            }
+            if (onSeeAll != null) item(key = "seeall") { SeeAllCard(w, if (wide) w * 9f / 16f else w * 1.5f, onSeeAll) }
+        }
+    }
+}
+
+/** A 16:9 card: the title's backdrop (poster if there is none) with its name over a soft shade. */
+@Composable
+fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = CardW, onFocus: () -> Unit = {}, onClick: () -> Unit) {
+    val actions = LocalTitleActions.current
+    val backdrop = rememberMediaFocus(meta)
+    var focused by remember { mutableStateOf(false) }
+    val height = width * 9f / 16f
+    val small = width < 200.dp
+    Column(Modifier.width(width), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Focusable(
+            onClick = onClick,
+            onLongClick = actions?.let { action -> { action(meta) } },
+            modifier = Modifier.width(width).height(height).restoreFocus(meta.mediaKey()).mediaSemantics(meta, saved).focusBackdrop(backdrop).onFocusChanged {
+                focused = it.isFocused || it.hasFocus
+                if (focused) onFocus()
+            },
+            container = PanelHi,card=true,
+        ) {
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+                LandscapeImage(meta, Modifier.fillMaxSize(), onImage = backdrop::loaded)
+                WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xD9000000))))
+                Column(Modifier.align(Alignment.BottomStart).padding(start = if (small) 8.dp else 12.dp, end = 8.dp, bottom = if (meta.safeProgress != null) 12.dp else 8.dp)) {
+                    LandscapeTitle(meta, if (small) 12.sp else 15.sp, logoHeight = height * 0.34f, logoWidth = width * 0.62f)
+                    (meta.safeProgress?.let { p -> listOfNotNull(
+                        if (meta.season != null && meta.episode != null) "S${meta.season} E${meta.episode}" else null,
+                        "${(p.coerceIn(0f, 1f) * 100).toInt()}% watched").joinToString(" · ") } ?: meta.badge)?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, fontSize = if (small) 10.sp else 12.sp, color = Color(0xFFDADCE0), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                if (saved) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).padding(8.dp).size(9.dp).clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                }
+                meta.safeProgress?.let { p ->
+                    Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).height(3.dp).clip(CircleShape).background(Color(0x55FFFFFF))) {
+                        Box(Modifier.fillMaxWidth(p.coerceIn(0f, 1f)).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
+                    }
+                }
+            }
+        }
+        // Details under the focused card only; the space is kept so rows do not jump.
+        Text(
+            if (focused) meta.resumeLabel() ?: listOfNotNull(meta.releaseInfo, meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }).joinToString(" · ") else "",
+            fontSize = 12.sp,
+            color = Mute,
+            minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics { },
+        )
+    }
+}
+
+/** An app's artwork fills its tile, with its name retained for accessibility. */
+@Composable
+fun AppBanner(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit, onFocus: () -> Unit = {}, width: androidx.compose.ui.unit.Dp = 196.dp) {
+    val bitmap=rememberAppArtwork(app)
+    val backdrop = rememberAppFocus(app, bitmap)
+    Focusable(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier = Modifier.width(width).height(width * 0.5625f).focusBackdrop(backdrop).onFocusChanged {
+            if (it.isFocused || it.hasFocus) onFocus()
+        },
+        container = PanelHi,card=true,
+    ) {
+        if(bitmap!=null)Image(bitmap.asImageBitmap(),
+            contentDescription = app.label + if (dim) " (hidden)" else "",
+            contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            alpha = if (dim) 0.4f else 1f)
+        else ArtworkPlaceholder(app.label,Modifier.fillMaxSize())
+    }
+}
+
+/**
+ * An app as a round icon. Uses the app's own icon (its adaptive icon
+ * drawn edge to edge, so the circle is filled), falling back to the banner. Name under the focused one.
+ */
+@Composable
+fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFocus: () -> Unit = {}, width: androidx.compose.ui.unit.Dp = 112.dp) {
+    val bitmap=rememberAppArtwork(app,circle=true)
+    val backdrop = rememberAppFocus(app, bitmap, kind = "circle")
+    var focused by remember { mutableStateOf(false) }
+    Column(Modifier.width(width), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Focusable(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = Modifier.size(width).focusBackdrop(backdrop).onFocusChanged {
+                focused = it.isFocused || it.hasFocus
+                if (focused) onFocus()
+            },
+            radius = TvTokens.Shape.Pill,
+            container = Color(0xFFF1F3F4),
+            focusedScale = 1.1f,
+            card=true,
+        ) {
+            if(bitmap!=null)Image(bitmap.asImageBitmap(), contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+            else ArtworkPlaceholder(app.label,Modifier.fillMaxSize())
+        }
+        Text(
+            if (focused) app.label else "",
+            fontSize = 12.sp,
+            color = Fg,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.height(16.dp),
+        )
+    }
+}
+
+// ---------------------------------------------------------------- Live
+
+/**
+ * "On now" on Live TV: favourites and recent channels first, otherwise the first channels with
+ * a programme on now. Each card has a red LIVE badge, the programme, time left and progress.
+ */
+@Composable
+fun LiveNowRow(iptv:IptvController,modifier:Modifier=Modifier,onOptions:(Channel)->Unit={},
+    onFocus:(Channel)->Unit={},firstFocus:androidx.compose.ui.focus.FocusRequester?=null,onPlay:(List<Channel>,Int)->Unit) {
+    val clock=iptv.clock
+    val list=remember(iptv.visibleChannels,iptv.favourites,iptv.recent,iptv.guide,clock/60_000) {
+        app.ember.tv.iptv.LivePresentation.featured(iptv.visibleChannels,iptv.favourites,iptv.recent,iptv.guide,clock)
+    }
+    val providers=remember(iptv.sources){iptv.sources.associate {it.id to it.name}}
+    if(list.isEmpty())return
+    Column(modifier,verticalArrangement=Arrangement.spacedBy(4.dp)) {
+        Text("On now",fontSize=16.sp,fontWeight=FontWeight.Medium,color=Fg,modifier=Modifier.padding(start=4.dp).semantics {heading()})
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val width=CardSizes.width(maxWidth,3.25f,18.dp,6.dp)
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(18.dp),contentPadding=PaddingValues(horizontal=6.dp,vertical=10.dp)) {
+                itemsIndexed(list,key={_,c->"now:"+c.key}) {index,channel ->
+                    LiveFeaturedCard(channel,iptv.nowNext(channel).first,clock,providers[channel.sourceId].orEmpty(),width,
+                        modifier=if(index==0 && firstFocus!=null)Modifier.focusRequester(firstFocus) else Modifier,
+                        onFocus={onFocus(channel)},onOptions={onOptions(channel)}) {onPlay(list,index)}
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Programme?,clock:Long,source:String,
+    width:androidx.compose.ui.unit.Dp,modifier:Modifier=Modifier,onFocus:()->Unit,onOptions:()->Unit,onPlay:()->Unit) {
+    val image=programme?.image
+    var failed by remember(image) {mutableStateOf(false)}
+    val progress=app.ember.tv.iptv.LivePresentation.progress(programme,clock)
+    val remaining=app.ember.tv.iptv.LivePresentation.remainingMinutes(programme,clock)
+    Column(Modifier.width(width),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+        Focusable(onClick=onPlay,onLongClick=onOptions,modifier=modifier.width(width).height(width*9f/16f)
+            .onFocusChanged {if(it.isFocused)onFocus()}.semantics {
+                contentDescription=listOfNotNull(programme?.title ?: channel.name,channel.name,source.takeIf(String::isNotBlank),remaining?.let {"$it minutes remaining"}).distinct().joinToString(", ")
+                progress?.let {progressBarRangeInfo=androidx.compose.ui.semantics.ProgressBarRangeInfo(it,0f..1f)}
+            },container=LiveColors.Current,radius=14,focusedScale=1.025f) {
+            Box(Modifier.fillMaxSize().clearAndSetSemantics {}) {
+                if(image!=null && !failed)AsyncImage(image,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop,onError={failed=true})
+                else Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(LiveColors.Current,LiveColors.Background))),contentAlignment=Alignment.Center) {
+                    if(channel.logo!=null)AsyncImage(channel.logo,null,Modifier.fillMaxSize().padding(34.dp),contentScale=ContentScale.Fit)
+                    else Text(channel.name,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(18.dp))
+                }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.3f to Color.Transparent,1f to Color(0xC008101C))))
+                Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start=12.dp,end=12.dp,bottom=20.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Text("LIVE",color=Color.White,fontSize=10.sp,fontWeight=FontWeight.Bold,modifier=Modifier.clip(RoundedCornerShape(3.dp)).background(LiveRed).padding(horizontal=6.dp,vertical=2.dp))
+                    Spacer(Modifier.weight(1f))
+                    remaining?.let {Text("$it min left",color=Color.White,fontSize=12.sp,fontWeight=FontWeight.Medium)}
+                }
+                progress?.let {fraction ->Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=12.dp,vertical=10.dp).fillMaxWidth().height(3.dp).clip(CircleShape).background(Color.White.copy(alpha=.35f))) {
+                    Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(LiveRed))
+                }}
+            }
+        }
+        Text(programme?.title ?: channel.name,color=Fg,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clearAndSetSemantics {})
+        Text(listOfNotNull(source.takeIf(String::isNotBlank),channel.name,programme?.rating,programme?.season?.let {s->"S$s"+(programme.episode?.let {" E$it"} ?: "")}).distinct().joinToString(" · "),
+            color=Mute,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clearAndSetSemantics {})
+    }
+}
+
+// ---------------------------------------------------------------- Side menu
+
+/**
+ * The modern menu down the left side (Settings > Appearance > Menu: Side): round icons, opening
+ * into icon-and-name rows over a dark fade while the remote is on them. The wordmark sits at the
+ * top and the clock at the bottom.
+ */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+fun ModernSideRail(
+    tabs: List<String>,
+    tab: String,
+    onTab: (String) -> Unit,
+    weather: String?,
+    modifier: Modifier = Modifier,
+    profile: app.ember.tv.data.Profile? = null,
+    onProfile: () -> Unit = {},
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val time=rememberLauncherTime()
+    val width by androidx.compose.animation.core.animateDpAsState(if (expanded) 260.dp else 84.dp,
+        animationSpec = tween(PolishMotion.duration(TvTokens.Motion.Rail,LocalRenderOptions.current,LocalReduceMotion.current)), label = "rail")
+    val accent = MaterialTheme.colorScheme.primary
+    Box(
+        modifier
+            .fillMaxHeight()
+            .width(width)
+            .background(
+                if (expanded) Brush.horizontalGradient(0f to Ink.copy(alpha = 0.95f), 0.8f to Ink.copy(alpha = 0.85f), 1f to Ink.copy(alpha = 0.5f))
+                else Brush.horizontalGradient(0f to Ink.copy(alpha = 0.6f), 1f to Color.Transparent),
+            )
+            .onFocusChanged { expanded = it.hasFocus }
+            .focusRestorer(),
+    ) {
+        Column(Modifier.fillMaxHeight().padding(start = 20.dp, top = 26.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.height(44.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.width(44.dp), contentAlignment = Alignment.Center) {
+                    if (profile != null) ProfileMenuButton(profile, onFallback = onProfile) else EmberMark(32.dp)
+                }
+                if (expanded) EmberWordmark(19.dp, Fg)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
+                // Settings is the first entry inside Quick settings.
+                (tabs.filter { it != NavTabs.SETTINGS } + NavTabs.QUICK).forEach { id -> RailItem(id, tab, id == tab || (id == NavTabs.QUICK && tab == NavTabs.SETTINGS), expanded) { onTab(id) } }
+            }
+            Text(time, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.width(44.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (expanded && weather != null) Text(weather, fontSize = 13.sp, color = Mute, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(end = 20.dp))
+        }
+    }
+}
+
+@Composable
+private fun RailItem(id: String, contentId: String, selected: Boolean, expanded: Boolean, onClick: () -> Unit) {
+    val scene = LocalNavigationFocus.current
+    val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
+    var focused by remember { mutableStateOf(false) }
+    Focusable(
+        onClick = onClick,
+        // Expanded, the pill follows the rail as it widens instead of jumping to its full width.
+        modifier = (if (expanded) Modifier.fillMaxWidth().padding(end = 24.dp).height(44.dp) else Modifier.size(44.dp))
+            .let { m -> if (scene != null) m.focusRequester(scene.tab(id)).focusProperties { if(rtl)left=scene.content(contentId) else right=scene.content(contentId) } else m }
+            .semantics { this.selected = selected; role = Role.Tab }
+            .openNavigationTab(id, selected, open = onClick)
+            .onFocusChanged { focused = it.isFocused || it.hasFocus },
+        radius = TvTokens.Shape.Pill,
+        container = if (selected) WashHi else Color.Transparent,
+        focusedContainer = PillColor,
+        focusedContent = OnPillColor,
+        outline = false,
+        focusedScale = 1.04f,
+    ) {
+        Row(Modifier.fillMaxSize().padding(start = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { NavGlyph(id, if (focused) OnPillColor else Fg) }
+            if (expanded) Text(tabTitle(id), fontSize = TvTokens.Type.Navigation.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip)
+        }
+    }
+}
+
+/** Small drawn icons for the menu entries. */
+@Composable
+fun NavGlyph(id: String, color: Color) {
+    MaterialGlyph(
+        when (id) {
+            NavTabs.HOME -> Icons.Outlined.IcHome
+            NavTabs.WATCHLIST -> Icons.Outlined.IcBookmarkBorder
+            NavTabs.LIVE -> Icons.Outlined.IcLiveTv
+            NavTabs.DISCOVER -> Icons.Outlined.IcExplore
+            NavTabs.LIBRARY -> Icons.Outlined.IcVideoLibrary
+            NavTabs.APPS -> Icons.Outlined.IcApps
+            NavTabs.SEARCH -> Icons.Outlined.IcSearch
+            NavTabs.SETTINGS -> Icons.Outlined.IcSettings
+            NavTabs.QUICK -> Icons.Outlined.IcTune
+            else -> Icons.Outlined.IcCircle
+        },
+        color,
+    )
+}
+
+/** A Material icon (outlined), tinted like the text beside it. */
+@Composable
+internal fun MaterialGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, size: androidx.compose.ui.unit.Dp = 20.dp) {
+    androidx.compose.foundation.Image(
+        icon,
+        contentDescription = null,
+        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color),
+        modifier = Modifier.size(size),
+    )
+}
+
+
+/**
+ * Full-screen artwork at a size that stays sharp on a 4K screen: Cinemeta/metahub backdrops are
+ * asked for in "large" (1920 px wide) rather than "medium", and TMDB images in "original".
+ */
+fun sharpArt(url: String): String = url
+    .replace("/background/medium/", "/background/large/")
+    .replace("/background/small/", "/background/large/")
+    .replace(tmdbSized, "image.tmdb.org/t/p/original/")
+
+private val tmdbSized = Regex("""image\.tmdb\.org/t/p/w\d+/""")
+
+
+/** Home apps scroll sideways, with one or two rows and a partially visible next app. */
+@Composable
+fun AppsGrid(
+    vm: HomeViewModel,
+    circles: Boolean,
+    onLaunch: (AppEntry) -> Unit,
+    onAppOptions: (AppEntry) -> Unit,
+    onFocus: () -> Unit = {},
+) {
+    val apps = vm.homeApps
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+        val gap = if (circles) 10.dp else 16.dp
+        val w = if (circles) (maxWidth - 8.dp - gap * 9) / 9.5f
+            else CardSizes.width(maxWidth, CardSizes.WIDE, gap, 4.dp)
+        val rows = vm.homeAppRows.coerceIn(1, 2).coerceAtMost(apps.size.coerceAtLeast(1))
+        val perRow = (apps.size + rows - 1) / rows
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            apps.chunked(perRow.coerceAtLeast(1)).forEach { line ->
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(gap),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                ) {
+                    items(line, key = { it.pkg }) { app ->
+                        when {
+                            circles -> AppCircle(app, onClick = { onLaunch(app) }, onLongClick = { onAppOptions(app) }, onFocus = onFocus, width = w)
+                            else -> AppBanner(app, onClick = { onLaunch(app) }, onLongClick = { onAppOptions(app) }, onFocus = onFocus, width = w)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

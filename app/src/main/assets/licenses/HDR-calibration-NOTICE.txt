@@ -1,0 +1,11 @@
+HDR10 and Dolby Vision calibration samples
+
+Creator credits: Mehanik and the HDR Test Patterns YouTube channel.
+Thank you for making these display test patterns available to the community.
+Original test-video bytes are included unchanged. HDR metadata and Dolby Vision
+configuration records are preserved. These video assets belong to their creators.
+
+The project owner supplied the source archive and requested inclusion of these
+freely available test patterns with these creator credits. The samples.json file
+under assets/calibration records the individual files, source paths and SHA-256
+checksums.

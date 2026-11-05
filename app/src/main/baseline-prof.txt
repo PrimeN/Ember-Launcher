@@ -1,0 +1,4 @@
+# Ember's startup profile: compile the app's own code ahead of time (launcher start, Home, rows,
+# title screens, Settings, player). Library code is covered by the libraries' own profiles.
+HSPLapp/ember/tv/**;->**(**)**
+Lapp/ember/tv/**;

@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- ADB-authorized performance tooling can profile release rendering without a debug APK. -->
+        <profileable android:shell="true" />
+    </application>
+</manifest>

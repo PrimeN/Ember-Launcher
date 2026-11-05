@@ -1,0 +1,22 @@
+local.properties
+.gradle/
+.kotlin/
+build/
+.idea/
+*.iml
+captures/
+__pycache__/
+
+# Local credentials, signing material and developer output
+.env
+.env.*
+!.env.example
+!.env.template
+*.jks
+*.keystore
+*.p12
+/artifacts/
+/notes/
+/docs/internal/
+/docs/reviews/
+.DS_Store

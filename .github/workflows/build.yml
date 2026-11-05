@@ -1,0 +1,348 @@
+name: Build APK
+
+# Work happens on "beta" and reaches "main" through a reviewed pull request (beta -> main).
+# Builds on every push to main and beta, on pull requests, and when started by hand from the
+# Actions tab. Pushing a tag like v0.9.0 also publishes a GitHub Release with the APK attached.
+# Signed builds of main refresh the "latest build" release and signed pushes to beta refresh the
+# "beta build" release; the app's updater reads both (Settings > About > Updates channels).
+on:
+  push:
+    branches: [main, beta]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to a branch cancels its older run (pull requests likewise). Runs on main are never
+# cancelled (each one may publish the "latest build").
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: write # needed only to publish Releases for tags
+  actions: write # lets the run delete the oldest artifacts when the storage quota is full
+
+jobs:
+  build:
+    # A pull request from beta builds the same commit as the push to beta, whose checks already show
+    # on the pull request, so it is skipped (it would only double the build time).
+    if: github.event_name != 'pull_request' || github.head_ref != 'beta'
+    # Pinned: Ubuntu 24.04 runners come with the Android SDK installed.
+    # (ubuntu-latest is moving to Ubuntu 26, where the SDK setup step failed.)
+    runs-on: ubuntu-24.04
+    # Shared by the test and build steps: Gradle reads these while configuring the project, so
+    # giving both steps the same values lets the build reuse the classes compiled for the tests.
+    env:
+      # API keys, from Settings > Secrets and variables > Actions. Missing ones are left blank.
+      TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+      TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+      WETRAKR_CLIENT_ID: ${{ secrets.WETRAKR_CLIENT_ID }}
+      WETRAKR_CLIENT_SECRET: ${{ secrets.WETRAKR_CLIENT_SECRET }}
+      SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+      MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      WATCHMODE_API_KEY: ${{ secrets.WATCHMODE_API_KEY }}
+      # Optional free key for hero backgrounds and logos. Paid keys (Streaming Availability, Mistral)
+      # are deliberately not built in: anyone could extract them from the APK and use your plan.
+      FANART_API_KEY: ${{ secrets.FANART_API_KEY }}
+      # Test-only addon manifest links, comma-separated. Debug builds only.
+      TEST_ADDONS: ${{ secrets.TEST_ADDONS }}
+      # Your private set (API keys, addons, IPTV), shipped encrypted with the password below.
+      EMBER_PRIVATE_BUNDLE: ${{ secrets.EMBER_PRIVATE_BUNDLE }}
+      EMBER_PRIVATE_PASSWORD: ${{ secrets.EMBER_PRIVATE_PASSWORD }}
+      # Optional signing key. With it, every build installs over the last one.
+      EMBER_KEYSTORE_PASSWORD: ${{ secrets.EMBER_KEYSTORE_PASSWORD }}
+      EMBER_KEY_ALIAS: ${{ secrets.EMBER_KEY_ALIAS }}
+      EMBER_KEY_PASSWORD: ${{ secrets.EMBER_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Check Android SDK
+        run: echo "Android SDK at ${ANDROID_HOME:-$ANDROID_SDK_ROOT}" && ls "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/platforms"
+
+      # The project has no Gradle wrapper script, so the runner installs Gradle 9.8.2 and caches it.
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "9.8.2"
+
+      - name: Signing key
+        shell: bash
+        env:
+          EMBER_KEYSTORE_BASE64: ${{ secrets.EMBER_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$EMBER_KEYSTORE_BASE64" ]; then
+            echo "$EMBER_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ember.jks"
+            echo "EMBER_KEYSTORE_FILE=$RUNNER_TEMP/ember.jks" >> "$GITHUB_ENV"
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+          else
+            echo "No signing key set: building a debug APK (and checking that the R8 release build still works)."
+          fi
+
+      # Compiles the app and runs every JVM unit test (app/src/test). A failing test stops the run
+      # before the APK is built; each failure is listed on the run's summary page.
+      - name: Unit tests
+        # "shell: bash" turns on pipefail, so a failed Gradle run is not hidden by "| tee".
+        shell: bash
+        run: |
+          if ! gradle testDebugUnitTest --stacktrace --continue 2>&1 | tee test.log; then
+            bash .github/scripts/gradle-errors.sh test.log "Unit tests"
+            exit 1
+          fi
+
+      - name: Test summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -d app/build/test-results ]; then
+            python3 .github/scripts/test-summary.py app/build/test-results
+          else
+            echo "::warning title=Unit tests::No test results (the tests did not compile or start)."
+          fi
+
+      - name: Upload test report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-report
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Build
+        shell: bash
+        run: |
+          if [ "$SIGNED" = "true" ]; then
+            TASK="assembleRelease"
+          else
+            TASK="assembleDebug :app:minifyReleaseWithR8"
+          fi
+          if ! gradle $TASK --stacktrace --continue 2>&1 | tee build.log; then
+            bash .github/scripts/gradle-errors.sh build.log "Build errors"
+            exit 1
+          fi
+
+      # The FFmpeg decoders and libmpv are native libraries; fail the run if they are missing from the APK.
+      - name: Check native libraries
+        shell: bash
+        run: |
+          apk=$(ls app/build/outputs/apk/*/*.apk | head -1)
+          libs=$(unzip -l "$apk" | grep -oE 'lib/[^ ]+\.so' | sort)
+          echo "::notice title=Native libraries::$(echo "$libs" | tr '\n' ' ')"
+          # Here-strings, not "echo | grep -q": with pipefail, grep -q exiting early can SIGPIPE the echo
+          # and fail the check even though the library is there.
+          grep -q libavcodec <<<"$libs" && grep -q libmedia3ext <<<"$libs" || { echo "::error title=FFmpeg missing::No FFmpeg library in $apk"; exit 1; }
+          # ARM only (app/build.gradle.kts abiFilters): both engines for 64- and 32-bit ARM, no x86 copies.
+          for abi in arm64-v8a armeabi-v7a; do
+            for lib in libavcodec libmedia3ext libemv; do
+              grep -q "lib/$abi/$lib" <<<"$libs" || { echo "::error title=Native library missing::$lib for $abi is not in $apk"; exit 1; }
+            done
+          done
+          if grep -qE 'lib/x86' <<<"$libs"; then echo "::error title=Unexpected CPU type::x86 libraries are in $apk"; exit 1; fi
+
+      # Android lint: problems are listed on the run's summary page. Warnings never fail the run;
+      # errors fail it in "Lint gate" below, after the APK has been uploaded.
+      - name: Lint
+        if: success()
+        continue-on-error: true
+        shell: bash
+        run: |
+          gradle lintDebug --continue > lint.log 2>&1 || true
+          r=app/build/reports/lint-results-debug.xml
+          if [ -f "$r" ]; then
+            errors=$(grep -cE 'severity="(Error|Fatal)"' "$r" || true)
+            echo "LINT_ERRORS=$errors" >> "$GITHUB_ENV"
+            warnings=$(grep -c 'severity="Warning"' "$r" || true)
+            python3 - "$r" > lint-summary.txt <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          from collections import Counter
+          root = ET.parse(sys.argv[1]).getroot()
+          issues = root.findall('issue')
+          c = Counter((i.get('severity'), i.get('id')) for i in issues)
+          for (sev, iid), n in sorted(c.items(), key=lambda x: (x[0][0] != 'Error', -x[1])):
+              print(f"{sev} {iid}: {n}")
+          print('---')
+          for i in [i for i in issues if i.get('id') in ('GradleDependency', 'NewerVersionAvailable', 'AndroidGradlePluginVersion')]:
+              print(f"Update: {i.get('message')}")
+          print('---')
+          for i in [i for i in issues if i.get('severity') in ('Error', 'Fatal')][:40]:
+              loc = i.find('location')
+              f = loc.get('file', '').split('/app/src/main/')[-1] if loc is not None else ''
+              print(f"{i.get('id')} {f}:{loc.get('line') if loc is not None else ''} {i.get('message')}")
+          PY
+            msg=$(sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' lint-summary.txt)
+            echo "::warning title=Lint: $errors errors, $warnings warnings::${msg}"
+            # Warning locations, readable without downloading the report artifact.
+            python3 - "$r" > lint-locations.txt <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          issues = [i for i in ET.parse(sys.argv[1]).getroot().findall('issue') if i.get('severity') in ('Warning', 'Hint', 'Information')]
+          for i in sorted(issues, key=lambda i: i.get('id'))[:400]:
+              loc = i.find('location')
+              f = loc.get('file', '').split('/app/')[-1] if loc is not None else ''
+              print(f"{i.get('id')} {f}:{loc.get('line', '') if loc is not None else ''} {i.get('message', '')[:90]}")
+          PY
+            if [ -s lint-locations.txt ]; then
+              # Annotations are cut at a few kilobytes: publish the list in pages of 25 lines.
+              split -l 25 -d lint-locations.txt lint-part-
+              n=0
+              for part in lint-part-*; do
+                n=$((n+1)); [ "$n" -gt 9 ] && break
+                msg=$(sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' "$part")
+                echo "::notice title=Lint warning locations ($n)::${msg}"
+              done
+            fi
+          else
+            echo "::warning title=Lint did not run::$(tail -20 lint.log | tr '\n' ' ')"
+          fi
+
+      - name: Upload lint report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+          retention-days: 1
+
+      # Every build: ember-tv-<version>-<build number>.apk (signed release), or the same with
+      # "-debug" for unsigned debug builds. Settings > About > Updates reads the number from the name.
+      - name: Name the APK
+        id: name
+        shell: bash
+        run: |
+          shopt -s nullglob
+          ver=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          [ -n "$ver" ] || { echo "::error title=Name the APK::versionName not found in app/build.gradle.kts"; exit 1; }
+          n=0
+          for f in app/build/outputs/apk/*/*.apk; do
+            dir=$(dirname "$f")
+            kind=$(basename "$dir")
+            suffix=$([ "$kind" = "release" ] && echo "" || echo "-$kind")
+            new="$dir/ember-tv-${ver}-${GITHUB_RUN_NUMBER}${suffix}.apk"
+            mv "$f" "$new"
+            n=$((n+1))
+            echo "Named: $new"
+          done
+          [ "$n" -gt 0 ] || { echo "::error title=Name the APK::No APK found"; exit 1; }
+          echo "artifact=ember-tv-${ver}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "::notice title=APK::$(ls app/build/outputs/apk/*/*.apk | xargs -n1 basename | tr '\n' ' ')"
+
+      # Artifacts count against the account's Actions storage quota (about 500 MB on a free plan), so
+      # APKs expire after 3 days and reports after 1. Signed builds of main and beta stay available as
+      # the "latest build" and "beta build" releases, which do not count against that quota. If the quota is full,
+      # the run warns instead of failing: compiling, tests and lint decide whether a build is good.
+      - name: Upload APK
+        id: upload
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.name.outputs.artifact }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 3
+
+      # Storage full: delete the 10 oldest artifacts (never this run's) and try once more.
+      # GitHub recalculates usage every 6-12 hours, so the retry can still be refused right away;
+      # the space is then free for later builds.
+      - name: Free artifact storage
+        id: free
+        if: steps.upload.outcome == 'failure'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | [.created_at, .id, .name, (.workflow_run.id // 0)] | @tsv' \
+            | awk -F'\t' -v run="$GITHUB_RUN_ID" '$4 != run' | sort | head -10 > oldest.tsv
+          deleted=0
+          while IFS=$'\t' read -r created id name run; do
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" > /dev/null; then
+              deleted=$((deleted + 1)); echo "Deleted $name ($created)"
+            fi
+          done < oldest.tsv
+          echo "::notice title=Artifact storage::Deleted the $deleted oldest artifacts to make room."
+
+      - name: Upload APK (retry)
+        id: retry
+        if: steps.upload.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.name.outputs.artifact }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: APK upload warning
+        if: steps.upload.outcome == 'failure' && steps.retry.outcome != 'success'
+        run: echo "::warning title=APK not uploaded::The APK could not be stored as a run artifact (the Actions storage quota is full; the oldest artifacts were deleted, and GitHub frees the space within 6-12 hours). The build itself passed."
+
+      - name: Lint gate
+        if: success()
+        shell: bash
+        run: |
+          if [ "${LINT_ERRORS:-0}" -gt 0 ]; then
+            echo "::error title=Lint errors::$LINT_ERRORS lint error(s); see the Lint annotation and the lint-report artifact."
+            exit 1
+          fi
+
+      - name: Publish Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: app/build/outputs/apk/**/*.apk
+          append_body: true
+          body: "versionCode: ${{ github.run_number }}"
+
+      # "Every build" channel for in-app updates: one pre-release, refreshed by each signed build of main.
+      - name: Remove the previous "latest build"
+        if: env.SIGNED == 'true' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+
+      - name: Publish "latest build"
+        if: env.SIGNED == 'true' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest-build
+          name: Latest build (${{ github.run_number }})
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          files: app/build/outputs/apk/release/*.apk
+          body: |
+            Built from ${{ github.sha }}.
+            versionCode: ${{ github.run_number }}
+
+      # "Beta build" channel: one pre-release, refreshed by each signed push to beta, for testing on
+      # the TV before beta is merged into main.
+      - name: Remove the previous "beta build"
+        if: env.SIGNED == 'true' && github.ref == 'refs/heads/beta' && github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete beta-build --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+
+      - name: Publish "beta build"
+        if: env.SIGNED == 'true' && github.ref == 'refs/heads/beta' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: beta-build
+          name: Beta build (${{ github.run_number }})
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          files: app/build/outputs/apk/release/*.apk
+          body: |
+            Beta: not yet merged into main. Built from ${{ github.sha }}.
+            versionCode: ${{ github.run_number }}

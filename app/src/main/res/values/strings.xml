@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Ember</string>
+    <string name="setup_checklist">Setup checklist</string>
+    <string name="setup_optional">Optional connections. Your installed apps work immediately without them.</string>
+    <string name="setup_show">Show setup checklist</string>
+    <string name="setup_hide">Hide setup checklist</string>
+    <string name="setup_apps_ready">Apps: ready to use</string>
+    <string name="setup_configured">Configured</string>
+    <string name="setup_optional_action">Optional setup</string>
+    <string name="setup_health_hint">Configured means saved on this device. Connection details and retry controls are on each settings page.</string>
+    <string name="setup_home_shortcut">Show setup shortcut on an empty Home</string>
+    <string name="profile_color_current">Profile color: %1$s</string>
+    <string-array name="profile_color_names">
+        <item>Amber</item>
+        <item>Sky blue</item>
+        <item>Mint</item>
+        <item>Rose</item>
+        <item>Lavender</item>
+        <item>Coral</item>
+    </string-array>
+</resources>
