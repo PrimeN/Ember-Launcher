@@ -73,6 +73,15 @@ Release("0.9", "Older", listOf("Older features")),
             with self.assertRaises(ValueError):
                 notes.render(self.root, 'refs/heads/main', build, commit, True)
 
+    def test_four_part_patch_versions_match_their_tag_and_changelog(self):
+        (self.root / 'app/build.gradle.kts').write_text('versionName = "0.9.5.1"\n')
+        self.write_entries(version='0.9.5.1')
+        metadata, body = self.render(ref='refs/tags/v0.9.5.1')
+        self.assertEqual('v0.9.5.1', metadata['tag'])
+        self.assertIn('## 0.9.5.1', body)
+        with self.assertRaises(ValueError):
+            self.render(ref='refs/tags/v0.9.5')
+
 
 if __name__ == '__main__':
     unittest.main()

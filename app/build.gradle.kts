@@ -188,7 +188,7 @@ android {
             ?: Math.toIntExact(Instant.now().epochSecond - 1577836800L)
         require(buildVersionCode in 1..2100000000) { "EMBER_VERSION_CODE is outside Android's supported range" }
         versionCode = buildVersionCode
-        versionName = "9.5.1"
+        versionName = "0.9.5.1"
         // ARM only: 64-bit, plus 32-bit for TV boxes that run a 32-bit Android on a 64-bit chip
         // (common on streaming boxes). x86 and x86_64 (emulators on PCs) are left out.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }

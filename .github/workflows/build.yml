@@ -11,11 +11,11 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A newer push to a branch cancels its older run (pull requests likewise). Runs on main are never
-# cancelled (each one may publish the "latest build").
+# A newer branch push cancels its older run so an outdated main build cannot publish later.
+# Explicit version-tag builds run to completion.
 concurrency:
   group: build-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
   contents: write # publish APK releases and their tags

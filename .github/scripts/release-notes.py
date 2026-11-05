@@ -15,8 +15,8 @@ ENTRY = re.compile(
 def current_release(root):
     build = (root / 'app/build.gradle.kts').read_text(encoding='utf-8')
     found = re.findall(r'^\s*versionName\s*=\s*"([^"]+)"', build, re.M)
-    if len(found) != 1 or not re.fullmatch(r'\d+\.\d+\.\d+(?:[-+][\w.-]+)?', found[0]):
-        raise ValueError('Expected one semantic versionName in app/build.gradle.kts')
+    if len(found) != 1 or not re.fullmatch(r'\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?', found[0]):
+        raise ValueError('Expected one three- or four-part versionName in app/build.gradle.kts')
     version = found[0]
     source = (root / 'app/src/main/java/app/ember/tv/data/About.kt').read_text(encoding='utf-8')
     # Remove comments without interpreting comment markers inside string literals.

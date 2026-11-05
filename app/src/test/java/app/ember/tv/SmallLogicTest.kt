@@ -12,6 +12,9 @@ import org.junit.Test
 
 class SmallLogicTest {
     @Test fun versionNames() {
+        assertTrue(Updater.newerName("0.9.5.1", "0.9.5"))
+        assertTrue(Updater.newerName("0.9.5.2", "0.9.5.1"))
+        assertFalse(Updater.newerName("0.9.5", "0.9.5.1"))
         assertTrue(Updater.newerName("0.10.0", "0.9.2"))
         assertTrue(Updater.newerName("1.0", "0.9.9"))
         assertFalse(Updater.newerName("0.9.0", "0.9.0"))

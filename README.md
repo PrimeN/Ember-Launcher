@@ -9,7 +9,7 @@
 
 **Your apps. Your media. Your home screen.**
 
-**Version 9.5.1** · Android 10+ · ARM64 and ARMv7
+**Version 0.9.5.1** · Android 10+ · ARM64 and ARMv7
 
 Ember is an ad-free Home screen replacement for **Android TV and Google TV**. It brings your apps, movies, shows, personal media libraries and live channels into one customizable interface built for a TV remote.
 
