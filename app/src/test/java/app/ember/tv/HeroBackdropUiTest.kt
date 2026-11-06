@@ -78,6 +78,6 @@ class HeroBackdropUiTest {
             assertNotNull(state.selection)
             visible=false
         }
-        compose.runOnIdle {assertNull(state.selection)}
+        compose.runOnIdle {assertNull(state.selection);assertNull(presented?.viewport)}
     }
 }

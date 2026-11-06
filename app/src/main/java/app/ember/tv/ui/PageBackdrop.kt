@@ -19,6 +19,16 @@ internal val LocalPageBackdrop = staticCompositionLocalOf<PageBackdropState?> { 
 
 @Composable
 internal fun PageBackdropHost(state: PageBackdropState, content: @Composable BoxScope.() -> Unit) {
+    val sink by rememberUpdatedState(LocalArtworkPresented.current)
+    var hadSelection by remember(state) {mutableStateOf(false)}
+    LaunchedEffect(state.selection!=null) {
+        if(state.selection!=null)hadSelection=true
+        else if(hadSelection) {
+            hadSelection=false
+            state.presented=null
+            sink(ReadyArtwork(null,null))
+        }
+    }
     CompositionLocalProvider(LocalPageBackdrop provides state) {
         Box(Modifier.fillMaxSize()) {
             state.selection?.let { selection ->
