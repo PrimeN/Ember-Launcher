@@ -805,9 +805,11 @@ private fun RootContent(
         val side = !app.ember.tv.ui.Ui.emberX && !light && vm.look.menuPosition == "side" && current != NavTabs.SETTINGS
         val navigation = app.ember.tv.ui.LocalNavigationFocus.current!!
         val searchTabFocus = navigation.tab(NavTabs.SEARCH)
+        val pageBackdrop = remember(current, vm.profiles.profileId) { app.ember.tv.ui.PageBackdropState() }
         Box(Modifier.fillMaxSize().initialNavigationFocus(navigation,
             app.ember.tv.ui.navigationTabForPage(current,tabs),
             enabled=discoveryInteractive,available=!light && current!=NavTabs.SETTINGS)) {
+          app.ember.tv.ui.PageBackdropHost(pageBackdrop) {
             if (light && current == NavTabs.HOME) {
                 app.ember.tv.ui.LightHome(vm, homeState, tabs, tabClick, onOpenTitle = vm::openDetails, onLaunch = launchApp, onAppOptions = { options = it })
             } else {
@@ -860,6 +862,7 @@ private fun RootContent(
         }
             if (side) app.ember.tv.ui.ModernSideRail(tabs, current, tabClick, vm.weather.weatherText, profile = vm.profiles.profile) { vm.profiles.showProfilePicker = true }
             }
+          }
         }
       }
         // The note of which card to return to expires if that card is no longer on screen.

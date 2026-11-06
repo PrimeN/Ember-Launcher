@@ -5,10 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Shader
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
@@ -95,5 +98,20 @@ class GlassMaterialRenderingTest {
             compose.onNodeWithText("Watch now").assertExists()
             compose.onNodeWithTag("button").assertIsFocused()
         }
+    }
+    @Test fun missingArtworkUsesDarkTranslucentGlassInsteadOfAnOpaqueGreyPill() {
+        compose.setContent {
+            CompositionLocalProvider(LocalNight provides true,
+                LocalRenderOptions provides RenderOptions(glass=true,quality="high")) {
+                EmberTheme(0) {
+                    Box(Modifier.size(200.dp,80.dp).background(Color.Black)) {
+                        Box(Modifier.fillMaxSize().navigationGlass(RoundedCornerShape(20.dp)).testTag("fallback"))
+                    }
+                }
+            }
+        }
+        val pixels=compose.onNodeWithTag("fallback").captureToImage().toPixelMap()
+        val center=pixels[pixels.width/2,pixels.height/2]
+        assertTrue("Fallback must remain dark over black: $center",center.red<.16f && center.green<.16f && center.blue<.18f)
     }
 }

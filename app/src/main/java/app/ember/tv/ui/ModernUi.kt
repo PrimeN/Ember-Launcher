@@ -329,13 +329,7 @@ fun ModernBackdrop(meta: Meta?, dim: Float, backgroundColor: Color = Ink, height
                 FramedHeroImage(ReadyArtwork(null,layer.first,layer.second),Modifier.fillMaxSize())
             }
         }
-        // Protect the text edge while leaving upper/right artwork and colours clearer.
-        val opacity = shade.coerceIn(0f, 1f)
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to backgroundColor.copy(alpha = opacity),
-            0.26f to backgroundColor.copy(alpha = (if(isModernEmber).66f else .76f) * opacity),
-            0.46f to backgroundColor.copy(alpha=(if(isModernEmber).38f else .48f) * opacity),0.80f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to backgroundColor.copy(alpha = (if(isModernEmber).18f else .28f) * opacity),
-            0.16f to Color.Transparent, 0.70f to Color.Transparent, 1f to backgroundColor)))
+        HeroArtworkShade(backgroundColor,shade)
     }
 }
 
@@ -486,6 +480,9 @@ internal fun ModernHero(
     val shown = HeroBanner.displayIndex(index,items,presented)
     val heroRtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
     PrefetchHeroArtwork(items, safe, enabled = rotating)
+    // Artwork retains a neutral readability scrim in Day mode; the surrounding page stays light.
+    CompositionLocalProvider(LocalNight provides true) {
+    MaterialTheme(colorScheme=emberColorScheme(LocalAccentIndex.current,false,Ui.isOled)) {
     Box(Modifier.fillMaxWidth().height(height).clipToBounds()) {
         Column(Modifier.align(Alignment.BottomStart)
             .fillMaxWidth(HeroLayout.textFraction(androidx.compose.ui.platform.LocalDensity.current.fontScale))
@@ -537,6 +534,7 @@ internal fun ModernHero(
             }
         }
     }
+    } }
 }
 
 // ---------------------------------------------------------------- Cards

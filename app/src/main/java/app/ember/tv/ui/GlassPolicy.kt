@@ -21,7 +21,7 @@ internal object GlassPolicy {
     fun tintAlpha(panel: Boolean, sampled: Boolean, day: Boolean): Float = when {
         panel -> if (sampled) .82f else .94f
         sampled -> if (day) .50f else .30f
-        else -> if (day) .86f else .82f
+        else -> if (day) .56f else .38f
     }
     /** A small surface stays readable over bright artwork without darkening every image. */
     fun readableTint(alpha:Float,brightness:Float,day:Boolean):Float {

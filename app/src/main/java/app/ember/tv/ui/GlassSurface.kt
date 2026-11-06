@@ -29,7 +29,10 @@ internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: B
     val focus = art.focus ?: HeroFocus()
     val origin = LocalGlassOrigin.current
     val day = Ui.isDay && !LocalFloating.current && !LocalNight.current
-    val base = if (panel) if (day) Panel else FloatingPanelStyle.background else if (dock) Color(0xFF171C26) else PanelHi
+    val base = if (panel) if (day) Panel else FloatingPanelStyle.background else if (dock) Color(0xFF171C26)
+        else if (mode==GlassMode.TINT || image==null || viewport==null) {
+            if(day)Color(0xFFE2E5EA) else Color(0xFF171C26)
+        } else PanelHi
     val painter = remember(image != null) { if (image != null) GlassPainter() else null }
     SideEffect { painter?.source(image) }
     var placement by remember { mutableStateOf(GlassPlacement()) }

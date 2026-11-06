@@ -40,7 +40,7 @@ internal fun HeroTitle(meta: Meta, modifier: Modifier = Modifier, expanded: Bool
     Box(modifier.fillMaxWidth().heightIn(min=height).semantics { contentDescription=meta.name }, contentAlignment=Alignment.CenterStart) {
         Text(meta.name, fontSize=font.sp, lineHeight=line.sp, fontWeight=if(details)FontWeight.Bold else FontWeight.SemiBold,
             maxLines=if(details && largeText)3 else 2, overflow=TextOverflow.Ellipsis, color=Fg,
-            style=TextStyle(shadow=Shadow(if(Ui.isDay)Color.White.copy(alpha=.6f) else Color.Black.copy(alpha=.8f),Offset(0f,1f),4f)),
+            style=TextStyle(shadow=Shadow(if(Ui.isDay && !LocalNight.current)Color.White.copy(alpha=.6f) else Color.Black.copy(alpha=.8f),Offset(0f,1f),4f)),
             modifier=Modifier.alpha(if(loaded && !failed)0f else 1f).clearAndSetSemantics { })
         if(request!=null && !failed)Box(Modifier.matchParentSize(),contentAlignment=Alignment.CenterStart) {
             AsyncImage(request,null,contentScale=ContentScale.Fit,alignment=Alignment.CenterStart,

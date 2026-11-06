@@ -35,12 +35,19 @@ internal fun ServerOverview(vm:HomeViewModel,onOpen:(Meta)->Unit) {
     val atTop by remember {derivedStateOf {state.firstVisibleItemIndex==0 && state.firstVisibleItemScrollOffset<120}}
     val selected=hero.getOrNull(HeroBanner.index(heroIndex,hero.size))
     val backdrop=if(hero.isNotEmpty() && atTop)selected else ambient ?: selected ?: sections.firstOrNull()?.items?.firstOrNull()
+    val host=LocalPageBackdrop.current
+    val browsingLibrary=browsing && vm.serverBrowser.library!=null
+    val showBackdrop=!browsingLibrary && LocalFocusBackdrop.current?.tile==null && FocusBackground.idleArtwork(hero.isNotEmpty()&&atTop,vm.look.mediaFocusBackground)
+    val selection=if(showBackdrop)PageBackdropSelection(backdrop,if(hero.isNotEmpty()&&atTop)0f else .55f,
+        if(isEmberX)1f else HeroBanner.BACKDROP_FRACTION) else null
+    SideEffect { host?.selection=selection }
+    DisposableEffect(host) { onDispose { host?.selection=null } }
     LaunchedEffect(vm.libraryShortcutPending) {if(vm.libraryShortcutPending){browsing=true;vm.consumeLibraryShortcut()}}
-    if(browsing && vm.serverBrowser.library!=null) {ServerLibraryScreen(vm,onOpen){browsing=false};return}
+    if(browsingLibrary) {ServerLibraryScreen(vm,onOpen){browsing=false};return}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val height=HeroLayout.height(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale).dp
-        if(LocalFocusBackdrop.current?.tile==null && FocusBackground.idleArtwork(hero.isNotEmpty()&&atTop,vm.look.mediaFocusBackground))
-            ModernBackdrop(backdrop,if(hero.isNotEmpty()&&atTop)0f else .55f,heightFraction=HeroBanner.BACKDROP_FRACTION,onPresented={presented=it})
+        if(host==null && selection!=null)
+            ModernBackdrop(selection.meta,selection.dim,heightFraction=selection.heightFraction,onPresented={presented=it})
         Column {
             Row(Modifier.fillMaxWidth().padding(horizontal=TvTokens.Space.Page.dp,vertical=4.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically) {
                 ToolbarIcon("Browse server libraries",Icons.Outlined.GridView){browseMenu=true}
@@ -51,7 +58,7 @@ internal fun ServerOverview(vm:HomeViewModel,onOpen:(Meta)->Unit) {
             LazyColumn(state=state,contentPadding=PaddingValues(start=TvTokens.Space.Page.dp,end=TvTokens.Space.Page.dp,bottom=32.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 if(hero.isNotEmpty())item(key="server-hero") {
                     ModernHero(hero,heroIndex,{heroIndex=it},height,vm::isSaved,vm::toggleWatchlist,onOpen,
-                        onFocus={},rotating=LocalSceneInteractive.current&&atTop&&!state.isScrollInProgress,presented=presented)
+                        onFocus={},rotating=LocalSceneInteractive.current&&atTop&&!state.isScrollInProgress,presented=if(host!=null)host.presented else presented)
                 }
                 items(sections,key={it.id}) {section->
                     Column {
