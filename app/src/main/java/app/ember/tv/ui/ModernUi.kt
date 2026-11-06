@@ -379,7 +379,7 @@ fun ModernHome(
     ReleaseHiddenHeroFocus(state,heroHasFocus)
     val heroFits=remember {mutableStateOf(true)}
     val defaultBring=androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
-    val bring=remember(state,defaultBring) {HomeBringIntoViewSpec(state,defaultBring,{heroHasFocus},{heroFits.value})}
+    val bring=remember(state,defaultBring,heroPosition) {HomeBringIntoViewSpec(state,defaultBring,{heroHasFocus},{heroFits.value},heroPosition)}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val heroHeight = (if(isEmberX)EmberXLayout.heroHeight(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else HeroLayout.height(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale)).dp
         androidx.compose.runtime.SideEffect {heroFits.value=heroHeight<=maxHeight}

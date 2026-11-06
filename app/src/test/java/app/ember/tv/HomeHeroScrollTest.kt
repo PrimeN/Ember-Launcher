@@ -1,6 +1,7 @@
 package app.ember.tv
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.*
@@ -21,11 +22,14 @@ import androidx.compose.ui.unit.dp
 import app.ember.tv.data.Meta
 import app.ember.tv.ui.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -38,8 +42,56 @@ class HomeHeroScrollTest {
     @Test fun emberXHeroAlsoClearsWhenMovingIntoRows() = checkScrolling(emberX=true)
     @Test fun reorderedHeroStillClearsAndRestores() = checkScrolling(leading=true)
     @Test fun oversizedHeroKeepsItsInternalScroll() = checkScrolling(height=600)
+    @Test fun tvWatchlistFocusSettlesAndReturnsToTheHero() = checkScrolling(tv=true)
+    @Test fun tvEmberXWatchlistFocusSettlesAndReturnsToTheHero() = checkScrolling(emberX=true,tv=true)
+    @Test fun tvReorderedHeroStillSettles() = checkScrolling(leading=true,tv=true)
+    @Test fun tvOversizedHeroStillScrolls() = checkScrolling(height=600,tv=true)
 
-    private fun checkScrolling(emberX: Boolean=false, leading: Boolean=false, height: Int=400) {
+    @Test fun tvPolicyDoesNotPullTheHeroBackAfterTheFirstWatchlistRowIsAligned() {
+        val app: Application = RuntimeEnvironment.getApplication()
+        shadowOf(app.packageManager).setSystemFeature(PackageManager.FEATURE_LEANBACK,true)
+        lateinit var state: LazyListState
+        lateinit var normal: androidx.compose.foundation.gestures.BringIntoViewSpec
+        lateinit var bring: HomeBringIntoViewSpec
+        compose.setContent {
+            state=rememberLazyListState()
+            normal=LocalBringIntoViewSpec.current
+            bring=remember {HomeBringIntoViewSpec(state,normal,{false},{true},0)}
+            LazyColumn(state=state,modifier=Modifier.size(800.dp,500.dp).testTag("home"),
+                contentPadding=PaddingValues(top=4.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+                item(key="hero") {Box(Modifier.height(400.dp))}
+                item(key="watchlist") {Box(Modifier.height(200.dp))}
+                item(key="later") {Box(Modifier.height(200.dp))}
+                item {Spacer(Modifier.height(600.dp))}
+            }
+        }
+        compose.onNodeWithTag("home").performScrollToKey("watchlist")
+        compose.runOnIdle {runBlocking {state.scrollToItem(1,-state.layoutInfo.viewportStartOffset)}}
+        compose.runOnIdle {
+            val info=state.layoutInfo
+            val row=info.visibleItemsInfo.first {it.key=="watchlist"}
+            val top=(row.offset-info.viewportStartOffset).toFloat()+32f
+            val height=(info.viewportEndOffset-info.viewportStartOffset).toFloat()
+            assertTrue("This reproduction must use the real TV pivot policy",normal.calculateScrollDistance(top,100f,height)<0f)
+            assertEquals("An aligned watchlist must not pull the hidden hero back into view",0f,
+                bring.calculateScrollDistance(top,100f,height),.5f)
+            val withoutHero=HomeBringIntoViewSpec(state,normal,{false},{true},-1)
+            assertEquals(normal.calculateScrollDistance(top,100f,height),withoutHero.calculateScrollDistance(top,100f,height),0f)
+        }
+        compose.onNodeWithTag("home").performScrollToKey("later")
+        compose.runOnIdle {
+            val info=state.layoutInfo
+            val row=info.visibleItemsInfo.first {it.key=="later"}
+            val top=(row.offset-info.viewportStartOffset).toFloat()+32f
+            val height=(info.viewportEndOffset-info.viewportStartOffset).toFloat()
+            assertEquals("Later rows keep the ordinary TV pivot",normal.calculateScrollDistance(top,100f,height),
+                bring.calculateScrollDistance(top,100f,height),.5f)
+        }
+    }
+
+    private fun checkScrolling(emberX: Boolean=false, leading: Boolean=false, height: Int=400, tv: Boolean=false) {
+        val app: Application = RuntimeEnvironment.getApplication()
+        shadowOf(app.packageManager).setSystemFeature(PackageManager.FEATURE_LEANBACK,tv)
         lateinit var state: LazyListState
         val firstCard=FocusRequester()
         compose.setContent {
@@ -47,7 +99,7 @@ class HomeHeroScrollTest {
             var focused by remember {mutableStateOf(false)}
             ReleaseHiddenHeroFocus(state,focused)
             val normal=LocalBringIntoViewSpec.current
-            val bring=remember {HomeBringIntoViewSpec(state,normal,{focused},{height<=500})}
+            val bring=remember {HomeBringIntoViewSpec(state,normal,{focused},{height<=500},if(leading)1 else 0)}
             val scope=rememberCoroutineScope()
             val entered: ()->Unit = {if(height<=500)scope.launch {state.animateScrollToItem(if(leading)1 else 0)}}
             EmberTheme(0) {
@@ -77,8 +129,19 @@ class HomeHeroScrollTest {
                 }
             }
         }
+        if(tv)compose.mainClock.autoAdvance=false
         compose.onNodeWithText("Watch now").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
         compose.onNodeWithText("Watch now").performKeyInput {pressKey(Key.DirectionDown)}
+        if(tv) {
+            compose.mainClock.advanceTimeBy(1600)
+            var settled=0 to 0
+            compose.runOnIdle {settled=state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset}
+            repeat(12) {
+                compose.mainClock.advanceTimeByFrame()
+                compose.runOnIdle {assertEquals("TV scrolling must converge rather than oscillate",settled,
+                    state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset)}
+            }
+        }
         compose.onNodeWithTag("card-0").assertIsFocused()
         compose.runOnIdle {
             assertTrue("No hero tail should remain when focus is in the content row",
@@ -88,6 +151,7 @@ class HomeHeroScrollTest {
         compose.onNodeWithTag("card-1").assertIsFocused()
         compose.onNodeWithTag("card-1").performKeyInput {pressKey(Key.DirectionLeft)}
         compose.onNodeWithTag("card-0").performKeyInput {pressKey(Key.DirectionUp)}
+        if(tv)compose.mainClock.advanceTimeBy(1600)
         compose.onNodeWithText("Watch now").assertIsFocused()
         compose.runOnIdle {
             val hero=state.layoutInfo.visibleItemsInfo.first {it.key=="hero"}
@@ -95,6 +159,7 @@ class HomeHeroScrollTest {
             if(height<=500)assertEquals(1f,fraction,0f) else assertTrue(fraction>0f)
         }
         compose.onNodeWithTag("home").performScrollToKey("cards")
+        if(tv)compose.mainClock.advanceTimeBy(64)
         compose.onAllNodes(hasText("Watch now") and isFocused()).assertCountEquals(0)
         compose.runOnIdle {
             assertTrue("Explicit scrolling must also remove the hero",
