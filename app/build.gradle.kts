@@ -274,6 +274,11 @@ android {
     testOptions {
         // Android classes in plain JVM tests answer with defaults instead of throwing.
         unitTests.isReturnDefaultValues = true
+        // UI regression tests run on the JVM with the app's real resources and manifest.
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+        }
     }
     buildFeatures {
         compose = true
@@ -341,4 +346,7 @@ dependencies {
     implementation("commons-net:commons-net:3.13.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
