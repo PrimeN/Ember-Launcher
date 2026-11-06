@@ -14,6 +14,7 @@ import okhttp3.Request
 import okio.Buffer
 import okhttp3.OkHttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import android.net.Uri
 
 internal data class ServerImageBytes(val bytes: ByteArray, val mime: String?)
 
@@ -61,8 +62,9 @@ class ServerArtwork(private val key: String, private val options: Options) : Fet
         private fun servers(context: android.content.Context): MediaServers =
             shared ?: synchronized(this) { shared ?: MediaServers(context.applicationContext).also { shared = it } }
     }
-    class Factory : Fetcher.Factory<String> {
-        override fun create(data: String, options: Options, imageLoader: ImageLoader): Fetcher? =
-            if (ServerMetadata.artworkParts(data) != null) ServerArtwork(data, options) else null
+    class Factory : Fetcher.Factory<Uri> {
+        // Coil maps String models to Uri before selecting a fetcher.
+        override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? =
+            data.toString().let {key->if (ServerMetadata.artworkParts(key) != null) ServerArtwork(key, options) else null}
     }
 }

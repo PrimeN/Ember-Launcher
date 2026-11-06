@@ -760,7 +760,9 @@ private fun RootContent(
     } else if (vm.collections.open != null) {
         // A Collection folder; its titles open the title screen above, and Back returns here.
         androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalMediaFocusKind provides app.ember.tv.ui.FocusTileKind.COLLECTION) {
+          app.ember.tv.ui.ArtworkPageContent {
             app.ember.tv.ui.FolderScreen(vm, onOpenTitle = vm::openDetails)
+          }
         }
     } else {
       // Keeps the rows' sideways scroll (and other saved state) while a title screen is open, so the
@@ -834,6 +836,7 @@ private fun RootContent(
                     vm.profiles.profile, searchFocus = searchTabFocus) { vm.profiles.showProfilePicker = true }
             }
             Box(Modifier.fillMaxWidth().weight(1f).sceneEnter(current).sceneContent(current, app.ember.tv.ui.navigationTabForPage(current, tabs), side, enabled = !light)) {
+                app.ember.tv.ui.ArtworkPageContent {
                 key(current) { pageState.SaveableStateProvider("page:$current") {
                 androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalFocusScene provides current) {
                 when (current) {
@@ -858,6 +861,7 @@ private fun RootContent(
                     else -> SettingsScreen(vm)
                 }
                 } } }
+                }
             }
         }
             if (side) app.ember.tv.ui.ModernSideRail(tabs, current, tabClick, vm.weather.weatherText, profile = vm.profiles.profile) { vm.profiles.showProfilePicker = true }

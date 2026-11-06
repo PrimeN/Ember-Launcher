@@ -13,6 +13,16 @@ import org.junit.rules.TemporaryFolder
 
 class FocusBackgroundTest {
     @get:Rule val temp = TemporaryFolder()
+    @Test fun photoContrastOnlyAppliesToArtworkAndNotToDayThemeOrTileColours() {
+        val media=FocusTile(FocusTileKind.MEDIA,"movie","art")
+        val collection=FocusTile(FocusTileKind.COLLECTION,"collection","art")
+        assertTrue(focusUsesArtwork(media,FocusBackground.ARTWORK,FocusBackground.OFF))
+        assertTrue(focusUsesArtwork(collection,FocusBackground.OFF,FocusBackground.ARTWORK))
+        assertFalse(focusUsesArtwork(media,FocusBackground.COLORS,FocusBackground.ARTWORK))
+        assertFalse(focusUsesArtwork(media,FocusBackground.OFF,FocusBackground.ARTWORK))
+        assertFalse(focusUsesArtwork(FocusTile(FocusTileKind.APP,"app",null),FocusBackground.ARTWORK,FocusBackground.ARTWORK))
+        assertFalse(focusUsesArtwork(null,FocusBackground.ARTWORK,FocusBackground.ARTWORK))
+    }
     private class FixtureDrawable : Drawable() {
         override fun draw(canvas: Canvas) = Unit
         override fun setAlpha(alpha: Int) = Unit

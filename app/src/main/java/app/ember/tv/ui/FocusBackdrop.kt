@@ -14,21 +14,19 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import app.ember.tv.HomeViewModel
 import app.ember.tv.data.*
-import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 internal enum class FocusTileKind { APP, MEDIA, COLLECTION }
-internal data class FocusTile(val kind: FocusTileKind, val id: String, val artwork: String?)
+internal data class FocusTile(val kind: FocusTileKind, val id: String, val artwork: String?, val poster:String?=null)
 internal data class FocusTileImage(val drawable: Drawable, val key: String)
 
 internal class FocusBackdropState {
@@ -41,6 +39,33 @@ internal class FocusBackdropState {
 internal val LocalFocusBackdrop = compositionLocalOf<FocusBackdropState?> { null }
 internal val LocalMediaFocusKind = compositionLocalOf { FocusTileKind.MEDIA }
 private val LocalFocusImageModes = compositionLocalOf { FocusBackground.COLORS to FocusBackground.COLORS }
+internal val LocalPhotoBackground = compositionLocalOf { false }
+
+internal fun focusUsesArtwork(tile:FocusTile?,media:String,collections:String)=when(tile?.kind) {
+    FocusTileKind.MEDIA->media==FocusBackground.ARTWORK
+    FocusTileKind.COLLECTION->collections==FocusBackground.ARTWORK
+    else->false
+}
+
+/** Only content over a photo changes contrast; navigation and floating Day surfaces stay light. */
+@Composable internal fun ArtworkPageContent(content:@Composable ()->Unit) {
+    val photo=LocalPhotoBackground.current
+    val night=LocalNight.current || photo
+    val inherited=androidx.tv.material3.MaterialTheme.colorScheme
+    val accent=LocalAccentIndex.current
+    val oled=Ui.isOled
+    val scheme=remember(inherited,accent,photo,oled) {if(photo)emberColorScheme(accent,false,oled) else inherited}
+    CompositionLocalProvider(LocalNight provides night) {
+        androidx.tv.material3.MaterialTheme(colorScheme=scheme) {
+            val text=androidx.tv.material3.LocalTextStyle.current
+            val readable=remember(text,photo) {if(photo)text.merge(androidx.compose.ui.text.TextStyle(shadow=
+                androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha=.9f),androidx.compose.ui.geometry.Offset(0f,1f),3f))) else text}
+            androidx.tv.material3.ProvideTextStyle(readable) {
+                CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides scheme.onSurface,content=content)
+            }
+        }
+    }
+}
 
 /** Each visible tile retains only its existing drawable; no second network request for a palette. */
 internal class FocusTileBinding(private val state: FocusBackdropState?, private val tile: FocusTile) {
@@ -51,12 +76,12 @@ internal class FocusTileBinding(private val state: FocusBackdropState?, private 
         state?.loaded(tile, image!!)
     }
 }
-@Composable internal fun rememberFocusTile(kind: FocusTileKind, id: String, artwork: String? = null): FocusTileBinding {
+@Composable internal fun rememberFocusTile(kind: FocusTileKind, id: String, artwork: String? = null, poster:String?=null): FocusTileBinding {
     val state = LocalFocusBackdrop.current
-    return remember(state, kind, id, artwork) { FocusTileBinding(state, FocusTile(kind, id, artwork)) }
+    return remember(state, kind, id, artwork,poster) { FocusTileBinding(state, FocusTile(kind, id, artwork,poster)) }
 }
 @Composable internal fun rememberMediaFocus(meta: Meta) =
-    rememberFocusTile(LocalMediaFocusKind.current, meta.mediaKey(), meta.background?.takeIf { it.isNotBlank() } ?: meta.poster)
+    rememberFocusTile(LocalMediaFocusKind.current, meta.mediaKey(), meta.background?.takeIf { it.isNotBlank() } ?: meta.poster,meta.poster)
 @Composable internal fun rememberAppFocus(app: AppEntry, bitmap: Bitmap?, kind: String = "banner"): FocusTileBinding {
     val binding = rememberFocusTile(FocusTileKind.APP, "${app.pkg}:${app.artworkVersion}")
     val resources = LocalResources.current
@@ -117,7 +142,8 @@ private object FocusColors {
 @Composable internal fun FocusBackdropHost(vm: HomeViewModel, scope: Any, enabled: Boolean, content: @Composable () -> Unit) {
     val state = remember(scope, enabled) { FocusBackdropState() }
     CompositionLocalProvider(LocalFocusBackdrop provides state.takeIf { enabled },
-        LocalFocusImageModes provides (vm.look.mediaFocusBackground to vm.look.collectionFocusBackground)) {
+        LocalFocusImageModes provides (vm.look.mediaFocusBackground to vm.look.collectionFocusBackground),
+        LocalPhotoBackground provides (enabled && focusUsesArtwork(state.tile,vm.look.mediaFocusBackground,vm.look.collectionFocusBackground))) {
         Box(Modifier.fillMaxSize()) {
             if (enabled) FocusBackdropLayer(state, vm.look.appFocusColors, vm.look.mediaFocusBackground, vm.look.collectionFocusBackground)
             content()
@@ -125,7 +151,7 @@ private object FocusColors {
     }
 }
 
-@Composable private fun FocusBackdropLayer(state: FocusBackdropState, apps: Boolean, media: String, collections: String) {
+@Composable internal fun FocusBackdropLayer(state: FocusBackdropState, apps: Boolean, media: String, collections: String) {
     val tile = state.tile
     val image = state.image
     val requestedMode = when (tile?.kind) {
@@ -136,9 +162,9 @@ private object FocusColors {
     }
     val analysis=LocalRenderOptions.current.colorAnalysis
     val mode=if(requestedMode==FocusBackground.COLORS && !analysis)FocusBackground.OFF else requestedMode
-    val base = Ink
+    val base = if(mode==FocusBackground.ARTWORK)Color(0xFF111215) else Ink
     var color by remember(state) { mutableStateOf<Int?>(null) }
-    var artwork by remember(state) { mutableStateOf<String?>(null) }
+    var artwork by remember(state) { mutableStateOf<FocusTile?>(null) }
     var settled by remember(state) { mutableStateOf<Triple<FocusTile?, String, String?>?>(null) }
     val interactive = LocalSceneInteractive.current
     val sink = LocalArtworkPresented.current
@@ -154,7 +180,7 @@ private object FocusColors {
         // Retain the previous settled tint during scrolling rather than flashing grey between tiles.
         color = if (mode == FocusBackground.COLORS && image != null)
             FocusColors.resolve("${tile.kind}:${tile.id}:${image.key}", image.drawable) else null
-        artwork = tile.artwork.takeIf { mode == FocusBackground.ARTWORK }
+        artwork = tile.takeIf { mode == FocusBackground.ARTWORK }
         settled = selection
     }
     if (tile == null) return
@@ -164,13 +190,12 @@ private object FocusColors {
     Box(Modifier.fillMaxSize().background(base)) {
         // A gradient is cheaper than another large image or a full-screen blur.
         Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(lerp(base, tint, if (Ui.isDay) .22f else .55f), base), radius = 1800f)))
-        artwork?.let { url ->
-            val context = LocalContext.current
-            val request = remember(context, url, render.lowPower) { ImageRequest.Builder(context).data(url)
-                .size(if (render.lowPower) 960 else 1920, if (render.lowPower) 540 else 1080).build() }
-            AsyncImage(request, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = .45f)
+        artwork?.takeIf {it==tile}?.let { selected ->
+            FocusArtworkBackdrop(selected,image)
         }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, base.copy(alpha = .45f), base))))
+        // Join the page at its bottom edge without spreading a white veil over the artwork.
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+            0f to Color.Transparent,.70f to Color.Transparent,.88f to base.copy(alpha=.24f),1f to base)))
     }
 }
 
