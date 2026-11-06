@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.compose.runtime.*
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import app.ember.tv.data.*
 import app.ember.tv.ui.*
 import kotlinx.coroutines.runBlocking
@@ -41,7 +41,10 @@ class CacheManagementUiTest {
   val libraryBefore=library.readText()
   val activeUpdate=File(app.cacheDir,"updates/active.apk").apply{parentFile!!.mkdirs();writeText("keep active download")}
   var part by mutableStateOf("image-duration")
-  compose.setContent {EmberTheme(0){key(part){CacheManagementSettings(part)}}}
+  compose.setContent {EmberTheme(0){key(part){
+   SideEffect { assertSame(android.os.Looper.getMainLooper().thread,Thread.currentThread()) }
+   CacheManagementSettings(part)
+  }}}
   compose.runOnIdle {
    runBlocking {
     repeat(2){loader.execute(coil.request.ImageRequest.Builder(app).data("https://example.test/poster.jpg").setParameter("fixture.decoder","still","still").build())}
