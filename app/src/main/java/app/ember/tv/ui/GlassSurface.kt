@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.compose.foundation.border
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
@@ -19,8 +20,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 
 /** One background sample, tint, highlight and inside edge; foreground content stays untouched. */
-@Composable
-internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false): Modifier {
+internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false): Modifier = composed {
     val options = LocalRenderOptions.current
     val mode = GlassPolicy.mode(options, Build.VERSION.SDK_INT, pressured = RuntimeBudgets.pressured)
     val image = LocalGlassBitmap.current.takeIf { mode != GlassMode.TINT }
@@ -36,7 +36,8 @@ internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: B
     val sampled = image != null && viewport != null
     val alpha = if (dock) if (sampled) .20f else .40f else GlassPolicy.tintAlpha(panel, sampled, day)
     val edge = if (day) Color.Black else Color.White
-    return clip(shape).then(if(sampled)Modifier.onGloballyPositioned {
+    // Position and shader state belong to each attached surface, even when a modifier is reused.
+    clip(shape).then(if(sampled)Modifier.onGloballyPositioned {
         val point=it.localToScreen(Offset.Zero)
         val sx=(it.localToScreen(Offset(1f,0f))-point).getDistance()
         val sy=(it.localToScreen(Offset(0f,1f))-point).getDistance()

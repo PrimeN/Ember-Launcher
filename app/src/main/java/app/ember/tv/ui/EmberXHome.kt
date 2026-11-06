@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -91,7 +92,7 @@ internal fun EmberXHero(items:List<Meta>,index:Int,onIndex:(Int)->Unit,height:an
         }
     }
     PrefetchHeroArtwork(items,safe,enabled=rotating)
-    Box(Modifier.fillMaxWidth().height(height)) {
+    Box(Modifier.fillMaxWidth().height(height).clipToBounds()) {
         val large=androidx.compose.ui.platform.LocalDensity.current.fontScale>1.25f
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(if(large).86f else .53f).padding(top=24.dp,bottom=38.dp),
             verticalArrangement=Arrangement.spacedBy(9.dp)) {

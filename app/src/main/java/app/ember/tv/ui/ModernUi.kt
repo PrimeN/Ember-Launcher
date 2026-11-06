@@ -376,12 +376,10 @@ fun ModernHome(
     } }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var heroHasFocus by remember {mutableStateOf(false)}
+    ReleaseHiddenHeroFocus(state,heroHasFocus)
     val heroFits=remember {mutableStateOf(true)}
     val defaultBring=androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
-    val bring=remember(defaultBring) {object:androidx.compose.foundation.gestures.BringIntoViewSpec {
-        override fun calculateScrollDistance(offset:Float,size:Float,containerSize:Float)=
-            HeroLayout.focusScroll(heroHasFocus,defaultBring.calculateScrollDistance(offset,size,containerSize),heroFits.value)
-    }}
+    val bring=remember(state,defaultBring) {HomeBringIntoViewSpec(state,defaultBring,{heroHasFocus},{heroFits.value})}
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val heroHeight = (if(isEmberX)EmberXLayout.heroHeight(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else HeroLayout.height(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale)).dp
         androidx.compose.runtime.SideEffect {heroFits.value=heroHeight<=maxHeight}
@@ -395,6 +393,8 @@ fun ModernHome(
             // Settings > Home layout decides which sections show and in what order.
             if (blocks.firstOrNull() !is HomeViewModel.HomeBlock.Hero) item(key = "top") { Spacer(Modifier.height(8.dp)) }
             items(blocks, key = { it.key }) { b ->
+                // Only the vertical list clears the hero; horizontal rows keep their own pivot.
+                CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides defaultBring) {
                 when (b) {
                     is HomeViewModel.HomeBlock.Hero -> ModernHero(hero, heroIndex, onHeroIndex, heroHeight, vm::isSaved, vm::toggleWatchlist, onOpenTitle, presented = presentedHero, rotating = interactive && LocalSceneInteractive.current && heroVisible && !state.isScrollInProgress, onFocus = {
                         onAmbient(null)
@@ -426,6 +426,7 @@ fun ModernHome(
                             }
                         }
                     }
+                }
                 }
             }
             // Catalog rows come through homeBlocks (Settings > Home layout > Your catalogs), so they are not listed again here.
@@ -485,7 +486,7 @@ internal fun ModernHero(
     val shown = HeroBanner.displayIndex(index,items,presented)
     val heroRtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
     PrefetchHeroArtwork(items, safe, enabled = rotating)
-    Box(Modifier.fillMaxWidth().height(height)) {
+    Box(Modifier.fillMaxWidth().height(height).clipToBounds()) {
         Column(Modifier.align(Alignment.BottomStart)
             .fillMaxWidth(HeroLayout.textFraction(androidx.compose.ui.platform.LocalDensity.current.fontScale))
             .padding(start = 4.dp, top = 24.dp, bottom = 44.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -819,7 +819,7 @@ private fun RootContent(
                     } == true
                 } }
                 val heroMeta = if (vm.heroOn) hero.getOrNull(heroIndex) else null
-                val shown = if (atTop) heroMeta ?: ambient else ambient ?: heroMeta
+                val shown = if (atTop) heroMeta ?: ambient else ambient
                 if (app.ember.tv.ui.LocalFocusBackdrop.current?.tile == null &&
                     app.ember.tv.data.FocusBackground.idleArtwork(atTop && vm.heroOn, vm.look.mediaFocusBackground))
                     app.ember.tv.ui.ModernBackdrop(shown, dim = if (atTop && vm.heroOn) 0f else 0.55f, heightFraction = if(app.ember.tv.ui.Ui.emberX)1f else app.ember.tv.data.HeroBanner.BACKDROP_FRACTION, shade = if (atTop && vm.heroOn) .82f else 1f, onPresented = { presentedHero = it })
