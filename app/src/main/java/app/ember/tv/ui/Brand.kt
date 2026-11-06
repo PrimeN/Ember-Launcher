@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import app.ember.tv.R
@@ -22,13 +23,13 @@ import app.ember.tv.R
 private val MARKS = listOf(R.drawable.ic_ember_mark, R.drawable.ic_ember_mark_grey, R.drawable.ic_ember_mark_blue, R.drawable.ic_ember_mark_green, R.drawable.ic_ember_mark_rose)
 private val FOREGROUNDS = listOf(R.drawable.ic_launcher_foreground, R.drawable.ic_launcher_foreground_grey, R.drawable.ic_launcher_foreground_blue, R.drawable.ic_launcher_foreground_green, R.drawable.ic_launcher_foreground_rose)
 
-/** Ember's mark: the screen with a play button and the flame, in the accent's colourway. */
+/** Ember's standalone two-part flame in the accent's colourway. */
 @Composable
 fun EmberMark(size: Dp, modifier: Modifier = Modifier) {
     Image(painterResource(MARKS.getOrElse(app.ember.tv.data.ColorThemes.artworkIndex(LocalAccentIndex.current)) { MARKS[0] }), contentDescription = null, modifier = modifier.size(size))
 }
 
-/** The "ember" wordmark in Poppins, drawn as shapes; [tint] follows the theme (white at night, dark by day). */
+/** The spaced uppercase EMBER wordmark, drawn as original outlines; [tint] follows day/night mode. */
 @Composable
 fun EmberWordmark(height: Dp, tint: Color, modifier: Modifier = Modifier) {
     Image(
@@ -44,7 +45,7 @@ fun EmberWordmark(height: Dp, tint: Color, modifier: Modifier = Modifier) {
 fun EmberLogo(height: Dp, tint: Color, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(height * 0.28f)) {
         EmberMark(height)
-        EmberWordmark(height * 0.6f, tint)
+        EmberWordmark(height * 0.44f, tint)
     }
 }
 
@@ -53,6 +54,6 @@ fun EmberLogo(height: Dp, tint: Color, modifier: Modifier = Modifier) {
 fun EmberAppIcon(size: Dp, modifier: Modifier = Modifier) {
     Box(modifier.size(size).clip(RoundedCornerShape(size * 0.23f))) {
         Image(painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
-        Image(painterResource(FOREGROUNDS.getOrElse(app.ember.tv.data.ColorThemes.artworkIndex(LocalAccentIndex.current)) { FOREGROUNDS[0] }), null, Modifier.fillMaxSize())
+        Image(painterResource(FOREGROUNDS.getOrElse(app.ember.tv.data.ColorThemes.artworkIndex(LocalAccentIndex.current)) { FOREGROUNDS[0] }), null, Modifier.fillMaxSize().graphicsLayer { scaleX = 1.5f; scaleY = 1.5f })
     }
 }

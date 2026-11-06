@@ -127,7 +127,8 @@ internal fun StartupScreen(stage:StartupStage,render:RenderOptions,reduced:Boole
                     val sweep=360f*if(stage==StartupStage.READY)1f else progress.value.coerceIn(0f,1f)
                     drawArc(Color(0xFF3F3835),-90f,360f,false,origin,track,style=Stroke(stroke))
                     rotate(-90f) {
-                        val warmth=Brush.sweepGradient(0f to EmberRed,.50f to Color(0xFFF57720),1f to Amber)
+                        val fraction=(sweep/360f).coerceIn(.001f,1f)
+                        val warmth=Brush.sweepGradient(0f to EmberRed,fraction*.50f to Color(0xFFF57720),fraction to Amber,1f to Amber)
                         if(!render.lowPower && sweep>0)drawArc(Amber.copy(alpha=.06f),0f,sweep,false,origin,track,style=Stroke(stroke*4,cap=StrokeCap.Round))
                         drawArc(warmth,0f,sweep,false,origin,track,style=Stroke(stroke,cap=StrokeCap.Round))
                     }
@@ -141,7 +142,7 @@ internal fun StartupScreen(stage:StartupStage,render:RenderOptions,reduced:Boole
                 Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
                     // Keep the actual Ember identity in every selected theme colourway.
                     EmberMark(diameter*.35f)
-                    EmberWordmark(diameter*.09f,Color.White)
+                    EmberWordmark(diameter*.09f,Color(0xFFF8F3ED))
                 }
             }
             Spacer(Modifier.height(if(large)12.dp else 22.dp))
