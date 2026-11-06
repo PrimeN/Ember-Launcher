@@ -22,7 +22,7 @@ import app.ember.tv.data.ApiKeys
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 
-data class ReadyArtwork(val meta: Meta?, val drawable: Drawable?,val focus:HeroFocus?=null,val viewport:HeroViewport?=null)
+data class ReadyArtwork(val meta: Meta?, val drawable: Drawable?,val focus:HeroFocus?=null,val viewport:HeroViewport?=null,val source:String?=null)
 
 @Composable
 private fun heroSize(options:RenderOptions):Pair<Int,Int> {

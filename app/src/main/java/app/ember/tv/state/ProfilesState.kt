@@ -64,6 +64,7 @@ class ProfilesState(
         val go = {
             profileId = id
             prefs.currentProfile = id
+            app.ember.tv.data.ArtworkCaches.accessChanged()
             showProfilePicker = false
             onNotice("Profile: ${target.name}")
             onChanged()
@@ -119,6 +120,7 @@ class ProfilesState(
         if (remaining.isEmpty() || remaining.size == all.size) return
         saveProfiles(remaining)
         onRemoved(id)
+        app.ember.tv.data.ArtworkCaches.accessChanged()
         if (id == profileId) {
             profileId = all.first().id
             prefs.currentProfile = profileId

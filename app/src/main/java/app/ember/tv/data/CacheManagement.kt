@@ -29,6 +29,7 @@ object CacheManagement {
     fun init(context: Context) {
         if (application != null) return
         application = context.applicationContext
+        ArtworkCaches.init(context)
         configuration = Prefs(context).cacheConfig
         CachePolicy.config = configuration
         scope.launch {
@@ -103,9 +104,11 @@ object CacheManagement {
             else check(CacheFiles.delete(File(root(context),kind.directory)))
         }
         if (CacheKind.IMAGES in kinds) {
+            attempt { ArtworkCaches.clear() }
             attempt { app.ember.tv.ui.IconArtworkCache.clear() }
             attempt { context.imageLoader.diskCache?.clear(); context.imageLoader.memoryCache?.clear(); app.ember.tv.ui.AppArtwork.clear(); app.ember.tv.ui.FrostCache.clear() }
             attempt { check(CacheFiles.delete(File(context.cacheDir,"hero-art-v1"))) }
+            ArtworkCaches.imageClearCompleted()
         }
         if (CacheKind.METADATA in kinds) attempt { check(CacheFiles.delete(File(context.cacheDir,"discover"))) }
         if (CacheKind.CATALOGS in kinds) attempt { HomeSnapshot.clear(context) }
@@ -129,7 +132,7 @@ object CacheManagement {
     suspend fun usage(context: Context): Usage = withContext(Dispatchers.IO) {
         awaitReady()
         gate.withLock { Usage(CacheKind.entries.associateWith { kind -> when (kind) {
-            CacheKind.IMAGES -> (context.imageLoader.diskCache?.size ?: 0L) + app.ember.tv.ui.IconArtworkCache.size() + size(File(context.cacheDir,"hero-art-v1"))
+            CacheKind.IMAGES -> (context.imageLoader.diskCache?.size ?: 0L) + app.ember.tv.ui.IconArtworkCache.size() + size(File(context.cacheDir,"hero-art-v1")) + ArtworkCaches.size(context)
             CacheKind.METADATA -> size(File(root(context), kind.directory)) + size(File(context.cacheDir, "discover"))
             CacheKind.CATALOGS -> size(File(root(context), kind.directory)) + size(File(context.filesDir, "home-snapshot.json"))
             CacheKind.NETWORK -> Net.base.cache?.size() ?: 0L

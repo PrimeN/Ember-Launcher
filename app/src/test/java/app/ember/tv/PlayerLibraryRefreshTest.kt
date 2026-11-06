@@ -119,7 +119,7 @@ class PlayerLibraryRefreshTest {
     }
     @Test fun serverUsesAnAdvertisedBannerWhenNoBackdropIsAdvertised()=runBlocking {
         val meta=serverMeta("""{"Id":"item","Type":"Movie","Name":"Movie","ImageTags":{"Banner":"tag"}}""")
-        assertEquals("/Items/item/Images/Banner?maxWidth=1280",ServerMetadata.artworkParts(meta.background!!)!!.second)
+        assertEquals("/Items/item/Images/Banner?maxWidth=1280&tag=tag",ServerMetadata.artworkParts(meta.background!!)!!.second)
         assertEquals("item",ServerRef.of(meta)!!.item)
     }
     @Test fun inheritedPrimaryImagesKeepTheOriginalPlaybackReference()=runBlocking {

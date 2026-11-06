@@ -47,6 +47,7 @@ class Accounts(private val secrets: ServerSecrets) {
         set(v) = synchronized(sessionLock) {
             if (v == null) secrets.remove("plex.token") else check(secrets.write("plex.token",v)) { "Encrypted sign-in storage is unavailable. Existing sign-in was kept." }
             secrets.remove("plex.home")
+            app.ember.tv.data.ArtworkCaches.accessChanged()
         }
 
     internal var plexHome: PlexHomeSession?
@@ -55,6 +56,7 @@ class Accounts(private val secrets: ServerSecrets) {
             if (v == null) secrets.remove("plex.home") else check(secrets.write("plex.home", json.encodeToString(v))) {
                 "Encrypted sign-in storage is unavailable. Existing Plex user was kept."
             }
+            app.ember.tv.data.ArtworkCaches.accessChanged()
         }
     val plexAccessToken: String? get() {
         val selected = secrets.read("plex.home") ?: return plexToken
@@ -67,7 +69,23 @@ class Accounts(private val secrets: ServerSecrets) {
     fun servers(): List<ServerAccount> =
         runCatching { json.decodeFromString<List<ServerAccount>>(secrets.read("ms.servers") ?: "[]") }.getOrDefault(emptyList())
 
-    fun saveServers(list: List<ServerAccount>) = synchronized(sessionLock) { check(secrets.write("ms.servers",json.encodeToString(list))) { "Encrypted server storage is unavailable. Existing accounts were kept." } }
+    fun saveServers(list: List<ServerAccount>) = synchronized(sessionLock) {
+        check(secrets.write("ms.servers",json.encodeToString(list))) { "Encrypted server storage is unavailable. Existing accounts were kept." }
+        app.ember.tv.data.ArtworkCaches.accessChanged()
+    }
+
+    /** Local authorization identity: cache hits must never require a Plex resource/network lookup. */
+    internal fun artworkRealm(ref:ServerRef,profile:String):String? = synchronized(sessionLock) {
+        val identity=if(ref.provider=="plex") {
+            val token=plexAccessToken?.takeIf(String::isNotBlank) ?: return@synchronized null
+            listOf("plex",ref.account,plexUserId.orEmpty(),token)
+        } else {
+            val account=servers().firstOrNull {it.key==ref.account && it.kind==ref.provider} ?: return@synchronized null
+            if(account.token.isBlank())return@synchronized null
+            listOf(account.kind,account.key,account.url,account.userId,account.token)
+        }
+        app.ember.tv.data.CachePolicy.digest(json.encodeToString(listOf(profile)+identity))
+    }
 
     /** A playback visit keeps its authenticated user even if settings select another account. RAM only. */
     internal fun playbackSnapshot(): Accounts = synchronized(sessionLock) {

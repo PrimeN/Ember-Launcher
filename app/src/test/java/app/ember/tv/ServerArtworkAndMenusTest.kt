@@ -136,6 +136,15 @@ class ServerArtworkAndMenusTest {
         assertFalse(item.background!!.contains("fixture-token"))
     }
 
+    @Test fun changedServerImageVersionsChangeCacheIdentityWithoutStoringCredentials()=runBlocking {
+        val first=plexMeta("""{"ratingKey":"item","type":"movie","title":"Movie","updatedAt":1}""")
+        val changed=plexMeta("""{"ratingKey":"item","type":"movie","title":"Movie","updatedAt":2}""")
+        assertNotEquals(first.background,changed.background)
+        assertEquals("/library/metadata/item/art?tag=2",ServerMetadata.artworkParts(changed.background!!)!!.second)
+        assertFalse(changed.background!!.contains("fixture-token"))
+        assertEquals("/Items/item/Images/Primary?quality=90&tag=a+b",ServerMetadata.versioned("/Items/item/Images/Primary?quality=90","a b"))
+    }
+
     @Test fun plexEpisodePortraitAndBackdropBelongToTheSeriesWithoutChangingPlaybackId()=runBlocking {
         val item=plexMeta("""{"ratingKey":"item","type":"episode","title":"Pilot","grandparentTitle":"Show","grandparentRatingKey":"series","art":"","thumb":"/episode.jpg","grandparentThumb":""}""")
         assertEquals("/library/metadata/series/art",ServerMetadata.artworkParts(item.background!!)!!.second)

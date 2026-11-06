@@ -10,6 +10,7 @@ import app.ember.tv.tracker.list
 import app.ember.tv.tracker.long
 import app.ember.tv.tracker.obj
 import app.ember.tv.tracker.str
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -109,13 +110,16 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     /** A series: opens as a normal title by its ids; its episodes on the server are found there. */
     private fun logo(a:ServerAccount,item:JsonElement,id:String):String? {
         val target=if(item.obj("ImageTags").str("Logo")!=null)id else item.str("ParentLogoItemId")
-        return target?.let {ServerMetadata.artwork(ServerRef(a.kind,a.key,id),"/Items/$it/Images/Logo?maxWidth=720")}
+        val tag=if(target==id)item.obj("ImageTags").str("Logo") else item.str("ParentLogoImageTag")
+        return target?.let {ServerMetadata.artwork(ServerRef(a.kind,a.key,id),ServerMetadata.versioned("/Items/$it/Images/Logo?maxWidth=720",tag))}
     }
     private fun backdrop(a:ServerAccount,item:JsonElement,id:String):String? {
         val ownBackdrop=item.arr("BackdropImageTags").list().isNotEmpty()
         val banner=!ownBackdrop && item.obj("ImageTags").str("Banner")!=null
         val target=if(ownBackdrop || banner)id else item.str("ParentBackdropItemId") ?: item.str("SeriesId") ?: id
-        return ServerMetadata.artwork(ServerRef(a.kind,a.key,id),"/Items/$target/Images/${if(banner)"Banner" else "Backdrop"}?maxWidth=1280")
+        val tag=if(ownBackdrop)item.arr("BackdropImageTags").list().firstOrNull()?.let {runCatching {it.jsonPrimitive.content}.getOrNull()}
+            else if(banner)item.obj("ImageTags").str("Banner") else item.arr("ParentBackdropImageTags").list().firstOrNull()?.let {runCatching {it.jsonPrimitive.content}.getOrNull()}
+        return ServerMetadata.artwork(ServerRef(a.kind,a.key,id),ServerMetadata.versioned("/Items/$target/Images/${if(banner)"Banner" else "Backdrop"}?maxWidth=1280",tag))
     }
 
     private fun seriesMeta(a: ServerAccount, it: JsonElement): Meta? {
@@ -129,7 +133,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
             serverRef=ServerRef(a.kind,a.key,id).value,
             type = "series",
             name = name,
-            poster = ServerMetadata.artwork(ServerRef(a.kind,a.key,id),"/Items/$id/Images/Primary?fillHeight=450&quality=90"),
+            poster = ServerMetadata.artwork(ServerRef(a.kind,a.key,id),ServerMetadata.versioned("/Items/$id/Images/Primary?fillHeight=450&quality=90",it.obj("ImageTags").str("Primary"))),
             background = backdrop(a,it,id),
             logo = logo(a,it,id),
             description = it.str("Overview"),
@@ -159,7 +163,8 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
             id = "${a.kind}:${a.key}:$id",
             type = if (type == "BoxSet") "collection" else if (isEpisode) "series" else "movie",
             name = name,
-            poster = ServerMetadata.artwork(ServerRef(a.kind,a.key,id),"/Items/$posterItem/Images/Primary?fillHeight=450&quality=90"),
+            poster = ServerMetadata.artwork(ServerRef(a.kind,a.key,id),ServerMetadata.versioned("/Items/$posterItem/Images/Primary?fillHeight=450&quality=90",
+                if(posterItem==id)it.obj("ImageTags").str("Primary") else it.str("SeriesPrimaryImageTag") ?: it.str("ParentPrimaryImageTag"))),
             background = backdrop(a,it,id),
             logo = logo(a,it,id),
             description = if (isEpisode) {

@@ -24,6 +24,7 @@ internal fun FocusArtworkBackdrop(tile:FocusTile,preview:FocusTileImage?) {
     val size=options.heroSize(window.width,window.height)
     val candidates=remember(tile){focusedArtworkCandidates(tile)}
     var full by remember(tile,options.heroStorageKey,size) {mutableStateOf<Drawable?>(null)}
+    var loadedSource by remember(tile,options.heroStorageKey,size) {mutableStateOf<String?>(null)}
     var viewport by remember {mutableStateOf<HeroViewport?>(null)}
     val sink=LocalArtworkPresented.current
     LaunchedEffect(tile,options.heroStorageKey,size) {
@@ -31,12 +32,13 @@ internal fun FocusArtworkBackdrop(tile:FocusTile,preview:FocusTileImage?) {
             val request=heroRequest(context,heroArtworkUrl(url,options,url!=tile.poster),size,options)
             val result=context.imageLoader.execute(request) as? SuccessResult
             ensureActive()
-            if(result!=null) {full=result.drawable;break}
+            if(result!=null) {loadedSource=url;full=result.drawable;break}
         }
     }
     val drawable=full ?: preview?.drawable
-    val art=ReadyArtwork(null,drawable,viewport=viewport)
-    LaunchedEffect(drawable,viewport) {sink(art)}
+    val privateSource=listOfNotNull(tile.artwork,tile.poster).firstOrNull {it.startsWith("ember-art://")}
+    val art=ReadyArtwork(null,drawable,viewport=viewport,source=privateSource ?: loadedSource ?: preview?.key ?: tile.artwork ?: tile.poster)
+    LaunchedEffect(drawable,viewport,art.source) {sink(art)}
     Box(Modifier.fillMaxSize().onGloballyPositioned {coordinates->
         val point=coordinates.positionInRoot()
         viewport=HeroViewport(point.x,point.y,coordinates.size.width.toFloat(),coordinates.size.height.toFloat())

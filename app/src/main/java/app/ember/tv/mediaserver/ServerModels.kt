@@ -52,6 +52,9 @@ object ServerPlaybackRegistry {
 }
 object ServerMetadata {
     private const val PREFIX="ember-art://"
+    internal fun versioned(path:String,version:String?):String=version?.takeIf(String::isNotBlank)?.let {
+        path+(if('?' in path)"&" else "?")+"tag="+java.net.URLEncoder.encode(it,"UTF-8")
+    } ?: path
     fun artwork(ref: ServerRef, path: String?): String? = path?.takeIf { it.startsWith('/') && !it.startsWith("//") }?.let {
         val enc=Base64.getUrlEncoder().withoutPadding()
         PREFIX+enc.encodeToString(ref.value.toByteArray())+"/"+enc.encodeToString(cleanPath(it).toByteArray())

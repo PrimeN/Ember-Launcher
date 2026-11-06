@@ -39,7 +39,7 @@ internal fun rememberServerReadyArtwork(meta: Meta, size: Pair<Int, Int>): Ready
         val url = meta.background?.takeIf(String::isNotBlank) ?: return@LaunchedEffect
         val result = context.imageLoader.execute(heroRequest(context, heroArtworkUrl(url, options), size, options)) as? SuccessResult
         ensureActive()
-        if(result!=null)ready=framedArtwork(ReadyArtwork(latest, result.drawable),options) else nativeFailed=true
+        if(result!=null)ready=framedArtwork(ReadyArtwork(latest, result.drawable,source=url),options) else nativeFailed=true
     }
     val candidates = ServerImagePolicy.backgrounds(meta, fallback, if(nativeFailed) setOfNotNull(meta.background) else emptySet())
     LaunchedEffect(identity, key, nativeFailed, candidates, size, options) {
@@ -51,7 +51,7 @@ internal fun rememberServerReadyArtwork(meta: Meta, size: Pair<Int, Int>): Ready
         if(result!=null) {
             val background=result.first.first.takeIf {result.first.second}
             ready=framedArtwork(ReadyArtwork(latest.copy(background=background,
-                backgroundFocusX=latest.backgroundFocusX.takeIf {background==latest.background},backgroundFocusY=latest.backgroundFocusY.takeIf {background==latest.background}),result.second),options)
+                backgroundFocusX=latest.backgroundFocusX.takeIf {background==latest.background},backgroundFocusY=latest.backgroundFocusY.takeIf {background==latest.background}),result.second,source=result.first.first),options)
         }
         else if(ready.meta?.mediaKey()!=key)ready=ReadyArtwork(latest,null)
     }

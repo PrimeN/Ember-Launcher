@@ -139,16 +139,16 @@ class PlexClient(private val accounts: Accounts,private val http:ServerHttp=Serv
     }
     suspend fun item(ref:String):Meta {val r=ServerRef.parse(ref)?:error("Invalid server item.");val s=server(r.account);return meta(s,itemJson(s,r.item))?:error("This server item is unavailable.")}
     private suspend fun itemJson(s:PlexServer,id:String)=get(s,"/library/metadata/$id?includeGuids=1&includeMarkers=1&includeChapters=1").obj("MediaContainer").arr("Metadata").list().firstOrNull()?:error("Plex returned no item.")
-    private fun image(ref:ServerRef,vararg paths:String?)=paths.firstNotNullOfOrNull {ServerMetadata.artwork(ref,it)}
     private fun meta(s:PlexServer,m:JsonElement):Meta? {
         val type=m.str("type")?:return null;if(type !in listOf("movie","show","episode","collection"))return null
         val id=m.str("ratingKey")?:return null;val ref=ServerRef("plex",s.id,id);val episode=type=="episode"
         val guids=m.arr("Guid").list().mapNotNull{it.str("id")};val duration=m.long("duration");val offset=m.long("viewOffset")
         val season=m.int("parentIndex");val number=m.int("index")
+        fun image(vararg paths:String?)=paths.firstNotNullOfOrNull {path->path?.let {ServerMetadata.artwork(ref,ServerMetadata.versioned(it,m.str("updatedAt")))}}
         return Meta(id="plex:${s.id}:$id",type=if(type=="collection")"collection" else if(type=="movie")"movie" else "series",name=(if(episode)m.str("grandparentTitle") else null)?:m.str("title")?:return null,
-            poster=image(ref,if(episode)m.str("grandparentThumb") else null,
+            poster=image(if(episode)m.str("grandparentThumb") else null,
                 if(episode)m.str("grandparentRatingKey")?.let {"/library/metadata/$it/thumb"} else null,m.str("thumb"),"/library/metadata/$id/thumb"),
-            background=image(ref,m.str("art"),m.str("grandparentArt"),m.str("grandparentRatingKey")?.let {"/library/metadata/$it/art"},"/library/metadata/$id/art"),description=m.str("summary"),releaseInfo=m.int("year")?.toString(),
+            background=image(m.str("art"),m.str("grandparentArt"),m.str("grandparentRatingKey")?.let {"/library/metadata/$it/art"},"/library/metadata/$id/art"),description=m.str("summary"),releaseInfo=m.int("year")?.toString(),
             runtime=duration?.takeIf{it>0}?.let{"${kotlin.math.ceil(it/60000.0).toInt()} min"},progress=if(duration!=null&&duration>0&&offset!=null)offset.toFloat()/duration else null,
             imdbId=if(episode)null else guids.firstOrNull{it.startsWith("imdb://")}?.removePrefix("imdb://"),tmdbId=if(episode)null else guids.firstOrNull{it.startsWith("tmdb://")}?.removePrefix("tmdb://")?.toLongOrNull(),
             season=if(episode)season else null,episode=if(episode)number else null,serverRef=ref.value,serverName=s.name,
