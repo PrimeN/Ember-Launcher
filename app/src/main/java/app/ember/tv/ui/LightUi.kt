@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -179,24 +178,27 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             val dockTop = (maxHeight - (if (dockHeight > 0.dp) dockHeight else (grid.height + 74f).dp) - DOCK_GAP - ROW_PEEK).coerceAtLeast(maxHeight * .5f)
             val heroHeight by animateDpAsState(if (idle) maxHeight else dockTop, tween(millis), label = "Light carousel height")
             LightWallpaper(vm.look.lightWallpaper)
-            val fullArt = vm.look.lightWallpaper == "art"
+            val wallpaperColors = remember(vm.look.lightWallpaper) { lightWallpaperColors(vm.look.lightWallpaper) }
             val publish = LocalArtworkPresented.current
             val shownArt = heroImage?.takeIf {current != null}?.let {art ->
                 art.copy(focus=art.focus ?: HeroFocus(.5f,.3f),viewport=HeroViewport(lightOrigin.x,lightOrigin.y,
-                    with(densityNow){windowWidth.toPx()},with(densityNow){(if(fullArt)windowHeight else heroHeight).toPx()},crop=true))
+                    with(densityNow){windowWidth.toPx()},with(densityNow){windowHeight.toPx()},crop=true))
             } ?: ReadyArtwork(null,null)
             SideEffect {publish(shownArt)}
             heroImage?.takeIf { current != null && it.drawable != null }?.let { shown ->
-                // Over a plain wallpaper the picture fades out on its own, so no edge shows where it ends.
-                val imageModifier = Modifier.fillMaxWidth().height(if (fullArt) windowHeight else heroHeight).then(if (fullArt) Modifier else Modifier.fadeOutBottom())
+                // Keep one full-window crop behind both the hero and drawer, including idle transitions.
+                val imageModifier = Modifier.fillMaxSize()
                 if (millis == 0) LightHeroImage(shown, imageModifier)
                 else androidx.compose.animation.Crossfade(shown, animationSpec = tween(millis * 3), label = "Light hero") { layer -> LightHeroImage(layer, imageModifier) }
             }
-            // One full-height scrim with smooth stops: darker behind the title, never a hard line at the dock.
-            val heroFraction = (heroHeight / windowHeight).coerceIn(.3f, 1f)
+            // Fade into the selected wallpaper below the dock without clipping the image at its edge.
+            val heroFraction = if (windowHeight > 0.dp) (heroHeight / windowHeight).coerceIn(.3f, 1f) else 1f
+            val fadeShoulder = .92f * heroFraction
             val scrim = Brush.verticalGradient(
                 0f to Color(0x48000000), .22f * heroFraction to Color.Transparent, .5f * heroFraction to Color.Transparent,
-                .96f * heroFraction to Color(0x9E000000), 1f to (if (fullArt) Color(0xD0000000) else Color(0x5C000000)))
+                fadeShoulder to Color.Black.copy(alpha = .58f),
+                (fadeShoulder + 1f) / 2f to wallpaperColors.last().copy(alpha = .82f),
+                1f to wallpaperColors.last())
             Box(Modifier.fillMaxSize().background(scrim))
             LazyColumn(state = state, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (idle) 0f else 1f },
                 userScrollEnabled = !idle, contentPadding = PaddingValues(start = grid.outer.dp, end = grid.outer.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -355,13 +357,6 @@ private fun WeatherDayRow(day: app.ember.tv.weather.WeatherDay, modifier: Modifi
     }
 }
 
-/** Fades the bottom of a picture to transparent, so it blends into whatever is behind it. */
-private fun Modifier.fadeOutBottom(): Modifier = graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
-    .drawWithContent {
-        drawContent()
-        drawRect(Brush.verticalGradient(0f to Color.Black, .55f to Color.Black, 1f to Color.Transparent), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
-    }
-
 private fun Modifier.lightArrows(onUp: (() -> Unit)? = null, onDown: (() -> Unit)? = null): Modifier = onPreviewKeyEvent { event ->
     val action = when (event.key) { Key.DirectionUp -> onUp; Key.DirectionDown -> onDown; else -> null }
     if (action != null) { if (event.type == KeyEventType.KeyDown) action(); true } else false
@@ -411,14 +406,15 @@ private fun LightFolderTile(grid: LightLayout.Grid, modifier: Modifier = Modifie
 
 @Composable
 private fun LightWallpaper(style: String) {
-    val colors = when (style) {
+    Box(Modifier.fillMaxSize().background(Brush.linearGradient(lightWallpaperColors(style))))
+}
+
+private fun lightWallpaperColors(style: String): List<Color> = when (style) {
         "aurora" -> listOf(Color(0xFF111838), Color(0xFF384F70), Color(0xFF372A56))
         "ocean" -> listOf(Color(0xFF071C32), Color(0xFF235F70), Color(0xFF0A2D43))
         "ember" -> listOf(Color(0xFF17121B), Color(0xFF674039), Color(0xFF251820))
         "black" -> listOf(Color.Black, Color.Black)
         else -> listOf(Color(0xFF0E1423), Color(0xFF242A43), Color(0xFF10141F))
-    }
-    Box(Modifier.fillMaxSize().background(Brush.linearGradient(colors)))
 }
 
 @Composable
