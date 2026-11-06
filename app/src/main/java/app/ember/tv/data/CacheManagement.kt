@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import app.ember.tv.tracker.KeystoreSecretCipher
 import coil.imageLoader
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -40,7 +39,7 @@ object CacheManagement {
                         saved?.get(kind.name)?.jsonPrimitive?.contentOrNull?.takeIf { it.matches(Regex("[a-f0-9-]{36}")) }
                             ?: java.util.UUID.randomUUID().toString()
                     }
-                    responses = ResponseCache(root(context), KeystoreSecretCipher("ember_cache_v1"))
+                    responses = ResponseCache(root(context), app.ember.tv.tracker.WrappedKeyCipher.forCache(context, "ember_cache_v1"))
                     saveState(context)
                 } catch (_: Exception) {
                     // Cache storage is optional; a full disk or unavailable key must not block browsing.

@@ -4,7 +4,6 @@ import android.content.Context
 import app.ember.tv.mediaserver.Accounts
 import app.ember.tv.mediaserver.ServerMetadata
 import app.ember.tv.mediaserver.ServerRef
-import app.ember.tv.tracker.KeystoreSecretCipher
 import coil.imageLoader
 import kotlinx.coroutines.*
 import java.io.File
@@ -51,7 +50,7 @@ internal object ArtworkCaches {
     @Synchronized fun init(context:Context) {
         if(application!=null)return
         val ctx=context.applicationContext;application=ctx
-        val cipher=KeystoreSecretCipher("ember_artwork_cache_v1")
+        val cipher=app.ember.tv.tracker.WrappedKeyCipher.forCache(ctx,"ember_artwork_cache_v1")
         publicBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[0]),null,8L shl 20,1 shl 20,capacity={budgets().blur})
         privateBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[1]),cipher,8L shl 20,1 shl 20,access=access::get,capacity={budgets().blur})
         originals=ArtworkDiskCache(File(ctx.cacheDir,directories[2]),cipher,64L shl 20,(8 shl 20)+1024,access=access::get,capacity={budgets().originals},maxEntries=4096)
