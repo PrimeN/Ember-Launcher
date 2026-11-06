@@ -12,7 +12,7 @@ class PublicUpdatesTest {
         assertEquals("PrimeN/Ember-Launcher", BuildConfig.UPDATE_REPO)
         assertFalse(ApiKeys.ALL_IDS.contains("GITHUB_TOKEN"))
         for (channel in listOf("releases", "builds", "beta")) {
-            val url = Updater.releaseUrl(BuildConfig.UPDATE_REPO, channel)
+            val url = Updater.updateUrl(channel)
             val request = Updater.request(url, "application/vnd.github+json")
             assertEquals("api.github.com", request.url.host)
             assertTrue(request.url.encodedPath.startsWith("/repos/PrimeN/Ember-Launcher/releases/"))

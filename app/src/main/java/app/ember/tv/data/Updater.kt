@@ -29,8 +29,8 @@ import java.util.concurrent.TimeUnit
 
 /**
  * In-app updates (Settings > System > Updates) from the GitHub repository's releases:
- * Standard updates use public tagged releases. Beta uses the private repository's explicitly
- * published beta-build, authenticated with a device-entered read token. Android asks before installing;
+ * Standard updates use public tagged releases. Beta uses the same public repository's explicitly
+ * published beta-build. Neither channel requires credentials. Android asks before installing;
  * an update installs over the
  * current app only when both are signed with the same key.
  */
@@ -47,7 +47,6 @@ object Updater {
         val versionCode: Int?,
         /** SHA-256 GitHub publishes for the asset ("digest": "sha256:..."), lowercase hex; null if absent. */
         val sha256: String? = null,
-        val privateBeta: Boolean = false,
     ) {
         val isNewer: Boolean
             get() = versionCode?.let { it > BuildConfig.VERSION_CODE } ?: newerName(tag.removePrefix("v"), BuildConfig.VERSION_NAME)
@@ -55,44 +54,36 @@ object Updater {
 
     private val http = Net.client(20, 60).newBuilder().cache(null).addNetworkInterceptor { chain ->
         val original = chain.request()
-        val guarded = if (!privateApiUrl(original.url.toString())) original.newBuilder().removeHeader("Authorization").build() else original
+        val guarded = original.newBuilder().removeHeader("Authorization").removeHeader("Cookie").build()
         chain.proceed(guarded)
     }.build()
     private val json = Json { ignoreUnknownKeys = true }
     // A cancelled transfer must finish deleting its partial file before a replacement opens it.
     private val downloadLock = Mutex()
 
-    internal fun request(url: String, accept: String, betaToken: String? = null) = Request.Builder().url(url).apply {
+    internal fun request(url: String, accept: String) = Request.Builder().url(url).apply {
         header("Accept", accept)
         header("X-GitHub-Api-Version", "2022-11-28")
         header("User-Agent", "EmberTV/${BuildConfig.VERSION_NAME}")
-        // GitHub drops Authorization on cross-host redirects. Never authorize an arbitrary asset URL.
-        if (!betaToken.isNullOrBlank() && privateApiUrl(url)) {
-            require(betaToken.length <= 4096 && betaToken.all { it in '!'..'~' }) { "The beta token contains invalid characters. Enter it again in Settings > API keys." }
-            header("Authorization", "Bearer $betaToken")
-            header("Cache-Control", "no-store")
-        }
+        header("Cache-Control", "no-store")
     }.build()
 
     /** The newest release on the chosen channel ("releases", "builds" or "beta"), or an error message. */
-    suspend fun check(channel: String): Result<Release?> = withContext(Dispatchers.IO) {
+    suspend fun check(channel: String): Result<Release?> = check(channel, http)
+
+    internal suspend fun check(channel: String, client: OkHttpClient): Result<Release?> = withContext(Dispatchers.IO) {
         runCatching {
-            val beta = channel == "beta"
-            val token = if (beta) ApiKeys.get("GITHUB_BETA_TOKEN").also {
-                check(it.isNotBlank()) { "Private beta builds require a repository-read token in Settings > API keys > Private beta updates." }
-            } else null
             val url = updateUrl(channel)
-            withResponse(http.newCall(request(url, "application/vnd.github+json", token))) { r ->
+            withResponse(client.newCall(request(url, "application/vnd.github+json"))) { r ->
                 when (r.code) {
                     200 -> Unit
-                    404 -> if (beta) error("No private beta build is available, or the token cannot access the beta repository.") else return@runCatching null
-                    401 -> error("The beta access token was rejected. Update it in Settings > API keys.")
-                    403 -> if (beta && r.header("X-RateLimit-Remaining") != "0") error("The beta token cannot read this repository. Check its repository access and Contents permission.")
-                        else error("GitHub is temporarily limiting update checks. Try again later.")
+                    404 -> return@runCatching null
+                    401 -> error("The public update service is unavailable. Try again later.")
+                    403 -> error("GitHub is temporarily limiting update checks. Try again later.")
                     429 -> error("GitHub is temporarily limiting update checks. Try again later.")
                     else -> error("GitHub answered ${r.code}.")
                 }
-                releaseOf(json.parseToJsonElement(r.body.string()) as JsonObject, beta)
+                releaseOf(json.parseToJsonElement(r.body.string()) as JsonObject)
             }
         }.also { ensureActive() }
     }
@@ -101,17 +92,16 @@ object Updater {
      * Downloads the APK to the app's cache; [onProgress] gets 0..1. Cancelling the calling coroutine
      * stops the transfer. The file must match the size and SHA-256 GitHub lists for the asset.
      */
-    suspend fun download(context: Context, r: Release, onProgress: (Float) -> Unit): Result<File> = downloadLock.withLock { withContext(Dispatchers.IO) {
+    suspend fun download(context: Context, r: Release, onProgress: (Float) -> Unit): Result<File> = download(context, r, onProgress, http)
+
+    internal suspend fun download(context: Context, r: Release, onProgress: (Float) -> Unit, client: OkHttpClient): Result<File> = downloadLock.withLock { withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val out = File(dir, "ember-update.apk")
         try {
             dir.listFiles()?.forEach { it.delete() }
             val digest = MessageDigest.getInstance("SHA-256")
             var done = 0L
-            val token = if (r.privateBeta) ApiKeys.get("GITHUB_BETA_TOKEN").also {
-                check(it.isNotBlank() && privateApiUrl(r.assetApiUrl)) { "Private beta access is unavailable. Check the beta token and try again." }
-            } else null
-            withResponse(http.newCall(request(r.assetApiUrl, "application/octet-stream", token))) { resp ->
+            withResponse(client.newCall(request(r.assetApiUrl, "application/octet-stream"))) { resp ->
                 if (!resp.isSuccessful) error("Download failed (${resp.code}).")
                 val body = resp.body
                 val total = body.contentLength().takeIf { it > 0 } ?: r.sizeBytes
@@ -147,17 +137,13 @@ object Updater {
         }
     } }
 
-    internal fun releaseOf(o: JsonObject, privateBeta: Boolean = false): Release? {
+    internal fun releaseOf(o: JsonObject): Release? {
         val apk = (o["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
             .firstOrNull { it["name"]?.jsonPrimitive?.contentOrNull?.endsWith(".apk") == true } ?: return null
         val notes = o["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val assetName = apk["name"]!!.jsonPrimitive.content
-        val download = if (privateBeta) apk["url"]?.jsonPrimitive?.contentOrNull?.takeIf {
-            val path = it.toHttpUrlOrNull()?.encodedPath.orEmpty()
-            privateApiUrl(it) && path.substringBeforeLast('/').equals("/repos/${BuildConfig.BETA_UPDATE_REPO}/releases/assets", true)
-                && path.substringAfterLast('/').matches(Regex("[0-9]+"))
-        } else apk["browser_download_url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-            ?: apk["url"]?.jsonPrimitive?.contentOrNull
+        val download = publicAssetUrl(apk["browser_download_url"]?.jsonPrimitive?.contentOrNull)
+            ?: publicAssetUrl(apk["url"]?.jsonPrimitive?.contentOrNull)
         if (download == null) return null
         return Release(
             tag = o["tag_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
@@ -166,18 +152,21 @@ object Updater {
             sizeBytes = apk["size"]?.jsonPrimitive?.longOrNull ?: 0L,
             versionCode = versionCodeOf(notes, assetName),
             sha256 = sha256Of(apk["digest"]?.jsonPrimitive?.contentOrNull),
-            privateBeta = privateBeta,
         )
     }
 
-    internal fun repository(channel: String) = if (channel == "beta") BuildConfig.BETA_UPDATE_REPO else BuildConfig.UPDATE_REPO
+    internal fun repository(@Suppress("UNUSED_PARAMETER") channel: String) = BuildConfig.UPDATE_REPO
     /** Standard checks always use public releases, even with a saved legacy rolling-build preference. */
     internal fun updateUrl(channel: String) = releaseUrl(repository(channel), if (channel == "beta") "beta" else "releases")
-    internal fun privateApiUrl(url: String): Boolean = url.toHttpUrlOrNull()?.let {
-        it.scheme == "https" && it.host == "api.github.com" && it.port == 443 &&
-            it.username.isEmpty() && it.password.isEmpty() &&
-            it.encodedPath.startsWith("/repos/${BuildConfig.BETA_UPDATE_REPO}/releases/", ignoreCase = true)
-    } == true
+    private fun publicAssetUrl(value: String?): String? = value?.takeIf { raw -> raw.toHttpUrlOrNull()?.let {
+        if (it.scheme != "https" || it.port != 443 || it.username.isNotEmpty() || it.password.isNotEmpty()) false
+        else when (it.host) {
+            "github.com" -> it.encodedPath.startsWith("/${BuildConfig.UPDATE_REPO}/releases/download/", ignoreCase = true)
+            "api.github.com" -> it.encodedPath.substringBeforeLast('/').equals("/repos/${BuildConfig.UPDATE_REPO}/releases/assets", true) &&
+                it.encodedPath.substringAfterLast('/').matches(Regex("[0-9]+"))
+            else -> false
+        }
+    } == true }
 
     /** Legacy URL helper retained for compatibility; updateUrl normalizes standard checks to releases. */
     internal fun releaseUrl(repo: String, channel: String): String = when (channel) {

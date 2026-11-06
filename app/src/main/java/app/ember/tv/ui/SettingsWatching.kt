@@ -909,16 +909,12 @@ internal fun UpdatesSection(vm: HomeViewModel) {
             vm.updates.update?.notes?.takeIf { it.isNotBlank() }?.let { Note(it.take(600)) }
             ToggleRow(
                 "Beta updates",
-                if (vm.updates.updateBeta) "Private beta builds. Requires a repository-read token."
+                if (vm.updates.updateBeta) "Published beta builds from the public Ember repository. No token required."
                 else "Published releases from the public Ember repository. No token required.",
                 vm.updates.updateBeta,
             ) { vm.updates.toggleUpdateBeta() }
-            if (vm.updates.updateBeta) {
-                Chip("Beta access token") { vm.openSettingsPage("KEYS") }
-                Note("Enter a fine-grained GitHub token for the private beta repository with Contents: Read-only. Turning beta off returns to public releases once a newer build is published.")
-            }
             ToggleRow(stringResource(R.string.ui_check_once_a_day), stringResource(R.string.ui_when_ember_starts_a_message_appears), vm.updates.updateAutoCheck) { vm.updates.toggleUpdateAutoCheck() }
-            Note("Updates appear when a release or private beta build is published; ordinary code changes do not publish an APK.")
+            Note("Updates appear when a public release or beta build is published; ordinary code changes do not publish an APK. Turning beta off returns to stable releases when a newer build is available.")
         }
     }
 }

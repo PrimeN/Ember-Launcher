@@ -202,11 +202,8 @@ android {
             buildConfigField("String", name, javaString(key(name)))
         }
         buildConfigField("String", "PRIVATE_BUNDLE", "\"${privateBundle()}\"")
-        // Stable is public. Private beta access is supplied on the device, never bundled in an APK.
+        // Every update channel uses public releases, regardless of where the APK is compiled.
         buildConfigField("String", "UPDATE_REPO", "\"PrimeN/Ember-Launcher\"")
-        val betaRepo = key("BETA_UPDATE_REPO").ifBlank { "PrimeN/Ash-Launcher" }
-        require(betaRepo.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) { "BETA_UPDATE_REPO must be owner/repository" }
-        buildConfigField("String", "BETA_UPDATE_REPO", javaString(betaRepo))
     }
 
     // Optional release signing, set up by the GitHub workflow from repository secrets.

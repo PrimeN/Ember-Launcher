@@ -89,12 +89,14 @@ bundles and test add-on links, including when publishing a debug APK.
 
 Standard updates check published releases in the public `PrimeN/Ember-Launcher`
 repository, regardless of where the APK was compiled. They require no credentials.
-Beta updates check the private repository's `beta-build` release. The beta repository
-defaults to `PrimeN/Ash-Launcher`; forks can override `BETA_UPDATE_REPO` through the
-build environment or `local.properties` (`owner/repository`). Users enter a
-[fine-grained token](https://github.com/settings/personal-access-tokens) with access
-to that repository and **Contents: Read-only** in Settings → API keys → Private beta
-updates. The token stays encrypted on the device and is never built into an APK.
+Beta updates check the same public repository's `beta-build` release without credentials.
+Publish beta APKs from the [public build workflow](https://github.com/PrimeN/Ember-Launcher/actions/workflows/build.yml)
+on `beta`, using the manual publication option above. Private-repository builds also
+check these public endpoints; they do not require a separate update token or repository setting.
+Existing APKs that still use a private beta endpoint need one manual installation of
+an updated public APK. Keep the same signing key and a higher Android version code
+to preserve the installed app and its data. Switching back to stable does not downgrade
+an installed beta: a newer stable APK must first be published.
 GitHub Actions uses its separate repository token only for publication.
 
 Catalog thumbnails and collection covers use a bounded disk cache that survives
