@@ -18,6 +18,7 @@ import app.ember.tv.data.TitleIndex
 import app.ember.tv.data.AppAccess
 import app.ember.tv.data.DevicePerformance
 import app.ember.tv.state.UiRefreshQueue
+import app.ember.tv.state.StartupPresentation
 import app.ember.tv.data.mergeTitlesIndexed
 import androidx.compose.runtime.derivedStateOf
 import app.ember.tv.phone.PhoneSetupController
@@ -191,10 +192,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         DevicePerformance.resolve(look.devicePerformance, it.lowRam, it.heapMb, it.totalBytes) == "low"
     }
     internal val refreshQueue = UiRefreshQueue(viewModelScope, ::lowPowerDevice)
+    internal val startupPresentation = StartupPresentation()
     internal var uiPresented = false
     internal var cachedHomeLoaded = false
     fun onUiPresented() {
         uiPresented = true
+        startupPresentation.firstFrameShown()
         if (cachedHomeLoaded) refreshQueue.presented()
     }
     fun onUiActive(active: Boolean) = refreshQueue.setActive(active)
@@ -1190,6 +1193,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             android.content.IntentFilter(android.content.Intent.ACTION_LOCALE_CHANGED),androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         homeShortcuts.reload()
         hub.disabled = trackersOff
+        startupPresentation.preferencesRestored()
         refreshApps()
         viewModelScope.launch {
         restoreServerHome()

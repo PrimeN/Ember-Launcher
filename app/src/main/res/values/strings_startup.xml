@@ -1,0 +1,12 @@
+<resources>
+    <string name="startup_pane">Starting Ember</string>
+    <string name="startup_stage">Stage %1$d of %2$d</string>
+    <string name="startup_kindling">Rounding up the kindling…</string>
+    <string name="startup_charcoal">Convincing the charcoal…</string>
+    <string name="startup_spark">Finding the spark…</string>
+    <string name="startup_ready">Home, sweet ember.</string>
+    <string name="startup_preferences">Restoring your preferences</string>
+    <string name="startup_home">Preparing your Home</string>
+    <string name="startup_controls">Getting your controls ready</string>
+    <string name="startup_settle_in">Make yourself comfortable.</string>
+</resources>

@@ -18,6 +18,7 @@ import app.ember.tv.ui.CompactActionMenu
 import app.ember.tv.ui.AppManagement
 import app.ember.tv.data.mediaKey
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.ember.tv.R
 
 import android.content.ActivityNotFoundException
@@ -83,6 +84,7 @@ import app.ember.tv.ui.AppsScreen
 import app.ember.tv.ui.Chip
 import app.ember.tv.ui.DetailsScreen
 import app.ember.tv.ui.initialNavigationFocus
+import app.ember.tv.ui.startupInput
 import app.ember.tv.ui.EmberTheme
 import app.ember.tv.ui.Ink
 import app.ember.tv.ui.Mute
@@ -112,6 +114,9 @@ class MainActivity : ComponentActivity() {
         window.callback = object : android.view.Window.Callback by keys {
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 app.ember.tv.ui.RemoteSounds.onKey(this@MainActivity, event)
+                if(event.action==KeyEvent.ACTION_DOWN)when(event.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_UP,KeyEvent.KEYCODE_DPAD_DOWN,KeyEvent.KEYCODE_DPAD_LEFT,KeyEvent.KEYCODE_DPAD_RIGHT->vm.startupPresentation.revealForInput()
+                }
                 if (backTwice(event)) return true
                 return keys.dispatchKeyEvent(event)
             }
@@ -128,7 +133,7 @@ class MainActivity : ComponentActivity() {
                 // A tv-material Surface sets the text colour for everything inside it, dialogs included.
                 // Without it, plain Text falls back to black on the dark background.
                 Surface(
-                    modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                    modifier = Modifier.fillMaxSize().startupInput(vm.startupPresentation).onPreviewKeyEvent { event ->
                         if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {vm.onUiInteraction();app.ember.tv.ui.RuntimeBudgets.input()}
                         false // Observe input without consuming or redirecting the remote event.
                     },
@@ -569,6 +574,14 @@ private fun Root(
     val interactive = windowFocused && lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
         !vm.quickPanel && !vm.look.settingsPanel && !vm.profiles.showProfilePicker && !vm.profiles.showProfileMenu && vm.profiles.setupRequested==null &&
         vm.link == null && vm.pin.pinPrompt == null && vm.resumeAsk == null && vm.playing.chooser == null
+    val startup=vm.startupPresentation
+    val startupDialog=vm.profiles.showProfilePicker || vm.profiles.showProfileMenu || vm.profiles.setupRequested!=null ||
+        vm.link!=null || vm.pin.pinPrompt!=null || vm.resumeAsk!=null || vm.playing.chooser!=null || vm.quickPanel || vm.look.settingsPanel
+    LaunchedEffect(startup.stage,navigation.startup.established,windowFocused,lifecycle,startupDialog,tab,vm.details!=null) {
+        if(windowFocused && lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
+            (navigation.startup.established || app.ember.tv.ui.Ui.light || tab==NavTabs.SETTINGS || vm.details!=null || startupDialog))
+            startup.controlsReady()
+    }
     LaunchedEffect(vm.profiles.profileId,app.ember.tv.data.WatchedStore.version,lifecycle) {
         if(lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))vm.reloadWatched()
     }
@@ -607,11 +620,14 @@ private fun Root(
             },
         ),
     ) {
+        Box(Modifier.fillMaxSize().then(if(!startup.ready)Modifier.clearAndSetSemantics {} else Modifier)) {
         app.ember.tv.ui.FocusBackdropHost(vm,
             scope = listOf(vm.profiles.profile, tab, vm.collections.open?.first?.id, vm.collections.open?.second?.id, vm.serverBrowser.library?.ref),
             enabled = vm.details == null) {
             RootContent(vm, tab, onTab, onLaunch, onPlay, onPlayWith, onOpenOffer, onPlayTrailer, onPlayChannel)
         }
+        }
+        app.ember.tv.ui.StartupCurtain(startup)
         titleActions?.let { selected -> app.ember.tv.ui.TitleActions(selected, vm) { titleActions = null } }
     }
 }

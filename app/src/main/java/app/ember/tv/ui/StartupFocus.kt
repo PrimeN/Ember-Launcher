@@ -22,7 +22,7 @@ internal class StartupDirections {
 
 /** One startup handoff per navigation owner; window returns and ordinary moves keep their focus. */
 internal class InitialNavigationFocusState {
-    var established=false;private set
+    var established by mutableStateOf(false);private set
     private var requesting=false
     fun ensure(ready:Boolean,hasFocus:Boolean,request:()->Boolean):Boolean {
         if(established)return true
