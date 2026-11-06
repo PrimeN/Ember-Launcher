@@ -8,10 +8,14 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
     private var initializedImages:coil.ImageLoader?=null
     override fun onCreate() {
         super.onCreate()
+        // First, so a failure in anything below is recorded too.
+        app.ember.tv.data.CrashLog.install(this)
+        // Why the previous run ended when no exception was thrown: not responding, native crash,
+        // low memory (#27). Read on the crash log's own thread.
+        app.ember.tv.data.ExitHistory.record(this)
         app.ember.tv.data.CacheManagement.init(this)
         app.ember.tv.data.Net.init(this)
         app.ember.tv.ui.IconArtworkCache.init(this)
-        app.ember.tv.data.CrashLog.install(this)
         ApiKeys.init(this)
         app.ember.tv.data.SourceFreshness.init(this)
         // The app icon follows the accent colour (also after a restore).

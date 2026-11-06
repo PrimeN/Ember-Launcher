@@ -49,20 +49,36 @@ object CrashLog {
     internal fun flush() { runCatching { writer.submit {}.get(2, java.util.concurrent.TimeUnit.SECONDS) } }
 
     private fun record(thread: Thread, error: Throwable, what: String? = null): Unit = synchronized(lock) {
-        val f = file ?: return
         val trace = StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString()
-        val entry = buildString {
-            append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
-            append("  ·  Ember ").append(BuildConfig.VERSION_NAME).append(" (").append(BuildConfig.BUILD_TYPE).append(", build ").append(BuildConfig.VERSION_CODE).append(")")
-            append("  ·  Android ").append(Build.VERSION.RELEASE).append(" · ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
-            append("  ·  thread ").append(thread.name).append('\n')
-            if (what != null) append(redact(what)).append('\n')
-            append(redact(trace).take(16_000))
-        }
-        // Newest first; old entries drop off the end.
+        write(header(System.currentTimeMillis()) + "  ·  thread " + thread.name + "\n" +
+            (if (what != null) redact(what) + "\n" else "") + redact(trace).take(16_000))
+    }
+
+    private fun header(at: Long, recorded: Boolean = false) = buildString {
+        append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(at)))
+        append(if (recorded) "  ·  recorded by Ember " else "  ·  Ember ").append(BuildConfig.VERSION_NAME).append(" (").append(BuildConfig.BUILD_TYPE).append(", build ").append(BuildConfig.VERSION_CODE).append(")")
+        append("  ·  Android ").append(Build.VERSION.RELEASE).append(" · ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
+    }
+
+    /** Newest first; old entries drop off the end. */
+    private fun write(entry: String): Unit = synchronized(lock) {
+        val f = file ?: return
         val old = if (f.exists()) f.readText() else ""
         f.writeText((entry + if (old.isNotEmpty()) SEPARATOR + old else "").take(MAX_BYTES))
     }
+
+    /** Runs [block] on the crash log's own thread, in order with notes (exit history uses it). */
+    internal fun later(block: () -> Unit) { runCatching { writer.execute { runCatching(block) } } }
+
+    /** On the writer thread only: a note without queueing again. */
+    internal fun noteNow(what: String, error: Throwable) = runCatching { record(Thread.currentThread(), error, what) }
+
+    /**
+     * On the writer thread only: an entry that is not an exception, dated when it happened. Android
+     * reports it on the next start, so the version shown is the one that recorded it.
+     */
+    internal fun entryNow(at: Long, title: String, details: String) =
+        runCatching { write(header(at, recorded = true) + "\n" + redact(title) + "\n" + redact(details).take(16_000)) }
 
     /** Links in errors can hold addon settings, debrid keys or tokens: keep only the site name. */
     fun redact(text: String): String = text
