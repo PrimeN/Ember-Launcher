@@ -67,6 +67,15 @@ internal object ArtworkCaches {
     fun persistenceAllowed(realm:String,source:String?)=source==null || synchronized(denied) {denied[deniedKey(realm,source)]!=true}
     fun noStore(realm:String,source:String)=synchronized(denied) {denied[deniedKey(realm,source)]=true}
 
+    private val refusedRealms=java.util.Collections.synchronizedSet(HashSet<String>())
+    /**
+     * A server answered 401/403 for one image (#26). Reset private artwork once for this sign-in,
+     * not for every refused image: the reset clears every image in memory, the reload asks for the
+     * same refused image again, and the launcher kept clearing and redecoding all artwork. A new
+     * sign-in or token is a new realm, so it still gets its own reset.
+     */
+    fun refused(realm:String):Boolean = refusedRealms.add(realm).also { first -> if(first)accessChanged() }
+
     /** Called after account/profile mutations. The generation changes synchronously; disk work does not. */
     fun accessChanged() {
         revision.value=access.incrementAndGet()

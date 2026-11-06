@@ -64,7 +64,7 @@ class ServerArtwork(private val key: String, private val options: Options) : Fet
                 val response=fetchServerImage(Net.artworkClient(5,15),url,headers)
                 if(!response.cacheable)ArtworkCaches.noStore(realm,key)
                 response
-            } catch(denied:ArtworkAccessDenied) {ArtworkCaches.accessChanged();throw denied}
+            } catch(denied:ArtworkAccessDenied) {ArtworkCaches.refused(realm);throw denied}
         }
         privateRequests.withPermit {
             val store=ArtworkCaches.originals()
