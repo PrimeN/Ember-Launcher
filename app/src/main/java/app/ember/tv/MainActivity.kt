@@ -806,7 +806,7 @@ private fun RootContent(
         val searchTabFocus = navigation.tab(NavTabs.SEARCH)
         Box(Modifier.fillMaxSize().initialNavigationFocus(navigation,
             app.ember.tv.ui.navigationTabForPage(current,tabs),
-            enabled=discoveryInteractive && !light && current!=NavTabs.SETTINGS)) {
+            enabled=discoveryInteractive,available=!light && current!=NavTabs.SETTINGS)) {
             if (light && current == NavTabs.HOME) {
                 app.ember.tv.ui.LightHome(vm, homeState, tabs, tabClick, onOpenTitle = vm::openDetails, onLaunch = launchApp, onAppOptions = { options = it })
             } else {

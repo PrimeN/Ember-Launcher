@@ -1,7 +1,9 @@
 package app.ember.tv.ui
 
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
@@ -21,6 +23,14 @@ import app.ember.tv.data.NavTabs
 class NavigationFocus {
     internal val startup=InitialNavigationFocusState()
     private val tabs = mutableMapOf<String, FocusRequester>()
+    private val placedTabs = androidx.compose.runtime.mutableStateMapOf<String, Boolean>()
+    internal var focusedTab by androidx.compose.runtime.mutableStateOf<String?>(null); private set
+    internal fun tabPlaced(id: String) { placedTabs[id] = true }
+    internal fun tabReady(id: String) = placedTabs[id] == true
+    internal fun tabFocus(id: String, focused: Boolean) {
+        if (focused) focusedTab = id else if (focusedTab == id) focusedTab = null
+    }
+    internal fun tabDetached(id: String) { placedTabs.remove(id); tabFocus(id, false) }
     private val pages = mutableMapOf<String, FocusRequester>()
     private val targets = androidx.compose.runtime.mutableStateMapOf<String, FocusRequester>()
     private val last = androidx.compose.runtime.mutableStateMapOf<String, String>()
@@ -116,4 +126,14 @@ fun Modifier.openNavigationTab(id: String, selected: Boolean, enabled: Boolean =
                 }
             }
     }
+}
+
+/** Startup observes the actual attached tab instead of any focus inside the page group. */
+internal fun Modifier.navigationTabTarget(owner: NavigationFocus, id: String): Modifier = composed {
+    androidx.compose.runtime.DisposableEffect(owner, id) {
+        onDispose { owner.tabDetached(id) }
+    }
+    focusRequester(owner.tab(id))
+        .onFocusChanged { owner.tabFocus(id, it.isFocused) }
+        .then(Modifier.onGloballyPositioned { owner.tabPlaced(id) })
 }

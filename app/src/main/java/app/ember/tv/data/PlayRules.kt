@@ -35,10 +35,12 @@ object PlayPicker {
     /** The source the Play button plays, or null when none meets the rules. */
     fun pick(addonSources: List<StreamOption>, serverSources: List<StreamOption>, r: PlayRules): StreamOption? {
         val maxRank = Quality.rank(r.maxQuality).takeIf { it > 0 } ?: 4
+        fun codecKey(value: String) = StreamParser.codec(value).ifBlank { value.trim().uppercase(java.util.Locale.ROOT) }
+        val excludedCodecs = r.avoidCodecs.mapTo(hashSetOf(), ::codecKey)
         fun ok(s: StreamOption): Boolean {
             if(s.url.isNullOrBlank() && s.infoHash.isNullOrBlank() && s.serverRef.isNullOrBlank() && s.serverPlayback==null)return false
             if (s.qualityRank > maxRank) return false
-            if (s.codec.isNotBlank() && s.codec in r.avoidCodecs) return false
+            if (excludedCodecs.isNotEmpty() && s.codec.isNotBlank() && codecKey(s.codec) in excludedCodecs) return false
             if (r.maxSizeGb > 0 && (s.sizeGb ?: 0.0) > r.maxSizeGb) return false
             if (r.readyOnly && s.kind == SourceKind.UNCACHED) return false
             return true
@@ -53,12 +55,12 @@ object PlayPicker {
                 else -> 0
             }
         }
-        fun audioScore(s: StreamOption): Int = if (!r.bestAudio) 0 else when (s.audio) {
-            "Atmos", "DTS:X" -> 5
-            "TrueHD", "DTS-HD MA" -> 4
+        fun audioScore(s: StreamOption): Int = if (!r.bestAudio) 0 else when (StreamParser.audio(s.audio).ifBlank { s.audio.substringBefore(' ') }.uppercase(java.util.Locale.ROOT)) {
+            "ATMOS", "DTS:X" -> 5
+            "TRUEHD", "DTS-HD MA" -> 4
             "DTS-HD" -> 3
             "DD+", "DTS" -> 2
-            "DD 5.1" -> 1
+            "DD", "DD 5.1" -> 1
             else -> 0
         }
         val order = compareByDescending<StreamOption> { if (r.serverFirst && it.serverRef != null) 1 else 0 }

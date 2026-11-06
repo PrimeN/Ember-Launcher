@@ -40,7 +40,7 @@ internal fun EmberXTopBar(tabs:List<String>,current:String,onTab:(String)->Unit,
             entries.forEachIndexed {index,id->key(id) {
                 val selected=activeTab==id
                 Focusable(onClick={onTab(id)},modifier=Modifier.height(42.dp)
-                    .let {m->navigation?.tab(id)?.let {m.focusRequester(it)} ?: m}
+                    .let {m->navigation?.let {m.navigationTabTarget(it,id)} ?: m}
                     .focusProperties {
                         if(navigation!=null) {
                             fun neighbor(rightward:Boolean):FocusRequester {
@@ -61,7 +61,7 @@ internal fun EmberXTopBar(tabs:List<String>,current:String,onTab:(String)->Unit,
                 }
             }}
         }
-        if(NavTabs.SEARCH in tabs)ToolbarIcon("Search",Icons.Outlined.Search,Modifier.let {m->navigation?.tab(NavTabs.SEARCH)?.let {m.focusRequester(it)} ?: m}
+        if(NavTabs.SEARCH in tabs)ToolbarIcon("Search",Icons.Outlined.Search,Modifier.let {m->navigation?.let {m.navigationTabTarget(it,NavTabs.SEARCH)} ?: m}
             .focusProperties {if(navigation!=null){down=navigation.content(current);if(rtl)right=entries.lastOrNull()?.let(navigation::tab) ?: FocusRequester.Default else left=entries.lastOrNull()?.let(navigation::tab) ?: FocusRequester.Default}}
             .openNavigationTab(NavTabs.SEARCH,current==NavTabs.SEARCH){onTab(NavTabs.SEARCH)},selected=current==NavTabs.SEARCH) {onTab(NavTabs.SEARCH)}
         ProfileMenuButton(profile,size=32.dp,onFallback=onProfile)

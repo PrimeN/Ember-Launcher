@@ -2,6 +2,7 @@ package app.ember.tv.ui
 
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusProperties
@@ -21,29 +22,58 @@ internal class InitialNavigationFocusState {
     }
 }
 
-/** Handles fast first D-pad input before the initial layout/window handoff has completed. */
+/** Directional entry can wait for a placed target without losing the originating key. */
 internal fun Modifier.initialNavigationFocusGroup(state:InitialNavigationFocusState,ready:()->Boolean,
-    focused:()->Boolean,request:()->Boolean):Modifier=focusProperties {
+    focused:()->Boolean,request:()->Boolean,onEarlyDirection:((FocusDirection)->Unit)?=null):Modifier=focusProperties {
     onEnter={
-        if(requestedFocusDirection in listOf(FocusDirection.Up,FocusDirection.Down,FocusDirection.Left,FocusDirection.Right))
-            state.ensure(ready(),focused(),request)
+        if(requestedFocusDirection in listOf(FocusDirection.Up,FocusDirection.Down,FocusDirection.Left,FocusDirection.Right)) {
+            if (!state.established && onEarlyDirection != null) {
+                onEarlyDirection(requestedFocusDirection)
+                cancelFocusChange()
+            } else state.ensure(ready(),focused(),request)
+        }
     }
 }.focusGroup()
 
+/** Seed the real tab after placement and replay early directional input from that tab. */
 @Composable
-internal fun Modifier.initialNavigationFocus(owner:NavigationFocus,tab:String,enabled:Boolean):Modifier {
+internal fun Modifier.initialNavigationFocus(owner:NavigationFocus,tab:String,enabled:Boolean,available:Boolean=true):Modifier {
+    if (!available) return this
     var focused by remember(owner){mutableStateOf(false)}
-    val ready by rememberUpdatedState(enabled)
-    val request by rememberUpdatedState<()->Boolean>({owner.tab(tab).requestFocus()})
-    LaunchedEffect(owner,tab,enabled) {
-        if(!enabled || owner.startup.established)return@LaunchedEffect
-        repeat(6) {
-            withFrameNanos { }
-            if(owner.startup.ensure(ready,focused,request))return@LaunchedEffect
+    var pending by remember(owner){mutableStateOf(emptyList<FocusDirection>())}
+    val manager = androidx.compose.ui.platform.LocalFocusManager.current
+    val placed = owner.tabReady(tab)
+    val focusedTab = owner.focusedTab
+    LaunchedEffect(owner,tab,enabled,placed,focused,focusedTab,pending) {
+        if (!enabled || !placed || owner.startup.established && pending.isEmpty()) return@LaunchedEffect
+        withFrameNanos { }
+        owner.startup.ensure(true, focusedTab == tab || focusedTab == null && focused && owner.preferred(tab) != null) {
+            owner.tab(tab).requestFocus() && owner.focusedTab == tab
+        }
+        if (owner.startup.established && pending.isNotEmpty()) {
+            val direction = pending.first()
+            pending = pending.drop(1)
+            manager.moveFocus(direction)
         }
     }
     return onFocusChanged {focused=it.hasFocus}
-        .initialNavigationFocusGroup(owner.startup,{ready},{focused},{request()})
+        .onPreviewKeyEvent { event ->
+            val direction = when (event.key) {
+                Key.DirectionUp -> FocusDirection.Up
+                Key.DirectionDown -> FocusDirection.Down
+                Key.DirectionLeft -> FocusDirection.Left
+                Key.DirectionRight -> FocusDirection.Right
+                else -> null
+            }
+            if (!owner.startup.established && event.type == KeyEventType.KeyDown && direction != null) {
+                pending = pending + direction
+                true
+            } else false
+        }
+        .initialNavigationFocusGroup(owner.startup,{enabled},
+            {owner.focusedTab == tab || owner.focusedTab == null && focused && owner.preferred(tab) != null},
+            {owner.tab(tab).requestFocus() && owner.focusedTab == tab},
+            onEarlyDirection = {pending = pending + it})
 }
 
 /** Logical previous/next follows layout direction, matching the arrows shown on screen. */

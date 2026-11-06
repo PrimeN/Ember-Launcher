@@ -186,7 +186,7 @@ fun ModernTopBar(
                         Focusable(
                             onClick = { onTab(id) },
                             modifier = Modifier.height(42.dp)
-                                .let { m -> (sceneFocus?.tab(id) ?: searchFocus?.takeIf { id == NavTabs.SEARCH })?.let { m.focusRequester(it) } ?: m }
+                                .let { m -> if (sceneFocus != null) m.navigationTabTarget(sceneFocus, id) else searchFocus?.takeIf { id == NavTabs.SEARCH }?.let { m.focusRequester(it) } ?: m }
                                 .let { m -> if (sceneFocus != null) m.focusProperties {
                                     // Explicit neighbors avoid scroll-group geometry restarting at Search.
                                     left = navigation.getOrNull(index+choiceStep(right=false,rtl=rtl))?.let(sceneFocus::tab) ?: androidx.compose.ui.focus.FocusRequester.Default
@@ -804,7 +804,7 @@ private fun RailItem(id: String, contentId: String, selected: Boolean, expanded:
         onClick = onClick,
         // Expanded, the pill follows the rail as it widens instead of jumping to its full width.
         modifier = (if (expanded) Modifier.fillMaxWidth().padding(end = 24.dp).height(44.dp) else Modifier.size(44.dp))
-            .let { m -> if (scene != null) m.focusRequester(scene.tab(id)).focusProperties { if(rtl)left=scene.content(contentId) else right=scene.content(contentId) } else m }
+            .let { m -> if (scene != null) m.navigationTabTarget(scene,id).focusProperties { if(rtl)left=scene.content(contentId) else right=scene.content(contentId) } else m }
             .semantics { this.selected = selected; role = Role.Tab }
             .openNavigationTab(id, selected, open = onClick)
             .onFocusChanged { focused = it.isFocused || it.hasFocus },

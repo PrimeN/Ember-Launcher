@@ -18,6 +18,8 @@ fun rememberWindowFocused(): Boolean {
     DisposableEffect(view) {
         val listener = android.view.ViewTreeObserver.OnWindowFocusChangeListener { focused = it }
         view.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+        // Close the gap between composition's snapshot and listener registration.
+        focused = view.hasWindowFocus()
         onDispose { if (view.viewTreeObserver.isAlive) view.viewTreeObserver.removeOnWindowFocusChangeListener(listener) }
     }
     return focused

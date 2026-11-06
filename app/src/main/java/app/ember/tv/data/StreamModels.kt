@@ -10,7 +10,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /** One entry in a manifest's "resources". Addons write it either as "stream" or as an object. */
-data class ResourceDef(val name: String, val types: List<String>?, val idPrefixes: List<String>?)
+data class ResourceDef(val name: String, val types: List<String>?, val idPrefixes: List<String>?,
+    val inheritIdPrefixes: Boolean = true)
 
 /** What an addon offers, read from its manifest.json. */
 data class AddonInfo(
@@ -31,11 +32,13 @@ data class AddonInfo(
 
     /** True when the addon serves [resource] for this content type and id. */
     fun supports(resource: String, type: String, id: String): Boolean {
-        val r = resources.firstOrNull { it.name == resource } ?: return false
-        val types = r.types ?: this.types
-        if (types.isNotEmpty() && type !in types) return false
-        val prefixes = r.idPrefixes ?: idPrefixes
-        return prefixes.isNullOrEmpty() || prefixes.any { id.startsWith(it) }
+        return resources.any { r ->
+            if (r.name != resource) return@any false
+            val types = r.types ?: this.types
+            if (types.isNotEmpty() && type !in types) return@any false
+            val prefixes = r.idPrefixes ?: idPrefixes.takeIf { r.inheritIdPrefixes }
+            prefixes.isNullOrEmpty() || prefixes.any { id.startsWith(it) }
+        }
     }
 
     companion object {
@@ -48,7 +51,7 @@ data class AddonInfo(
             resources = j.arr("resources").list().mapNotNull { r ->
                 when (r) {
                     is JsonPrimitive -> r.contentOrNull?.let { ResourceDef(it, null, null) }
-                    is JsonObject -> r.str("name")?.let { ResourceDef(it, r.arr("types")?.strings(), r.arr("idPrefixes")?.strings()) }
+                    is JsonObject -> r.str("name")?.let { ResourceDef(it, r.arr("types")?.strings(), r.arr("idPrefixes")?.strings(), inheritIdPrefixes = false) }
                     else -> null
                 }
             },

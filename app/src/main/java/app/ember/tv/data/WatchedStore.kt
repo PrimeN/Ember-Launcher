@@ -35,14 +35,18 @@ internal object WatchedKeys {
 internal data class WatchedIndex(val yes:Set<String> = emptySet(),val no:Set<String> = emptySet()) {
     private val incompleteShows=no.filter {it.contains('@')}.mapTo(hashSetOf()) {it.substringBeforeLast('@')}
     private fun explicit(keys:List<String>):Boolean? {
-        keys.forEach {key->if(key in no)return false;if(key in yes)return true}
+        if (keys.any { it in no }) return false
+        if (keys.any { it in yes }) return true
         return null
     }
     fun explicitStatus(meta:Meta):Boolean? {
         if(meta.season!=null && meta.episode!=null) {
-            WatchedKeys.bases(meta).forEach {base->
-                (explicit(listOf("$base@${meta.season}.${meta.episode}")) ?: explicit(listOf(base)))?.let {return it}
-            }
+            val (verified, opaque) = WatchedKeys.bases(meta).partition { !it.startsWith("s:p:") && !it.startsWith("m:p:") }
+            fun episodeKeys(bases: List<String>) = bases.map { "$it@${meta.season}.${meta.episode}" }
+            // Resolve episode choices across every verified alias before whole-show fallback.
+            // An older opaque provider mark must not reverse a later server/public show action.
+            return explicit(episodeKeys(verified)) ?: explicit(verified)
+                ?: explicit(episodeKeys(opaque)) ?: explicit(opaque)
         } else explicit(WatchedKeys.keys(meta))?.let {return it}
         return null
     }
