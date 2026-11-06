@@ -341,8 +341,9 @@ class TitleState(
     }
 
     fun selectEpisode(ep: Episode) {
-        val d = details ?: return
-        details = d.copy(episode = ep, season = ep.season, streams = if (ep.serverRef != null) emptyList() else d.streams, subtitles = if (ep.serverRef != null) emptyList() else d.subtitles)
+        if (details == null) return
+        if (ep.serverRef != null) clearEpisodeSources()
+        details = details?.copy(episode = ep, season = ep.season)
         if (ep.serverRef != null) loadNativeSources(ep.serverRef) else loadStreams("series", ep.id)
     }
 
@@ -368,14 +369,29 @@ class TitleState(
         }
     }
 
+    private fun clearEpisodeSources() {
+        streamsJob?.cancel()
+        sourceHealth.cancelLoading()
+        sourceHealth.retain(emptySet())
+        streamInfos = emptyList()
+        streamResults.clear()
+        subtitleResults.clear()
+        details = details?.copy(streams = emptyList(), subtitles = emptyList(),
+            serverStreams = emptyList(), loadingStreams = false, loadingServer = false)
+    }
+
     private fun loadNativeSeason(season: Int, append: Boolean = false) {
         val d = details ?: return
         val ref = app.ember.tv.mediaserver.ServerRef.of(d.meta)?.value ?: return
         detailsJob?.cancel()
-        serverJob?.cancel()
         val offset = if (append) d.episodeCursor ?: return else 0
-        details = d.copy(season = season, loadingEpisodes = true, note = null,
+        if (!append) {
+            serverJob?.cancel()
+            clearEpisodeSources()
+        }
+        details = details?.copy(season = season, loadingEpisodes = true, note = null,
             episodes = if (append) d.episodes else emptyList(), episode = if (append) d.episode else null,
+            episodeCursor = if (append) d.episodeCursor else null,
             serverStreams = if (append) d.serverStreams else emptyList())
         detailsJob = visit.scope.launch {
             try {

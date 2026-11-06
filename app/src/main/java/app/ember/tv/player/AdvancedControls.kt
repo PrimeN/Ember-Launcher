@@ -440,6 +440,7 @@ internal fun SheetRow(label: String, first: Boolean = false, onClick: () -> Unit
 /** One seek thumbnail: the right cell of a Plex/Jellyfin sprite sheet, cropped. */
 @Composable
 internal fun Thumbnail(t: app.ember.tv.mediaserver.Trickplay, positionMs: Long) {
+    if (!t.valid) return
     val (url, col, row) = t.at(positionMs)
     val w = 240.dp
     val h = w * (t.height.toFloat() / t.width.coerceAtLeast(1))

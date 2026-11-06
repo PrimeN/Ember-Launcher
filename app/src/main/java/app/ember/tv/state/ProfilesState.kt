@@ -115,8 +115,9 @@ class ProfilesState(
     }
 
     fun deleteProfile(id: String) {
-        if (all.size < 2) return
-        saveProfiles(all.filterNot { it.id == id })
+        val remaining = all.filterNot { it.id == id }
+        if (remaining.isEmpty() || remaining.size == all.size) return
+        saveProfiles(remaining)
         onRemoved(id)
         if (id == profileId) {
             profileId = all.first().id

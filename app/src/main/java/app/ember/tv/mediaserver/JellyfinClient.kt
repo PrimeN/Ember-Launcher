@@ -367,13 +367,13 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val t = pick.value
         val width = t.int("Width") ?: return null
         return Trickplay(
-            intervalMs = (t.long("Interval") ?: 10_000L).coerceAtLeast(1_000L),
+            intervalMs = t.long("Interval") ?: 10_000L,
             count = t.int("ThumbnailCount") ?: return null,
             cols = t.int("TileWidth") ?: 10,
             rows = t.int("TileHeight") ?: 10,
             width = width,
             height = t.int("Height") ?: (width * 9 / 16),
-        ) { tile -> ServerMetadata.artwork(ServerRef(a.kind,a.key,itemId),"/Videos/$itemId/Trickplay/${pick.key}/$tile.jpg?MediaSourceId=$sourceId")!! }
+        ) { tile -> ServerMetadata.artwork(ServerRef(a.kind,a.key,itemId),"/Videos/$itemId/Trickplay/${pick.key}/$tile.jpg?MediaSourceId=$sourceId")!! }.takeIf { it.valid }
     }
 
     suspend fun actions(a:ServerAccount,itemId:String):ServerActionState {

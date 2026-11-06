@@ -1,4 +1,6 @@
 package app.ember.tv
+
+import app.ember.tv.data.playbackKey
 import app.ember.tv.home.LauncherExtrasState
 import app.ember.tv.home.PersonalHomes
 import app.ember.tv.data.AppRepository
@@ -426,11 +428,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         serverPlaybackDirty = true
         val m = d.meta
         val ep = d.episode
+        if (d.loadingEpisodes && ep == null) return null
         // Use the tracker's progress only when it belongs to this exact episode.
         val trackerProgress = m.progress?.takeIf { ep == null || (ep.season == m.season && ep.episode == m.episode) }
         // Kept on the TV for In progress and Recently watched (the player adds how far you get).
         LocalLibrary.started(
-            ep?.id ?: m.imdb ?: m.id,
+            m.playbackKey(ep),
             if (ep == null) m else m.copy(serverRef = ep.serverRef ?: m.serverRef, serverSeriesRef = ep.serverSeriesRef ?: m.serverSeriesRef, season = ep.season, episode = ep.episode, badge = "S${ep.season} · E${ep.episode}" + ep.title.takeIf { it.isNotBlank() }?.let { "  $it" }.orEmpty()),
         )
         return PlayRequest(
@@ -449,7 +452,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             tmdbId = m.tmdbId,
             season = ep?.season ?: m.season,
             episode = ep?.episode ?: m.episode,
-            resumeKey = ep?.id ?: m.imdb ?: m.id,
+            resumeKey = m.playbackKey(ep),
             resumeFraction = ep?.progress ?: trackerProgress,
             subtitles = (s.serverPlayback?.parts?.firstOrNull()?.subtitles.orEmpty() + d.subtitles).distinctBy { it.url },
             seriesName = m.name,
@@ -972,7 +975,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if(playerSettings.playbackConfig.resume=="start")return "Play"
         val d=details?:return "Play"
         val ep=d.episode;val m=d.meta
-        val key=ep?.id ?: m.imdb ?: m.id
+        val key=m.playbackKey(ep)
         val fraction=ep?.progress ?: m.progress?.takeIf {ep==null || ep.season==m.season && ep.episode==m.episode}
         return app.ember.tv.data.ResumeAction.buttonLabel(app.ember.tv.player.PositionStore(getApplication<Application>(),LocalActivity.scope(profiles.profile)).get(key),fraction,m.runtimeMinutes?.toLong()?.times(60_000))
     }

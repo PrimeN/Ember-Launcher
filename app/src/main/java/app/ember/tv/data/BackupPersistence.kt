@@ -62,7 +62,10 @@ internal object BackupFormat {
                 when(key) {
                     "screenMargin"->if(!ScreenMargins.valid(value))invalid("screen margin")
                     "customPerformance"->json.decodeFromString<CustomPerformance>(value)
-                    "profiles"->json.decodeFromString<List<Profile>>(value)
+                    "profiles"->json.decodeFromString<List<Profile>>(value).also { profiles ->
+                        if (profiles.isEmpty() || profiles.any { it.id.isBlank() } ||
+                            profiles.map { it.id }.distinct().size != profiles.size) invalid("profile IDs")
+                    }
                     "playRules"->json.decodeFromString<PlayRules>(value)
                     "playbackConfig"->json.decodeFromString<app.ember.tv.player.PlaybackConfig>(value)
                     "subtitleConfig"->json.decodeFromString<SubtitleConfig>(value)

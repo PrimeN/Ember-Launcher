@@ -1,5 +1,7 @@
 package app.ember.tv
 
+import app.ember.tv.data.playbackKey
+
 import kotlinx.coroutines.sync.withLock
 import app.ember.tv.data.WatchedKeys
 import android.app.Application
@@ -88,14 +90,15 @@ internal fun HomeViewModel.markWatched() {
     val ep = d.episode
     if(detailsWatched){setTitleWatched(if(ep!=null)WatchedKeys.episode(m,ep) else m,false);return}
     if(m.type!="movie" && ep==null && m.season==null){setTitleWatched(m,true);return}
-    markWatchedItem(m, ep?.season ?: m.season, ep?.episode ?: m.episode, ep?.id ?: m.imdb ?: m.id, ep?.serverRef ?: d.serverStreams.firstOrNull()?.serverRef ?: m.serverRef)
+    markWatchedItem(m, ep?.season ?: m.season, ep?.episode ?: m.episode, m.playbackKey(ep), ep?.serverRef ?: d.serverStreams.firstOrNull()?.serverRef ?: m.serverRef)
 }
 
 internal fun HomeViewModel.markTitleWatched(meta: Meta) {
     if(isWatched(meta)){setTitleWatched(meta,false);return}
     if (meta.type != "movie" && (meta.season == null || meta.episode == null)) {setTitleWatched(meta,true);return}
     markWatchedItem(meta, meta.season, meta.episode,
-        if (meta.type == "movie") meta.imdb ?: meta.id else "${meta.imdb ?: meta.id}:${meta.season}:${meta.episode}", meta.serverRef)
+        if (meta.type == "movie" || app.ember.tv.mediaserver.ServerRef.of(meta) != null) meta.playbackKey()
+        else "${meta.imdb ?: meta.id}:${meta.season}:${meta.episode}", meta.serverRef)
 }
 
 internal fun HomeViewModel.markWatchedItem(m: Meta, season: Int?, episode: Int?, key: String, serverRef: String?) {

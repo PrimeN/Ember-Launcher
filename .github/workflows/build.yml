@@ -19,7 +19,7 @@ on:
 # A newer branch push cancels its older run so an outdated main build cannot publish later.
 # Explicit version-tag builds run to completion.
 concurrency:
-  group: build-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
@@ -28,9 +28,7 @@ permissions:
 
 jobs:
   build:
-    # A pull request from beta builds the same commit as the push to beta, whose checks already show
-    # on the pull request, so it is skipped (it would only double the build time).
-    if: github.event_name != 'pull_request' || github.head_ref != 'beta'
+    # Validate every pull request, including beta branches from forks and merge results.
     # Pinned: Ubuntu 24.04 runners come with the Android SDK installed.
     # (ubuntu-latest is moving to Ubuntu 26, where the SDK setup step failed.)
     runs-on: ubuntu-24.04

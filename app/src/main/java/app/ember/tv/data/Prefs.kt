@@ -155,6 +155,7 @@ class Prefs(context: Context) {
 
     var profiles: List<Profile>
         get() = runCatching { json.decodeFromString<List<Profile>>(sp.read(PreferenceKeys.PROFILES)!!) }.getOrDefault(emptyList())
+            .filter { it.id.isNotBlank() }.distinctBy { it.id }
             .ifEmpty { listOf(Profile(Profile.MAIN, "Me")) }
         set(v) = sp.edit { putString(PreferenceKeys.PROFILES.name, json.encodeToString(v)) }
 

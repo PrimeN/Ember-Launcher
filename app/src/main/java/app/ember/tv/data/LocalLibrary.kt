@@ -48,7 +48,7 @@ data class PendingWatchlist(
  */
 object LocalLibrary {
     @Serializable private data class Activity(val plays:List<LibraryEntry> = emptyList(),val hidden:List<String> = emptyList(),
-        val dismissed: Map<String, List<Meta>> = emptyMap())
+        val dismissed: Map<String, List<Meta>> = emptyMap(), val hiddenVersion: Int = 0)
     @Serializable
     private data class Data(
         val plays: List<LibraryEntry> = emptyList(),
@@ -56,8 +56,9 @@ object LocalLibrary {
         val trackerHistory: List<Meta> = emptyList(),
         val trackerWatchlist: List<Meta> = emptyList(),
         val pending: List<PendingWatchlist> = emptyList(),
-        /** Titles taken off Recently watched (also when they come from Trakt), by id. */
+        /** Titles taken off Recently watched (also when they come from Trakt), by type-aware title key. */
         val hidden: List<String> = emptyList(),
+        val hiddenVersion: Int = 0,
         val activities:Map<String,Activity> = emptyMap(),
         val dismissed: Map<String, List<Meta>> = emptyMap(),
     )
@@ -77,7 +78,7 @@ object LocalLibrary {
     private fun view(d:Data,scope:String=selectedScope):Data = if(scope==LocalActivity.SHARED)d else d.activities[scope].let {d.copy(plays=it?.plays.orEmpty(),hidden=it?.hidden.orEmpty(),dismissed=it?.dismissed.orEmpty())}
     private fun updateActivity(scope:String=selectedScope,change:(Data)->Data)=update {root->
         if(scope==LocalActivity.SHARED)change(root) else change(view(root,scope)).let {changed->
-            root.copy(activities=root.activities+(scope to Activity(changed.plays,changed.hidden,changed.dismissed)))
+            root.copy(activities=root.activities+(scope to Activity(changed.plays,changed.hidden,changed.dismissed,hiddenVersion=1)))
         }
     }
 
@@ -98,12 +99,12 @@ object LocalLibrary {
                 val loaded = runCatching { json.decodeFromString(Data.serializer(), read()) }.getOrDefault(Data()).let { d ->
                     // Files from before the limit: trimmed on the next save.
                     d.copy(
-                        plays = d.plays.distinctBy { it.meta.id }.take(MAX_TITLES),
+                        plays = d.plays.distinctBy { it.meta.titleKey() }.take(MAX_TITLES),
                         trackerProgress = d.trackerProgress.take(MAX_TITLES),
                         trackerHistory = d.trackerHistory.take(MAX_TITLES),
                     )
                 }
-                val safe=protect(loaded)
+                val safe=protect(migrateHidden(loaded))
                 if(safe!=loaded)AtomicFile.write(f,json.encodeToString(Data.serializer(),safe))
                 safe
             } finally {android.os.Trace.endSection()}
@@ -144,6 +145,19 @@ object LocalLibrary {
         }.get()} catch(error:java.util.concurrent.ExecutionException) {throw (error.cause ?: error)}
     }
 
+    private fun migrateHidden(hidden: List<String>, titles: List<Meta>): List<String> = hidden.map { key ->
+        // Legacy IDs have no media type. Migrate only an unambiguous known title; keep unknown
+        // IDs dormant rather than hiding a different movie/show that happens to reuse its ID.
+        titles.filter { it.id == key }.map { it.titleKey() }.distinct().singleOrNull() ?: key
+    }.distinct().take(MAX_HIDDEN)
+
+    private fun migrateHidden(d: Data): Data = d.copy(
+        hidden = if (d.hiddenVersion == 0) migrateHidden(d.hidden, d.plays.map { it.meta } + d.trackerHistory) else d.hidden,
+        hiddenVersion = 1,
+        activities = d.activities.mapValues { (_, a) -> a.copy(
+            hidden = if (a.hiddenVersion == 0) migrateHidden(a.hidden, a.plays.map { it.meta } + d.trackerHistory) else a.hidden,
+            hiddenVersion = 1) })
+
     private fun protect(d: Data): Data = d.copy(
         dismissed = protectDismissed(d.dismissed),
         activities=d.activities.mapValues {(_,a)->a.copy(plays=a.plays.take(MAX_TITLES).map {it.copy(meta=app.ember.tv.mediaserver.ServerMetadata.safe(it.meta))},hidden=a.hidden.take(MAX_HIDDEN),dismissed=protectDismissed(a.dismissed))},
@@ -179,7 +193,7 @@ object LocalLibrary {
         data = file?.let { f ->
             runCatching { json.decodeFromString(Data.serializer(), f.readText()) }.getOrNull()
         } ?: Data()
-        data = protect(data)
+        data = protect(migrateHidden(data))
         file?.let { f -> app.ember.tv.data.AtomicFile.write(f, json.encodeToString(Data.serializer(), data)) }
         android.os.Handler(android.os.Looper.getMainLooper()).post { version++ }
     }
@@ -198,8 +212,8 @@ object LocalLibrary {
         val entry = LibraryEntry(key, meta.copy(progress = null), from, false, System.currentTimeMillis())
         // One entry per title (a show keeps its latest episode), the last ten titles only.
         d.copy(
-            plays = (listOf(entry) + d.plays.filter { it.key != key && it.meta.id != meta.id }).take(MAX_TITLES),
-            hidden = d.hidden - meta.id,
+            plays = (listOf(entry) + d.plays.filter { it.key != key && it.meta.titleKey() != meta.titleKey() }).take(MAX_TITLES),
+            hidden = d.hidden - meta.titleKey(),
             dismissed = d.dismissed + ("continue" to d.dismissed["continue"].orEmpty().filterNot { it.sameTitle(meta) }),
         )
     }
@@ -262,7 +276,7 @@ object LocalLibrary {
     fun hideRecent(meta: Meta) = updateActivity { d ->
         d.copy(
             plays = d.plays.filterNot { it.meta.sameTitle(meta) && (it.finished || it.progress < 0.01f) },
-            hidden = (listOf(meta.id) + d.hidden.filter { it != meta.id }).take(MAX_HIDDEN),
+            hidden = (listOf(meta.titleKey()) + d.hidden.filter { it != meta.titleKey() }).take(MAX_HIDDEN),
         )
     }
 
@@ -270,11 +284,11 @@ object LocalLibrary {
     fun clearRecent(shown: List<Meta>) = updateActivity { d ->
         d.copy(
             plays = d.plays.filter { !it.finished && it.progress >= 0.01f },
-            hidden = (shown.map { it.id } + d.hidden).distinct().take(MAX_HIDDEN),
+            hidden = (shown.map { it.titleKey() } + d.hidden).distinct().take(MAX_HIDDEN),
         )
     }
 
-    fun isHidden(meta: Meta) = meta.id in view(data).hidden
+    fun isHidden(meta: Meta) = meta.titleKey() in view(data).hidden
 
     /** Empties everything (tests). */
     @Synchronized internal fun resetForTest() {
@@ -288,13 +302,13 @@ object LocalLibrary {
 
     /** Part-way through, newest first; one entry per title (a show's latest episode). */
     val inProgress: List<Meta>
-        get() = view(data).plays.distinctBy { it.meta.id } // the latest play of each title decides
+        get() = view(data).plays.distinctBy { it.meta.titleKey() } // the latest play of each title decides
             .filter { !it.finished && it.progress >= 0.01f && !isListHidden("continue", it.meta) }
             .map { it.meta.copy(progress = it.progress, progressSource = it.meta.serverName ?: "Ember", badge = it.meta.badge ?: episodeLabel(it.meta)) }
 
     /** Everything played lately, newest first; one entry per title. */
     val recent: List<Meta>
-        get() = view(data).plays.distinctBy { it.meta.id }.filter { it.meta.id !in view(data).hidden }.take(MAX_TITLES)
+        get() = view(data).plays.distinctBy { it.meta.titleKey() }.filter { it.meta.titleKey() !in view(data).hidden }.take(MAX_TITLES)
             .map { it.meta.copy(progress = if (it.finished) null else it.progress.takeIf { p -> p > 0.01f }, badge = it.meta.badge ?: episodeLabel(it.meta)) }
 
     private fun episodeLabel(m: Meta) = if (m.season != null && m.episode != null) "S${m.season} · E${m.episode}" else null
