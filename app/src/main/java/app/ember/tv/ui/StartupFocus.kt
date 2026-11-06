@@ -7,6 +7,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.flow.collect
+
+/** Keep a few deliberate presses, never a held-key backlog accumulated while the UI loads. */
+internal class StartupDirections {
+    private var values by mutableStateOf(emptyList<FocusDirection>())
+    val size get()=values.size
+    fun offer(direction:FocusDirection,repeatCount:Int=0) {
+        if(repeatCount==0 && values.size<4)values=values+direction
+    }
+    fun take():FocusDirection?=values.firstOrNull()?.also {values=values.drop(1)}
+    fun clear() {values=emptyList()}
+}
 
 /** One startup handoff per navigation owner; window returns and ordinary moves keep their focus. */
 internal class InitialNavigationFocusState {
@@ -40,20 +52,41 @@ internal fun Modifier.initialNavigationFocusGroup(state:InitialNavigationFocusSt
 internal fun Modifier.initialNavigationFocus(owner:NavigationFocus,tab:String,enabled:Boolean,available:Boolean=true):Modifier {
     if (!available) return this
     var focused by remember(owner){mutableStateOf(false)}
-    var pending by remember(owner){mutableStateOf(emptyList<FocusDirection>())}
+    val pending=remember(owner){StartupDirections()}
     val manager = androidx.compose.ui.platform.LocalFocusManager.current
-    val placed = owner.tabReady(tab)
-    val focusedTab = owner.focusedTab
-    LaunchedEffect(owner,tab,enabled,placed,focused,focusedTab,pending) {
-        if (!enabled || !placed || owner.startup.established && pending.isEmpty()) return@LaunchedEffect
-        withFrameNanos { }
-        owner.startup.ensure(true, focusedTab == tab || focusedTab == null && focused && owner.preferred(tab) != null) {
-            owner.tab(tab).requestFocus() && owner.focusedTab == tab
-        }
-        if (owner.startup.established && pending.isNotEmpty()) {
-            val direction = pending.first()
-            pending = pending.drop(1)
-            manager.moveFocus(direction)
+    val currentTab by rememberUpdatedState(tab)
+    val active by rememberUpdatedState(enabled)
+    LaunchedEffect(owner,manager) {
+        // collect (not collectLatest): more input must not cancel the frame that establishes focus.
+        snapshotFlow {listOf(active,currentTab,owner.tabReady(currentTab),focused,owner.focusedTab,pending.size)}.collect {
+            if (!active) {
+                if(owner.startup.established)pending.clear()
+                return@collect
+            }
+            if (!owner.tabReady(currentTab)) {
+                if(owner.startup.established)pending.clear()
+                return@collect
+            }
+            if(owner.startup.established && pending.size==0)return@collect
+            withFrameNanos { }
+            if(!active || !owner.tabReady(currentTab))return@collect
+            owner.startup.ensure(true, owner.focusedTab == currentTab || owner.focusedTab == null && focused && owner.preferred(currentTab) != null) {
+                owner.tab(currentTab).requestFocus() && owner.focusedTab == currentTab
+            }
+            if(!owner.startup.established)return@collect
+            while(pending.size>0) {
+                if(!active) {pending.clear();break}
+                if(!owner.tabReady(currentTab)) {pending.clear();break}
+                val direction=pending.take() ?: break
+                try {manager.moveFocus(direction)}
+                catch(error:IllegalStateException) {
+                    app.ember.tv.data.CrashLog.note("Startup focus target changed during navigation",error)
+                    pending.clear()
+                    break
+                }
+                // A move may switch the page or open a dialog. Re-read readiness after layout.
+                if(pending.size>0)withFrameNanos { }
+            }
         }
     }
     return onFocusChanged {focused=it.hasFocus}
@@ -65,15 +98,15 @@ internal fun Modifier.initialNavigationFocus(owner:NavigationFocus,tab:String,en
                 Key.DirectionRight -> FocusDirection.Right
                 else -> null
             }
-            if (!owner.startup.established && event.type == KeyEventType.KeyDown && direction != null) {
-                pending = pending + direction
+            if ((!owner.startup.established || pending.size>0) && event.type == KeyEventType.KeyDown && direction != null) {
+                pending.offer(direction,event.nativeKeyEvent.repeatCount)
                 true
             } else false
         }
         .initialNavigationFocusGroup(owner.startup,{enabled},
             {owner.focusedTab == tab || owner.focusedTab == null && focused && owner.preferred(tab) != null},
             {owner.tab(tab).requestFocus() && owner.focusedTab == tab},
-            onEarlyDirection = {pending = pending + it})
+            onEarlyDirection = pending::offer)
 }
 
 /** Logical previous/next follows layout direction, matching the arrows shown on screen. */

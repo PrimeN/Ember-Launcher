@@ -6,6 +6,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StartupFocusTest {
+    @Test fun earlyInputIsBoundedAndPreservesTheFirstDeliberatePresses() {
+        val input=StartupDirections()
+        input.offer(FocusDirection.Right);input.offer(FocusDirection.Down)
+        input.offer(FocusDirection.Left);input.offer(FocusDirection.Up)
+        repeat(10_000){input.offer(FocusDirection.Right)}
+        assertEquals(4,input.size)
+        assertEquals(listOf(FocusDirection.Right,FocusDirection.Down,FocusDirection.Left,FocusDirection.Up),List(4){input.take()})
+        assertNull(input.take())
+    }
+    @Test fun heldKeyRepeatsDoNotQueueStartupNavigation() {
+        val input=StartupDirections()
+        input.offer(FocusDirection.Right)
+        repeat(1000){input.offer(FocusDirection.Right,it+1)}
+        assertEquals(1,input.size);assertEquals(FocusDirection.Right,input.take());assertNull(input.take())
+        input.offer(FocusDirection.Down);input.clear();assertNull(input.take())
+    }
     @Test fun waitsForAnInteractiveWindowInsteadOfFocusingBehindAnOverlay() {
         val state=InitialNavigationFocusState();var calls=0
         assertFalse(state.ensure(false,false){calls++;true})

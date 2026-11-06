@@ -89,6 +89,56 @@ class StartupComposeFocusTest {
  }
  @Test fun realModernTopBarUsesBothFirstAndSecondRightPresses() = modernTopBar(false)
  @Test fun twoQueuedStartupDirectionsAreBothApplied() = modernTopBar(true)
+ @Test fun rapidEarlyPressesDoNotReplayAnUnboundedBacklog() {
+  val nav=NavigationFocus()
+  var selected by mutableStateOf("home")
+  var ready by mutableStateOf(false)
+  val tabs=listOf("search","home","one","two","three","four","five")
+  compose.mainClock.autoAdvance=false
+  compose.setContent {
+   Row(Modifier.fillMaxSize().initialNavigationFocus(nav,selected,ready)) {
+    for((index,id) in tabs.withIndex()) {
+     Box(Modifier.size(50.dp).navigationTabTarget(nav,id).focusProperties {
+      left=tabs.getOrNull(index-1)?.let(nav::tab) ?: FocusRequester.Cancel
+      right=tabs.getOrNull(index+1)?.let(nav::tab) ?: FocusRequester.Cancel
+     }.openNavigationTab(id,selected==id){selected=id}.testTag(id).focusable())
+    }
+   }
+  }
+  compose.onRoot().performKeyInput {repeat(100) {keyDown(Key.DirectionRight);keyUp(Key.DirectionRight)}}
+  compose.runOnIdle {assertFalse(nav.startup.established);ready=true}
+  compose.mainClock.advanceTimeBy(2400)
+  compose.mainClock.autoAdvance=true
+  compose.onNodeWithTag("four").assertIsFocused()
+  compose.runOnIdle {assertEquals("four",selected)}
+ }
+ @Test fun queuedNavigationStopsWhenAMoveOpensAnOverlay() = interruptedStartup(detach=false)
+ @Test fun detachedNavigationDoesNotReceiveStaleQueuedInput() = interruptedStartup(detach=true)
+ private fun interruptedStartup(detach:Boolean) {
+  val nav=NavigationFocus()
+  var selected by mutableStateOf("home")
+  var ready by mutableStateOf(false)
+  var attached by mutableStateOf(true)
+  compose.mainClock.autoAdvance=false
+  compose.setContent {
+   Row(Modifier.fillMaxSize().initialNavigationFocus(nav,selected,ready)) {
+    if(attached)for((index,id) in listOf("search","home","live","apps").withIndex()) {
+     Box(Modifier.size(60.dp).navigationTabTarget(nav,id).focusProperties {
+      val tabs=listOf("search","home","live","apps")
+      right=tabs.getOrNull(index+1)?.let(nav::tab) ?: FocusRequester.Cancel
+     }.openNavigationTab(id,selected==id){
+      selected=id
+      if(id=="live") {if(detach)attached=false else ready=false}
+     }.testTag(id).focusable())
+    }
+   }
+  }
+  compose.onRoot().performKeyInput {repeat(3){keyDown(Key.DirectionRight);keyUp(Key.DirectionRight)}}
+  compose.runOnIdle {ready=true}
+  compose.mainClock.autoAdvance=true
+  compose.runOnIdle {assertEquals("live",selected);attached=true;ready=true}
+  compose.runOnIdle {assertEquals("live",selected)}
+ }
  private fun modernTopBar(queued: Boolean) {
   val nav=NavigationFocus();var selected by mutableStateOf(NavTabs.HOME)
   compose.mainClock.autoAdvance=false
