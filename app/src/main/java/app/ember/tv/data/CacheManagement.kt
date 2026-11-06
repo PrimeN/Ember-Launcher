@@ -104,7 +104,7 @@ object CacheManagement {
         }
         if (CacheKind.IMAGES in kinds) {
             attempt { app.ember.tv.ui.IconArtworkCache.clear() }
-            attempt { context.imageLoader.diskCache?.clear(); context.imageLoader.memoryCache?.clear(); app.ember.tv.ui.AppArtwork.clear() }
+            attempt { context.imageLoader.diskCache?.clear(); context.imageLoader.memoryCache?.clear(); app.ember.tv.ui.AppArtwork.clear(); app.ember.tv.ui.FrostCache.clear() }
             attempt { check(CacheFiles.delete(File(context.cacheDir,"hero-art-v1"))) }
         }
         if (CacheKind.METADATA in kinds) attempt { check(CacheFiles.delete(File(context.cacheDir,"discover"))) }

@@ -257,7 +257,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
                 "medium"->"Medium: Balanced images, prepared frosted glass, subtle motion and focus colours."
                 "ultra"->"Ultra: everything in High, with 4K card artwork and hero pictures on this 4K display."
                 "custom"->"Custom: choose image quality and each effect below."
-                else->"High: High-quality images, live frosted glass and every effect."
+                else->"High: High-quality images and gentle glass refraction on supported Android 13+ devices."
             },color=Fg,fontSize=TvTokens.Type.Compact.sp)
             val performanceContext=androidx.compose.ui.platform.LocalContext.current
             if(vm.look.devicePerformance=="auto") {
@@ -265,7 +265,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
                     " Auto never picks Ultra.",color=Mute,fontSize=13.sp)
                 Chip("Reset Auto observations") {RuntimeBudgets.reset(performanceContext)}
             }
-            Text("Pictures up to ${effective.heroMaxWidth} × ${effective.heroMaxHeight} · Glass: "+when(effective.glassTier){GLASS_LIVE->"live blur";GLASS_CACHED->"prepared blur";else->"tint only"},color=Mute,fontSize=13.sp)
+            Text("Pictures up to ${effective.heroMaxWidth} × ${effective.heroMaxHeight} · Glass: "+glassModeLabel(effective),color=Mute,fontSize=13.sp)
             if(!Art.display4K)Note("Ultra appears on a 4K display.")
             if(vm.look.devicePerformance=="custom") {
                 Text("Image quality",fontSize=15.sp)
@@ -282,12 +282,14 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             Chip(label, selected = vm.look.contentDensity == value) { vm.look.updateContentDensity(value) }
         } }
     }
-        "artwork" -> Section(SettingDefinitions.artwork.title, "Blurs the picture behind menus, popups, title buttons and Light's dock; labels remain sharp. The kind of blur follows the performance profile.", id = "artwork") {
-        ToggleRow("Frosted glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
+        "artwork" -> Section(SettingDefinitions.artwork.title, "Navigation, dock, menus and media buttons share one glass material. Labels and focus indicators stay sharp.", id = "artwork") {
+        ToggleRow("Modern glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
         if(vm.look.navigationGlass) {
-            val tier=LocalRenderOptions.current.glassTier
-            Note("High and Ultra: live blur, including popups and Light's dock (Android 12+). Medium: the blur is prepared once per picture. Low: tint and edge only. Now: "+
-                when(tier){GLASS_LIVE->"live blur";GLASS_CACHED->"prepared blur";else->"tint only"}+".")
+            ButtonRow { app.ember.tv.data.GlassStyle.choices.forEach {(value,label)->
+                Chip(label,selected=vm.look.navigationGlassMethod==value,maxLines=1){vm.look.updateNavigationGlassMethod(value)}
+            } }
+            Note("Auto follows the performance profile. Choose a glass style independently of image quality. Low uses tint only; Medium caps effects at prepared blur. Liquid needs Android 13+ and falls back to Frosted on older devices. Colour separation stays off.")
+            Note("Now: "+glassModeLabel(LocalRenderOptions.current)+". Prepared backgrounds are shared and reused until the image changes.")
         }
     }
         "accent_colour" -> Section(SettingDefinitions.colourTheme.title, "Choose colours independently of the interface. Modern Ember adds blue, violet and teal surfaces; Cinema red adds a dark red palette.", id="accent_colour") {
@@ -295,6 +297,13 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
 
     }
     }
+}
+
+@Composable
+private fun glassModeLabel(options:RenderOptions):String = when(GlassPolicy.mode(options,android.os.Build.VERSION.SDK_INT,pressured=RuntimeBudgets.pressured)) {
+    GlassMode.TINT->"tint and highlights"
+    GlassMode.FROSTED->"cached frosted glass"
+    GlassMode.LIQUID->"refractive glass"
 }
 
 // ---------------------------------------------------------------- Posters

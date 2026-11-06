@@ -160,7 +160,6 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     }
     CompositionLocalProvider(LocalLightTint provides tint,LocalNight provides true, androidx.tv.material3.LocalContentColor provides Color.White) {
         var lightOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
-        var dockOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
         var dockHeight by remember { mutableStateOf(0.dp) }
         val densityNow = androidx.compose.ui.platform.LocalDensity.current
         BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { lightOrigin = it.positionInRoot() }.pointerInput(profile) {
@@ -181,6 +180,12 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             val heroHeight by animateDpAsState(if (idle) maxHeight else dockTop, tween(millis), label = "Light carousel height")
             LightWallpaper(vm.look.lightWallpaper)
             val fullArt = vm.look.lightWallpaper == "art"
+            val publish = LocalArtworkPresented.current
+            val shownArt = heroImage?.takeIf {current != null}?.let {art ->
+                art.copy(focus=art.focus ?: HeroFocus(.5f,.3f),viewport=HeroViewport(lightOrigin.x,lightOrigin.y,
+                    with(densityNow){windowWidth.toPx()},with(densityNow){(if(fullArt)windowHeight else heroHeight).toPx()},crop=true))
+            } ?: ReadyArtwork(null,null)
+            SideEffect {publish(shownArt)}
             heroImage?.takeIf { current != null && it.drawable != null }?.let { shown ->
                 // Over a plain wallpaper the picture fades out on its own, so no edge shows where it ends.
                 val imageModifier = Modifier.fillMaxWidth().height(if (fullArt) windowHeight else heroHeight).then(if (fullArt) Modifier else Modifier.fadeOutBottom())
@@ -198,38 +203,8 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                 item("dock") {
                     Column {
                         Spacer(Modifier.height(dockTop))
-                        // Glass dock by glass tier: live blur (High), a prepared blur (Balanced) or a static pane (Low,
-                        // Economy or glass off). Settings > Appearance > Image quality > Frosted glass.
-                        val live = render.glassTier == GLASS_LIVE && android.os.Build.VERSION.SDK_INT >= 31 && !RuntimeBudgets.pressured
-                        val prepared = rememberLightFrost(heroImage?.drawable?.takeIf { current != null }, render.glassTier == GLASS_CACHED || render.glassTier == GLASS_LIVE && !live)
-                        val frost = live || prepared != null
-                        Box(Modifier.onGloballyPositioned { dockOrigin = it.positionInRoot() }
-                            .onSizeChanged { dockHeight = with(densityNow) { it.height.toDp() } }.clip(RoundedCornerShape(DOCK_RADIUS))) {
-                            val behind = heroImage?.takeIf { live && current != null && it.drawable != null }
-                            // Balanced: a small picture blurred once, drawn at full size behind the dock.
-                            if (behind == null && prepared != null) Box(Modifier.matchParentSize()) {
-                                Box(Modifier.wrapContentSize(Alignment.TopStart, unbounded = true)
-                                    .offset { androidx.compose.ui.unit.IntOffset((lightOrigin.x - dockOrigin.x).toInt(), (lightOrigin.y - dockOrigin.y).toInt()) }
-                                    .requiredSize(windowWidth, windowHeight)) {
-                                    LightWallpaper(vm.look.lightWallpaper)
-                                    val focus = heroImage?.focus
-                                    Image(prepared, null, Modifier.fillMaxWidth().height(if (fullArt) windowHeight else heroHeight).then(if (fullArt) Modifier else Modifier.fadeOutBottom()),
-                                        contentScale = ContentScale.Crop, alignment = lightHeroAlignment(focus))
-                                    Box(Modifier.fillMaxSize().background(scrim))
-                                }
-                            }
-                            if (behind != null) Box(Modifier.matchParentSize()) {
-                                Box(Modifier.wrapContentSize(Alignment.TopStart, unbounded = true)
-                                    .offset { androidx.compose.ui.unit.IntOffset((lightOrigin.x - dockOrigin.x).toInt(), (lightOrigin.y - dockOrigin.y).toInt()) }
-                                    .requiredSize(windowWidth, windowHeight)
-                                    .graphicsLayer { renderEffect = androidx.compose.ui.graphics.BlurEffect(30.dp.toPx(), 30.dp.toPx(), androidx.compose.ui.graphics.TileMode.Clamp) }) {
-                                    // The same layers as behind the dock (wallpaper, picture, shade), blurred.
-                                    LightWallpaper(vm.look.lightWallpaper)
-                                    LightHeroImage(behind, Modifier.fillMaxWidth().height(if (fullArt) windowHeight else heroHeight).then(if (fullArt) Modifier else Modifier.fadeOutBottom()))
-                                    Box(Modifier.fillMaxSize().background(scrim))
-                                }
-                            }
-                        Row(Modifier.lightDockGlass(frost).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
+                        Box(Modifier.onSizeChanged { dockHeight = with(densityNow) { it.height.toDp() } }) {
+                        Row(Modifier.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
                             apps.take(6).forEachIndexed { i, app -> LightAppTile(app, grid, millis, launching == app.pkg,
                                 Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).lightArrows(onUp = ::goHero), { launch(app) }, { onAppOptions(app) }) }
                             if (apps.isEmpty()) Text(stringResource(R.string.ui_no_apps_to_show), color = Color.White, modifier = Modifier.padding(16.dp))
@@ -347,21 +322,8 @@ private val DOCK_GAP = 24.dp
 /** How much of the next app row shows under the dock. */
 private val ROW_PEEK = 26.dp
 
-/**
- * The dock pane: neutral (untinted) and quite clear, a soft top highlight, and an edge that is
- * brighter at the top. Over a live blur the pane stays thin; without blur it is darker so the
- * apps still read over busy artwork.
- */
-private fun Modifier.lightDockGlass(frosted: Boolean): Modifier {
-    val shape = RoundedCornerShape(DOCK_RADIUS)
-    return background(Color.Black.copy(alpha = if (frosted) .12f else .34f), shape)
-        .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = .17f), Color.White.copy(alpha = .05f))), shape)
-        .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = .34f), Color.White.copy(alpha = .08f))), shape)
-}
-
 @Composable
-internal fun Modifier.lightGlass(radius: Int = 24): Modifier = clip(RoundedCornerShape(radius.dp))
-    .background(Brush.verticalGradient(listOf(LocalLightTint.current.copy(alpha=.24f), LocalLightTint.current.copy(alpha=.10f)))).border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(radius.dp))
+internal fun Modifier.lightGlass(radius: Int = 24): Modifier = glassSurface(RoundedCornerShape(radius.dp),dock=true)
 
 /**
  * Always fills the hero area edge to edge. Modern's framing letterboxes a picture that would lose
@@ -376,28 +338,6 @@ private fun LightHeroImage(art: ReadyArtwork, modifier: Modifier = Modifier) {
 
 private fun lightHeroAlignment(focus: HeroFocus?) =
     androidx.compose.ui.BiasAlignment(((focus?.x ?: .5f) * 2f - 1f).coerceIn(-1f, 1f), ((focus?.y ?: .3f) * 2f - 1f).coerceIn(-1f, 1f))
-
-/** The hero picture shrunk to 240 px and blurred once (shared FrostCache), or null when it cannot be read. */
-@Composable
-private fun rememberLightFrost(drawable: android.graphics.drawable.Drawable?, enabled: Boolean): androidx.compose.ui.graphics.ImageBitmap? {
-    var frost by remember(drawable, enabled) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-    LaunchedEffect(drawable, enabled) {
-        val source = (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
-        if (!enabled || source == null || source.config == android.graphics.Bitmap.Config.HARDWARE || RuntimeBudgets.pressured) return@LaunchedEffect
-        frost = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { runCatching {
-            val w = minOf(240, source.width).coerceAtLeast(1); val h = (source.height * w / source.width.coerceAtLeast(1)).coerceAtLeast(1)
-            val key = "light:${source.generationId}:$w:$h"
-            (FrostCache.get(key) ?: run {
-                val small = source.scale(w, h)
-                val pixels = IntArray(w * h); small.getPixels(pixels, 0, w, 0, 0, w, h)
-                if (small !== source) small.recycle()
-                android.graphics.Bitmap.createBitmap(FrostBlur.apply(pixels, w, h, 6), w, h, android.graphics.Bitmap.Config.ARGB_8888)
-                    .also { if (!RuntimeBudgets.pressured) FrostCache.put(key, it) }
-            }).asImageBitmap()
-        }.getOrNull() }
-    }
-    return frost
-}
 
 @Composable
 private fun WeatherDayRow(day: app.ember.tv.weather.WeatherDay, modifier: Modifier = Modifier) {

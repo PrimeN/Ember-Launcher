@@ -128,7 +128,7 @@ private fun Context.menuHost(): Window? {
 
 @Composable
 private fun MenuBackdrop(target: MenuBackdropTarget?) {
-    val blur = LocalRenderOptions.current.glassTier == GLASS_LIVE && !RuntimeBudgets.pressured
+    val blur = GlassPolicy.mode(LocalRenderOptions.current,Build.VERSION.SDK_INT,pressured=RuntimeBudgets.pressured) == GlassMode.LIQUID
     // Backdrop softness is independent of the compact menu's text/layout scale.
     val radius = (LocalView.current.resources.displayMetrics.density * 20).toInt().coerceAtLeast(1)
     var lease by remember(target) { mutableStateOf<MenuBackdropLease?>(null) }

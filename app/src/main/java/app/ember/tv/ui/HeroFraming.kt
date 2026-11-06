@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 data class HeroFocus(val x:Float=.65f,val y:Float=.32f)
-data class HeroViewport(val left:Float,val top:Float,val width:Float,val height:Float)
+data class HeroViewport(val left:Float,val top:Float,val width:Float,val height:Float,val crop:Boolean=false)
 internal data class HeroFrame(val fit:Boolean,val xBias:Float,val yBias:Float)
 internal data class HeroProjection(val left:Float,val top:Float,val width:Float,val height:Float)
 
@@ -47,6 +47,14 @@ internal object HeroFraming {
     }
     fun glassProjection(width:Int,height:Int,viewport:HeroViewport,focus:HeroFocus=HeroFocus()):HeroProjection? {
         if(!viewport.left.isFinite() || !viewport.top.isFinite())return null
+        if(viewport.crop) {
+            if(width<=0 || height<=0 || !viewport.width.isFinite() || !viewport.height.isFinite() || viewport.width<=0 || viewport.height<=0)return null
+            val scale=maxOf(viewport.width/width,viewport.height/height)
+            val w=width*scale;val h=height*scale
+            if(!w.isFinite() || !h.isFinite())return null
+            return HeroProjection(viewport.left+(viewport.width-w)*(focus.x.takeIf(Float::isFinite) ?: .5f).coerceIn(0f,1f),
+                viewport.top+(viewport.height-h)*(focus.y.takeIf(Float::isFinite) ?: .3f).coerceIn(0f,1f),w,h)
+        }
         return projection(width,height,viewport.width,viewport.height,focus)?.let {it.copy(left=it.left+viewport.left,top=it.top+viewport.top)}
     }
     /** Detail-weighted framing estimate, not face recognition. Flat art keeps the conservative default. */

@@ -575,8 +575,8 @@ class Prefs(context: Context) {
         get()=sp.read(PreferenceKeys.SETUP_CHECKLIST_HIDDEN)
         set(value)=sp.edit { putBoolean(PreferenceKeys.SETUP_CHECKLIST_HIDDEN.name,value) }
     var navigationGlassMethod: String
-        get()=sp.read(PreferenceKeys.NAVIGATION_GLASS_METHOD).takeIf {it=="cached"} ?: "live"
-        set(value)=sp.edit { putString(PreferenceKeys.NAVIGATION_GLASS_METHOD.name,if(value=="cached")"cached" else "live") }
+        get()=GlassStyle.normalize(sp.read(PreferenceKeys.NAVIGATION_GLASS_METHOD))
+        set(value)=sp.edit { putString(PreferenceKeys.NAVIGATION_GLASS_METHOD.name,GlassStyle.normalize(value)) }
     var navigationGlass: Boolean
         get() = sp.read(PreferenceKeys.NAVIGATION_GLASS)
         set(v) = sp.edit { putBoolean(PreferenceKeys.NAVIGATION_GLASS.name, v) }

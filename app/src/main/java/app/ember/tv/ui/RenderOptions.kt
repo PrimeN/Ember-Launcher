@@ -14,11 +14,14 @@ data class RenderOptions(val density: String = "standard", val glass: Boolean = 
     val lowPower get() = device == "low"
     /**
      * How glass is drawn, from the performance profile and image quality (Frosted navigation must be on):
-     * "live" (GPU blur every frame, incl. Light's dock) with High quality, "cached" (blurred once per
-     * picture) with Balanced, "static" (tint and edge only) on Low, with Economy or with glass off.
+     * High requests edge refraction where supported; every blurred surface reuses a prepared sample.
+     * An explicit glass style is independent of image quality. Low and disabled glass stay tint-only.
      */
     val glassTier: String get() = when {
-        !glass || lowPower || quality == "economy" -> GLASS_STATIC
+        !glass || lowPower || glassMethod == "tint" -> GLASS_STATIC
+        glassMethod == "cached" -> GLASS_CACHED
+        glassMethod == "liquid" -> GLASS_LIVE
+        quality == "economy" -> GLASS_STATIC
         quality == "high" -> GLASS_LIVE
         else -> GLASS_CACHED
     }
@@ -45,7 +48,7 @@ data class RenderOptions(val density: String = "standard", val glass: Boolean = 
     }
     val heroMaxWidth get()=if(device=="low" || quality=="economy")1280 else if(ultra)3840 else 1920
     val heroMaxHeight get()=if(device=="low" || quality=="economy")720 else if(ultra)2160 else 1080
-    val hardwareHero get()=preciseHero && !heroAnalysis && !glass
+    val hardwareHero get()=preciseHero && !heroAnalysis && glassTier==GLASS_STATIC
     val heroStorageKey get()=if(hardwareHero)"gpu" else if(preciseHero)"cpu32" else "cpu16"
     val preciseHero get()=device!="low" && quality!="economy"
     fun heroSize(width:Int,height:Int):Pair<Int,Int> {
@@ -68,7 +71,7 @@ data class RenderOptions(val density: String = "standard", val glass: Boolean = 
 
 /**
  * Low: Economy images, no glass blur, minimal effects. Medium: Balanced images, prepared glass, subtle
- * effects. High: High images, live glass, every effect. Ultra: High plus 4K artwork on a 4K display.
+ * effects. High: High images, refractive glass where supported, every effect. Ultra adds 4K artwork.
  * Custom: the saved image quality and individual effects. Auto picks Low, Medium or High.
  */
 internal fun deviceRenderOptions(density:String,glass:Boolean,quality:String,mode:String,lowRam:Boolean,heapMb:Int,totalBytes:Long,custom:CustomPerformance=CustomPerformance(),observedSlow:Boolean=false,uhdDisplay:Boolean=false):RenderOptions {

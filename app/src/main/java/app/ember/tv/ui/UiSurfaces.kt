@@ -40,9 +40,7 @@ internal object FloatingPanelStyle {
 @Composable
 internal fun Modifier.floatingPanelSurface():Modifier {
     val shape=RoundedCornerShape((if(isEmberX)EmberXLayout.Radius else TvTokens.Shape.Panel).dp)
-    return clip(shape).background(FloatingPanelStyle.background.copy(alpha=.94f),shape)
-        .background(Brush.verticalGradient(listOf(Color.White.copy(alpha=.08f),Color.White.copy(alpha=.02f))),shape)
-        .border(1.dp,Fg.copy(alpha=.12f),shape)
+    return glassSurface(shape,panel=true)
 }
 
 /** Bounded TV modal; callers choose a scrollable form or provide their own bounded lazy body. */
@@ -63,8 +61,7 @@ internal fun TvDialog(
             contentAlignment=Alignment.Center) {
             val size=MenuSizing.dialogSize(maxWidth,maxHeight,width,height)
             val shape=RoundedCornerShape(TvTokens.Shape.Panel.dp)
-            // Static tint and highlight reuse navigation glass without a per-menu blur pass.
-            val surface=if(glassSurface) Modifier.clip(shape).background(Panel.copy(alpha=.72f),shape).navigationGlass(shape)
+            val surface=if(glassSurface) Modifier.glassSurface(shape,panel=true)
                 else Modifier.background(Panel,shape)
             CompositionLocalProvider(LocalContentColor provides Fg) {
                 Column(modifier.guardOpeningPress().width(size.first).heightIn(max=size.second).onGloballyPositioned {panelBounds=it.boundsInRoot()}.then(surface)

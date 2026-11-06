@@ -518,7 +518,7 @@ private fun Root(
     var presentedArt by remember(vm.profiles.profileId) { mutableStateOf(tab to noArtwork) }
     val currentTab by rememberUpdatedState(tab)
     val backdropArt = presentedArt.second.takeIf { presentedArt.first == tab } ?: noArtwork
-    val renderOptions = app.ember.tv.ui.rememberDeviceRenderOptions(vm.look.contentDensity, vm.look.navigationGlass, vm.look.artworkQuality,vm.look.devicePerformance,vm.look.customPerformance,app.ember.tv.ui.RuntimeBudgets.slowAuto).let {it.copy(glassMethod=if(it.glassTier==app.ember.tv.ui.GLASS_LIVE)"live" else "cached")}
+    val renderOptions = app.ember.tv.ui.rememberDeviceRenderOptions(vm.look.contentDensity, vm.look.navigationGlass, vm.look.artworkQuality,vm.look.devicePerformance,vm.look.customPerformance,app.ember.tv.ui.RuntimeBudgets.slowAuto).let {it.copy(glassMethod=vm.look.navigationGlassMethod)}
     // Card artwork reads this directly; set before the rows below are drawn.
     app.ember.tv.ui.Art.ultra = renderOptions.ultra
     val performanceContext=androidx.compose.ui.platform.LocalContext.current
@@ -583,6 +583,7 @@ private fun Root(
         app.ember.tv.ui.LocalHeroArtworkMode provides vm.look.heroArtworkMode,
         app.ember.tv.ui.LocalGlassBitmap provides glassBitmap.bitmap,
         app.ember.tv.ui.LocalGlassPreblurred provides glassBitmap.preblurred,
+        app.ember.tv.ui.LocalGlassOrigin provides glassBitmap.origin,
         app.ember.tv.ui.LocalBackdropArtwork provides backdropArt,
         app.ember.tv.ui.LocalArtworkPresented provides { presentedArt = currentTab to it },
         app.ember.tv.ui.LocalSceneInteractive provides interactive,
