@@ -28,8 +28,9 @@ class UpdatesState(
     var updateChannel by mutableStateOf(prefs.updateChannel); private set
     /** Beta updates: check the beta branch's builds instead of the stable channel. */
     var updateBeta by mutableStateOf(prefs.updateBeta); private set
+    var updateBetaSource by mutableStateOf(prefs.updateBetaSource); private set
     /** What a check reads: "beta" while beta updates are on, else the stable channel. */
-    val activeChannel get() = if (updateBeta) "beta" else updateChannel
+    val activeChannel get() = if (updateBeta) if (updateBetaSource == "actions") "beta-actions" else "beta" else updateChannel
     var updateAutoCheck by mutableStateOf(prefs.updateAutoCheck); private set
     var update by mutableStateOf<Updater.Release?>(null); private set
     var updateMessage by mutableStateOf<String?>(null); private set
@@ -67,6 +68,18 @@ class UpdatesState(
         prefs.updateAutoCheck = updateAutoCheck
     }
 
+    fun updateBetaSource(value: String) {
+        val next = if (value == "actions") "actions" else "releases"
+        if (updateBetaSource == next) return
+        updateBetaSource = next
+        prefs.updateBetaSource = next
+        if (updateBeta) {
+            stopDownload()
+            update = null
+            checkForUpdate(manual = true)
+        }
+    }
+
     /** Looks for a newer Ember on GitHub. At start it runs once a day, quietly. */
     fun checkForUpdate(manual: Boolean) {
         val last = prefs.updateCheckedAt
@@ -86,7 +99,9 @@ class UpdatesState(
                 update = r?.takeIf { it.isNewer }
                 updateMessage = when {
                     update != null -> "${update!!.name} is available."
-                    r == null -> if (manual) "No release with an APK found on this channel." else null
+                    r == null -> if (!manual) null else if (channel == "beta-actions")
+                        "No successful signed beta Actions APK is available. Actions APKs expire after three days."
+                        else "No release with an APK found on this channel."
                     else -> if (manual) "Ember is up to date." else null
                 }
                 if (!manual && update != null) {

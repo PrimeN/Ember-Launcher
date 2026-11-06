@@ -62,4 +62,42 @@ class UpdateBranchTest {
         prefs.updateBeta = false
         assertFalse(prefs.updateBeta)
     }
+
+    @Test fun betaSourcePersistsAndSwitchingDropsThePreviousSourcesOffer() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val prefs = prefs()
+        val state = UpdatesState(Application(),prefs,scope)
+        val asked = mutableListOf<String>()
+        state.checkRelease = { asked += it; Result.success(release(it)) }
+        try {
+            assertEquals("releases",state.updateBetaSource)
+            state.toggleUpdateBeta()
+            assertEquals("beta",state.update?.name)
+            state.updateBetaSource("actions")
+            assertEquals("beta-actions",state.activeChannel)
+            assertEquals("beta-actions",state.update?.name)
+            state.toggleUpdateBeta()
+            assertEquals("releases",state.activeChannel)
+            assertEquals("actions",prefs.updateBetaSource)
+            val restarted = UpdatesState(Application(),prefs,scope)
+            assertEquals("actions",restarted.updateBetaSource)
+            restarted.checkRelease = state.checkRelease
+            restarted.toggleUpdateBeta()
+            assertEquals("beta-actions",restarted.activeChannel)
+            assertEquals(listOf("beta","beta-actions","releases","beta-actions"),asked)
+        } finally {scope.cancel()}
+    }
+
+    @Test fun betaSourceIsBackedUpAndUnknownValuesFallBackToReleases() {
+        val source = PersistenceContext(temp.newFolder())
+        val prefs = Prefs(source)
+        prefs.updateBetaSource = "actions"; prefs.updateBeta = true
+        val backup = app.ember.tv.data.BackupPersistence(source,FixtureSecrets()).snapshot()
+        val target = PersistenceContext(temp.newFolder())
+        app.ember.tv.data.BackupPersistence(target,FixtureSecrets()).restore(backup)
+        assertEquals("actions",Prefs(target).updateBetaSource)
+        assertTrue(Prefs(target).updateBeta)
+        target.getSharedPreferences("ember",0).edit().putString("updateBetaSource","unknown").commit()
+        assertEquals("releases",Prefs(target).updateBetaSource)
+    }
 }

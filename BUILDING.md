@@ -57,6 +57,8 @@ Android lint before publishing downloads.
   artifacts. They do not create, replace or delete GitHub releases.
 - To publish explicitly, open **Actions → Build APK → Run workflow**, choose
   `main` or `beta`, and enable **Publish an APK release after validation**.
+- A public `main` commit explicitly marked `[release]` also requests publication
+  after all validation gates pass. Leave that marker out of ordinary commits.
 - A manual publication from public `main` creates a versioned release when the
   app's `v<versionName>` tag does not exist, and refreshes `latest-build`.
 - A manual publication from public `beta` refreshes `beta-build`.
@@ -81,15 +83,23 @@ Keep the keystore and its passwords private and backed up. GitHub signing uses
 variables. Updates can install over an existing app only when
 its package and signing identity match.
 
-Without release-signing secrets, public builds still publish an installable
-debug/testing APK, clearly identified in the release notes. Its debug signing key
-may differ between runners or from an existing installation. Configure a persistent
-release keystore for normal in-place updates. Public workflow builds exclude private
-bundles and test add-on links, including when publishing a debug APK.
+Without release-signing secrets, ordinary builds still produce a debug/testing
+Actions artifact. Its signing key may differ between runners or from an existing
+installation. Release publication and in-app Actions updates require a persistent
+release signing key. Public workflow builds exclude private bundles and test add-on links.
 
 Standard updates check published releases in the public `PrimeN/Ember-Launcher`
 repository, regardless of where the APK was compiled. They require no credentials.
 Beta updates check the same public repository's `beta-build` release without credentials.
+Under **Settings → System → Updates → Beta update source**, users can instead choose
+**Actions APK**. This selects a completed, successful `beta` build of this repository's
+`build.yml` workflow and a non-expired `ember-tv-<version>-<code>-release` artifact.
+Pull requests, fork builds and debug artifacts are excluded. The anonymous download
+uses [nightly.link](https://nightly.link); Ember verifies GitHub's ZIP checksum before
+extracting exactly one matching APK with bounded size. No service code is bundled.
+Actions APKs expire after three days and can be unavailable if the public mirror is down.
+Repository owners may install the [nightly.link GitHub App](https://github.com/apps/nightly-link)
+with read-only Actions access to avoid its shared public request limit; end users need no account.
 Publish beta APKs from the [public build workflow](https://github.com/PrimeN/Ember-Launcher/actions/workflows/build.yml)
 on `beta`, using the manual publication option above. Private-repository builds also
 check these public endpoints; they do not require a separate update token or repository setting.

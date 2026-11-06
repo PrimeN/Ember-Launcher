@@ -117,6 +117,7 @@ internal object PreferenceKeys {
     val UI_STYLE = PreferenceKey<String?>("uiStyle", PreferenceType.STRING, InterfaceStyles.MODERN)
     val UPDATE_AUTO_CHECK = PreferenceKey<Boolean>("updateAutoCheck", PreferenceType.BOOLEAN, true)
     val UPDATE_BETA = PreferenceKey<Boolean>("updateBeta", PreferenceType.BOOLEAN, false)
+    val UPDATE_BETA_SOURCE = PreferenceKey<String?>("updateBetaSource", PreferenceType.STRING, "releases")
     val UPDATE_CHANNEL = PreferenceKey<String?>("updateChannel", PreferenceType.STRING, "releases")
     val UPDATE_CHECKED_AT = PreferenceKey<Long>("updateCheckedAt", PreferenceType.LONG, 0L)
     val WATCH_PROVIDER = PreferenceKey<String?>("watchProvider", PreferenceType.STRING, "off")
@@ -144,7 +145,7 @@ internal object PreferenceKeys {
         SERVICES_OFF, SERVICES_ON, SERVICES_SOURCE, SETTINGS_STYLE, SETUP_CHECKLIST_HIDDEN, SHOW_WATCHED_BADGES,
         SMART_ROWS_OFF, SOURCES_COMBINED, STREAM_DESC_TEMPLATE, STREAM_FORMAT_ON, STREAM_NAME_TEMPLATE, SUBTITLE_CONFIG,
         SUBTITLES_ON, TEXT_SIZE, THEME, TRACKERS_OFF, UI_SIZE, UI_STYLE,
-        UPDATE_AUTO_CHECK, UPDATE_BETA, UPDATE_CHANNEL, UPDATE_CHECKED_AT, WATCH_PROVIDER, WATCH_REGION,
+        UPDATE_AUTO_CHECK, UPDATE_BETA, UPDATE_BETA_SOURCE, UPDATE_CHANNEL, UPDATE_CHECKED_AT, WATCH_PROVIDER, WATCH_REGION,
         WEATHER_PLACE, WEATHER_PROVIDER, WEATHER_FALLBACK, WEATHER_CACHE, WL,
     )
     val stores=listOf("ember","screensaver","positions","trackMemory","server_browser","ember_watched")

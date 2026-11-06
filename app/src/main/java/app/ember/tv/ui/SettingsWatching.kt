@@ -913,8 +913,15 @@ internal fun UpdatesSection(vm: HomeViewModel) {
                 else "Published releases from the public Ember repository. No token required.",
                 vm.updates.updateBeta,
             ) { vm.updates.toggleUpdateBeta() }
+            if (vm.updates.updateBeta) {
+                Text("Beta update source", color = Fg, fontSize = 14.sp)
+                Choice(listOf("releases" to "Releases", "actions" to "Actions APK"), vm.updates.updateBetaSource) { vm.updates.updateBetaSource(it) }
+                Note(if (vm.updates.updateBetaSource == "actions")
+                    "Latest successful signed public beta build. Downloads use nightly.link; APKs expire after three days."
+                    else "Only explicitly published public beta releases.")
+            }
             ToggleRow(stringResource(R.string.ui_check_once_a_day), stringResource(R.string.ui_when_ember_starts_a_message_appears), vm.updates.updateAutoCheck) { vm.updates.toggleUpdateAutoCheck() }
-            Note("Updates appear when a public release or beta build is published; ordinary code changes do not publish an APK. Turning beta off returns to stable releases when a newer build is available.")
+            Note("Stable updates use published releases. Actions APKs are available after a successful beta build. Turning beta off returns to stable releases when a newer build is available.")
         }
     }
 }

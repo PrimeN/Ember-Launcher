@@ -495,6 +495,11 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.UPDATE_BETA, sp.read(PreferenceKeys.UPDATE_CHANNEL, null) == "beta")
         set(v) = sp.edit { putBoolean(PreferenceKeys.UPDATE_BETA.name, v) }
 
+    /** The beta source survives channel changes, restarts and configuration backups. */
+    var updateBetaSource: String
+        get() = if (sp.read(PreferenceKeys.UPDATE_BETA_SOURCE) == "actions") "actions" else "releases"
+        set(v) = sp.edit { putString(PreferenceKeys.UPDATE_BETA_SOURCE.name, if (v == "actions") "actions" else "releases") }
+
     /** Look for an update once a day when Ember starts. */
     var updateAutoCheck: Boolean
         get() = sp.read(PreferenceKeys.UPDATE_AUTO_CHECK)

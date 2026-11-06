@@ -2,7 +2,8 @@ name: Build APK
 
 # Work happens on "beta" and reaches "main" through a reviewed pull request (beta -> main).
 # Builds on every push to main and beta, on pull requests, and when started by hand from the
-# Actions tab. Releases are published only for explicit version tags or a manual publish request.
+# Actions tab. Releases need an explicit version tag, manual publish request or a public main
+# commit marked [release]. Ordinary pushes never publish releases.
 on:
   push:
     branches: [main, beta]
@@ -35,7 +36,11 @@ jobs:
     # Shared by the test and build steps: Gradle reads these while configuring the project, so
     # giving both steps the same values lets the build reuse the classes compiled for the tests.
     env:
-      PUBLISH_RELEASE: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish_release) }}
+      PUBLISH_RELEASE: >-
+        ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+          || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+          || (github.event_name == 'push' && github.ref == 'refs/heads/main'
+            && !github.event.repository.private && contains(github.event.head_commit.message, '[release]')) }}
       # API keys, from Settings > Secrets and variables > Actions. Missing ones are left blank.
       TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
       TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
@@ -246,7 +251,7 @@ jobs:
             echo "Named: $new"
           done
           [ "$n" -gt 0 ] || { echo "::error title=Name the APK::No APK found"; exit 1; }
-          echo "artifact=ember-tv-${ver}-${EMBER_VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "artifact=ember-tv-${ver}-${EMBER_VERSION_CODE}-${kind}" >> "$GITHUB_OUTPUT"
           echo "::notice title=APK::$(ls app/build/outputs/apk/*/*.apk | xargs -n1 basename | tr '\n' ' ')"
 
       # Artifacts count against the account's Actions storage quota (about 500 MB on a free plan), so
@@ -310,6 +315,38 @@ jobs:
             exit 1
           fi
 
+      - name: Require release signing for publication
+        if: env.PUBLISH_RELEASE == 'true'
+        run: |
+          [ "$SIGNED" = true ] || { echo "::error::Publication requires the persistent Ember release signing key."; exit 1; }
+
+      - name: Verify anonymous Actions download
+        if: ${{ !github.event.repository.private && env.SIGNED == 'true' && (env.PUBLISH_RELEASE == 'true' || contains(github.event.head_commit.message, '[release]')) }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id || steps.retry.outputs.artifact-id }}
+        run: |
+          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo "::error::No APK artifact is available for the Actions update source."; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$RUNNER_TEMP/actions-artifact.json"
+          expected=$(jq -r '.digest' "$RUNNER_TEMP/actions-artifact.json")
+          expected_size=$(jq -r '.size_in_bytes' "$RUNNER_TEMP/actions-artifact.json")
+          [[ "$expected" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Missing Actions archive digest."; exit 1; }
+          curl --fail --silent --show-error --retry 2 --max-time 60 \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
+            --output "$RUNNER_TEMP/actions-public-metadata.json"
+          public_digest=$(jq -r --argjson id "$ARTIFACT_ID" '.artifacts[] | select(.id == $id) | .digest' "$RUNNER_TEMP/actions-public-metadata.json")
+          [[ "$public_digest" == "$expected" ]] || { echo "::error::Actions metadata is not available anonymously."; exit 1; }
+          curl --fail --silent --show-error --location --retry 2 --max-time 180 \
+            "https://nightly.link/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID.zip" \
+            --output "$RUNNER_TEMP/actions-apk.zip"
+          printf '%s  %s\n' "${expected#sha256:}" "$RUNNER_TEMP/actions-apk.zip" | sha256sum --check --status
+          [[ $(wc -c < "$RUNNER_TEMP/actions-apk.zip") == "$expected_size" ]] || { echo "::error::Actions archive size mismatch."; exit 1; }
+          archive_apk=$(unzip -p "$RUNNER_TEMP/actions-apk.zip" '*.apk' | sha256sum | cut -d' ' -f1)
+          built_apk=$(sha256sum app/build/outputs/apk/release/*.apk | cut -d' ' -f1)
+          [[ "$archive_apk" == "$built_apk" ]] || { echo "::error::Actions APK does not match the signed build."; exit 1; }
+          echo "Verified anonymous Actions download against GitHub's archive checksum."
+
       - name: Prepare release notes
         if: env.PUBLISH_RELEASE == 'true'
         id: release
@@ -346,11 +383,12 @@ jobs:
           tag_name: ${{ steps.release.outputs.tag }}
           name: ${{ steps.release.outputs.name }}
           target_commitish: ${{ github.sha }}
+          make_latest: true
           files: app/build/outputs/apk/**/*.apk
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
 
-      # Public builds publish even without a release keystore; notes identify debug/testing APKs.
+      # Rolling downloads are refreshed only by an explicit signed publication request.
       - name: Remove the previous "latest build"
         if: env.PUBLISH_RELEASE == 'true' && (env.SIGNED == 'true' || !github.event.repository.private) && github.ref == 'refs/heads/main'
         shell: bash

@@ -28,7 +28,7 @@ internal object SettingDefinitions {
     val cardFocus=SettingDefinition("card-focus",SettingsTab.PERFORMANCE,"Card focus effects","selected apps media glow pulse lift scale animation effects blinking",app.ember.tv.data.CardFocusStyle.choices)
     val watched=SettingDefinition("watch-status",SettingsTab.WATCH_STATUS,"Watched indicators","watched unwatched mark check badge movie show episode")
     val spoilers=SettingDefinition("episode-spoilers",SettingsTab.WATCH_STATUS,"Episode spoilers","blur unwatched episode artwork thumbnail image")
-    val updates=SettingDefinition("updates",SettingsTab.UPDATES,"Updates","update checks download install beta stable automatic release")
+    val updates=SettingDefinition("updates",SettingsTab.UPDATES,"Updates","update checks download install beta stable automatic release actions apk source")
     val debug=SettingDefinition("debug-build",SettingsTab.DEBUG,"Build information","debug diagnostics build type version")
     val cacheSize=SettingDefinition("cache-size",SettingsTab.CACHE,"Current Cache Size","cache management storage usage clear cache data")
     val cacheImages=SettingDefinition("image-duration",SettingsTab.CACHE,"Image cache duration (Days)","image expiration retention days")

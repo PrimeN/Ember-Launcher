@@ -168,7 +168,7 @@ Tracker app registrations identify Ember to a service; they are separate from yo
 | **Open-Meteo / MET Norway / wttr.in** | Weather forecasts with provider selection and fallback. | No personal API key for the integrated public endpoints. |
 | **ipapi.co** | Approximate location when you choose to look it up. | No personal API key for the integrated lookup. |
 | **Cleveland Museum of Art / NASA Image and Video Library** | Optional artwork and space-image screensaver sources. | No personal API key. |
-| **GitHub updates** | Standard updates use public [Ember releases](https://github.com/PrimeN/Ember-Launcher/releases). Optional Beta updates use the public [beta build](https://github.com/PrimeN/Ember-Launcher/releases/tag/beta-build). | No GitHub account, API key or token for either channel. |
+| **GitHub updates** | Standard updates use public [Ember releases](https://github.com/PrimeN/Ember-Launcher/releases). Beta can choose the public [beta release](https://github.com/PrimeN/Ember-Launcher/releases/tag/beta-build) or a successful signed Actions APK. Actions downloads use [nightly.link](https://nightly.link) and verify GitHub's archive checksum. | No GitHub account, API key or token for either source. Actions artifacts expire after three days. |
 
 Add-ons, IPTV providers and network shares may require their own subscription, login, key or connection details. Those requirements belong to the source you configure. External services apply their own terms, availability limits and privacy policies.
 

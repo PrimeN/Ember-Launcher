@@ -47,6 +47,8 @@ object Updater {
         val versionCode: Int?,
         /** SHA-256 GitHub publishes for the asset ("digest": "sha256:..."), lowercase hex; null if absent. */
         val sha256: String? = null,
+        /** Actions downloads are verified ZIP archives containing one signed release APK. */
+        val zippedApk: Boolean = false,
     ) {
         val isNewer: Boolean
             get() = versionCode?.let { it > BuildConfig.VERSION_CODE } ?: newerName(tag.removePrefix("v"), BuildConfig.VERSION_NAME)
@@ -73,6 +75,7 @@ object Updater {
 
     internal suspend fun check(channel: String, client: OkHttpClient): Result<Release?> = withContext(Dispatchers.IO) {
         runCatching {
+            if (channel == ActionsUpdates.CHANNEL) return@runCatching ActionsUpdates.check(client)
             val url = updateUrl(channel)
             withResponse(client.newCall(request(url, "application/vnd.github+json"))) { r ->
                 when (r.code) {
@@ -97,16 +100,22 @@ object Updater {
     internal suspend fun download(context: Context, r: Release, onProgress: (Float) -> Unit, client: OkHttpClient): Result<File> = downloadLock.withLock { withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val out = File(dir, "ember-update.apk")
+        val archive = File(dir, "ember-update.zip")
         try {
             dir.listFiles()?.forEach { it.delete() }
+            check(!r.zippedApk || (r.sha256 != null && r.sizeBytes in 1..ActionsUpdates.MAX_ARCHIVE_BYTES)) {
+                "The Actions archive has no valid integrity information. Check for updates again."
+            }
             val digest = MessageDigest.getInstance("SHA-256")
             var done = 0L
             withResponse(client.newCall(request(r.assetApiUrl, "application/octet-stream"))) { resp ->
-                if (!resp.isSuccessful) error("Download failed (${resp.code}).")
+                if (!resp.isSuccessful) error(if (r.zippedApk)
+                    "The Actions APK is unavailable (${resp.code}). Check again or choose Releases."
+                    else "Download failed (${resp.code}).")
                 val body = resp.body
                 val total = body.contentLength().takeIf { it > 0 } ?: r.sizeBytes
                 body.byteStream().use { input ->
-                    out.outputStream().use { o ->
+                    (if (r.zippedApk) archive else out).outputStream().use { o ->
                         val buf = ByteArray(64 * 1024)
                         var shown = -1
                         while (true) {
@@ -116,6 +125,7 @@ object Updater {
                             o.write(buf, 0, n)
                             digest.update(buf, 0, n)
                             done += n
+                            check(!r.zippedApk || done <= ActionsUpdates.MAX_ARCHIVE_BYTES) { "The Actions archive is too large." }
                             // Report whole percents only.
                             val pct = if (total > 0) (done * 100 / total).toInt() else -1
                             if (pct != shown && pct >= 0) {
@@ -127,6 +137,7 @@ object Updater {
                 }
             }
             verify(r, done, digest.digest().joinToString("") { "%02x".format(it) })?.let { error(it) }
+            if (r.zippedApk) ActionsUpdates.extract(archive, out, r.assetName)
             Result.success(out)
         } catch (e: CancellationException) {
             out.delete(); throw e
@@ -134,6 +145,8 @@ object Updater {
             out.delete()
             ensureActive() // A cancelled call fails with an IOException; report the cancellation instead.
             Result.failure(e)
+        } finally {
+            archive.delete()
         }
     } }
 
@@ -157,7 +170,8 @@ object Updater {
 
     internal fun repository(@Suppress("UNUSED_PARAMETER") channel: String) = BuildConfig.UPDATE_REPO
     /** Standard checks always use public releases, even with a saved legacy rolling-build preference. */
-    internal fun updateUrl(channel: String) = releaseUrl(repository(channel), if (channel == "beta") "beta" else "releases")
+    internal fun updateUrl(channel: String) = if (channel == ActionsUpdates.CHANNEL) ActionsUpdates.runsUrl
+        else releaseUrl(repository(channel), if (channel == "beta") "beta" else "releases")
     private fun publicAssetUrl(value: String?): String? = value?.takeIf { raw -> raw.toHttpUrlOrNull()?.let {
         if (it.scheme != "https" || it.port != 443 || it.username.isNotEmpty() || it.password.isNotEmpty()) false
         else when (it.host) {

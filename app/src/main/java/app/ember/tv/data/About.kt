@@ -14,6 +14,18 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "0.9.6", "Public updates and polished navigation",
+            listOf(
+                "Standard and beta updates use public Ember downloads without a GitHub token. Beta can choose published Releases or the latest successful signed Actions APK.",
+                "Beta source preferences are saved and backed up. Actions downloads verify the archive checksum, safely extract the APK and handle expired or unavailable builds.",
+                "System cache management: set image, metadata, catalog and network retention, inspect cache size and clear cached data without removing accounts or personal lists.",
+                "Catalog and collection artwork stays cached on disk for quicker loading and refreshes when its configuration changes.",
+                "Adaptive glass styling uses lightweight tint, cached blur or supported edge refraction, with corrected navbar backdrop alignment.",
+                "Profile and action menus share performance-aware background dimming and blur. Home hero controls scroll away cleanly and release hidden focus.",
+                "More reliable startup D-pad navigation, playback identities, source transitions and configuration restore validation.",
+            ),
+        ),
+        Release(
             "0.9.5.1", "Simpler in-app updates",
             listOf(
                 "Check for and download public Ember updates without a GitHub account, API key or token.",
