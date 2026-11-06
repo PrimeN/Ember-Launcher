@@ -14,9 +14,18 @@ import androidx.core.content.edit
  * once, verified, and only then cleared ([TokenMigration]). When the Keystore is unusable,
  * existing plain values stay readable but nothing new is written in cleartext.
  */
-class TokenStore(context: Context) {
-    private val legacy=context.applicationContext.getSharedPreferences(TokenMigration.PLAIN,Context.MODE_PRIVATE)
-    private val vault: SecretVault? = shared(context.applicationContext)
+class TokenStore internal constructor(context: Context, private val vaultProvider:(Context)->SecretVault?) {
+    constructor(context: Context):this(context,::shared)
+    private val app=context.applicationContext
+    private val legacy=app.getSharedPreferences(TokenMigration.PLAIN,Context.MODE_PRIVATE)
+    private val encrypted=app.getSharedPreferences(SecretVault.FILE,Context.MODE_PRIVATE)
+    private val oldEncrypted=app.getSharedPreferences(TokenMigration.ENCRYPTED,Context.MODE_PRIVATE)
+    private val vaultState=lazy {vaultProvider(app)}
+    private val vault: SecretVault? by vaultState
+
+    /** Empty installations have nothing to decrypt or migrate. Do not generate a key to read null. */
+    private fun existingVault():SecretVault? = if(vaultState.isInitialized() || encrypted.all.isNotEmpty() ||
+        legacy.all.isNotEmpty() || oldEncrypted.all.isNotEmpty())vault else null
 
     companion object {
         // Reset by reflection in tests; a failed open is not cached, so a later call can retry.
@@ -33,9 +42,7 @@ class TokenStore(context: Context) {
         }.getOrNull()
     }
 
-    private val lock: Any get() = vault ?: legacy
-
-    fun get(key: String): String? = vault?.get(key) ?: legacy.getString(key,null)
+    fun get(key: String): String? = existingVault()?.get(key) ?: legacy.getString(key,null)
     fun put(key: String, value: String) {putAll(mapOf(key to value))}
     fun putAll(values:Map<String,String>) {
         check(writeEncrypted(values)) {"Encrypted storage is unavailable or credentials could not be saved."}
@@ -43,35 +50,45 @@ class TokenStore(context: Context) {
     val encryptionAvailable: Boolean get() = vault != null
     /** Private source data must never fall back to cleartext when the keystore is unavailable. */
     fun putEncrypted(key: String, value: String): Boolean=writeEncrypted(mapOf(key to value))
-    private fun writeEncrypted(values:Map<String,String>):Boolean = synchronized(lock) {
-        val store=vault ?: return@synchronized false
-        val previous=values.keys.associateWith {store.get(it)}
-        val expected:Map<String,String?> = values
-        val saved = VerifiedSecretWrite.replace(previous,expected,
-            { next -> store.write(next) },
-            {values.keys.associateWith {store.get(it)}})
-        if (saved) legacy.edit(commit = true) {values.keys.forEach {remove(it)}}
-        saved
+    private fun writeEncrypted(values:Map<String,String>):Boolean {
+        val store=vault ?: return false
+        return synchronized(store) {
+            val previous=values.keys.associateWith {store.get(it)}
+            val expected:Map<String,String?> = values
+            val saved = VerifiedSecretWrite.replace(previous,expected,
+                { next -> store.write(next) },
+                {values.keys.associateWith {store.get(it)}})
+            if (saved) legacy.edit(commit = true) {values.keys.forEach {remove(it)}}
+            saved
+        }
     }
-    fun remove(vararg keys: String) = synchronized(lock) {
-        vault?.write(keys.associateWith {null})
-        legacy.edit { keys.forEach { remove(it) } }
+    fun remove(vararg keys: String) {
+        val store=existingVault()
+        synchronized(store ?: legacy) {
+            store?.write(keys.associateWith {null})
+            legacy.edit { keys.forEach { remove(it) } }
+        }
     }
 
     /** Every saved token and key, for backups. */
-    fun all(): Map<String, String> = synchronized(lock) {
-        legacy.all.mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap() + vault?.all().orEmpty()
+    fun all(): Map<String, String> {
+        val store=existingVault()
+        return synchronized(store ?: legacy) {
+            legacy.all.mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap() + store?.all().orEmpty()
+        }
     }
 
     /** Replaces everything with [values], for restoring a backup. Written synchronously. */
-    fun replaceAll(values: Map<String, String>) = synchronized(lock) {
-        check(values.isEmpty() || vault != null) { "Encrypted storage is unavailable. Restore was not applied." }
-        vault?.let { store ->
-            val saved = VerifiedSecretWrite.replace(store.all(), values, { next -> store.write(next, clear = true) }, store::all)
-            check(saved) { "Could not save restored credentials. Previous configuration was kept." }
+    fun replaceAll(values: Map<String, String>) {
+        val target=if(values.isEmpty())existingVault() else vault
+        synchronized(target ?: legacy) {
+            check(values.isEmpty() || target != null) { "Encrypted storage is unavailable. Restore was not applied." }
+            target?.let { store ->
+                val saved = VerifiedSecretWrite.replace(store.all(), values, { next -> store.write(next, clear = true) }, store::all)
+                check(saved) { "Could not save restored credentials. Previous configuration was kept." }
+            }
+            legacy.edit(commit = true) { clear() }
         }
-        legacy.edit(commit = true) { clear() }
-        Unit
     }
 }
 

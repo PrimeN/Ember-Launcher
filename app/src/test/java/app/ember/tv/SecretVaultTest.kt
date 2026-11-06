@@ -3,6 +3,7 @@ package app.ember.tv
 import app.ember.tv.tracker.SecretCipher
 import app.ember.tv.tracker.SecretVault
 import app.ember.tv.tracker.TokenMigration
+import app.ember.tv.tracker.TokenStore
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -20,6 +21,41 @@ class SecretVaultTest {
             check(blob.size >= prefix.size && blob.copyOf(prefix.size).contentEquals(prefix)) { "wrong name" }
             return blob.copyOfRange(prefix.size, blob.size).map { (it.toInt() xor 0x5A).toByte() }.toByteArray()
         }
+    }
+
+    @Test fun emptyInstallationReadsDoNotOpenOrWaitForTheKeystore() {
+        val ctx=PersistenceContext(temp.root)
+        val store=TokenStore(ctx) {error("Empty reads must not initialize the Keystore")}
+        repeat(100) {assertNull(store.get("missing.$it"))}
+        assertTrue(store.all().isEmpty())
+        store.remove("missing")
+        store.replaceAll(emptyMap())
+    }
+
+    @Test fun firstWriteStillOpensTheVaultAndExistingStoresDecryptNormally() {
+        val ctx=PersistenceContext(temp.root)
+        val vault=SecretVault(ctx.getSharedPreferences(SecretVault.FILE,0),FixtureCipher())
+        var opens=0
+        val store=TokenStore(ctx) {opens++;vault}
+        assertEquals(0,opens)
+        assertNull(store.get("access"));assertEquals(0,opens)
+        assertTrue(store.putEncrypted("access","fixture-access"))
+        assertEquals(1,opens)
+        assertFalse(ctx.getSharedPreferences(SecretVault.FILE,0).getString("access","")!!.contains("fixture"))
+        assertTrue(ctx.getSharedPreferences(TokenMigration.PLAIN,0).all.isEmpty())
+        val reopened=TokenStore(ctx) {opens++;vault}
+        assertEquals("fixture-access",reopened.get("access"));assertEquals(2,opens)
+        assertEquals("fixture-access",store.get("access"));assertEquals(2,opens)
+    }
+
+    @Test fun deferringEmptyStoresDoesNotSkipLegacyMigration() {
+        val ctx=PersistenceContext(temp.root)
+        ctx.getSharedPreferences(TokenMigration.PLAIN,0).edit().putString("access","fixture-old").commit()
+        val vault=SecretVault(ctx.getSharedPreferences(SecretVault.FILE,0),FixtureCipher())
+        val store=TokenStore(ctx) {TokenMigration.run(ctx,vault);vault}
+        assertEquals("fixture-old",store.get("access"))
+        assertTrue(ctx.getSharedPreferences(TokenMigration.PLAIN,0).all.isEmpty())
+        assertEquals("fixture-old",vault.get("access"))
     }
 
     @Test fun valuesAreNeverStoredInCleartextAndCannotBeMovedBetweenNames() {

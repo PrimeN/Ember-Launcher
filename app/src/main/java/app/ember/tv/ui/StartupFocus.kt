@@ -68,10 +68,14 @@ internal fun Modifier.initialNavigationFocus(owner:NavigationFocus,tab:String,en
                 return@collect
             }
             if(owner.startup.established && pending.size==0)return@collect
-            withFrameNanos { }
-            if(!active || !owner.tabReady(currentTab))return@collect
-            owner.startup.ensure(true, owner.focusedTab == currentTab || owner.focusedTab == null && focused && owner.preferred(currentTab) != null) {
-                owner.tab(currentTab).requestFocus() && owner.focusedTab == currentTab
+            // A placed target can reject focus before the first interactive layout is ready.
+            // Retry on frames, independently of artwork completion or another button press.
+            while(!owner.startup.established && active && owner.tabReady(currentTab)) {
+                withFrameNanos { }
+                if(!active || !owner.tabReady(currentTab))break
+                owner.startup.ensure(true, owner.focusedTab == currentTab || owner.focusedTab == null && focused && owner.preferred(currentTab) != null) {
+                    owner.tab(currentTab).requestFocus() && owner.focusedTab == currentTab
+                }
             }
             if(!owner.startup.established)return@collect
             while(pending.size>0) {

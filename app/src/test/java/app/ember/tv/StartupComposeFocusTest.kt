@@ -89,6 +89,26 @@ class StartupComposeFocusTest {
  }
  @Test fun realModernTopBarUsesBothFirstAndSecondRightPresses() = modernTopBar(false)
  @Test fun twoQueuedStartupDirectionsAreBothApplied() = modernTopBar(true)
+ @Test fun rejectedInitialFocusIsRetriedWithoutWaitingForImagesOrAnotherKey() {
+  val nav=NavigationFocus()
+  val focusable=java.util.concurrent.atomic.AtomicBoolean(false)
+  compose.mainClock.autoAdvance=false
+  compose.setContent {
+   Row(Modifier.fillMaxSize().initialNavigationFocus(nav,"home",true)) {
+    for((index,id) in listOf("search","home","live").withIndex()) {
+     Box(Modifier.size(60.dp).navigationTabTarget(nav,id).focusProperties {
+      canFocus=focusable.get()
+      val tabs=listOf("search","home","live")
+      right=tabs.getOrNull(index+1)?.let(nav::tab) ?: FocusRequester.Cancel
+     }.testTag(id).focusable())
+    }
+   }
+  }
+  compose.mainClock.advanceTimeBy(100)
+  compose.runOnIdle {assertFalse(nav.startup.established);focusable.set(true)}
+  compose.mainClock.autoAdvance=true
+  compose.onNodeWithTag("home").assertIsFocused()
+ }
  @Test fun rapidEarlyPressesDoNotReplayAnUnboundedBacklog() {
   val nav=NavigationFocus()
   var selected by mutableStateOf("home")
