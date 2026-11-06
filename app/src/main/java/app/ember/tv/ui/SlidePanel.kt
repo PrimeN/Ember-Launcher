@@ -33,7 +33,7 @@ internal fun SlidePanel(title: String, onClose: () -> Unit, subtitle: String? = 
         CompactPanelContent {
             DialogMotion()
             CompositionLocalProvider(LocalFloating provides true, LocalContentColor provides Color(0xFFE8EAED)) {
-                BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress().background(FloatingPanelStyle.scrim)
+                BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress()
                     .onPreviewKeyEvent { RemoteSounds.onKey(soundContext, it.nativeKeyEvent); false }) {
                     Column(Modifier.align(Alignment.CenterEnd).padding(12.dp)
                         .width(MenuSizing.panelWidth(maxWidth * MenuSizing.COMPACT_PANEL_SCALE, androidx.compose.ui.platform.LocalDensity.current.fontScale))

@@ -81,7 +81,7 @@ internal fun FloatingSettings(vm: HomeViewModel, onClose: () -> Unit, onOpenFull
         CompactPanelContent {
             DialogMotion()
             CompositionLocalProvider(LocalFloating provides true, LocalContentColor provides Bright) {
-                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress().background(FloatingPanelStyle.scrim)) {
+                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress()) {
                     Column(
                         Modifier
                             // Full height against the right edge, like the TV's own settings panel.

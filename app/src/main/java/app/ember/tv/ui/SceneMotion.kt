@@ -6,7 +6,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
 
 /** Animate only the incoming draw layer: no duplicate outgoing page or delayed focus registration. */
@@ -34,31 +33,5 @@ import androidx.compose.ui.window.DialogWindowProvider
         window?.setWindowAnimations(if(enabled)app.ember.tv.R.style.EmberPanelMotion else 0)
         onDispose { }
     }
-    val blur=LocalRenderOptions.current.glassTier==GLASS_LIVE && !RuntimeBudgets.pressured
-    val radius=with(androidx.compose.ui.platform.LocalDensity.current){20.dp.roundToPx()}
-    DisposableEffect(window,blur,radius) {
-        val stop=if(window!=null && android.os.Build.VERSION.SDK_INT>=31)DialogBlur.attach(window,blur,radius) else ({})
-        onDispose {stop()}
-    }
-}
-
-@androidx.annotation.RequiresApi(31)
-private object DialogBlur {
-    @Suppress("DEPRECATION") // FLAG_BLUR_BEHIND is honoured again from Android 12 with blurBehindRadius.
-    fun attach(window:android.view.Window,wanted:Boolean,radius:Int):()->Unit {
-        val manager=window.windowManager
-        fun update(allowed:Boolean) {
-            if(wanted && allowed) {
-                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                window.attributes=window.attributes.also {it.blurBehindRadius=radius}
-            } else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-        }
-        update(runCatching {manager.isCrossWindowBlurEnabled}.getOrDefault(false))
-        if(!wanted)return {}
-        val listener=java.util.function.Consumer<Boolean> {update(it)}
-        return runCatching {
-            manager.addCrossWindowBlurEnabledListener(window.context.mainExecutor,listener)
-            ({runCatching {manager.removeCrossWindowBlurEnabledListener(listener)};Unit})
-        }.getOrDefault {}
-    }
+    DialogBackdrop(window)
 }

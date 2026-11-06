@@ -108,6 +108,7 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
         if (open && menu != null) {
             Popup(popupPositionProvider = position, onDismissRequest = { close(true) },
                 properties = PopupProperties(focusable = true)) {
+                PopupBackdrop()
                 // Popup controls must not replace the underlying page's remembered focus target.
                 CompositionLocalProvider(LocalFocusScene provides null, LocalFloating provides true) {
                     Column(Modifier.guardOpeningPress().width(menuWidth).sceneEnter(profile.id,panel=true)

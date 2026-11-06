@@ -94,7 +94,7 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                 LocalFloating provides true,
                 LocalContentColor provides Color(0xFFE8EAED),
             ) {
-                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress().background(FloatingPanelStyle.scrim)) {
+                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress()) {
                     Column(
                         Modifier
                             // Full height against the right edge, like the TV's own settings panel.

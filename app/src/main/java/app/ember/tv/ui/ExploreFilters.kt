@@ -40,7 +40,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
         DialogMotion()
         KeyboardResizesDialog()
         CompositionLocalProvider(LocalFloating provides true, LocalFocusScene provides null) {
-            BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress().background(FloatingPanelStyle.scrim)) {
+            BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress()) {
                 Column(Modifier.align(Alignment.CenterEnd).padding(12.dp).width(minOf(520.dp, maxWidth)).fillMaxHeight()
                     .floatingPanelSurface().padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
