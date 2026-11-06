@@ -44,9 +44,9 @@ internal class HeroArtworkRepository(
 
     private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
     private fun key(id: HeroIdentity, locale: String, tmdb: String, fanart: String) =
-        hash("v2:${id.movie}:${id.tmdb}:${id.imdb}:${HeroArtworkSelection.language(locale)}:${hash("$tmdb\u0000$fanart")}")
+        hash("${CachePolicy.epoch(CacheKind.IMAGES)}:v2:${id.movie}:${id.tmdb}:${id.imdb}:${HeroArtworkSelection.language(locale)}:${hash("$tmdb\u0000$fanart")}")
     private fun valid(record: Record): Boolean = now() >= record.saved && now() < record.expires &&
-        record.expires > record.saved && record.expires - record.saved <= 7 * 86_400_000L
+        record.expires > record.saved && record.expires - record.saved <= 7 * 86_400_000L && CachePolicy.fresh(CacheKind.IMAGES,record.saved,now())
 
     suspend fun resolve(meta: Meta, locale: String, tmdb: String, fanart: String,
         artworkMode: String = HeroArtworkMode.FANART): HeroArtwork = withContext(Dispatchers.IO) {

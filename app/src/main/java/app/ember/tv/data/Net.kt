@@ -31,8 +31,23 @@ object Net {
         cacheDir = File(context.cacheDir, "http")
     }
 
+    private fun ageHeader(control: okhttp3.CacheControl, age: Int): String =
+        (control.toString().split(',').map { it.trim() }.filter { it.isNotBlank() && !it.substringBefore('=').trim().equals("max-age",true) } + "max-age=$age").joinToString(", ")
+
+    private val cacheRetention = okhttp3.Interceptor { chain ->
+        val request = chain.request()
+        val control = request.cacheControl
+        val capped = if (CacheManagement.initialized && request.method == "GET" && !control.noStore && !control.noCache) {
+            val seconds = (CachePolicy.config.millis(CacheKind.NETWORK) / 1000).toInt()
+            val age = control.maxAgeSeconds.takeIf { it >= 0 }?.coerceAtMost(seconds) ?: seconds
+            request.newBuilder().header("Cache-Control", ageHeader(control,age)).build()
+        } else request
+        chain.proceed(capped)
+    }
+
     val base: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .addInterceptor(cacheRetention)
             .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
             .apply { cacheDir?.let { cache(Cache(it, 64L * 1024 * 1024)) } }
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -46,7 +61,16 @@ object Net {
     /** Artwork has its own bounded queue so slow addon/metadata calls cannot occupy its slots. */
     private val artworkDispatcher by lazy { okhttp3.Dispatcher().apply {maxRequests=16;maxRequestsPerHost=8} }
     fun artworkClient(connect:Long=10,read:Long=30):OkHttpClient = client(connect,read).newBuilder()
-        .dispatcher(artworkDispatcher).cache(null).build()
+        .apply { interceptors().remove(cacheRetention) }
+        .dispatcher(artworkDispatcher).cache(null).addNetworkInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            val control = response.cacheControl
+            if (!CacheManagement.initialized || response.code == 304 || control.noStore || control.noCache) response else {
+                val seconds = (CachePolicy.config.millis(CacheKind.IMAGES) / 1000).toInt()
+                val age = control.maxAgeSeconds.takeIf { it >= 0 }?.coerceAtMost(seconds) ?: seconds
+                response.newBuilder().header("Cache-Control", ageHeader(control,age)).build()
+            }
+        }.build()
 
     /** The shared client with its own time limits (seconds). */
     fun client(connect: Long, read: Long): OkHttpClient = base.newBuilder()

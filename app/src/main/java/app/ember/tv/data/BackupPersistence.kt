@@ -61,6 +61,7 @@ internal object BackupFormat {
             if(value is String)try {
                 when(key) {
                     "screenMargin"->if(!ScreenMargins.valid(value))invalid("screen margin")
+                    "cacheConfig"->json.decodeFromString<CacheConfig>(value).also { if (!it.valid()) invalid("cache durations") }
                     "customPerformance"->json.decodeFromString<CustomPerformance>(value)
                     "profiles"->json.decodeFromString<List<Profile>>(value).also { profiles ->
                         if (profiles.isEmpty() || profiles.any { it.id.isBlank() } ||
@@ -191,6 +192,7 @@ internal class BackupPersistence(
             }.isFailure)recovered=false}
             throw Backup.BackupException(if(recovered)"Restore failed. Previous settings and saved data were kept." else "Restore failed and some previous data could not be recovered. Keep your backup and retry.")
         }
+        CacheManagement.preferencesRestored(context)
         WatchedStore.restored()
         // Rebuildable caches are excluded from backups; generation checks also reject late old writes.
         runCatching {HomeSnapshot.clear(context)}

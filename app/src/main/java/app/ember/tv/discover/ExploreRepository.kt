@@ -27,7 +27,7 @@ data class ExplorePage(val titles: List<ExploreTitle>, val totalPages: Int, val 
 class ExploreRepository(
     private val cacheDir: File? = null,
     private val key: () -> String = { ApiKeys.get("TMDB_API_KEY") },
-    private val get: suspend (String, Map<String, String>) -> JsonElement = { url, headers -> Http.get(url, headers) },
+    private val get: suspend (String, Map<String, String>) -> JsonElement = { url, headers -> Http.get(url, headers + ("Cache-Control" to "no-store")) },
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ExploreSource {
     override val configured get() = key().isNotBlank()
@@ -37,10 +37,15 @@ class ExploreRepository(
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, JsonElement>>) = size > 128
     }
     override suspend fun invalidate() {
+        if (app.ember.tv.data.CacheManagement.initialized) app.ember.tv.data.CacheManagement.clear(setOf(app.ember.tv.data.CacheKind.CATALOGS,app.ember.tv.data.CacheKind.METADATA))
         synchronized(memory) { memory.clear() }
         withContext(Dispatchers.IO) { cacheDir?.listFiles()?.filter { it.extension == "json" }?.forEach { it.delete() } }
     }
     private suspend fun cached(id: String, ttl: Long = 15 * 60_000L, load: suspend () -> JsonElement): JsonElement {
+        if (app.ember.tv.data.CacheManagement.initialized) {
+            val kind = if (id.startsWith("tmdb:discover/")) app.ember.tv.data.CacheKind.CATALOGS else app.ember.tv.data.CacheKind.METADATA
+            return json.parseToJsonElement(app.ember.tv.data.CacheManagement.json(kind, "explore:$id") { load().toString() })
+        }
         val now = clock()
         synchronized(memory) { memory[id]?.takeIf { now - it.first in 0 until ttl }?.let { return it.second } }
         val name = MessageDigest.getInstance("SHA-256").digest(id.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -70,7 +75,7 @@ class ExploreRepository(
     private suspend fun tmdb(path: String, params: Map<String, String> = emptyMap(), ttl: Long = 15 * 60_000L): JsonElement {
         val credential = key().takeIf { it.isNotBlank() } ?: error("Add a TMDB API key in Settings > API keys to use Explore.")
         val query = params.toSortedMap().map { (k,v) -> "${enc(k)}=${enc(v)}" }.joinToString("&")
-        return cached("tmdb:$path?$query", ttl) { gate.withPermit {
+        return cached("tmdb:$path?$query:${app.ember.tv.data.CachePolicy.digest(credential)}", ttl) { gate.withPermit {
             val data = get("https://api.themoviedb.org/3/$path?api_key=${enc(credential)}&$query", emptyMap())
             val valid = data is JsonObject && data.bool("success") != false && when {
                 path.startsWith("discover/") || path.startsWith("search/") || path.startsWith("watch/providers/") -> data.arr("results") != null

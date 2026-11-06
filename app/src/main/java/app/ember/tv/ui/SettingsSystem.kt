@@ -480,8 +480,8 @@ internal fun WeatherSection(vm: HomeViewModel) {
 }
 
 @Composable
-internal fun TextInput(value: String, onChange: (String) -> Unit, placeholder: String, password: Boolean = false, width: Int = 520) {
-    TvTextField(value, onChange, Modifier.width(width.dp), placeholder = placeholder, password = password)
+internal fun TextInput(value: String, onChange: (String) -> Unit, placeholder: String, password: Boolean = false, width: Int = 520, numeric: Boolean = false) {
+    TvTextField(value, onChange, Modifier.width(width.dp), placeholder = placeholder, password = password, keyboardType = if(numeric)androidx.compose.ui.text.input.KeyboardType.Number else androidx.compose.ui.text.input.KeyboardType.Text)
 }
 
 @Composable

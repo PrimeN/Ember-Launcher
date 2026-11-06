@@ -25,6 +25,7 @@ internal fun SettingsTab.summary():String=stringResource(when(this) {
     SettingsTab.PLAYER->R.string.settings_summary_player
     SettingsTab.WATCH_STATUS->R.string.settings_summary_watch_status
     SettingsTab.UPDATES->R.string.settings_summary_updates
+    SettingsTab.CACHE->R.string.settings_summary_cache
     SettingsTab.DEBUG->R.string.settings_summary_debug
     SettingsTab.PLAY_BUTTON->R.string.settings_summary_play
     SettingsTab.ADDONS->R.string.settings_summary_addons

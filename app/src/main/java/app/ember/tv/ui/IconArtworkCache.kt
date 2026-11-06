@@ -76,10 +76,11 @@ internal object IconArtworkCache {
     suspend fun clear() = withContext(Dispatchers.IO) {
         ready.await()
         mutex.withLock {
-            version?.update(emptyMap(), force = true)
+            val rotated = runCatching { version?.update(emptyMap(), force = true) }
             activeEpoch = version?.epoch ?: java.util.UUID.randomUUID().toString()
             discard()
             epoch = activeEpoch
+            rotated.getOrThrow()
         }
     }
     fun size() = disk?.size ?: 0L
@@ -91,7 +92,7 @@ internal object IconArtworkCache {
     @Synchronized fun loader(context: Context): ImageLoader = images ?: context.imageLoader.newBuilder()
         .diskCache { disk }
         .memoryCache { coil.memory.MemoryCache.Builder(context).maxSizePercent(.05).build() }
-        .respectCacheHeaders(false)
+        .respectCacheHeaders(true)
         .components { add(VersionInterceptor()) }
         .build().also { images = it }
 

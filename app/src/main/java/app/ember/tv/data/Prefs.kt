@@ -12,6 +12,10 @@ class Prefs(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     init { CatalogIdentity.migratePreferences(sp) }
 
+    var cacheConfig: CacheConfig
+        get() = runCatching { json.decodeFromString<CacheConfig>(sp.read(PreferenceKeys.CACHE_CONFIG)!!).also { require(it.valid()) } }.getOrDefault(CacheConfig())
+        set(value) { require(value.valid()); sp.edit { putString(PreferenceKeys.CACHE_CONFIG.name, json.encodeToString(value)) } }
+
     private fun searchKey(profile: String) = "search:" + HomeTitleVisibility.prefix(profile)
     fun recentSearchesEnabled(profile: String) = sp.getBoolean(searchKey(profile) + "enabled", false)
     fun setRecentSearchesEnabled(profile: String, enabled: Boolean) {

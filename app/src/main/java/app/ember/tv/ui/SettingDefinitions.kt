@@ -30,6 +30,11 @@ internal object SettingDefinitions {
     val spoilers=SettingDefinition("episode-spoilers",SettingsTab.WATCH_STATUS,"Episode spoilers","blur unwatched episode artwork thumbnail image")
     val updates=SettingDefinition("updates",SettingsTab.UPDATES,"Updates","update checks download install beta stable automatic release")
     val debug=SettingDefinition("debug-build",SettingsTab.DEBUG,"Build information","debug diagnostics build type version")
+    val cacheSize=SettingDefinition("cache-size",SettingsTab.CACHE,"Current Cache Size","cache management storage usage clear cache data")
+    val cacheImages=SettingDefinition("image-duration",SettingsTab.CACHE,"Image cache duration (Days)","image expiration retention days")
+    val cacheMetadata=SettingDefinition("metadata-duration",SettingsTab.CACHE,"Metadata cache duration (Hours)","metadata expiration retention hours")
+    val cacheCatalogs=SettingDefinition("catalog-duration",SettingsTab.CACHE,"Catalog cache duration (Hours)","catalog expiration retention hours")
+    val cacheNetwork=SettingDefinition("network-duration",SettingsTab.CACHE,"Network cache duration (Hours)","network response expiration retention hours")
     val imageCache=SettingDefinition("image-cache",SettingsTab.DEBUG,"Artwork cache","image pictures cache storage clear disk downloaded")
     val crash=SettingDefinition("crash-log",SettingsTab.DEBUG,"Crash log","crash reports log diagnostics troubleshoot")
     val resume = SettingDefinition("resume", SettingsTab.PLAYER, "Resume", "continue playback start over",
@@ -53,7 +58,7 @@ internal object SettingDefinitions {
     val deviceInputs=SettingDefinition("device-inputs",SettingsTab.DEVICE_TOOLS,"Inputs","HDMI AV input shortcuts")
     val providerDiagnostics=SettingDefinition("provider-diagnostics",SettingsTab.DEBUG,"Provider diagnostics","source request timing latency timeout auth quota offline redacted export")
     val remoteSounds = SettingDefinition("remote-sounds", SettingsTab.REMOTE, "Remote sounds", "click navigation sound effects arrows OK beep")
-    val all = listOf(remoteSounds,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
+    val all = listOf(cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
     fun matching(query: String): List<SettingDefinition> {
         val normalized = query.trim().lowercase(java.util.Locale.ROOT)
         val exact = all.filter { it.title.lowercase(java.util.Locale.ROOT)==normalized || it.options.any { (_,label)->label.lowercase(java.util.Locale.ROOT)==normalized } }

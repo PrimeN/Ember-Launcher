@@ -35,6 +35,11 @@ object Http {
     suspend fun get(url: String, headers: Map<String, String> = emptyMap()): JsonElement =
         call(Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.get().build())
 
+    suspend fun metadata(url: String, headers: Map<String, String> = emptyMap()): JsonElement {
+        val identity = url + headers.toSortedMap().toString()
+        return withContext(Dispatchers.IO) { json.parseToJsonElement(app.ember.tv.data.CacheManagement.json(app.ember.tv.data.CacheKind.METADATA, identity) { get(url, headers + ("Cache-Control" to "no-store")).toString() }) }
+    }
+
     suspend fun post(url: String, body: JsonObject? = null, headers: Map<String, String> = emptyMap()): JsonElement =
         call(
             Request.Builder().url(url)

@@ -146,6 +146,13 @@ class CatalogsState(
     private var defaultHomeKeys: Set<String> = emptySet()
     /** First page of each Home catalog, so reordering or switching rows needs no new requests. */
     private val rowCache = HashMap<String, List<Meta>>()
+    private val rowTimes = HashMap<String,Long>()
+    private val rowEpochs = HashMap<String,String>()
+    private fun rememberRow(key: String, items: List<Meta>, epoch: String) {
+        if (epoch != app.ember.tv.data.CachePolicy.epoch(app.ember.tv.data.CacheKind.CATALOGS)) return
+        rowCache[key] = items; rowTimes[key] = System.currentTimeMillis()
+        rowEpochs[key] = epoch
+    }
     private var rowsJob: Job? = null
 
     var catalogLive by mutableStateOf(prefs.catalogLive)
@@ -201,7 +208,7 @@ class CatalogsState(
                 if (urls.isEmpty()) {
                     rows = emptyList(); liveRows = emptyList(); allCatalogs = emptyList()
                     updateIconConfiguration()
-                    addonInfo = emptyMap(); rowCache.clear(); pendingAddons.clear(); status = null
+                    addonInfo = emptyMap(); rowCache.clear(); rowTimes.clear(); rowEpochs.clear(); pendingAddons.clear(); status = null
                     onRows()
                     return@launch
                 }
@@ -222,21 +229,23 @@ class CatalogsState(
                 val wanted = allCatalogs.filter { isOnHome(it) }
                 val wantedLive = allCatalogs.filter { isOnLive(it) }
                 val fetching = (wanted + wantedLive).distinctBy { it.key }.filter {
-                    (only == null || it.addon.url == only) && (refetch || it.key !in rowCache)
+                    (only == null || it.addon.url == only) && (refetch || it.key !in rowCache || rowEpochs[it.key] != app.ember.tv.data.CachePolicy.epoch(app.ember.tv.data.CacheKind.CATALOGS) ||
+                        !app.ember.tv.data.CachePolicy.fresh(app.ember.tv.data.CacheKind.CATALOGS,rowTimes[it.key] ?: 0))
                 }
                 val failedUrls = targets.filter { it !in freshUrls }.toMutableSet()
                 val failures=mutableMapOf<String,app.ember.tv.data.SourceFailure>()
                 val permits = Semaphore(requestParallelism().coerceIn(1, 4))
                 val shownPages = HashMap<String,List<Meta>>()
+                val cacheEpoch = app.ember.tv.data.CachePolicy.epoch(app.ember.tv.data.CacheKind.CATALOGS)
                 coroutineScope {
                     fetching.map { d -> async { permits.withPermit {
                         val result = kotlinx.coroutines.withTimeoutOrNull(addonTimeout() * 1000L) {
-                            runCatching { client.browse(d) }
+                            runCatching { client.browse(d, refresh = refetch) }
                         }
                         ensureActive()
                         noteSlow(d.addon.name, result == null)
                         result?.onSuccess { fresh ->
-                            rowCache[d.key] = fresh
+                            rememberRow(d.key, fresh, cacheEpoch)
                             val shown=filterItems(fresh)
                             ensureActive()
                             shownPages[d.key]=shown
@@ -252,7 +261,7 @@ class CatalogsState(
                         d to (result ?: Result.failure(java.net.SocketTimeoutException("Source timed out")))
                     } } }.awaitAll()
                 }.forEach { (def, result) ->
-                    result.onSuccess { rowCache[def.key] = it }.onFailure { error->
+                    result.onSuccess { rememberRow(def.key, it, cacheEpoch) }.onFailure { error->
                         failedUrls += def.addon.url
                         failures[def.addon.url]=app.ember.tv.data.SourceFailure.from(error)
                     }
@@ -263,6 +272,7 @@ class CatalogsState(
                 fun itemsFor(d: CatalogDef) = if (rowCache.containsKey(d.key)) rowCache[d.key] else before[d.key]
                 val knownKeys = defs.map { it.key }.toSet()
                 rowCache.keys.removeAll { key -> urls.none { app.ember.tv.data.CatalogIdentity.belongs(key, it) } || key !in knownKeys && freshUrls.any { app.ember.tv.data.CatalogIdentity.belongs(key, it) } }
+                rowTimes.keys.retainAll(rowCache.keys); rowEpochs.keys.retainAll(rowCache.keys)
                 fun offline(old: List<CatalogRow>) = old.filter { row ->
                     row.catalogKey !in knownKeys && freshUrls.none { app.ember.tv.data.CatalogIdentity.belongs(row.catalogKey, it) }
                 }

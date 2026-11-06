@@ -8,6 +8,7 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
     private var initializedImages:coil.ImageLoader?=null
     override fun onCreate() {
         super.onCreate()
+        app.ember.tv.data.CacheManagement.init(this)
         app.ember.tv.data.Net.init(this)
         app.ember.tv.ui.IconArtworkCache.init(this)
         app.ember.tv.data.CrashLog.install(this)
@@ -29,6 +30,7 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         super.onTrimMemory(level)
         app.ember.tv.ui.RuntimeBudgets.trim(level)
         if(app.ember.tv.ui.RuntimeBudgets.pressureLevel(level)) {
+            app.ember.tv.data.CacheManagement.trimMemory()
             initializedImages?.memoryCache?.clear()
             app.ember.tv.ui.IconArtworkCache.trimMemory()
         }
@@ -44,9 +46,10 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         .allowRgb565(true)
         .memoryCache { coil.memory.MemoryCache.Builder(this).maxSizePercent(0.25).build() }
         .diskCache { coil.disk.DiskCache.Builder().directory(cacheDir.resolve("images")).maxSizeBytes(app.ember.tv.ui.ArtworkStorageBudget.disk(runCatching {android.os.StatFs(cacheDir.path).availableBytes}.getOrDefault(0))).build() }
-        .respectCacheHeaders(false)
+        .respectCacheHeaders(true)
         // Animated GIF covers (Collection folders); the platform decoder from Android 9.
         .components {
+            add(app.ember.tv.ui.ImageCacheRetention())
             add(app.ember.tv.mediaserver.ServerArtwork.Factory())
             add(coil.decode.ImageDecoderDecoder.Factory())
         }

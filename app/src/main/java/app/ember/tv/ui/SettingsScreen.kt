@@ -132,6 +132,7 @@ internal enum class SettingsTab(val label: String, val group: String) {
     SERVERS("Media servers", "Accounts"),
     KEYS("API keys", "Accounts"),
     DEVICE_TOOLS("TV & device", "System"),
+    CACHE("Cache Management", "System"),
     BACKUP("Backup & restore", "System"),
     PHONE("Phone setup", "System"),
     UPDATES("Updates", "System"),
@@ -247,6 +248,7 @@ fun SettingsScreen(vm: HomeViewModel, onClose: (() -> Unit)? = null, onOpenFull:
                 item(key = "restore") { RestorePage(vm) }
             }
             SettingsTab.ABOUT -> aboutPage(vm)
+            SettingsTab.CACHE -> CACHE_KEYS.forEach { part -> item(key=part) { CacheManagementSettings(part) } }
             SettingsTab.UPDATES -> item(key="updates") {UpdatesSection(vm)}
             SettingsTab.DEBUG -> {
                 item(key="debug-build") {Section("Build information",id="debug-build") {
@@ -280,6 +282,7 @@ fun SettingsScreen(vm: HomeViewModel, onClose: (() -> Unit)? = null, onOpenFull:
             SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE -> lookKeys(tab, vm.look.uiStyle)
             SettingsTab.PLAYER -> PLAYER_KEYS
             SettingsTab.AUDIO_VIDEO -> AUDIO_VIDEO_KEYS
+            SettingsTab.CACHE -> CACHE_KEYS
             SettingsTab.DEBUG -> listOf("debug-build","image-cache","provider-diagnostics","crash-log")
             else -> emptyList()
         }

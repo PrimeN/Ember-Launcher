@@ -24,6 +24,7 @@ fun tabTitle(id: String): String = when (id) {
 @Composable
 internal fun SettingsTab.title(): String = stringResource(
     when (this) {
+        SettingsTab.CACHE -> R.string.settings_cache_management
         SettingsTab.SEARCH -> R.string.settings_search
         SettingsTab.FEATURES -> R.string.settings_features
         SettingsTab.TOP_MENU -> R.string.settings_top_menu

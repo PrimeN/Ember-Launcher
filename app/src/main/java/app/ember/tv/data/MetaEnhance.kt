@@ -163,10 +163,10 @@ object MetaEnhance {
         val h = mapOf("Authorization" to "Bearer $token", "Accept-Language" to c.tvdbLanguage)
         val base = "https://api4.thetvdb.com/v4"
         val remote = meta.imdb ?: meta.tmdbId?.toString() ?: return null
-        val found = Http.get("$base/search/remoteid/$remote", h).arr("data").list()
+        val found = Http.metadata("$base/search/remoteid/$remote", h).arr("data").list()
         val id = found.firstNotNullOfOrNull { it.obj("series").long("id") } ?: return null
 
-        val s = Http.get("$base/series/$id/extended?meta=translations&short=true", h).obj("data")
+        val s = Http.metadata("$base/series/$id/extended?meta=translations&short=true", h).obj("data")
         val lang = c.tvdbLanguage
         val overview = s.obj("translations").arr("overviewTranslations").list()
             .firstOrNull { it.str("language") == lang }.str("overview") ?: s.str("overview")
@@ -180,7 +180,7 @@ object MetaEnhance {
         if (c.tvdbEpisodes) {
             // Pages of 500; two pages cover almost every show.
             for (page in 0..3) {
-                val j = Http.get("$base/series/$id/episodes/default/$lang?page=$page", h)
+                val j = Http.metadata("$base/series/$id/episodes/default/$lang?page=$page", h)
                 val eps = j.obj("data").arr("episodes").list()
                 eps.forEach { e ->
                     val season = e.int("seasonNumber") ?: return@forEach

@@ -50,6 +50,7 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.BACKUP to "Back up and restore: backup file, passphrase, restore, Downloads",
     SettingsTab.WATCH_STATUS to "Watched and spoilers: watched unwatched indicators check badge mark movie show episode spoiler blur artwork",
     SettingsTab.UPDATES to "Updates: check install beta stable channel release GitHub automatic download",
+    SettingsTab.CACHE to "Cache Management: cache duration days hours metadata catalogs images network storage size retention clear cached data",
     SettingsTab.DEBUG to "Debug diagnostics: provider source request timings duration latency timeout auth quota offline redacted export build type crash log reports troubleshoot",
     SettingsTab.ABOUT to "About Ember: version, credits, changelog",
     SettingsTab.LEGAL to "Legal: privacy policy, open source, licences, services, disclaimer, calibration sample credits Mehanik HDR Test Patterns",

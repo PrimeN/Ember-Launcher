@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit
  */
 class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
     private val json = Json { ignoreUnknownKeys = true }
-    private val manifests = AsyncCache<String, AddonInfo>()
+    private val manifests = AsyncCache<String, AddonInfo>(CacheKind.METADATA)
 
     fun baseOf(url: String): String {
         val parsed = url.trim().replace("stremio://", "https://").toHttpUrlOrNull() ?: error("Enter a valid HTTP or HTTPS add-on URL.")
@@ -118,7 +118,7 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
 
     /** One page of a catalog, optionally filtered by genre or a search term. */
     suspend fun browse(def: CatalogDef, genre: String? = null, skip: Int = 0, search: String? = null,
-        extras: Map<String, String> = emptyMap()): List<Meta> {
+        extras: Map<String, String> = emptyMap(), refresh: Boolean = false): List<Meta> {
         AddonAccess.requireAvailable(def.addon.url)
         val requested = def.requestExtras + extras + listOfNotNull(genre?.takeIf { it.isNotBlank() }?.let { "genre" to it }, search?.let { "search" to it }).toMap()
         // An optional value the catalog does not offer (a collection's genre "None" on a catalog without
@@ -131,7 +131,7 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
         val parts = args.filterValues { it.isNotBlank() }.map { "${enc(it.key)}=${enc(it.value)}" }.toMutableList()
         if (skip > 0 && def.supportsSkip) parts += "skip=$skip"
         val extra = if (parts.isEmpty()) "" else "/" + parts.joinToString("&")
-        return getJson(endpoint(def.addon.base, "catalog/${def.type}/${def.id}$extra.json"), def.addon.url).arr("metas").list().map {value->
+        return getJson(endpoint(def.addon.base, "catalog/${def.type}/${def.id}$extra.json"), def.addon.url, CacheKind.CATALOGS, refresh).arr("metas").list().map {value->
             json.decodeFromJsonElement<Meta>(value).copy(ageRating=addonAgeRating(value))
         }
     }
@@ -146,7 +146,7 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
     /** Full details for one title, including the episode list for series. */
     suspend fun meta(addon: AddonInfo, type: String, id: String): Pair<JsonElement?, List<Episode>> {
         AddonAccess.requireAvailable(addon.url)
-        val meta = getJson(endpoint(addon.base, "meta/$type/$id.json"), addon.url).obj("meta")
+        val meta = getJson(endpoint(addon.base, "meta/$type/$id.json"), addon.url, CacheKind.METADATA).obj("meta")
         val episodes = meta.arr("videos").list().mapNotNull { v ->
             val season = v.int("season") ?: return@mapNotNull null
             val number = v.int("episode") ?: v.int("number") ?: return@mapNotNull null
@@ -182,11 +182,16 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
     }
 
     // ---- http ----
-    private suspend fun getJson(url: String, owner: String): JsonElement = json.parseToJsonElement(getText(url, owner))
+    private suspend fun getJson(url: String, owner: String, kind: CacheKind? = null, refresh: Boolean = false): JsonElement {
+        AddonAccess.requireAvailable(owner)
+        val text = if (kind == null) getText(url, owner) else CacheManagement.json(kind, url, refresh) { getText(url, owner) }
+        AddonAccess.requireAvailable(owner)
+        return withContext(Dispatchers.IO) { json.parseToJsonElement(text) }
+    }
 
     /** Cancellable: when an addon runs past the time limit, its request is dropped at once. */
     private suspend fun getText(url: String, owner: String): String {
-        val request = Request.Builder().url(url).build()
+        val request = Request.Builder().url(url).header("Cache-Control","no-cache, no-store").build()
         val call = http.newBuilder().cache(null).build().newCall(request)
         val key = AddonAccess.key(owner)
         synchronized(calls) { AddonAccess.requireAvailable(owner); calls.getOrPut(key) { mutableSetOf() }.add(call) }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Text
 import coil.imageLoader
+import app.ember.tv.data.CacheManagement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,7 +27,7 @@ import kotlinx.coroutines.withContext
                 busy=true;error=null
                 scope.launch {
                     try {
-                        withContext(Dispatchers.IO) {IconArtworkCache.clear();loader.diskCache?.clear();loader.memoryCache?.clear();AppArtwork.clear()}
+                        CacheManagement.clear(setOf(app.ember.tv.data.CacheKind.IMAGES))
                         bytes=withContext(Dispatchers.IO){(loader.diskCache?.size ?: 0)+IconArtworkCache.size()}
                     } catch(e:kotlinx.coroutines.CancellationException){throw e}
                     catch(_:Exception){error="Could not clear the image cache. Try again."}

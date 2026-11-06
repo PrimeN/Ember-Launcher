@@ -3,6 +3,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material.icons.outlined.Settings as IcSettings
 import androidx.compose.material.icons.outlined.Check
 
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Backup as IcBackup
 import androidx.compose.material.icons.outlined.ClosedCaption as IcClosedCaption
@@ -290,6 +291,7 @@ internal fun SettingsTab.icon(): androidx.compose.ui.graphics.vector.ImageVector
     SettingsTab.PLAYER -> Icons.Outlined.IcPlayCircle
     SettingsTab.WATCH_STATUS -> Icons.Outlined.IcToggleOn
     SettingsTab.UPDATES -> Icons.Outlined.IcSync
+    SettingsTab.CACHE -> Icons.Outlined.Storage
     SettingsTab.DEBUG -> Icons.Outlined.IcDescription
     SettingsTab.PLAY_BUTTON -> Icons.Outlined.IcPlayArrow
     SettingsTab.ADDONS -> Icons.Outlined.IcExtension

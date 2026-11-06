@@ -61,6 +61,7 @@ fun TvTextField(
     lineHeight: TextUnit = TextUnit.Unspecified,
     minHeight: Dp = 0.dp,
     imeAction: ImeAction = ImeAction.Done,
+    keyboardType: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
     /** Done or Search on the keyboard. Moves to the next control when not set. */
     onSubmit: (() -> Unit)? = null,
     focusRequester: FocusRequester? = null,
@@ -112,7 +113,7 @@ fun TvTextField(
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
             textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = fontSize, lineHeight = lineHeight),
             cursorBrush = SolidColor(if (editing) accent else androidx.compose.ui.graphics.Color.Transparent),
-            keyboardOptions = KeyboardOptions(imeAction = if (singleLine) imeAction else ImeAction.Default),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = if (singleLine) imeAction else ImeAction.Default),
             keyboardActions = KeyboardActions(onAny = {
                 onSubmit?.invoke()
                 if (onSubmit == null) leave(FocusDirection.Down) else {

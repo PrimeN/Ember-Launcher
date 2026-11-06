@@ -114,7 +114,7 @@ object Ratings {
         val type = if (movie) "movie" else "show"
         val path = imdb?.let { "imdb/$type/$it" } ?: tmdbId?.let { "tmdb/$type/$it" } ?: return null
         return runCatching {
-            val j = Http.get("https://api.mdblist.com/$path?apikey=${enc(key)}")
+            val j = Http.metadata("https://api.mdblist.com/$path?apikey=${enc(key)}")
             val out = HashMap<String, String>()
             j.arr("ratings").list().forEach { r ->
                 val value = r.dbl("value")
@@ -136,7 +136,7 @@ object Ratings {
         val key = ApiKeys.get("OMDB_API_KEY").takeIf { it.isNotBlank() } ?: return null
         imdb ?: return null
         return runCatching {
-            val j = Http.get("https://www.omdbapi.com/?i=$imdb&apikey=${enc(key)}")
+            val j = Http.metadata("https://www.omdbapi.com/?i=$imdb&apikey=${enc(key)}")
             val out = HashMap<String, String>()
             j.str("imdbRating")?.toDoubleOrNull()?.let { out["imdb"] = one(it) }
             j.arr("Ratings").list().forEach { r ->
@@ -156,7 +156,7 @@ object Ratings {
         val id = ApiKeys.get("TRAKT_CLIENT_ID").takeIf { it.isNotBlank() } ?: return null
         imdb ?: return null
         return runCatching {
-            val j = Http.get(
+            val j = Http.metadata(
                 "https://api.trakt.tv/${if (movie) "movies" else "shows"}/$imdb/ratings",
                 mapOf("trakt-api-version" to "2", "trakt-api-key" to id),
             )
@@ -169,10 +169,10 @@ object Ratings {
         return runCatching {
             val type = if (movie) "movie" else "tv"
             val id = tmdbId ?: imdb?.let {
-                Http.get("https://api.themoviedb.org/3/find/$it?api_key=$key&external_source=imdb_id")
+                Http.metadata("https://api.themoviedb.org/3/find/$it?api_key=$key&external_source=imdb_id")
                     .arr(if (movie) "movie_results" else "tv_results").list().firstOrNull().str("id")?.toLongOrNull()
             } ?: return null
-            Http.get("https://api.themoviedb.org/3/$type/$id?api_key=$key").dbl("vote_average")?.takeIf { it > 0 }?.let { one(it) }
+            Http.metadata("https://api.themoviedb.org/3/$type/$id?api_key=$key").dbl("vote_average")?.takeIf { it > 0 }?.let { one(it) }
         }.getOrNull()
     }
 
