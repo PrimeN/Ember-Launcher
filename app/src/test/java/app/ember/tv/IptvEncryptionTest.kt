@@ -48,7 +48,30 @@ class IptvEncryptionTest {
         cache.write("channels") { it.write(credentials.toByteArray()) }.getOrThrow()
         assertTrue(cache.write("channels") { it.write("partial".toByteArray()); error("disk full") }.isFailure)
         assertEquals(credentials, read(cache).getOrThrow())
-        assertEquals(listOf("channels.bin"), folder.root.list()!!.toList())
+        assertEquals(listOf("channels.bin"), folder.root.list()!!.filter { it != EncryptedIptvFiles.KEY_FILE })
+    }
+    @Test fun keystoreIsUsedOncePerReadOrWriteNotPerChunk() {
+        // #58: a guide of several MB was thousands of Keystore calls.
+        var calls = 0
+        val counting = EncryptedIptvFiles(folder.root) { calls++; key }
+        val big = ByteArray(3 * 1024 * 1024) { (it % 251).toByte() }
+        counting.write("guide") { it.write(big) }.getOrThrow()
+        assertTrue("write used the Keystore $calls times", calls <= 2)
+        calls = 0
+        assertArrayEquals(big, counting.read("guide") { it.readBytes() }.getOrThrow())
+        assertEquals(1, calls)
+        assertFalse(File(folder.root, EncryptedIptvFiles.KEY_FILE).readBytes().toString(Charsets.ISO_8859_1).contains("test-secret"))
+    }
+    @Test fun filesWrittenBeforeTheChangeStillOpen() {
+        val iv = ByteArray(12) { 3 }
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding").apply {
+            init(javax.crypto.Cipher.ENCRYPT_MODE, key, javax.crypto.spec.GCMParameterSpec(128, iv)); updateAAD("channels".toByteArray())
+        }
+        File(folder.root, "channels.bin").writeBytes(byteArrayOf(69, 73, 80, 84, 1) + iv + cipher.doFinal(credentials.toByteArray()))
+        assertEquals(credentials, read(cache()).getOrThrow())
+        cache().write("channels") { it.write(credentials.toByteArray()) }.getOrThrow()
+        assertEquals(2, File(folder.root, "channels.bin").readBytes()[4].toInt())
+        assertEquals(credentials, read(cache()).getOrThrow())
     }
     @Test fun migrationDeletesLegacyOnlyAfterEncryptedReadback() {
         val legacy = folder.newFile("channels.json").apply { writeText(credentials) }
