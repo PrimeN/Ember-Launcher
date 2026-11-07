@@ -9,79 +9,160 @@ import android.os.Build
 import androidx.compose.foundation.border
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.platform.InspectorInfo
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 
 /**
  * One background sample, tint, highlight and inside edge; foreground content stays untouched.
  * [focused]: the control's own solid focus fill lies underneath (a TV Surface paints its container
  * under its content), so only the edge is drawn and the fill shows undimmed (#39).
+ *
+ * The theme and composition locals are resolved here (theme colours are composable getters);
+ * placement, drawing and the sample cross-fade live in a [GlassNode] (#45), so moving or a new
+ * sample never rebuilds a modifier chain, and position changes only redraw.
  */
-internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false, focused: Boolean = false): Modifier = composed {
-    if (focused) return@composed clip(shape).border(1.dp, Color.White.copy(alpha = .30f), shape)
+@Composable
+internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false, focused: Boolean = false): Modifier {
+    if (focused) return clip(shape).border(1.dp, Color.White.copy(alpha = .30f), shape)
     val options = LocalRenderOptions.current
     val mode = GlassPolicy.mode(options, Build.VERSION.SDK_INT, pressured = RuntimeBudgets.pressured)
     val image = LocalGlassBitmap.current.takeIf { mode != GlassMode.TINT }
     val art = LocalBackdropArtwork.current
     val viewport = art.viewport
-    val focus = art.focus ?: HeroFocus()
-    val origin = LocalGlassOrigin.current
     val day = Ui.isDay && !LocalFloating.current && !LocalNight.current
+    val sampled = image != null && viewport != null
     // Theme tokens (#42): the dock stays dark over its wallpaper; OLED glass is near black.
     val base = if (panel) if (day) Panel else FloatingPanelStyle.background else if (dock) glassTint(day = false)
-        else if (mode==GlassMode.TINT || image==null || viewport==null) glassTint(day)
-        else PanelHi
-    val painter = remember(image != null) { if (image != null) GlassPainter() else null }
-    SideEffect { painter?.source(image) }
-    var placement by remember { mutableStateOf(GlassPlacement()) }
-    val sampled = image != null && viewport != null
+        else if (!sampled) glassTint(day) else PanelHi
     val alpha = if (dock) if (sampled) .20f else .40f else GlassPolicy.tintAlpha(panel, sampled, day)
     val edge = if (day) Color.Black else Color.White
-    // Position and shader state belong to each attached surface, even when a modifier is reused.
-    clip(shape).then(if(sampled)Modifier.onGloballyPositioned {
-        val point=it.localToScreen(Offset.Zero)
-        val sx=(it.localToScreen(Offset(1f,0f))-point).getDistance()
-        val sy=(it.localToScreen(Offset(0f,1f))-point).getDistance()
-        if(point.x.isFinite() && point.y.isFinite() && sx.isFinite() && sy.isFinite() && sx>.01f && sy>.01f)
-            placement=GlassPlacement(point.x,point.y,sx,sy)
-    } else Modifier)
-        .drawWithCache {
-            val outline = shape.createOutline(size, layoutDirection, this)
-            val nativePath = if(image==null)null else Path().apply { when (outline) {
-                is Outline.Rectangle -> addRect(outline.rect)
-                is Outline.Rounded -> addRoundRect(outline.roundRect)
-                is Outline.Generic -> addPath(outline.path)
-            } }.asAndroidPath()
-            val frame = image?.let { bitmap -> viewport?.let { HeroFraming.glassProjection(bitmap.width, bitmap.height, it, focus) } }
-            val gloss = Brush.linearGradient(listOf(Color.White.copy(alpha = if (day) .10f else .13f), Color.Transparent, Color.White.copy(alpha = .025f)),
-                start = Offset.Zero, end = Offset(size.width, size.height))
-            val rounding = if (outline is Outline.Rounded) outline.roundRect.topLeftCornerRadius.x else 0f
-            onDrawBehind {
-                // Placement is read here, in the draw phase (#41): moving re-projects the sample
-                // without rebuilding the cached outline and gradients on every scroll frame.
-                val local=frame?.let {GlassPolicy.localFrame(it,origin.x,origin.y,placement)}
-                val visible=viewport?.let {GlassPolicy.localFrame(HeroProjection(it.left,it.top,it.width,it.height),origin.x,origin.y,placement)}
-                // Nine pixel reads of the small sample; never processes the hero here.
-                val brightness=if(image!=null && local!=null && options.colorAnalysis) GlassPainter.brightness(image,local,size.width,size.height) else if(day)0f else 1f
-                val readable=if(sampled)GlassPolicy.readableTint(alpha,brightness,day) else alpha
-                if (image != null && local != null && visible != null && painter != null && nativePath != null) {
-                    clipRect(visible.left,visible.top,visible.left+visible.width,visible.top+visible.height) {
-                        drawIntoCanvas { canvas -> painter.draw(canvas.nativeCanvas, nativePath, image, local.left, local.top,
-                            local.width, local.height, size.width, size.height, rounding, mode == GlassMode.LIQUID, density) }
-                    }
+    // Medium and High cross-fade between samples (#44); Low, reduced motion and no-animation profiles switch.
+    val fade = mode != GlassMode.TINT && options.animationsEnabled && !options.lowPower && !LocalReduceMotion.current
+    return clip(shape)
+        .then(GlassElement(shape, base, alpha, if (sampled) image else null, viewport, art.focus ?: HeroFocus(), LocalGlassOrigin.current,
+            mode == GlassMode.LIQUID, options.colorAnalysis, day, fade))
+        .border(1.dp, Brush.linearGradient(listOf(edge.copy(alpha = if (day) .18f else .30f), edge.copy(alpha = .045f), edge.copy(alpha = .18f))), shape)
+}
+
+private data class GlassElement(
+    val shape: Shape, val base: Color, val alpha: Float, val image: Bitmap?, val viewport: HeroViewport?, val focus: HeroFocus,
+    val origin: Offset, val liquid: Boolean, val analysis: Boolean, val day: Boolean, val fade: Boolean,
+) : ModifierNodeElement<GlassNode>() {
+    override fun create() = GlassNode(this)
+    override fun update(node: GlassNode) = node.update(this)
+    override fun InspectorInfo.inspectableProperties() { name = "glassSurface" }
+}
+
+/** How long a new glass sample takes to replace the previous one (#44). */
+internal const val GLASS_CROSSFADE_MS = 250
+
+private class GlassNode(private var style: GlassElement) : Modifier.Node(), DrawModifierNode, GlobalPositionAwareModifierNode {
+    private var placement = GlassPlacement()
+    private var painter: GlassPainter? = style.image?.let { GlassPainter() }
+    // The sample being faded out, with its own shader, and how far the new one has come in.
+    private var previous: Bitmap? = null
+    private var previousPainter: GlassPainter? = null
+    private var progress = 1f
+    private var fadeJob: kotlinx.coroutines.Job? = null
+    // Outline, path and highlight for one size, shape and direction; rebuilt only when those change.
+    private var cacheKey: Any? = null
+    private var outline: Outline? = null
+    private var path: android.graphics.Path? = null
+    private var gloss: Brush? = null
+    private var rounding = 0f
+
+    fun update(next: GlassElement) {
+        val old = style.image
+        style = next
+        if (next.image !== old) {
+            fadeJob?.cancel()
+            if (next.fade && old != null && next.image != null && isAttached) {
+                previous = old; previousPainter = painter; painter = GlassPainter(); progress = 0f
+                fadeJob = coroutineScope.launch {
+                    val anim = Animatable(0f)
+                    anim.animateTo(1f, tween(GLASS_CROSSFADE_MS)) { progress = value; invalidateDraw() }
+                    previous = null; previousPainter = null; progress = 1f; invalidateDraw()
                 }
-                drawOutline(outline, base.copy(alpha = readable))
-                drawOutline(outline, gloss)
+            } else {
+                previous = null; previousPainter = null; progress = 1f
+                painter = next.image?.let { painter ?: GlassPainter() }
             }
         }
-        .border(1.dp, Brush.linearGradient(listOf(edge.copy(alpha = if (day) .18f else .30f), edge.copy(alpha = .045f), edge.copy(alpha = .18f))), shape)
+        cacheKey = null
+        invalidateDraw()
+    }
+
+    override fun onDetach() { fadeJob?.cancel(); previous = null; previousPainter = null; progress = 1f }
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        if (style.image == null) return
+        val point = coordinates.localToScreen(Offset.Zero)
+        val sx = (coordinates.localToScreen(Offset(1f, 0f)) - point).getDistance()
+        val sy = (coordinates.localToScreen(Offset(0f, 1f)) - point).getDistance()
+        if (point.x.isFinite() && point.y.isFinite() && sx.isFinite() && sy.isFinite() && sx > .01f && sy > .01f) {
+            val next = GlassPlacement(point.x, point.y, sx, sy)
+            if (next != placement) { placement = next; invalidateDraw() }
+        }
+    }
+
+    override fun ContentDrawScope.draw() {
+        val s = style
+        val key = Triple(size, s.shape, layoutDirection) to s.day
+        if (key != cacheKey) {
+            val o = s.shape.createOutline(size, layoutDirection, this)
+            outline = o
+            path = Path().apply { when (o) {
+                is Outline.Rectangle -> addRect(o.rect)
+                is Outline.Rounded -> addRoundRect(o.roundRect)
+                is Outline.Generic -> addPath(o.path)
+            } }.asAndroidPath()
+            gloss = Brush.linearGradient(listOf(Color.White.copy(alpha = if (s.day) .10f else .13f), Color.Transparent, Color.White.copy(alpha = .025f)),
+                start = Offset.Zero, end = Offset(size.width, size.height))
+            rounding = if (o is Outline.Rounded) o.roundRect.topLeftCornerRadius.x else 0f
+            cacheKey = key
+        }
+        val o = outline!!
+        val viewport = s.viewport
+        val visible = viewport?.let { GlassPolicy.localFrame(HeroProjection(it.left, it.top, it.width, it.height), s.origin.x, s.origin.y, placement) }
+        fun frameOf(bitmap: Bitmap) = viewport?.let { HeroFraming.glassProjection(bitmap.width, bitmap.height, it, s.focus) }
+            ?.let { GlassPolicy.localFrame(it, s.origin.x, s.origin.y, placement) }
+        val image = s.image
+        val local = image?.let(::frameOf)
+        if (visible != null && path != null) {
+            clipRect(visible.left, visible.top, visible.left + visible.width, visible.top + visible.height) {
+                drawIntoCanvas { canvas ->
+                    val old = previous; val oldPainter = previousPainter
+                    if (old != null && oldPainter != null && !old.isRecycled && progress < 1f) frameOf(old)?.let { f ->
+                        oldPainter.draw(canvas.nativeCanvas, path!!, old, f.left, f.top, f.width, f.height, size.width, size.height, rounding, s.liquid, density)
+                    }
+                    val p = painter
+                    if (image != null && local != null && p != null)
+                        p.draw(canvas.nativeCanvas, path!!, image, local.left, local.top, local.width, local.height, size.width, size.height, rounding, s.liquid, density,
+                            alpha = if (previous != null) progress else 1f)
+                }
+            }
+        }
+        // Nine pixel reads of the small sample; never processes the hero here.
+        val brightness = if (image != null && local != null && s.analysis) GlassPainter.brightness(image, local, size.width, size.height) else if (s.day) 0f else 1f
+        val readable = if (image != null) GlassPolicy.readableTint(s.alpha, brightness, s.day) else s.alpha
+        drawOutline(o, s.base.copy(alpha = readable))
+        gloss?.let { drawOutline(o, it) }
+        drawContent()
+    }
 }
 
 internal class GlassPainter {
@@ -116,8 +197,9 @@ internal class GlassPainter {
         if (value == null) { lens = null; paint.shader = null }
     }
     fun draw(canvas: android.graphics.Canvas, path: android.graphics.Path, image: Bitmap, x: Float, y: Float,
-        width: Float, height: Float, surfaceWidth: Float, surfaceHeight: Float, radius: Float, liquid: Boolean, density: Float) {
+        width: Float, height: Float, surfaceWidth: Float, surfaceHeight: Float, radius: Float, liquid: Boolean, density: Float, alpha: Float = 1f) {
         source(image)
+        paint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt()
         val shader = texture ?: return
         matrix.setScale(width / image.width, height / image.height)
         matrix.postTranslate(x, y)
