@@ -130,7 +130,7 @@ internal fun DetailsActionButton(
                 }
                 detail?.takeIf(String::isNotBlank)?.let {
                     Spacer(Modifier.height(2.dp))
-                    Text(it,color=foreground.copy(alpha=.8f),fontSize=if(compact)10.sp else TvTokens.Type.Detail.sp,lineHeight=if(compact)12.sp else 14.sp,textAlign=TextAlign.Center,
+                    Text(it,color=foreground.copy(alpha=.8f),fontSize=TvTokens.Type.Caption.sp,lineHeight=14.sp,textAlign=TextAlign.Center,
                         maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth(),
                         style=TextStyle(platformStyle=PlatformTextStyle(includeFontPadding=false)))
                 }
