@@ -598,7 +598,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         featuredRows = featuredRows.filterKeys { it in sources && it !in onHome }
         for (key in sources - onHome) {
             if (featuredRows[key]?.let { featuredRevision[key] == revision } == true) continue
-            val def = defs.firstOrNull { it.key == key && it.homeable } ?: continue
+            val def = defs.firstOrNull { it.key == key && it.featurable } ?: continue
             val items = kotlinx.coroutines.withTimeoutOrNull(addonTimeout * 1000L) {
                 runCatching { client.browse(def) }.getOrNull()
             }?.let { filterKidsItems(it) } ?: continue

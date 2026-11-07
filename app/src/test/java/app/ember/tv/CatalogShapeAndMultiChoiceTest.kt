@@ -35,6 +35,15 @@ class CatalogShapeAndMultiChoiceTest {
         assertNull(def.extraError(mapOf("genre" to "Drama")))
     }
 
+    @Test fun catalogsThatNeedAGenreCanStillFeedTheHero() {
+        // AIOMetadata style: genre required, "None" (all genres) first. Never a Home row, but the hero can use it (#101).
+        val genre = catalog("""{"name":"genre","isRequired":true,"options":["None","Action"]}""")
+        assertFalse(genre.homeable)
+        assertTrue(genre.featurable)
+        assertTrue(catalog("""{"name":"genre","options":["Action"]}""").featurable)
+        assertFalse("a search-only catalog needs typing", catalog("""{"name":"search","isRequired":true}""").featurable)
+    }
+
     @Test fun posterShapeSetsTheCardAndKeepsTheAddonsOwnArt() {
         val square = json.decodeFromString<Meta>("""{"id":"tt1","type":"movie","name":"Radio","poster":"https://x/p.png","posterShape":"square"}""")
         assertEquals("square", square.posterShape)

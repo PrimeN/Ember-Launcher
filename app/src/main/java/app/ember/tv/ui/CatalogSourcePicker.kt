@@ -23,7 +23,7 @@ import app.ember.tv.data.HeroBanner
  */
 @Composable
 internal fun CatalogSourcePicker(vm: HomeViewModel, title: String, selected: String?, onPick: (String?) -> Unit,
-    automatic: Boolean = true, eligible: (CatalogDef) -> Boolean = { it.homeable }, close: () -> Unit) {
+    automatic: Boolean = true, eligible: (CatalogDef) -> Boolean = { it.featurable }, close: () -> Unit) {
     var addon by remember { mutableStateOf<String?>(null) }
     var type by remember { mutableStateOf<String?>(null) }
     var closed by remember { mutableStateOf(false) }
@@ -42,7 +42,8 @@ internal fun CatalogSourcePicker(vm: HomeViewModel, title: String, selected: Str
                 }
                 val homeKeys = onHome.map(HeroBanner::sourceKey).toSet()
                 all.filterNot { it.key in homeKeys }.groupBy { it.addon.url }.forEach { (url, defs) ->
-                    add(MenuOption("All from ${defs.first().addon.name} (${defs.size})", icon = Icons.AutoMirrored.Outlined.KeyboardArrowRight) { addon = url; closed = false })
+                    // Catalogs that are off on Home or in Discover are in here too (#101).
+                    add(MenuOption("More from ${defs.first().addon.name} (${defs.size}, including ones that are off)", icon = Icons.AutoMirrored.Outlined.KeyboardArrowRight) { addon = url; closed = false })
                 }
             }) { closed = true }
             else -> {

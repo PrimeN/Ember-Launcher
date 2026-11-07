@@ -253,6 +253,12 @@ data class CatalogDef(
 
     /** Can be a Home row: needs no search term, genre or other input. */
     val homeable: Boolean get() = !searchOnly && extraError(defaultExtras) == null && (!genreRequired || !defaultExtras["genre"].isNullOrBlank()) && (!otherRequired || extras.isNotEmpty())
+    /**
+     * Can feed the hero or Light's carousel (#101): loads without typing anything, using its
+     * defaults and the first option of a required extra (as Discover and collections do), whether
+     * or not it is on Home or in Discover.
+     */
+    val featurable: Boolean get() = !searchOnly && (!otherRequired || extras.isNotEmpty()) && extraError(requestExtras) == null
     val browsable: Boolean get() = !searchOnly && (!otherRequired || extras.isNotEmpty()) && (!genreRequired || genres.isNotEmpty() || extras.any { it.name == "genre" })
 }
 
