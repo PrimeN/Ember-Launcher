@@ -13,7 +13,7 @@ class Prefs(context: Context) {
     init { CatalogIdentity.migrateOnce(sp) }
 
     var cacheConfig: CacheConfig
-        get() = runCatching { json.decodeFromString<CacheConfig>(sp.read(PreferenceKeys.CACHE_CONFIG)!!).also { require(it.valid()) } }.getOrDefault(CacheConfig())
+        get() = decodedOnce(PreferenceKeys.CACHE_CONFIG.name, sp.read(PreferenceKeys.CACHE_CONFIG)) { raw -> runCatching { json.decodeFromString<CacheConfig>(raw!!).also { require(it.valid()) } }.getOrDefault(CacheConfig()) }
         set(value) { require(value.valid()); sp.edit { putString(PreferenceKeys.CACHE_CONFIG.name, json.encodeToString(value)) } }
 
     private fun searchKey(profile: String) = "search:" + HomeTitleVisibility.prefix(profile)
@@ -31,7 +31,7 @@ class Prefs(context: Context) {
     fun clearRecentSearches(profile: String) { sp.edit { remove(searchKey(profile)) } }
 
     var discoverSections: Map<String, Boolean>
-        get() = runCatching { json.decodeFromString<Map<String, Boolean>>(sp.read(PreferenceKeys.DISCOVER_SECTIONS)!!) }.getOrDefault(emptyMap())
+        get() = decodedOnce(PreferenceKeys.DISCOVER_SECTIONS.name, sp.read(PreferenceKeys.DISCOVER_SECTIONS)) { raw -> runCatching { json.decodeFromString<Map<String, Boolean>>(raw!!) }.getOrDefault(emptyMap()) }
         set(value) = sp.edit { putString(PreferenceKeys.DISCOVER_SECTIONS.name, json.encodeToString(value)) }
 
     var aiDiscoveryEnabled: Boolean
@@ -122,7 +122,7 @@ class Prefs(context: Context) {
 
     /** Home on/off chosen by the user; catalogs not listed use the default (first six per addon). */
     var catalogHome: Map<String, Boolean>
-        get() = runCatching { json.decodeFromString<Map<String, Boolean>>(sp.read(PreferenceKeys.CATALOG_HOME)!!) }.getOrDefault(emptyMap())
+        get() = decodedOnce(PreferenceKeys.CATALOG_HOME.name, sp.read(PreferenceKeys.CATALOG_HOME)) { raw -> runCatching { json.decodeFromString<Map<String, Boolean>>(raw!!) }.getOrDefault(emptyMap()) }
         set(v) = sp.edit { putString(PreferenceKeys.CATALOG_HOME.name, json.encodeToString(v)) }
 
     /** Carries an intentional legacy bulk-Off choice into individual catalog defaults. */
@@ -131,12 +131,12 @@ class Prefs(context: Context) {
         set(v) = sp.edit { putBoolean(PreferenceKeys.CATALOG_HOME_DEFAULTS_OFF.name, v) }
 
     var catalogNames: Map<String, String>
-        get() = runCatching { json.decodeFromString<Map<String, String>>(sp.read(PreferenceKeys.CATALOG_NAMES)!!) }.getOrDefault(emptyMap())
+        get() = decodedOnce(PreferenceKeys.CATALOG_NAMES.name, sp.read(PreferenceKeys.CATALOG_NAMES)) { raw -> runCatching { json.decodeFromString<Map<String, String>>(raw!!) }.getOrDefault(emptyMap()) }
         set(v) = sp.edit { putString(PreferenceKeys.CATALOG_NAMES.name, json.encodeToString(v)) }
 
     /** Live TV on/off chosen by the user; catalogs not listed use the default (channel and TV catalogs). */
     var catalogLive: Map<String, Boolean>
-        get() = runCatching { json.decodeFromString<Map<String, Boolean>>(sp.read(PreferenceKeys.CATALOG_LIVE)!!) }.getOrDefault(emptyMap())
+        get() = decodedOnce(PreferenceKeys.CATALOG_LIVE.name, sp.read(PreferenceKeys.CATALOG_LIVE)) { raw -> runCatching { json.decodeFromString<Map<String, Boolean>>(raw!!) }.getOrDefault(emptyMap()) }
         set(v) = sp.edit { putString(PreferenceKeys.CATALOG_LIVE.name, json.encodeToString(v)) }
 
     var catalogDiscoverOff: Set<String>
@@ -158,11 +158,11 @@ class Prefs(context: Context) {
 
     /** Subtitle providers, languages, matching and look (Settings > Subtitles). */
     var subtitleConfig: SubtitleConfig
-        get() = runCatching { json.decodeFromString<SubtitleConfig>(sp.read(PreferenceKeys.SUBTITLE_CONFIG)!!) }.getOrDefault(SubtitleConfig())
+        get() = decodedOnce(PreferenceKeys.SUBTITLE_CONFIG.name, sp.read(PreferenceKeys.SUBTITLE_CONFIG)) { raw -> runCatching { json.decodeFromString<SubtitleConfig>(raw!!) }.getOrDefault(SubtitleConfig()) }
         set(v) = sp.edit { putString(PreferenceKeys.SUBTITLE_CONFIG.name, json.encodeToString(v)) }
 
     var profiles: List<Profile>
-        get() = runCatching { json.decodeFromString<List<Profile>>(sp.read(PreferenceKeys.PROFILES)!!) }.getOrDefault(emptyList())
+        get() = decodedOnce(PreferenceKeys.PROFILES.name, sp.read(PreferenceKeys.PROFILES)) { raw -> runCatching { json.decodeFromString<List<Profile>>(raw!!) }.getOrDefault(emptyList()) }
             .filter { it.id.isNotBlank() }.distinctBy { it.id }
             .ifEmpty { listOf(Profile(Profile.MAIN, "Me")) }
         set(v) = sp.edit { putString(PreferenceKeys.PROFILES.name, json.encodeToString(v)) }
@@ -211,22 +211,21 @@ class Prefs(context: Context) {
 
     /** Built-in player: passthrough, decoders, display mode, buffer (Settings > Player). */
     var playRules: PlayRules
-        get() = runCatching { json.decodeFromString<PlayRules>(sp.read(PreferenceKeys.PLAY_RULES)!!) }.getOrDefault(PlayRules())
+        get() = decodedOnce(PreferenceKeys.PLAY_RULES.name, sp.read(PreferenceKeys.PLAY_RULES)) { raw -> runCatching { json.decodeFromString<PlayRules>(raw!!) }.getOrDefault(PlayRules()) }
         set(v) = sp.edit { putString(PreferenceKeys.PLAY_RULES.name, json.encodeToString(v)) }
 
     var playbackConfig: app.ember.tv.player.PlaybackConfig
-        get() = runCatching { json.decodeFromString<app.ember.tv.player.PlaybackConfig>(sp.read(PreferenceKeys.PLAYBACK_CONFIG)!!) }
-            .getOrDefault(app.ember.tv.player.PlaybackConfig())
+        get() = decodedOnce(PreferenceKeys.PLAYBACK_CONFIG.name, sp.read(PreferenceKeys.PLAYBACK_CONFIG)) { raw -> runCatching { json.decodeFromString<app.ember.tv.player.PlaybackConfig>(raw!!) }.getOrDefault(app.ember.tv.player.PlaybackConfig()) }
         set(v) = sp.edit { putString(PreferenceKeys.PLAYBACK_CONFIG.name, json.encodeToString(v)) }
 
     /** AniList and TVDB metadata (Settings > Metadata). */
     var metaConfig: MetaConfig
-        get() = runCatching { json.decodeFromString<MetaConfig>(sp.read(PreferenceKeys.META_CONFIG)!!) }.getOrDefault(MetaConfig())
+        get() = decodedOnce(PreferenceKeys.META_CONFIG.name, sp.read(PreferenceKeys.META_CONFIG)) { raw -> runCatching { json.decodeFromString<MetaConfig>(raw!!) }.getOrDefault(MetaConfig()) }
         set(v) = sp.edit { putString(PreferenceKeys.META_CONFIG.name, json.encodeToString(v)) }
 
     /** Poster enhancement (Settings > Posters). */
     var posterConfig: PosterConfig
-        get() = runCatching { json.decodeFromString<PosterConfig>(sp.read(PreferenceKeys.POSTER_CONFIG)!!) }.getOrDefault(PosterConfig())
+        get() = decodedOnce(PreferenceKeys.POSTER_CONFIG.name, sp.read(PreferenceKeys.POSTER_CONFIG)) { raw -> runCatching { json.decodeFromString<PosterConfig>(raw!!) }.getOrDefault(PosterConfig()) }
         set(v) = sp.edit { putString(PreferenceKeys.POSTER_CONFIG.name, json.encodeToString(v)) }
 
     /** Features switched off in Settings > Features (see Features). Off features load nothing at start. */
@@ -273,7 +272,7 @@ class Prefs(context: Context) {
 
     /** Names the user gave addons, by manifest link. */
     var addonNames: Map<String, String>
-        get() = runCatching { json.decodeFromString<Map<String, String>>(sp.read(PreferenceKeys.ADDON_NAMES)!!) }.getOrDefault(emptyMap())
+        get() = decodedOnce(PreferenceKeys.ADDON_NAMES.name, sp.read(PreferenceKeys.ADDON_NAMES)) { raw -> runCatching { json.decodeFromString<Map<String, String>>(raw!!) }.getOrDefault(emptyMap()) }
         set(v) = sp.edit { putString(PreferenceKeys.ADDON_NAMES.name, json.encodeToString(v)) }
 
     /** Test addons already added once, so removing one in Settings is not undone on the next start. */
@@ -536,7 +535,7 @@ class Prefs(context: Context) {
         set(value) = sp.edit { putString(PreferenceKeys.LAUNCHER_EXTRAS.name, value) }
 
     var lightHome: LightHomeOptions
-        get() = runCatching { json.decodeFromString<LightHomeOptions>(sp.read(PreferenceKeys.LIGHT_HOME) ?: "{}").normalized() }.getOrDefault(LightHomeOptions())
+        get() = decodedOnce(PreferenceKeys.LIGHT_HOME.name, sp.read(PreferenceKeys.LIGHT_HOME)) { raw -> runCatching { json.decodeFromString<LightHomeOptions>(raw ?: "{}").normalized() }.getOrDefault(LightHomeOptions()) }
         set(value) = sp.edit { putString(PreferenceKeys.LIGHT_HOME.name, json.encodeToString(value.normalized())) }
 
     /** Light look's five backgrounds; older art/ember/black preferences retain their meaning. */
@@ -578,7 +577,7 @@ class Prefs(context: Context) {
         get()=DevicePerformance.normalize(sp.read(PreferenceKeys.DEVICE_PERFORMANCE))
         set(v)=sp.edit { putString(PreferenceKeys.DEVICE_PERFORMANCE.name,DevicePerformance.normalize(v)) }
     var customPerformance:CustomPerformance
-        get()=runCatching {json.decodeFromString<CustomPerformance>(sp.read(PreferenceKeys.CUSTOM_PERFORMANCE)!!).normalized()}.getOrDefault(CustomPerformance())
+        get()=decodedOnce(PreferenceKeys.CUSTOM_PERFORMANCE.name, sp.read(PreferenceKeys.CUSTOM_PERFORMANCE)) { raw -> runCatching {json.decodeFromString<CustomPerformance>(raw!!).normalized()}.getOrDefault(CustomPerformance()) }
         set(value)=sp.edit {putString(PreferenceKeys.CUSTOM_PERFORMANCE.name,json.encodeToString(value.normalized()))}
     var setupChecklistHidden: Boolean
         get()=sp.read(PreferenceKeys.SETUP_CHECKLIST_HIDDEN)
@@ -611,11 +610,22 @@ class Prefs(context: Context) {
         set(v) = sp.edit { putInt(PreferenceKeys.ACCENT3.name, ColorThemes.normalize(v)); putBoolean(PreferenceKeys.EMBER_X_INTERFACE_MIGRATED.name, true) }
 
     var watchlist: List<Meta>
-        get() = runCatching { json.decodeFromString<List<Meta>>(sp.read(PreferenceKeys.WL)!!) }
-            .getOrDefault(emptyList())
+        get() = decodedOnce(PreferenceKeys.WL.name, sp.read(PreferenceKeys.WL)) { raw -> runCatching { json.decodeFromString<List<Meta>>(raw!!) }.getOrDefault(emptyList()) }
         set(v) = sp.edit { putString(PreferenceKeys.WL.name, json.encodeToString(v)) }
 
     companion object {
+        /**
+         * Each JSON preference decoded once per stored text (#47): getters were decoding on every
+         * read. Keyed by the raw string, so a write, restore or another writer is seen at once.
+         * The decoded values are read-only data; callers copy before changing them.
+         */
+        private val decoded = java.util.concurrent.ConcurrentHashMap<String, Pair<String?, Any?>>()
+        @Suppress("UNCHECKED_CAST")
+        private fun <T> decodedOnce(slot: String, raw: String?, decode: (String?) -> T): T {
+            decoded[slot]?.let { (text, value) -> if (text == raw) return value as T }
+            return decode(raw).also { decoded[slot] = raw to it }
+        }
+
         // Public Cinemeta addon, the catalog source Stremio ships with.
         const val DEFAULT_ADDON = "https://v3-cinemeta.strem.io/manifest.json"
         const val PLAYER_BUILTIN = "builtin"

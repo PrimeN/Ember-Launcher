@@ -28,3 +28,20 @@ class PrefsMigrationOnceTest {
         assertEquals(CatalogIdentity.migrate(legacy), sp.getString("catalogOrder", null))
     }
 }
+
+/** #47: JSON preferences decode once per stored text and still see every write. */
+class PrefsDecodeOnceTest {
+    @get:Rule val temp = TemporaryFolder()
+    @Test fun unchangedValuesAreReusedAndWritesAreSeen() {
+        val prefs = Prefs(PersistenceContext(temp.root))
+        prefs.catalogNames = mapOf("a" to "One")
+        val first = prefs.catalogNames
+        assertSame(first, prefs.catalogNames)
+        prefs.catalogNames = mapOf("a" to "Two")
+        assertEquals("Two", prefs.catalogNames["a"])
+        // Another store with the same text decodes to an equal value.
+        val other = Prefs(PersistenceContext(temp.newFolder()))
+        other.catalogNames = mapOf("a" to "Two")
+        assertEquals(prefs.catalogNames, other.catalogNames)
+    }
+}
