@@ -44,6 +44,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
     var sortMenu by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var kindMenu by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var catalogs by remember(vm.profiles.profileId) { mutableStateOf(false) }
+    var anyCatalog by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var catalogFilters by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var info by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var recovery by remember(vm.profiles.profileId) {mutableStateOf(false)}
@@ -160,9 +161,15 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
     }) { kindMenu = false }
     if (catalogs) OptionMenu("Choose catalog", vm.discover.discoverCatalogs.mapIndexed { index, catalog ->
         MenuOption("${catalog.label} · ${catalog.addon.name}", selected = index == vm.discover.discoverIndex) { vm.discover.selectCatalog(index) }
+    }+MenuOption("Other catalogs…",icon=androidx.compose.material.icons.Icons.AutoMirrored.Outlined.KeyboardArrowRight) {
+        anyCatalog = true
     }+MenuOption("Refresh catalog",icon=androidx.compose.material.icons.Icons.Outlined.Refresh) {
         vm.discover.discoverCatalog?.let {vm.discover.selectCatalog(vm.discover.discoverIndex)} ?: vm.discover.retry()
     }) { catalogs = false }
+    // Any addon catalog, not only those switched on for Discover (#68).
+    if (anyCatalog) CatalogSourcePicker(vm, "Any catalog", vm.discover.discoverCatalog?.key, { key ->
+        vm.catalogs.allCatalogs.firstOrNull { it.key == key }?.let(vm.discover::show)
+    }, automatic = false, eligible = { it.browsable }) { anyCatalog = false }
     if (catalogFilters && def != null) {
         val filterDef = if (def.genres.isNotEmpty() && def.extras.none { it.name == "genre" })
             def.copy(extras = def.extras + app.ember.tv.data.CatalogExtraDef("genre", def.genreRequired, def.genres)) else def

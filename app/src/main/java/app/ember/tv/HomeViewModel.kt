@@ -139,6 +139,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 
 /** What the sign-in dialog shows while the user approves on their phone. */
@@ -543,12 +544,44 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val visibleApps: List<AppEntry> by derivedStateOf { appAccess.home }
 
     /** Up to ten allowed titles from the chosen Home catalog, or a balanced automatic mix. */
-    val heroItems: List<Meta> by derivedStateOf { HeroBanner.items(rows, look.heroCatalog, ::homeTitleVisible) }
+    /**
+     * First pages of hero/carousel catalogs that are not on Home (#68), so any catalog can feed the
+     * hero. Loaded by [loadFeaturedRows]; a catalog on Home uses its Home row instead.
+     */
+    var featuredRows by mutableStateOf<Map<String, CatalogRow>>(emptyMap()); private set
+    private fun heroRows(source: String?): List<CatalogRow> =
+        if (source == null || rows.any { HeroBanner.sourceKey(it) == source }) rows else rows + listOfNotNull(featuredRows[source])
+    val heroItems: List<Meta> by derivedStateOf { HeroBanner.items(heroRows(look.heroCatalog), look.heroCatalog, ::homeTitleVisible) }
     /** Light's own carousel catalog (#61): empty when it mixes automatically or the catalog is unavailable. */
     val lightFeaturedItems: List<Meta> by derivedStateOf {
         val source = look.lightHome.heroCatalog
-        if (source == null || rows.none { HeroBanner.sourceKey(it) == source }) emptyList()
-        else HeroBanner.items(rows, source, ::homeTitleVisible)
+        val from = heroRows(source)
+        if (source == null || from.none { HeroBanner.sourceKey(it) == source }) emptyList()
+        else HeroBanner.items(from, source, ::homeTitleVisible)
+    }
+    private suspend fun loadFeaturedRows(sources: Set<String>, defs: List<CatalogDef>, onHome: Set<String>, revision: Long) {
+        featuredRows = featuredRows.filterKeys { it in sources && it !in onHome }
+        for (key in sources - onHome) {
+            if (featuredRows[key]?.let { featuredRevision[key] == revision } == true) continue
+            val def = defs.firstOrNull { it.key == key && it.homeable } ?: continue
+            val items = kotlinx.coroutines.withTimeoutOrNull(addonTimeout * 1000L) {
+                runCatching { client.browse(def) }.getOrNull()
+            }?.let { filterKidsItems(it) } ?: continue
+            featuredRevision[key] = revision
+            featuredRows = featuredRows + (key to CatalogRow(def.addon.name, def.originalLabel, items, catalogKey = def.key))
+        }
+    }
+    private val featuredRevision = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    init {
+        // Dispatched, not immediate: it reads state declared further down this class.
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+            // The catalog list's identity changes on every refresh; comparing it by value would
+            // compare every addon manifest.
+            androidx.compose.runtime.snapshotFlow {
+                Triple(listOfNotNull(look.heroCatalog, look.lightHome.heroCatalog).toSet(), System.identityHashCode(catalogs.allCatalogs).toLong(),
+                    rows.mapNotNull { it.catalogKey }.toSet())
+            }.collectLatest { (sources, revision, home) -> loadFeaturedRows(sources, catalogs.allCatalogs, home, revision) }
+        }
     }
 
     internal var appsJob: Job? = null

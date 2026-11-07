@@ -506,17 +506,9 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
 private fun LightCarouselCatalog(vm: HomeViewModel) {
     var open by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
-    val choices = vm.rows.distinctBy(app.ember.tv.data.HeroBanner::sourceKey)
     val chosen = vm.look.lightHome.heroCatalog
-    val selected = choices.firstOrNull { app.ember.tv.data.HeroBanner.sourceKey(it) == chosen }
-    Chip("Carousel catalog: " + (selected?.displayTitle ?: if (chosen == null) "Automatic mix" else "Unavailable — using automatic mix"),
-        modifier = Modifier.focusRequester(focus)) { open = true }
-    Text("Its titles play after Continue watching. Choose a catalog enabled for Home, or mix them automatically.", color = Mute, fontSize = 13.sp)
-    if (open) OptionMenu("Carousel catalog", buildList {
-        add(MenuOption("Automatic mix", selected = chosen == null) { vm.look.updateLightHome { it.copy(heroCatalog = null) } })
-        choices.forEach { row -> add(MenuOption("${row.displayTitle} · ${row.addonName}", selected = chosen == app.ember.tv.data.HeroBanner.sourceKey(row)) {
-            vm.look.updateLightHome { it.copy(heroCatalog = app.ember.tv.data.HeroBanner.sourceKey(row)) }
-        }) }
-    }) { open = false }
+    Chip("Carousel catalog: " + catalogSourceLabel(vm, chosen), modifier = Modifier.focusRequester(focus)) { open = true }
+    Text("Its titles play after Continue watching. Choose any addon catalog, or mix the Home catalogs automatically.", color = Mute, fontSize = 13.sp)
+    if (open) CatalogSourcePicker(vm, "Carousel catalog", chosen, { key -> vm.look.updateLightHome { it.copy(heroCatalog = key) } }) { open = false }
     RestoreToolbarFocus(open, focus)
 }
