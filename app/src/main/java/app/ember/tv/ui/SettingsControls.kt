@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.foundation.layout.*
@@ -58,6 +60,36 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
                 contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart) {
                 Box(Modifier.padding(3.dp).size(18.dp).clip(RoundedCornerShape(50)).background(Color.White))
             }
+        }
+    }
+}
+
+/**
+ * A setting that opens a picker (#110): label on the left, the current choice on the right and an
+ * arrow, in the same full-width row as [SettingToggle].
+ */
+@Composable
+internal fun SettingValueRow(label: String, value: String, note: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val floating = LocalFloating.current
+    Focusable(onClick = onClick,
+        modifier = modifier.fillMaxWidth().semantics { stateDescription = value }.onFocusChanged { focused = it.isFocused },
+        radius = TvTokens.Shape.Control,
+        container = if (floating) Color.Transparent else Wash,
+        focusedContainer = PillColor,
+        focusedContent = OnPillColor,
+        outline = false, focusedScale = TvTokens.Focus.None) {
+        Row(Modifier.fillMaxWidth().heightIn(min = if (floating) 46.dp else 52.dp)
+            .padding(horizontal = TvTokens.Space.ButtonX.dp, vertical = if (floating) 8.dp else 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(label, fontSize = if (floating) TvTokens.Type.Label.sp else TvTokens.Type.SettingsLabel.sp)
+                note?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
+            }
+            Text(value, fontSize = TvTokens.Type.Label.sp, color = if (focused) OnPillColor.copy(alpha = .8f) else Mute,
+                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            androidx.compose.foundation.Image(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null,
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(if (focused) OnPillColor else Mute), modifier = Modifier.size(20.dp))
         }
     }
 }

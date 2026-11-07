@@ -157,10 +157,9 @@ private fun PrivateUnlockDialog(vm: HomeViewModel, onClose: () -> Unit) {
             vm.applyPrivate(pass) { m -> message = m; if (m.startsWith("Loaded")) { done = true; pass = "" } }
         }
     }
-    MediaDialog("Private set",onClose,resizeForKeyboard=true,initialFocus=field) {
+    MediaDialog("Private set",onClose,resizeForKeyboard=true,initialFocus=if (available) field else null) {
             if (!available) {
                 Text("This build has nothing to unlock.", color = Mute, fontSize = 14.sp)
-                Chip(stringResource(R.string.ui_close), modifier = Modifier.fillMaxWidth().focusRequester(field)) { onClose() }
             } else {
                 Text("Enter the password to load your API keys, addons, IPTV sources and collections.", color = Mute, fontSize = 14.sp)
                 if (!done) {

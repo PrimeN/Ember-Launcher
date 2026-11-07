@@ -116,8 +116,7 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
                         }
                         // In progress, Recently watched and the watchlist: a row of titles or a button.
                         if (vm.sections.isList(id)) Chip(if (vm.sections.listStyle(id) == "row") "As a row" else "As a button") { vm.sections.toggleListStyle(id) }
-                        if (i > 0) Chip("↑") { vm.sections.moveSection(id, -1) }
-                        if (i < layout.lastIndex) Chip("↓") { vm.sections.moveSection(id, 1) }
+                        MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
                     }
                 }
                 Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
@@ -157,7 +156,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         }
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
-        SettingsTab.REMOTE -> listOf("remote_s_settings_button", "remote-sounds")
+        SettingsTab.REMOTE -> listOf("remote_s_settings_button", "remote-sounds", "auto-load")
         SettingsTab.HOME_ROWS -> buildList {
             if (active == "modern" || active == app.ember.tv.data.InterfaceStyles.EMBER_X) add("app_icons")
             if (active == "modern") add("home_cards")
@@ -228,6 +227,9 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         "remote_s_settings_button" -> Section(stringResource(R.string.ui_remote_s_settings_button), stringResource(R.string.ui_ember_the_remote_s_settings_or)) {
         Choice(listOf("ember" to "Ember", "tv" to "TV or projector"), vm.look.remoteSettingsKey) { vm.look.updateRemoteSettingsKey(it) }
     }
+        "auto-load" -> Section("Load more as I scroll", "Discover, collections, media libraries and episode lists load their next page when you reach the end. Off shows a Load more button instead.", id = "auto-load") {
+            SettingToggle("Load more as I scroll", null, vm.collections.autoPage) { vm.collections.updateAutoPage(!vm.collections.autoPage) }
+        }
         "remote-sounds" -> Section("Remote sounds", "A soft click for the arrows and OK in every interface and menu. Not used during playback.", id = "remote-sounds") {
         val soundContext = androidx.compose.ui.platform.LocalContext.current
         SettingToggle("Remote sounds", null, vm.look.remoteSounds) {
@@ -500,8 +502,7 @@ internal fun LazyListScope.ratingsPage(vm: HomeViewModel, openKeys: () -> Unit) 
                     )
                 }
                 SwitchChip("", on) { vm.metadata.toggleRatingSource(s.id) }
-                if (i > 0) Chip(stringResource(R.string.ui_up)) { vm.metadata.moveRatingSource(s.id, -1) }
-                if (i < list.lastIndex) Chip(stringResource(R.string.ui_down)) { vm.metadata.moveRatingSource(s.id, 1) }
+                MoveButton(s.label, i, list.lastIndex) { step -> vm.metadata.moveRatingSource(s.id, step) }
             }
         }
     }

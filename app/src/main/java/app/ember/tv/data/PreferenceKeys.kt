@@ -34,7 +34,8 @@ internal object PreferenceKeys {
     val CATALOG_NAMES = PreferenceKey<String?>("catalogNames", PreferenceType.STRING, "{}")
     val CATALOG_ORDER = PreferenceKey<String?>("catalogOrder", PreferenceType.STRING, "")
     val CATALOGS_ON_HOME_FIXED = PreferenceKey<Boolean>("catalogsOnHomeFixed", PreferenceType.BOOLEAN, false)
-    val COLLECTION_AUTO_PAGE = PreferenceKey<Boolean>("collectionAutoPage", PreferenceType.BOOLEAN, false)
+    /** "Load more as I scroll" (#109): every paged list, on unless switched off. */
+    val COLLECTION_AUTO_PAGE = PreferenceKey<Boolean>("collectionAutoPage", PreferenceType.BOOLEAN, true)
     val COLLECTION_FOCUS_BACKGROUND = PreferenceKey<String?>("collectionFocusBackground", PreferenceType.STRING, null)
     val COLLECTION_FOLDERS_OFF = PreferenceKey<Set<String>>("collectionFoldersOff", PreferenceType.SET, emptySet())
     val COLLECTION_HERO_PREVIEWS = PreferenceKey<Boolean>("collectionHeroPreviews", PreferenceType.BOOLEAN, false)

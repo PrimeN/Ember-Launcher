@@ -62,9 +62,8 @@ internal fun ServerLibraryScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onBa
         if (!b.loading && b.items.isEmpty() && b.error == null) Text("No titles match these filters.", color = Mute, fontSize = 15.sp)
         if (b.items.isNotEmpty()) TitleGrid(b.items, vm::isSaved, { meta -> if (meta.type == "collection") b.enterCollection(meta, grid.firstVisibleItemIndex, grid.firstVisibleItemScrollOffset) else onOpen(meta) }, Modifier.fillMaxWidth().weight(1f), state = grid,
             densityDelta = when(b.density) { "comfortable" -> -2; "dense" -> 2; else -> 0 },
-            footer = if(b.end) null else { { Chip(if(b.loading) "Loading…" else "Load more") {
-                // The footer stays present during paging, preserving D-pad focus.
-                b.more()
-            } } })
+            // The footer stays present during paging, preserving D-pad focus.
+            footer = if(b.end) null else { { PageFooter(vm.collections.autoPage, b.loading, b.error != null) { if (b.error != null) b.retry() else b.more() } } })
+        AutoLoadMore(grid, b.items.size, vm.collections.autoPage && !b.loading && !b.end && b.error == null) { b.more() }
     }
 }

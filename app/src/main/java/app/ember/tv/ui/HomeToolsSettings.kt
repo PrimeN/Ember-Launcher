@@ -32,7 +32,7 @@ internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
         }
         if(part==HomeToolsPart.STARTUP)Section("Start with the TV", "Choose Home, an app, an input or a presentation. Child profiles stay on Home.") {
             val name=when(opts.destination){"app"->vm.apps.firstOrNull {it.pkg==opts.target}?.label ?: "App";"input"->"TV input";"presentation"->"Presentation";else->"Home"}
-            Chip("Destination: $name"){chooseStartup=true}
+            SettingValueRow("Destination",name){chooseStartup=true}
             SettingToggle("At startup",null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
             SettingToggle("After standby","Wake launching requires Ember to be the active Home, or its Home button service to be enabled.",opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
         }

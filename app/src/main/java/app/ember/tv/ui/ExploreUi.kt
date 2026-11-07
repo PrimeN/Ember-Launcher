@@ -260,7 +260,7 @@ private fun SavedExploreDialog(saved: List<SavedExplore>, onOpen: (String) -> Un
     TvDialog(onClose,width=560.dp,height=440.dp) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             DialogHeading("Saved searches",Modifier.weight(1f))
-            Chip("Close", modifier = Modifier.focusRequester(first), onClick = onClose)
+            DialogClose(onClose, Modifier.focusRequester(first))
         }
         if (saved.isEmpty()) Text("Apply your filters, then choose Save search. Saved searches belong to this profile.", color = Mute, fontSize = 14.sp)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {

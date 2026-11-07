@@ -129,6 +129,8 @@ fun DetailsScreen(
     onOpenPersonTitle: (app.ember.tv.data.Meta) -> Unit = {},
     filterPersonTitles: suspend (List<app.ember.tv.data.Meta>) -> List<app.ember.tv.data.Meta> = { it },
     personProfileKey: String = "default",
+    /** "Load more as I scroll" (#109): more episodes load near the end of a season. */
+    autoLoad: Boolean = true,
     /** Rating on your trackers (#84): shown when a connected tracker takes ratings. */
     canRate: Boolean = false,
     myRating: Int? = null,
@@ -356,7 +358,7 @@ fun DetailsScreen(
             if(!split) {
             // ---- seasons and episodes ----
             if (d.loadingEpisodes) {
-                item(key = "eploading") { Text(stringResource(R.string.ui_loading_episodes), color = Mute, modifier = Modifier.padding(horizontal = 48.dp)) }
+                item(key = "eploading") { Box(Modifier.padding(horizontal = 48.dp)) { LoadingCards(wide = true) } }
             }
             if (d.seasons.size > 1) {
                 item(key = "seasons") {
@@ -397,8 +399,13 @@ fun DetailsScreen(
                                 items(inSeason, key = { it.id }) { ep ->
                                     EpisodeCard(ep,selected=ep.id==d.episode?.id,width=episodeWidth,watched=LocalWatchedUi.current.episode(meta,ep)) {onEpisode(ep)}
                                 }
-                                if (d.episodeCursor != null) item(key = "more") { Chip(if (d.loadingEpisodes) "Loading…" else "More episodes") { onMoreEpisodes() } }
+                                // More episodes load on their own near the end of the season (#109).
+                                if (d.episodeCursor != null && (!autoLoad || d.loadingEpisodes)) item(key = "more") {
+                                    if (autoLoad) Box(Modifier.width(episodeWidth).height(episodeWidth * 9f / 16f).background(PanelHi, RoundedCornerShape(12.dp)))
+                                    else Chip(if (d.loadingEpisodes) "Loading…" else "More episodes") { onMoreEpisodes() }
+                                }
                             }
+                            AutoLoadMore(state, inSeason.size, autoLoad && d.episodeCursor != null && !d.loadingEpisodes) { onMoreEpisodes() }
                             }
                             d.episode?.let { ep -> ep.overview?.let { ep to it } }?.let { (ep, plot) ->
                                 Text(
@@ -466,15 +473,16 @@ fun DetailsScreen(
                     }
                 }
                 if(!panelSources && hasEpisodes)TvTextField(episodeQuery,{episodeQuery=it.take(120)},Modifier.fillMaxWidth(),placeholder="Search episodes")
+                if(!panelSources)AutoLoadMore(episodeList,d.episodes.count {it.season==d.season},autoLoad && d.episodeCursor!=null && !d.loadingEpisodes) {onMoreEpisodes()}
                 LazyColumn(state=rightList,modifier=Modifier.fillMaxWidth().weight(1f).focusRequester(episodePanelFocus),verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(3.dp)) {
                     if(!panelSources && hasEpisodes) {
-                        if(d.loadingEpisodes)item {Text("Loading episodes…",color=Mute,fontSize=13.sp)}
+                        if(d.loadingEpisodes && d.episodes.none {it.season==d.season})item {LoadingListRows()}
                         val inSeason=d.episodes.filter {it.season==d.season && (episodeQuery.isBlank() || it.title.contains(episodeQuery,true) || it.episode.toString()==episodeQuery.trim())}.distinctBy {it.id}
                         items(inSeason,key={it.id}) {episode->
                             EmberXEpisodeRow(episode,episode.id==d.episode?.id,LocalWatchedUi.current.episode(meta,episode)) {onEpisode(episode);panelSources=true;panelNeedsFocus=true}
                         }
                         if(inSeason.isEmpty() && !d.loadingEpisodes)item {Text("No matching episodes",color=Mute,fontSize=13.sp)}
-                        if(d.episodeCursor!=null)item(key="more") {Chip(if(d.loadingEpisodes)"Loading…" else "More episodes",onClick=onMoreEpisodes)}
+                        if(d.episodeCursor!=null && (!autoLoad || d.loadingEpisodes))item(key="more") {if(autoLoad)LoadingListRows(2) else Chip(if(d.loadingEpisodes)"Loading…" else "More episodes",onClick=onMoreEpisodes)}
                     } else sourceItems()
                 }
             }

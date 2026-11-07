@@ -508,9 +508,7 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
             SwitchChip(stringResource(R.string.ui_discover), vm.isInDiscover(c), locked = !c.browsable) {
                 if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover"))
             }
-            if (i > 0) Chip(stringResource(R.string.ui_up)) { vm.moveCatalog(c, -1) }
-            if (i < list.lastIndex) Chip(stringResource(R.string.ui_down)) { vm.moveCatalog(c, 1) }
-            if (i > 1) Chip(stringResource(R.string.ui_top)) { vm.moveCatalog(c, 0, toTop = true) }
+            MoveButton(c.label, i, list.lastIndex) { step -> vm.moveCatalog(c, step) }
           }
         }
     }

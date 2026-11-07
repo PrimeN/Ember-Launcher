@@ -126,7 +126,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         toggle("home.watchedBadges", HOME, "Watched indicators", read = { look.showWatchedBadges }, write = look::updateShowWatchedBadges)
         toggle("home.spoilers", HOME, "Blur unwatched episodes", read = { look.blurUnwatchedEpisodes }, write = look::updateBlurUnwatchedEpisodes)
         toggle("home.animatedCollections", HOME, "Animated collections", read = { vm.collections.heroPreviews }, write = vm.collections::enableHeroPreviews)
-        toggle("home.autoPage", HOME, "Load more as I scroll (collections)", read = { vm.collections.autoPage }, write = vm.collections::updateAutoPage)
+        toggle("home.autoPage", HOME, "Load more as I scroll", read = { vm.collections.autoPage }, write = vm.collections::updateAutoPage)
         toggle("home.ai", HOME, "AI-assisted discovery", read = { look.aiDiscoveryEnabled }, write = look::updateAiDiscoveryEnabled)
         toggle("home.checklist", HOME, "Setup checklist", read = { !look.setupChecklistHidden }, write = { look.hideSetupChecklist(!it) })
 

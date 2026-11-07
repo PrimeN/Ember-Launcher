@@ -531,7 +531,7 @@ private fun LightCarouselCatalog(vm: HomeViewModel) {
     var open by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     val chosen = vm.look.lightHome.heroCatalog
-    Chip("Carousel catalog: " + catalogSourceLabel(vm, chosen), modifier = Modifier.focusRequester(focus)) { open = true }
+    SettingValueRow("Carousel catalog", catalogSourceLabel(vm, chosen), modifier = Modifier.focusRequester(focus)) { open = true }
     Text("Its titles play after Continue watching. Choose any addon catalog, or mix the Home catalogs automatically.", color = Mute, fontSize = 13.sp)
     if (open) CatalogSourcePicker(vm, "Carousel catalog", chosen, { key -> vm.look.updateLightHome { it.copy(heroCatalog = key) } }) { open = false }
     RestoreToolbarFocus(open, focus)

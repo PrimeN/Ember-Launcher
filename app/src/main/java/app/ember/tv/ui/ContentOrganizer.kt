@@ -62,7 +62,7 @@ internal fun CollectionManager(vm: HomeViewModel) {
                             Chip("Export") { exporting = c.id }
                             SwitchChip("Home", c.id !in cs.hidden) { cs.toggle(c.id) }
                             SwitchChip("Discover", c.id in cs.inDiscover) { cs.toggleDiscover(c.id) }
-                            Chip("Up") { cs.move(c.id, -1) }; Chip("Down") { cs.move(c.id, 1) }
+                            MoveButton(c.title, cs.list.indexOfFirst { it.id == c.id }, cs.list.lastIndex) { step -> cs.move(c.id, step) }
                             Chip("Remove") { removing = c.id }
                         }
                         c.folders.forEach { f -> ButtonRow(spacing = 6.dp) {
@@ -193,7 +193,7 @@ internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
                             SwitchChip("Home", vm.isOnHome(c), locked = !c.homeable) { if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home")) }
                             SwitchChip("Discover", vm.isInDiscover(c), locked = !c.browsable) { if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover")) }
                             SwitchChip("Live", vm.isOnLive(c), locked = !c.homeable) { if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV")) }
-                            Chip("Up") { vm.moveCatalog(c, -1) }; Chip("Down") { vm.moveCatalog(c, 1) }
+                            MoveButton(c.label, vm.allCatalogs.indexOfFirst { it.key == c.key }, vm.allCatalogs.lastIndex) { step -> vm.moveCatalog(c, step) }
                             Chip("Add to collection") { if (c.extras.isEmpty()) collect = CollectionDrafts.catalog(c) else filters = c }
                         }
                     }

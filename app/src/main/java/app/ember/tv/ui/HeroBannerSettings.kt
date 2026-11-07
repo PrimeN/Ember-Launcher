@@ -20,7 +20,7 @@ internal fun HeroBannerSettings(vm: HomeViewModel) {
             "Prefer Fanart backgrounds and logos. Add TMDB and Fanart API keys for the best coverage; missing images fall back to standard artwork."
             else "Use standard TMDB and catalog backgrounds and logos.", fontSize = 12.sp, color = Mute)
         if (vm.look.heroArtworkMode == HeroArtworkMode.FANART) Chip("Fanart API key") { vm.openSettingsPage("KEYS") }
-        Chip("Catalog: " + catalogSourceLabel(vm, vm.look.heroCatalog), modifier = Modifier.focusRequester(sourceFocus)) { catalogs = true }
+        SettingValueRow("Catalog", catalogSourceLabel(vm, vm.look.heroCatalog), modifier = Modifier.focusRequester(sourceFocus)) { catalogs = true }
         Text("Choose any addon catalog, or mix the Home catalogs automatically. Up to ten distinct titles with artwork are shown; smaller catalogs show fewer.", fontSize = 12.sp, color = Mute)
     }
     if (catalogs) CatalogSourcePicker(vm, "Hero catalog", vm.look.heroCatalog, vm.look::updateHeroCatalog) { catalogs = false }

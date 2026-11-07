@@ -140,15 +140,17 @@ internal fun AddonDiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
         }
 
         if (vm.discover.discoverItems.isNotEmpty()) {
+            val discoverGrid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+            val auto = vm.collections.autoPage
+            AutoLoadMore(discoverGrid, vm.discover.discoverItems.size, auto && !vm.discover.discoverLoading && !vm.discover.discoverEnd) { vm.discover.loadMoreDiscover() }
             TitleGrid(
                 vm.discover.discoverItems,
                 isSaved = { vm.isSaved(it) },
                 onOpen = onOpen,
                 modifier = Modifier.fillMaxWidth().weight(1f),
+                state = discoverGrid,
                 footer = if (vm.discover.discoverEnd) null else {
-                    {
-                        Chip(if (vm.discover.discoverLoading) "Loading..." else "Load more") { vm.discover.loadMoreDiscover() }
-                    }
+                    { PageFooter(auto, vm.discover.discoverLoading, failed = false) { vm.discover.loadMoreDiscover() } }
                 },
             )
         }

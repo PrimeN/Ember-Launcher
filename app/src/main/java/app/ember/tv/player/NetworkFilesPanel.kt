@@ -129,12 +129,15 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
             } catch(_:Exception) {cleanup?.close();note="Could not start file playback."}
         }
         TvDialog({browse=null},width=620.dp) {
-            DialogHeading(account.label);Text(if(path.isEmpty())"Root folder" else path,fontSize=13.sp)
+            androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                DialogHeading(account.label,Modifier.weight(1f))
+                app.ember.tv.ui.DialogClose({browse=null})
+            }
+            Text(if(path.isEmpty())"Root folder" else path,fontSize=13.sp)
             ButtonRow(spacing=8.dp) {
                 if(path.isNotEmpty())Chip("Up"){path=path.substringBeforeLast('/',"")}
                 Chip("Play selected (${selected.size})"){play(false)}
                 Chip("Play media on page"){play(true)}
-                Chip("Close"){browse=null}
             }
             ButtonRow(spacing=8.dp) {
                 if(offset>0)Chip("Previous page"){offset=(offset-200).coerceAtLeast(0)}

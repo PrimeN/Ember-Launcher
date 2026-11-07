@@ -517,7 +517,7 @@ internal fun TrackerSyncCard(vm: HomeViewModel) {
         Text("Copies watched history, watchlist and ratings between Trakt, Simkl and WeTrakr and Ember's own watchlist, " +
             "both ways, including removals. The first sync copies everything each one already has.", color = Mute, fontSize = 13.sp)
         ButtonRow(spacing = 10.dp) {
-            Chip(if (vm.trackerSyncOn) "Sync: on" else "Sync: off", vm.trackerSyncOn) { vm.toggleTrackerSync() }
+            SwitchChip("Sync", vm.trackerSyncOn) { vm.toggleTrackerSync() }
             if (vm.trackerSyncOn && !vm.trackerSyncBusy) Chip("Sync now") { vm.syncTrackers(force = true) }
         }
         vm.trackerSyncStatus?.let { Text(it, color = Mute, fontSize = 13.sp) }
@@ -562,9 +562,9 @@ internal fun TrackerRow(vm: HomeViewModel, t: Tracker, openKeys: () -> Unit) {
         when {
             !t.configured -> Chip(stringResource(R.string.ui_add_the_key_in_api_keys)) { openKeys() }
             connected -> ButtonRow(spacing = 10.dp) {
-                Chip(stringResource(R.string.ui_use_on_home) + if (t.id in vm.trackersOff) "off" else "on") { vm.toggleTracker(t.id) }
+                SwitchChip(stringResource(R.string.ui_use_on_home), t.id !in vm.trackersOff) { vm.toggleTracker(t.id) }
                 // Separate from Home (#80): a hidden tracker still hears what you watch unless this is off.
-                if (t.scrobbles) Chip(stringResource(R.string.ui_report_what_i_watch) + if (t.id in vm.trackersQuiet) "off" else "on") { vm.toggleTrackerReports(t.id) }
+                if (t.scrobbles) SwitchChip(stringResource(R.string.ui_report_what_i_watch), t.id !in vm.trackersQuiet) { vm.toggleTrackerReports(t.id) }
                 Chip(stringResource(R.string.ui_disconnect)) { vm.disconnectTracker(t.id) }
             }
             t.mode == LinkMode.DEVICE_CODE -> Chip(stringResource(R.string.ui_connect_name, t.name)) { vm.startLink(t.id) }

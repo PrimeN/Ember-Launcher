@@ -66,8 +66,7 @@ internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, clo
                 Text("${item.allSources.size} sources · ${item.shape}", color = Mute, fontSize = 12.sp)
                 ButtonRow(spacing = 6.dp) {
                     Chip("Edit", modifier = if (returnFolder == item.id) Modifier.focusRequester(restoreFocus) else Modifier) { folder = item }
-                    if (index > 0) Chip("Up") { draft = draft.copy(folders = draft.folders.toMutableList().apply { add(index - 1, removeAt(index)) }) }
-                    if (index < draft.folders.lastIndex) Chip("Down") { draft = draft.copy(folders = draft.folders.toMutableList().apply { add(index + 1, removeAt(index)) }) }
+                    MoveButton(item.title, index, draft.folders.lastIndex) { step -> draft = draft.copy(folders = draft.folders.moved(index, step)) }
                     Chip("Duplicate") { draft = draft.copy(folders = draft.folders + CollectionDrafts.duplicate(item).copy(title = item.title + " (copy)")) }
                     Chip("Remove") { draft = draft.copy(folders = draft.folders.filterNot { it.id == item.id }) }
                 }
@@ -131,8 +130,7 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
                 Text(Collections.label(source, vm.allCatalogs), fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 ButtonRow(spacing = 6.dp) {
                     Chip("Edit source") { editingSource = index }
-                    if (index > 0) Chip("Up") { draft = draft.copy(sources = CollectionDrafts.move(draft.allSources, index, -1), catalogSources = emptyList()) }
-                    if (index < draft.allSources.lastIndex) Chip("Down") { draft = draft.copy(sources = CollectionDrafts.move(draft.allSources, index, 1), catalogSources = emptyList()) }
+                    MoveButton(Collections.label(source, vm.allCatalogs), index, draft.allSources.lastIndex) { step -> draft = draft.copy(sources = draft.allSources.moved(index, step), catalogSources = emptyList()) }
                     Chip("Remove source") { draft = draft.copy(sources = draft.allSources.filterIndexed { i, _ -> i != index }, catalogSources = emptyList()) }
                 }
             }

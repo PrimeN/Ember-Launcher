@@ -97,7 +97,7 @@ internal fun ServerPresentationSettings(vm:HomeViewModel) {
     }
     Section("Library hero","Optional carousel with up to ten titles. Hidden sections are excluded; an unavailable source falls back to the visible sections.") {
         SettingToggle("Show Library hero",null,vm.look.serverHeroOn){vm.look.updateServerHeroOn(!vm.look.serverHeroOn)}
-        Chip("Source: "+(vm.serverSections.firstOrNull {it.id==vm.look.serverHeroSource}?.title ?: "Automatic")){sourceMenu=true}
+        SettingValueRow("Source",vm.serverSections.firstOrNull {it.id==vm.look.serverHeroSource}?.title ?: "Automatic"){sourceMenu=true}
     }
     if(sourceMenu)OptionMenu("Library hero source",listOf(MenuOption("Automatic",vm.look.serverHeroSource==null){vm.look.updateServerHeroSource(null)})+
         vm.serverSections.filter {it.visible(vm.look.serverSectionsOff)}.map {section->MenuOption("${section.title} · ${section.source}",vm.look.serverHeroSource==section.id){vm.look.updateServerHeroSource(section.id)}}){sourceMenu=false}

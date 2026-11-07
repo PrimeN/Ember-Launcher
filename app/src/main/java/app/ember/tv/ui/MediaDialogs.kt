@@ -23,6 +23,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 
+/** The dialog Close icon, top right, as every dialog has it (#106). */
+@Composable
+fun DialogClose(close: () -> Unit, modifier: Modifier = Modifier) {
+    ToolbarIcon(androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_close), Icons.Outlined.Close, modifier, onClick = close)
+}
+
 @Composable
 fun MediaDialog(title: String, close: () -> Unit, resizeForKeyboard: Boolean = false, initialFocus: FocusRequester? = null, scrollBody: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     TvDialog(close,resizeForKeyboard=resizeForKeyboard) {

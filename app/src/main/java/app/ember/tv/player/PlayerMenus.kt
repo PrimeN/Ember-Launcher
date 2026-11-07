@@ -84,6 +84,8 @@ class OptionRow(
     val note: String? = null,
     val onPick: (Int) -> Unit = {},
     val action: (() -> Unit)? = null,
+    /** An on/off setting (#105): shown as a switch that flips on OK, like Settings. Use with [action]. */
+    val toggle: Boolean? = null,
 )
 
 private val MenuPanel:Color
@@ -142,7 +144,7 @@ fun QuickMenu(s: ControlsState, a: ControlsActions) {
             if (openRow == null) {
                 LazyColumn {
                     itemsIndexed(list) { i, r ->
-                        MenuLine(s, r.icon, r.title, r.value, chevron = r.action == null, focus = wantsFocus(s, i, r)) { open(s, r) }
+                        MenuLine(s, r.icon, r.title, r.value, chevron = r.action == null, focus = wantsFocus(s, i, r), toggle = r.toggle) { open(s, r) }
                     }
                 }
             } else {
@@ -155,7 +157,7 @@ fun QuickMenu(s: ControlsState, a: ControlsActions) {
 
 /** A row of the small menu: icon, name, value in grey, and a chevron. */
 @Composable
-private fun MenuLine(s: ControlsState, icon: ImageVector?, title: String, value: String, chevron: Boolean, focus: Boolean, onClick: () -> Unit) {
+private fun MenuLine(s: ControlsState, icon: ImageVector?, title: String, value: String, chevron: Boolean, focus: Boolean, toggle: Boolean? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val fr = remember { FocusRequester() }
     TakeFocus(s, fr, focus)
@@ -172,7 +174,8 @@ private fun MenuLine(s: ControlsState, icon: ImageVector?, title: String, value:
     ) {
         if (icon != null) Image(icon, null, colorFilter = ColorFilter.tint(fg), modifier = Modifier.size(18.dp))
         Text(title, fontSize = 13.sp, color = fg, maxLines = 1, modifier = Modifier.weight(1f))
-        if (value.isNotBlank()) Text(value, fontSize = 12.sp, color = if (focused) Color(0xFF555555) else Soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.End)
+        if (toggle != null) MenuSwitch(toggle, focused)
+        else if (value.isNotBlank()) Text(value, fontSize = 12.sp, color = if (focused) Color(0xFF555555) else Soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.End)
         if (chevron) Image(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, colorFilter = ColorFilter.tint(fg), modifier = Modifier.size(18.dp))
     }
 }
@@ -286,10 +289,22 @@ private fun OptionLine(s: ControlsState, r: OptionRow, focus: Boolean, onClick: 
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(r.title, fontSize = 13.sp, color = fg, modifier = Modifier.weight(1f), maxLines = 1)
-            if (r.value.isNotBlank()) Text(r.value, fontSize = 12.sp, color = if (focused) Color(0xFF555555) else Soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp).weight(1f, fill = false))
+            if (r.toggle != null) MenuSwitch(r.toggle, focused)
+            else if (r.value.isNotBlank()) Text(r.value, fontSize = 12.sp, color = if (focused) Color(0xFF555555) else Soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp).weight(1f, fill = false))
             if (r.action == null) Image(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, colorFilter = ColorFilter.tint(if (focused) fg else Soft), modifier = Modifier.size(18.dp))
         }
+        if (r.toggle != null) r.note?.let { Text(it, fontSize = 11.sp, color = Soft, modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)) }
         Box(Modifier.fillMaxWidth().padding(horizontal = 10.dp).height(1.dp).background(Divider))
+    }
+}
+
+/** The switch of an on/off row (#105), drawn like Settings' switches. */
+@Composable
+private fun MenuSwitch(on: Boolean, focused: Boolean) {
+    val track = when { on && focused -> Color(0xFF1F1F1F); on -> LocalPlayerAccent.current; focused -> Color(0x591F1F1F); else -> Color(0x4DFFFFFF) }
+    Box(Modifier.padding(start = 10.dp).width(34.dp).height(18.dp).clip(RoundedCornerShape(50)).background(track),
+        contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart) {
+        Box(Modifier.padding(2.dp).size(14.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color.White))
     }
 }
 

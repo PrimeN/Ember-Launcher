@@ -109,3 +109,19 @@ fun HomeRecovery(vm: HomeViewModel) {
     }
     // Source status (addons, trackers, media servers) lives in Settings, on each source's page.
 }
+
+/** List rows (a picture and two lines) while a list loads, e.g. a season's episodes (#108). */
+@Composable
+fun LoadingListRows(count: Int = 4) {
+    Column(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = "Loading" }, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        repeat(count) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(128.dp).height(72.dp).background(PanelHi, RoundedCornerShape(10.dp)))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.width(180.dp).height(12.dp).background(PanelHi, RoundedCornerShape(4.dp)))
+                    Box(Modifier.width(120.dp).height(10.dp).background(PanelHi, RoundedCornerShape(4.dp)))
+                }
+            }
+        }
+    }
+}

@@ -195,7 +195,7 @@ fun FolderScreen(vm: HomeViewModel, onOpenTitle: (Meta) -> Unit) {
             }
             val grid = c.viewMode.uppercase() == "TABBED_GRID"
             if (tabs.isEmpty()) {
-                Text(stringResource(R.string.ui_loading), color = Mute, fontSize = TvTokens.Type.Card.sp, modifier = Modifier.padding(top = 16.dp))
+                LoadingCards(wide = false)
             } else if (grid) {
                 val withAll = c.showAllTab && tabs.size > 1
                 val keys = vm.collections.tabKeys(c, f)
@@ -233,16 +233,16 @@ fun FolderScreen(vm: HomeViewModel, onOpenTitle: (Meta) -> Unit) {
                         TitleGrid(
                             items, isSaved = { vm.isSaved(it) }, onOpen = onOpenTitle, modifier = Modifier.fillMaxSize(), state = gridState,
                             footer = if (!more) null else {
-                                { Chip(if (busy) "Loading..." else if (failed) "Retry sources" else "Load more") { vm.collections.loadMore(if (all) -1 else index) } }
+                                { PageFooter(vm.collections.autoPage, busy, failed) { vm.collections.loadMore(if (all) -1 else index) } }
                             },
                         )
                         }
                     }
-                    withAll && tab == 0 && tabs.any { it.loading } -> Text(stringResource(R.string.ui_loading), color = Mute, fontSize = TvTokens.Type.Card.sp)
+                    withAll && tab == 0 && tabs.any { it.loading } -> LoadingCards(wide = false)
                     withAll && tab == 0 && tabs.any { it.failed } -> RecoveryPanel("Collection sources unavailable",
                         "Could not load some sources. Retry to check again.", "Retry sources", { vm.collections.loadMore(-1) })
                     withAll && tab == 0 -> Text("Nothing here.", color = Mute, fontSize = TvTokens.Type.Card.sp)
-                    current?.loading == true -> Text(stringResource(R.string.ui_loading), color = Mute, fontSize = TvTokens.Type.Card.sp)
+                    current?.loading == true -> LoadingCards(wide = false)
                     current?.failed == true -> RecoveryPanel("Collection source unavailable", current.error.orEmpty(), "Retry", { vm.collections.loadMore(index) })
                     else -> Text(current?.error ?: "Nothing here.", color = Mute, fontSize = TvTokens.Type.Card.sp)
                 }
@@ -262,11 +262,14 @@ fun FolderScreen(vm: HomeViewModel, onOpenTitle: (Meta) -> Unit) {
                             Text(t.label, fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.padding(start = 4.dp))
                             val matches = t.items.filter { search.isBlank() || it.name.contains(search.trim(), true) }
                             when {
-                                matches.isNotEmpty() -> TitleRow(matches, isSaved = { vm.isSaved(it) }, onOpen = onOpenTitle)
-                                t.loading -> Text(stringResource(R.string.ui_loading), color = Mute, fontSize = 13.sp, modifier = Modifier.padding(4.dp))
+                                // Near the end of a row, its next page loads on its own (#109).
+                                matches.isNotEmpty() -> TitleRow(matches, isSaved = { vm.isSaved(it) }, onFocused = { m ->
+                                    if (vm.collections.autoPage && search.isBlank() && !t.loading && !t.end && !t.failed && nearEnd(matches.indexOf(m), matches.size, 4)) vm.collections.loadMore(i)
+                                }, onOpen = onOpenTitle)
+                                t.loading -> LoadingCards(wide = false)
                                 else -> Text(if (search.isNotBlank() && t.items.isNotEmpty()) "No loaded titles match this search." else t.error ?: "Nothing here.", color = Mute, fontSize = 13.sp, modifier = Modifier.padding(4.dp))
                             }
-                            if (!t.loading && !t.end) Chip(if (t.failed) "Retry" else "Load more") { vm.collections.loadMore(i) }
+                            if (!t.loading && !t.end && (t.failed || !vm.collections.autoPage)) Chip(if (t.failed) "Retry" else "Load more") { vm.collections.loadMore(i) }
                         }
                     }
                 }

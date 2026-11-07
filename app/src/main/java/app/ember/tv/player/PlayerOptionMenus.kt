@@ -131,8 +131,9 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
                 add(OptionRow("Deinterlacing",listOf("Off","Automatic","Always")[deinterlaceModes.indexOf(config.deinterlacing).coerceAtLeast(0)],listOf("Off","Automatic","Always"),deinterlaceModes.indexOf(config.deinterlacing).coerceAtLeast(0),
                     note="Automatic handles interlaced video. Always is for streams detected incorrectly. Uses more processing; leave Off for progressive video.",
                     onPick={config=config.copy(deinterlacing=deinterlaceModes[it]);prefs.playbackConfig=config;picture()}))
-                add(OptionRow("Debanding",if(config.deband)"On" else "Off",listOf("Off","On"),if(config.deband)1 else 0,onPick={config=config.copy(deband=it==1);prefs.playbackConfig=config;picture()}))
-                add(OptionRow("Frame smoothing",if(config.interpolation)"On" else "Off",listOf("Off","On"),if(config.interpolation)1 else 0,note="Uses more graphics processing. Turn off if playback slows.",onPick={config=config.copy(interpolation=it==1);prefs.playbackConfig=config;picture()}))
+                // On/off settings are switches that flip on OK (#105).
+                add(OptionRow("Debanding",toggle=config.deband,action={config=config.copy(deband=!config.deband);prefs.playbackConfig=config;picture()}))
+                add(OptionRow("Frame smoothing",toggle=config.interpolation,note="Uses more graphics processing. Turn off if playback slows.",action={config=config.copy(interpolation=!config.interpolation);prefs.playbackConfig=config;picture()}))
                 val scales=listOf("bilinear","bicubic","lanczos")
                 add(OptionRow("Upscaling",config.scaler,scales,scales.indexOf(config.scaler).coerceAtLeast(0),onPick={config=config.copy(scaler=scales[it]);prefs.playbackConfig=config;picture()}))
             }

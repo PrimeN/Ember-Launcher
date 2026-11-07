@@ -781,6 +781,7 @@ private fun RootContent(
                         offersCredit = vm.watch.offersCredit,
                         onOpenOffer = onOpenOffer,
                         offerInstalled = { vm.watch.offerPackages(it).first != null },
+                        autoLoad = vm.collections.autoPage,
                         canRate = vm.canRate(d.meta),
                         myRating = vm.myRating?.takeIf { it.first == d.meta.id }?.second,
                         onRate = { vm.rateTitle(d.meta, it) },

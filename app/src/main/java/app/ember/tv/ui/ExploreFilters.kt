@@ -46,7 +46,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Discover filters", color = Fg, fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
-                        Chip("Close", modifier = Modifier.focusRequester(first), onClick = onClose)
+                        DialogClose(onClose, Modifier.focusRequester(first))
                     }
                     Text("Match every category. Multiple people, studios or services within a category match any selected entry.", color = Mute, fontSize = 12.sp)
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(4.dp),
