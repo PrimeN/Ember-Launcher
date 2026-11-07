@@ -98,7 +98,7 @@ Codec, 4K, HDR, Dolby Vision and surround-audio capabilities depend on the media
 - **Personal profiles:** separate Home layouts and personal lists, with quick profile switching.
 - **Child profiles:** app and catalog restrictions, genre and age-rating filters, and administrator PIN controls within Ember.
 - **Device performance controls:** Auto, Low, Medium, High, Ultra and Custom options for artwork quality, motion, glass effects, analysis and prefetch behaviour. Ultra is available on supported 4K displays.
-- **Artwork caching:** reuses downloaded images and small prepared glass thumbnails across launches. Private server artwork is encrypted on disk. Set image retention, view usage or clear disposable files in System > Cache Management.
+- **Artwork caching:** reuses downloaded images and small prepared glass thumbnails across launches. Private server artwork is kept separate per profile and account. Set image retention, view usage or clear disposable files in System > Cache Management.
 - **Phone setup:** an opt-in local setup page for easier text entry and configuration, protected by a temporary code and a 15-minute session limit.
 - **Backups:** export and restore settings and supported account configuration, with optional passphrase encryption.
 - **Credential storage:** entered sign-ins and API keys use encrypted storage on the device.

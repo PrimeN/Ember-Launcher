@@ -8,10 +8,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 
-/** Bounded encrypted responses; request URLs and credentials never become filenames or plaintext files. */
+/**
+ * Bounded cached responses in Ember's private cache folder; request URLs and credentials never become
+ * file names. The app stores them without its own encryption (#28): Android's app sandbox and
+ * storage encryption already protect the folder. [cipher] remains for callers that want it.
+ */
 internal class ResponseCache(
     private val root: File,
-    private val cipher: SecretCipher,
+    private val cipher: SecretCipher?,
     private val duration: (CacheKind) -> Long = { CachePolicy.config.millis(it) },
     private val epoch: (CacheKind) -> String = CachePolicy::epoch,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -40,7 +44,7 @@ internal class ResponseCache(
                     val saved = withContext(Dispatchers.IO) { diskGate.withLock {
                         if (stamp != epoch(kind)) null else runCatching {
                             if (!file.isFile || file.length() > ENTRY_LIMIT * 2L + 1024) return@runCatching null
-                            json.decodeFromString<Entry>(String(cipher.decrypt(name, file.readBytes()), Charsets.UTF_8))
+                            json.decodeFromString<Entry>(String(file.readBytes().let { cipher?.decrypt(name, it) ?: it }, Charsets.UTF_8))
                                 .takeIf { fresh(kind, it) }.also { if (it == null) file.delete() }
                         }.getOrNull()
                     } }
@@ -55,7 +59,7 @@ internal class ResponseCache(
                         if (stamp == epoch(kind)) {
                             remember(name, entry)
                             runCatching {
-                                AtomicFile.write(file, cipher.encrypt(name, json.encodeToString(Entry.serializer(), entry).toByteArray(Charsets.UTF_8))).getOrThrow()
+                                AtomicFile.write(file, json.encodeToString(Entry.serializer(), entry).toByteArray(Charsets.UTF_8).let { cipher?.encrypt(name, it) ?: it }).getOrThrow()
                                 prune(file.parentFile!!)
                             }
                         }

@@ -6,7 +6,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.*
 
-/** Encoded image bytes and MIME stay together inside the encrypted entry. */
+/** Encoded image bytes and MIME stay together inside the cached entry. */
 internal class PrivateArtworkCache(private val store:ArtworkDiskCache) {
     private class Flight {val gate=Mutex();var users=0}
     private val flights=hashMapOf<String,Flight>()

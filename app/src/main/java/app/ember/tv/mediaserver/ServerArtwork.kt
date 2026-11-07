@@ -50,7 +50,7 @@ internal suspend fun fetchServerImage(client: OkHttpClient, url: String, headers
     error("Too many artwork redirects.")
 }
 
-/** Resolves authorization before encrypted cache access; private bytes never enter Coil's disk cache. */
+/** Resolves authorization before private cache access; private bytes never enter Coil's disk cache. */
 class ServerArtwork(private val key: String, private val options: Options) : Fetcher {
     override suspend fun fetch(): FetchResult = withContext(Dispatchers.IO) {
         val (ref, path) = requireNotNull(ServerMetadata.artworkParts(key))
@@ -88,7 +88,7 @@ class ServerArtwork(private val key: String, private val options: Options) : Fet
             return cachedImages!!
         }
         // One per process: accounts are read from storage on each call and Plex routes are shared
-        // statically, so a fresh instance per poster only repeated the encrypted-store setup.
+        // statically, so a fresh instance per poster only repeated the private-store setup.
         @Volatile private var shared: MediaServers? = null
         private fun servers(context: android.content.Context): MediaServers =
             shared ?: synchronized(this) { shared ?: MediaServers(context.applicationContext).also { shared = it } }

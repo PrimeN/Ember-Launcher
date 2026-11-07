@@ -39,12 +39,24 @@ object CacheManagement {
                         saved?.get(kind.name)?.jsonPrimitive?.contentOrNull?.takeIf { it.matches(Regex("[a-f0-9-]{36}")) }
                             ?: java.util.UUID.randomUUID().toString()
                     }
-                    responses = ResponseCache(root(context), app.ember.tv.tracker.WrappedKeyCipher.forCache(context, "ember_cache_v1"))
+                    responses = ResponseCache(root(context), null)
+                    retireCacheKeys(context)
                     saveState(context)
                 } catch (_: Exception) {
                     // Cache storage is optional; a full disk or unavailable key must not block browsing.
                 } finally { ready.complete(Unit) }
             }
+        }
+    }
+    /**
+     * Caches are no longer encrypted by the app (#28). Removes the keys that sealed them; entries
+     * in the old format read as misses and are replaced. Sign-in keys are untouched.
+     */
+    private fun retireCacheKeys(context: Context) {
+        runCatching { context.deleteSharedPreferences("ember_cache_keys") }
+        runCatching {
+            val store = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            for (alias in listOf("ember_cache_v1", "ember_artwork_cache_v1")) if (store.containsAlias(alias)) store.deleteEntry(alias)
         }
     }
     private fun saveState(context: Context) = AtomicFile.write(state(context), buildJsonObject {

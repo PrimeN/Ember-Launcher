@@ -17,7 +17,7 @@ internal data class ArtworkCacheLimits(val originals:Long,val blur:Long) {
     }
 }
 
-/** Separate public blur samples and encrypted private images, all under disposable cacheDir. */
+/** Separate public blur samples and private server images, partitioned by account, all under disposable cacheDir. */
 @android.annotation.SuppressLint("StaticFieldLeak")
 internal object ArtworkCaches {
     const val PRIVATE_SCOPE="ember.image.private-scope"
@@ -50,7 +50,9 @@ internal object ArtworkCaches {
     @Synchronized fun init(context:Context) {
         if(application!=null)return
         val ctx=context.applicationContext;application=ctx
-        val cipher=app.ember.tv.tracker.WrappedKeyCipher.forCache(ctx,"ember_artwork_cache_v1")
+        // No app-level encryption (#28): the private folders keep server artwork apart by profile and
+        // account; Android's sandbox and storage encryption protect the files themselves.
+        val cipher:app.ember.tv.tracker.SecretCipher?=null
         publicBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[0]),null,8L shl 20,1 shl 20,capacity={budgets().blur})
         privateBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[1]),cipher,8L shl 20,1 shl 20,access=access::get,capacity={budgets().blur})
         originals=ArtworkDiskCache(File(ctx.cacheDir,directories[2]),cipher,64L shl 20,(8 shl 20)+1024,access=access::get,capacity={budgets().originals},maxEntries=4096)
