@@ -144,6 +144,21 @@ class ExploreRepository(
                 ExploreRef(id, name, (p.str("profile_path") ?: p.str("logo_path"))?.let { "https://image.tmdb.org/t/p/w185$it" })
             } ?: emptyList()
     }
+    /** Bio, birth and what they're known for, for the cast & crew popup (#92). Cached a day. */
+    data class PersonInfo(val biography: String?, val born: String?, val place: String?, val knownFor: String?, val photo: String?)
+
+    suspend fun personInfo(id: Long): PersonInfo? {
+        if (id <= 0) return null
+        val p = tmdb("person/$id", ttl = 24 * 60 * 60_000L)
+        return PersonInfo(
+            biography = p.str("biography")?.trim()?.takeIf { it.isNotEmpty() },
+            born = p.str("birthday")?.takeIf { it.length >= 4 },
+            place = p.str("place_of_birth")?.trim()?.takeIf { it.isNotEmpty() },
+            knownFor = p.str("known_for_department")?.takeIf { it.isNotBlank() },
+            photo = p.str("profile_path")?.let { "https://image.tmdb.org/t/p/w342$it" },
+        )
+    }
+
     /** On-demand, cached public credits; never guesses between people who share a name. */
     suspend fun filmography(person: ExploreRef, crew: Boolean): List<Meta> {
         require(person.id > 0)
