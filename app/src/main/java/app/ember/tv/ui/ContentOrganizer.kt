@@ -189,9 +189,10 @@ internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
                         Text(c.type + " · " + if (c.supportsSkip) "Multiple pages" else "Single page", color = Mute, fontSize = 12.sp)
                         if (expanded == c.key) ButtonRow(spacing = 6.dp) {
                             CatalogRenameButton(vm, c.key, c.originalLabel)
-                            if (c.homeable) SwitchChip("Home", vm.isOnHome(c)) { vm.toggleCatalogHome(c) }
-                            if (c.browsable) SwitchChip("Discover", vm.isInDiscover(c)) { vm.toggleCatalogDiscover(c) }
-                            SwitchChip("Live", vm.isOnLive(c)) { vm.toggleCatalogLive(c) }
+                            // Locked where the catalog can't go, saying why (#102).
+                            SwitchChip("Home", vm.isOnHome(c), locked = !c.homeable) { if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home")) }
+                            SwitchChip("Discover", vm.isInDiscover(c), locked = !c.browsable) { if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover")) }
+                            SwitchChip("Live", vm.isOnLive(c), locked = !c.homeable) { if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV")) }
                             Chip("Up") { vm.moveCatalog(c, -1) }; Chip("Down") { vm.moveCatalog(c, 1) }
                             Chip("Add to collection") { if (c.extras.isEmpty()) collect = CollectionDrafts.catalog(c) else filters = c }
                         }

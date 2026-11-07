@@ -193,7 +193,6 @@
     <string name="ui_no_sponsored_rows_everything_here_comes">No sponsored rows. Everything here comes from apps you installed or addons you added.</string>
     <string name="ui_no_typing_with_the_remote_add">No typing with the remote: add addons, API keys, logins and IPTV from your phone\'s browser.</string>
     <string name="ui_none">None</string>
-    <string name="ui_not_for_home">Not for Home</string>
     <string name="ui_nothing_yet">Nothing yet.</string>
     <string name="ui_off">Off</string>
     <string name="ui_off_addon_posters">Off (addon posters)</string>
@@ -268,7 +267,6 @@
     <string name="ui_screen_margins">Screen margins</string>
     <string name="ui_screensaver">Screensaver</string>
     <string name="ui_screensaver_now">Screensaver now</string>
-    <string name="ui_search_only">Search only</string>
     <string name="ui_season">Season</string>
     <string name="ui_selected">Selected</string>
     <string name="ui_set_region">Set region</string>

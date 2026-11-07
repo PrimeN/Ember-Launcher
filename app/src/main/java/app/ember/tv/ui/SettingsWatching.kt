@@ -498,19 +498,15 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
           }
           ButtonRow(spacing = 8.dp) {
             CatalogRenameButton(vm, c.key, c.originalLabel)
-            if (c.homeable) {
-                val on = vm.isOnHome(c)
-                SwitchChip(stringResource(R.string.ui_home_b9499), on) { vm.toggleCatalogHome(c) }
-                val live = vm.isOnLive(c)
-                SwitchChip(stringResource(R.string.ui_live_tv_2386e), live) { vm.toggleCatalogLive(c) }
-            } else {
-                Text(stringResource(R.string.ui_not_for_home), color = Mute, fontSize = 12.sp)
+            // Places a catalog can't go are locked switches that say why (#102), not text.
+            SwitchChip(stringResource(R.string.ui_home_b9499), vm.isOnHome(c), locked = !c.homeable) {
+                if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home"))
             }
-            if (c.browsable) {
-                val on = vm.isInDiscover(c)
-                SwitchChip(stringResource(R.string.ui_discover), on) { vm.toggleCatalogDiscover(c) }
-            } else {
-                Text(stringResource(R.string.ui_search_only), color = Mute, fontSize = 12.sp)
+            SwitchChip(stringResource(R.string.ui_live_tv_2386e), vm.isOnLive(c), locked = !c.homeable) {
+                if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV"))
+            }
+            SwitchChip(stringResource(R.string.ui_discover), vm.isInDiscover(c), locked = !c.browsable) {
+                if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover"))
             }
             if (i > 0) Chip(stringResource(R.string.ui_up)) { vm.moveCatalog(c, -1) }
             if (i < list.lastIndex) Chip(stringResource(R.string.ui_down)) { vm.moveCatalog(c, 1) }
@@ -1034,4 +1030,11 @@ private fun AddonLogo(logo: String?, name: String) {
             onError = { failed = true }, modifier = Modifier.fillMaxSize().padding(6.dp),
         )
     }
+}
+
+/** Why a catalog can't be switched on for [place] (#102). */
+internal fun catalogLockReason(c: app.ember.tv.data.CatalogDef, place: String): String = when {
+    c.searchOnly -> "${c.label} only answers searches, so it can't be on $place. Search uses it."
+    place == "Discover" -> "${c.label} needs a choice Ember can't make for it, so it can't be in Discover."
+    else -> "${c.label} needs a genre or another choice before it loads, so it can't be a $place row. Use it in Discover, a collection or the hero."
 }

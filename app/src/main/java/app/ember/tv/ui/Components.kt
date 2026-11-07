@@ -162,17 +162,22 @@ fun Section(title: String, subtitle: String? = null, id: String? = null, content
  * when [label] is empty). Replaces the old "Name: on" / "Name: off" chips.
  */
 @Composable
-fun SwitchChip(label: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+/**
+ * [locked] (#102): shown off and dimmed because it can't be changed here; it still takes focus,
+ * and [onClick] should say why.
+ */
+fun SwitchChip(label: String, on: Boolean, modifier: Modifier = Modifier, locked: Boolean = false, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val accent = MaterialTheme.colorScheme.primary
+    val shownOn = on && !locked
     Focusable(
         onClick = onClick,
         role = Role.Switch,
         modifier = modifier.semantics {
             role = Role.Switch
-            toggleableState = if (on) ToggleableState.On else ToggleableState.Off
-            stateDescription = if (on) "On" else "Off"
-        }.onFocusChanged { focused = it.isFocused || it.hasFocus },
+            toggleableState = if (shownOn) ToggleableState.On else ToggleableState.Off
+            stateDescription = if (locked) "Off, not available" else if (on) "On" else "Off"
+        }.onFocusChanged { focused = it.isFocused || it.hasFocus }.then(if (locked) Modifier.alpha(0.5f) else Modifier),
         radius = TvTokens.Shape.Pill,
         container = Wash,
         focusedContainer = PillColor,
@@ -188,14 +193,14 @@ fun SwitchChip(label: String, on: Boolean, modifier: Modifier = Modifier, onClic
             if (label.isNotEmpty()) Text(label, fontSize = TvTokens.Type.Label.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
             // On: accent track (darker on the white focused pill); off: grey track.
             val track = when {
-                on && focused -> lerp(accent, Color.Black, 0.25f)
-                on -> accent
+                shownOn && focused -> lerp(accent, Color.Black, 0.25f)
+                shownOn -> accent
                 focused -> OnPillColor.copy(alpha = 0.35f)
                 else -> Fg.copy(alpha = 0.3f)
             }
             Box(
                 Modifier.width(40.dp).height(22.dp).clip(RoundedCornerShape(50)).background(track),
-                contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart,
+                contentAlignment = if (shownOn) Alignment.CenterEnd else Alignment.CenterStart,
             ) {
                 Box(Modifier.padding(3.dp).size(16.dp).clip(CircleShape).background(Color.White))
             }
