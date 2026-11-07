@@ -19,8 +19,13 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 
-/** One background sample, tint, highlight and inside edge; foreground content stays untouched. */
-internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false): Modifier = composed {
+/**
+ * One background sample, tint, highlight and inside edge; foreground content stays untouched.
+ * [focused]: the control's own solid focus fill lies underneath (a TV Surface paints its container
+ * under its content), so only the edge is drawn and the fill shows undimmed (#39).
+ */
+internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false, focused: Boolean = false): Modifier = composed {
+    if (focused) return@composed clip(shape).border(1.dp, Color.White.copy(alpha = .30f), shape)
     val options = LocalRenderOptions.current
     val mode = GlassPolicy.mode(options, Build.VERSION.SDK_INT, pressured = RuntimeBudgets.pressured)
     val image = LocalGlassBitmap.current.takeIf { mode != GlassMode.TINT }
@@ -29,10 +34,10 @@ internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: B
     val focus = art.focus ?: HeroFocus()
     val origin = LocalGlassOrigin.current
     val day = Ui.isDay && !LocalFloating.current && !LocalNight.current
-    val base = if (panel) if (day) Panel else FloatingPanelStyle.background else if (dock) Color(0xFF171C26)
-        else if (mode==GlassMode.TINT || image==null || viewport==null) {
-            if(day)Color(0xFFE2E5EA) else Color(0xFF171C26)
-        } else PanelHi
+    // Theme tokens (#42): the dock stays dark over its wallpaper; OLED glass is near black.
+    val base = if (panel) if (day) Panel else FloatingPanelStyle.background else if (dock) glassTint(day = false)
+        else if (mode==GlassMode.TINT || image==null || viewport==null) glassTint(day)
+        else PanelHi
     val painter = remember(image != null) { if (image != null) GlassPainter() else null }
     SideEffect { painter?.source(image) }
     var placement by remember { mutableStateOf(GlassPlacement()) }
@@ -58,12 +63,14 @@ internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: B
             val gloss = Brush.linearGradient(listOf(Color.White.copy(alpha = if (day) .10f else .13f), Color.Transparent, Color.White.copy(alpha = .025f)),
                 start = Offset.Zero, end = Offset(size.width, size.height))
             val rounding = if (outline is Outline.Rounded) outline.roundRect.topLeftCornerRadius.x else 0f
-            val local=frame?.let {GlassPolicy.localFrame(it,origin.x,origin.y,placement)}
-            val visible=viewport?.let {GlassPolicy.localFrame(HeroProjection(it.left,it.top,it.width,it.height),origin.x,origin.y,placement)}
-            // Nine tiny reads only when the cached drawing geometry changes; never process the hero here.
-            val brightness=if(image!=null && local!=null && options.colorAnalysis) GlassPainter.brightness(image,local,size.width,size.height) else if(day)0f else 1f
-            val readable=if(sampled)GlassPolicy.readableTint(alpha,brightness,day) else alpha
             onDrawBehind {
+                // Placement is read here, in the draw phase (#41): moving re-projects the sample
+                // without rebuilding the cached outline and gradients on every scroll frame.
+                val local=frame?.let {GlassPolicy.localFrame(it,origin.x,origin.y,placement)}
+                val visible=viewport?.let {GlassPolicy.localFrame(HeroProjection(it.left,it.top,it.width,it.height),origin.x,origin.y,placement)}
+                // Nine pixel reads of the small sample; never processes the hero here.
+                val brightness=if(image!=null && local!=null && options.colorAnalysis) GlassPainter.brightness(image,local,size.width,size.height) else if(day)0f else 1f
+                val readable=if(sampled)GlassPolicy.readableTint(alpha,brightness,day) else alpha
                 if (image != null && local != null && visible != null && painter != null && nativePath != null) {
                     clipRect(visible.left,visible.top,visible.left+visible.width,visible.top+visible.height) {
                         drawIntoCanvas { canvas -> painter.draw(canvas.nativeCanvas, nativePath, image, local.left, local.top,

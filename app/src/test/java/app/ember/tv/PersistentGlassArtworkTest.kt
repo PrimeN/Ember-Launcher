@@ -36,7 +36,11 @@ class PersistentGlassArtworkTest {
         assertEquals(384,first.width);assertEquals(216,first.height)
         FrostCache.clear()
         val loaded=FrostCache.prepare(source(),GlassMode.FROSTED,store(root),blur={_,_,_,_->error("blur must not run on disk hit")})!!
-        assertTrue(first.sameAs(loaded));assertFalse(first.isRecycled);assertFalse(original.isRecycled)
+        // Saved as lossy WebP (#41): same size, colour within a small tolerance.
+        assertEquals(first.width,loaded.width);assertEquals(first.height,loaded.height)
+        val a=first.getPixel(20,20);val b=loaded.getPixel(20,20)
+        for(shift in listOf(16,8,0))assertTrue(kotlin.math.abs((a shr shift and 255)-(b shr shift and 255))<=6)
+        assertFalse(first.isRecycled);assertFalse(original.isRecycled)
     }
     @Test fun changedPixelsAndBlurRadiusDoNotUseStaleSamples()=runBlocking {
         val disk=store(temp.newFolder());FrostCache.prepare(source(),GlassMode.FROSTED,disk);FrostCache.clear()

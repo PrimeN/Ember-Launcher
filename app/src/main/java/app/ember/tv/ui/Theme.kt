@@ -108,6 +108,21 @@ val PanelHi: Color
         Ui.isOled -> Color(0xFF1B1B1E)
         else -> Color(0xFF303136)
     }
+/**
+ * The glass material's own tint (#42), for the dock and unsampled glass: Day, Night and OLED
+ * (true black) each get their own, and Ember X uses its surface. Sampled glass uses [PanelHi].
+ */
+internal val GlassTintDay = Color(0xFFE2E5EA)
+internal val GlassTintNight = Color(0xFF171C26)
+internal val GlassTintOled = Color(0xFF0B0C10)
+@Composable @ReadOnlyComposable
+internal fun glassTint(day: Boolean): Color = when {
+    isEmberX -> EmberXColors.Surface
+    day -> GlassTintDay
+    Ui.isOled -> GlassTintOled
+    else -> GlassTintNight
+}
+
 val Mute: Color
     @Composable @ReadOnlyComposable
     get() = when {

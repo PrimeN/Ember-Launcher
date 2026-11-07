@@ -29,6 +29,8 @@ import app.ember.tv.data.CacheKind
 import app.ember.tv.data.CachePolicy
 
 val LocalGlassBitmap = compositionLocalOf<Bitmap?> { null }
+/** How long glass keeps its last sample while no artwork is published (#40). */
+internal const val GLASS_SAMPLE_GRACE_MS = 1_000L
 val LocalGlassPreblurred = compositionLocalOf { true }
 internal val LocalGlassOrigin = compositionLocalOf { Offset.Zero }
 internal data class GlassArtwork(val bitmap: Bitmap? = null, val preblurred: Boolean = true, val origin: Offset = Offset.Zero)
@@ -82,9 +84,12 @@ internal object FrostCache {
                 currentCoroutineContext().ensureActive()
                 val complete = result!!
                 if(!valid() || ticket!=null && disk?.current(ticket)!=true) {complete.recycle();result=null;return@withLock null}
-                if(!reused && disk!=null && ticket!=null) {
+                // A blurred thumbnail loses nothing visible to lossy WebP, which encodes far faster than
+                // lossless PNG at quality 100 (#41). Android 10 has no lossy WebP constant: it keeps
+                // the in-memory sample only.
+                if(!reused && disk!=null && ticket!=null && Build.VERSION.SDK_INT>=30) {
                     val encoded=java.io.ByteArrayOutputStream()
-                    if(complete.compress(Bitmap.CompressFormat.PNG,100,encoded))disk.write(diskKey,encoded.toByteArray(),ticket)
+                    if(complete.compress(Bitmap.CompressFormat.WEBP_LOSSY,90,encoded))disk.write(diskKey,encoded.toByteArray(),ticket)
                 }
                 currentCoroutineContext().ensureActive()
                 if(!valid() || ticket!=null && disk?.current(ticket)!=true) {complete.recycle();result=null;return@withLock null}
@@ -114,17 +119,23 @@ internal fun rememberGlassBitmap(art: ReadyArtwork, options: RenderOptions, iden
     val point = remember { IntArray(2) }
     var origin by remember(view) { mutableStateOf(Offset.Zero) }
     SideEffect { view.getLocationOnScreen(point); origin = Offset(point[0].toFloat(), point[1].toFloat()) }
-    var sample by remember(identity, source, mode,privateRef,privateSource,revision) { mutableStateOf<Bitmap?>(null) }
+    // Kept across artwork changes on one page (#40): focus moves publish empty artwork before the
+    // next backdrop loads, and clearing then made the glass flash flat and frosted on every move.
+    // A new page or profile ([identity]), glass tier or access change starts empty.
+    var sample by remember(identity, mode, revision) { mutableStateOf<Bitmap?>(null) }
     // Framing, layout and focus changes update draw transforms, not image processing.
     LaunchedEffect(identity, source, mode,privateRef,privateSource,revision) {
-        if(source==null || mode==GlassMode.TINT) {sample=null;return@LaunchedEffect}
+        if(mode==GlassMode.TINT) {sample=null;return@LaunchedEffect}
+        // Empty artwork between two focused cards is brief; a backdrop that really closed (Library,
+        // switching to a gradient) clears after the grace period.
+        if(source==null) {kotlinx.coroutines.delay(GLASS_SAMPLE_GRACE_MS);sample=null;return@LaunchedEffect}
         app.ember.tv.data.CacheManagement.awaitReady()
         val realm=privateRef?.let {ArtworkCaches.realm(context,it) ?: return@LaunchedEffect}
         val allowed=realm==null || ArtworkCaches.persistenceAllowed(realm,privateSource)
         val disk=if(allowed)ArtworkCaches.blur(privateRef!=null) else null
-        sample=FrostCache.prepare(source,mode,disk,realm ?: "public",valid={
+        FrostCache.prepare(source,mode,disk,realm ?: "public",valid={
             privateRef==null || ArtworkCaches.realm(context,privateRef)==realm
-        },retain=allowed)
+        },retain=allowed)?.let { sample = it }
     }
     return GlassArtwork(if (mode == GlassMode.TINT) null else sample, origin = origin)
 }
@@ -134,7 +145,7 @@ internal fun navigationGlassShape(emberX: Boolean, shape: Shape? = null): Shape 
     shape ?: if (emberX) androidx.compose.foundation.shape.RoundedCornerShape(EmberXLayout.Radius.dp) else CircleShape
 
 @Composable
-internal fun Modifier.navigationGlass(shape: Shape? = null): Modifier = glassSurface(navigationGlassShape(isEmberX, shape))
+internal fun Modifier.navigationGlass(shape: Shape? = null, focused: Boolean = false): Modifier = glassSurface(navigationGlassShape(isEmberX, shape), focused = focused)
 
 /** The material belongs to the control, so backgrounds are never painted twice. */
 @Composable

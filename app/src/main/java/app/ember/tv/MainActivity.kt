@@ -531,7 +531,8 @@ private fun Root(
         val stop=if(vm.look.devicePerformance=="auto" && performanceContext is android.app.Activity)app.ember.tv.ui.RuntimeBudgets.observe(performanceContext) else ({})
         onStopOrDispose {stop()}
     }
-    val glassBitmap = app.ember.tv.ui.rememberGlassBitmap(backdropArt, renderOptions, navigation)
+    // Per page and profile: within a page the last glass sample stays until the next is ready (#40).
+    val glassBitmap = app.ember.tv.ui.rememberGlassBitmap(backdropArt, renderOptions, Triple(navigation, tab, vm.profiles.profileId))
     val lifecycle by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val internet=app.ember.tv.ui.rememberLightInternet()
     DisposableEffect(performanceContext) {val stop=app.ember.tv.home.StartupEvents.watch(performanceContext);onDispose {stop()}}
