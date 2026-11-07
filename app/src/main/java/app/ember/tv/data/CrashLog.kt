@@ -64,7 +64,8 @@ object CrashLog {
     private fun write(entry: String): Unit = synchronized(lock) {
         val f = file ?: return
         val old = if (f.exists()) f.readText() else ""
-        f.writeText((entry + if (old.isNotEmpty()) SEPARATOR + old else "").take(MAX_BYTES))
+        // Replaced atomically (#76): Android may kill Ember mid-write, the moment the log matters most.
+        AtomicFile.write(f, (entry + if (old.isNotEmpty()) SEPARATOR + old else "").take(MAX_BYTES)).getOrThrow()
     }
 
     /** Runs [block] on the crash log's own thread, in order with notes (exit history uses it). */
