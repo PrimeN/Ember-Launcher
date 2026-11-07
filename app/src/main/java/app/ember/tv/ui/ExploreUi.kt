@@ -161,7 +161,6 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
     if (catalogs) OptionMenu("Choose catalog", vm.discover.discoverCatalogs.mapIndexed { index, catalog ->
         MenuOption("${catalog.label} · ${catalog.addon.name}", selected = index == vm.discover.discoverIndex) { vm.discover.selectCatalog(index) }
     }+MenuOption("Refresh catalog",icon=androidx.compose.material.icons.Icons.Outlined.Refresh) {
-        IconArtworkCache.refresh()
         vm.discover.discoverCatalog?.let {vm.discover.selectCatalog(vm.discover.discoverIndex)} ?: vm.discover.retry()
     }) { catalogs = false }
     if (catalogFilters && def != null) {

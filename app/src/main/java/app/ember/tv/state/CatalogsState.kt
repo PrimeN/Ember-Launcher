@@ -138,8 +138,6 @@ class CatalogsState(
     var addonInfo by mutableStateOf<Map<String, AddonInfo>>(emptyMap())
     /** Every catalog of every addon, in the user's order. */
     var allCatalogs by mutableStateOf<List<CatalogDef>>(emptyList())
-    internal fun updateIconConfiguration() = app.ember.tv.ui.IconArtworkCache.configuration("catalogs",
-        app.ember.tv.data.CatalogIconSignature.of(allCatalogs, prefs.catalogNames, catalogHome, catalogDiscoverOff, catalogLive))
     var catalogHome by mutableStateOf(prefs.catalogHome)
     var catalogDiscoverOff by mutableStateOf(prefs.catalogDiscoverOff)
     /** Catalogs on Home unless switched off: the first six usable ones of each addon, as before. */
@@ -207,7 +205,6 @@ class CatalogsState(
             try {
                 if (urls.isEmpty()) {
                     rows = emptyList(); liveRows = emptyList(); allCatalogs = emptyList()
-                    updateIconConfiguration()
                     addonInfo = emptyMap(); rowCache.clear(); rowTimes.clear(); rowEpochs.clear(); pendingAddons.clear(); status = null
                     onRows()
                     return@launch
@@ -222,7 +219,6 @@ class CatalogsState(
                 val defs = infos.flatMap { client.catalogsOf(it) }
                 defaultHomeKeys = defs.filter { it.homeable }.groupBy { it.addon.url }.values.flatMap { it.take(6) }.map { it.key }.toSet()
                 allCatalogs = ordered(defs)
-                updateIconConfiguration()
                 if (allCatalogs.any { (it.addon.url in pendingAddons || restoreLiveDefault()) && isOnLive(it) }) onLiveAdded()
                 pendingAddons.removeAll(infos.map { it.url }.toSet())
                 addonInfo = infos.associateBy { it.url }
@@ -324,7 +320,6 @@ class CatalogsState(
         if (i == j) return
         list.add(j, list.removeAt(i))
         allCatalogs = list
-        updateIconConfiguration()
         prefs.catalogOrder = list.map { it.key }
         discover().reset()
         refreshRows(refetch = false)

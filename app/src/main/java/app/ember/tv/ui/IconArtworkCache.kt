@@ -16,7 +16,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 
-/** Long-lived icon bytes, independent of still/GIF decoding, with configuration-scoped invalidation. */
+/**
+ * Long-lived icon bytes, independent of still/GIF decoding. Icons are kept per image link; catalog
+ * or collection edits do not discard them (#55). The disk budget evicts the least used, cache
+ * headers refresh changed images, and Clear cache starts a new epoch.
+ */
 @android.annotation.SuppressLint("StaticFieldLeak") // Holds only the application context and application image loader.
 @OptIn(coil.annotation.ExperimentalCoilApi::class)
 internal object IconArtworkCache {
@@ -24,7 +28,6 @@ internal object IconArtworkCache {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
     private val ready = CompletableDeferred<Unit>()
-    private val pending = mutableMapOf<String, String>()
     private var app: Context? = null
     private var version: IconCacheVersion? = null
     @Volatile private var disk: DiskCache? = null
@@ -35,19 +38,10 @@ internal object IconArtworkCache {
     fun init(context: Context) {
         if (app != null) return
         app = context.applicationContext
-        scope.launch { applyPending() }
+        scope.launch { open() }
     }
 
-    /** Changes are coalesced off Main. Unloaded catalog groups retain their previous saved signature. */
-    fun configuration(group: String, value: String) {
-        if (app == null) return
-        require(group in setOf("catalogs", "collections"))
-        val digest = IconCacheVersion.digest(value)
-        synchronized(pending) { pending[group] = digest }
-        scope.launch { applyPending() }
-    }
-
-    private suspend fun applyPending() = mutex.withLock {
+    private suspend fun open() = mutex.withLock {
         val context = app ?: return@withLock
         try {
             if (version == null) {
@@ -56,10 +50,7 @@ internal object IconArtworkCache {
                 val budget = if (available > 0) (available / 50).coerceIn(4L shl 20, 64L shl 20) else 16L shl 20
                 disk = DiskCache.Builder().directory(File(context.cacheDir, "catalog-collection-icons")).maxSizeBytes(budget).build()
             }
-            val changes = synchronized(pending) { pending.toMap().also { pending.clear() } }
-            val changed = version!!.update(changes)
             activeEpoch = version!!.epoch
-            if (changed) discard()
             epoch = activeEpoch
         } catch (_: Exception) {
             // Cache failures must not prevent browsing. A new in-memory namespace cannot reuse stale files.
@@ -76,7 +67,7 @@ internal object IconArtworkCache {
     suspend fun clear() = withContext(Dispatchers.IO) {
         ready.await()
         mutex.withLock {
-            val rotated = runCatching { version?.update(emptyMap(), force = true) }
+            val rotated = runCatching { version?.rotate() }
             activeEpoch = version?.epoch ?: java.util.UUID.randomUUID().toString()
             discard()
             epoch = activeEpoch
@@ -85,9 +76,6 @@ internal object IconArtworkCache {
     }
     fun size() = disk?.size ?: 0L
     fun trimMemory() { images?.memoryCache?.clear() }
-    fun refresh() {
-        if (app != null) scope.launch { runCatching { clear() } }
-    }
 
     @Synchronized fun loader(context: Context): ImageLoader = images ?: context.imageLoader.newBuilder()
         .diskCache { disk }

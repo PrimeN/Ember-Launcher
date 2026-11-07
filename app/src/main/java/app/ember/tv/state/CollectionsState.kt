@@ -61,7 +61,6 @@ class CollectionsState(
 ) {
     internal var nowMillis: () -> Long = { android.os.SystemClock.elapsedRealtime() }
     var list by mutableStateOf(Collections.load(context)); private set
-    init { app.ember.tv.ui.IconArtworkCache.configuration("collections", list.toString()) }
     /** Collections switched off on Home (by id). */
     var hidden by mutableStateOf(prefs.collectionsOff); private set
     var message by mutableStateOf<String?>(null); private set
@@ -118,7 +117,6 @@ class CollectionsState(
         old.forEach { it.task.cancel() }
     }
     fun refreshFolder() {
-        app.ember.tv.ui.IconArtworkCache.refresh()
         invalidatePages()
         open?.let { openFolder(it.first, it.second) }
     }
@@ -179,7 +177,6 @@ class CollectionsState(
                 message = "Could not save collections. The previous collection pack was kept. Check available storage and retry."
                 message
             } else {
-                app.ember.tv.ui.IconArtworkCache.configuration("collections", committed.toString())
                 list = committed
                 revision++
                 open?.let { (oldCollection, oldFolder) ->

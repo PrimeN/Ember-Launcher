@@ -602,7 +602,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val names = app.ember.tv.data.CatalogNames.updated(prefs.catalogNames, key, name)
         prefs.catalogNames = names
         app.ember.tv.data.CatalogNames.load(names)
-        catalogs.updateIconConfiguration()
     }
     fun refreshRows(refetch: Boolean = true) = catalogs.refreshRows(refetch)
     fun canSeeAll(row: CatalogRow) = row.catalogKey?.startsWith("explore:") == true || catalogs.canSeeAll(row)
