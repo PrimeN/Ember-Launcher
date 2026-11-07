@@ -10,7 +10,7 @@ object SourceFreshness {
     private var prefs: SharedPreferences? = null
     fun init(context: Context) { prefs = context.applicationContext.getSharedPreferences("source-freshness", Context.MODE_PRIVATE) }
     private fun key(namespace: String, id: String) = java.security.MessageDigest.getInstance("SHA-256")
-        .digest("$namespace:$id".toByteArray()).joinToString("") { "%02x".format(it) }
+        .digest("$namespace:$id".toByteArray()).toHex()
     fun read(namespace: String?, id: String): Long? = namespace?.let {
         prefs?.getLong(key(it, id), 0L)?.takeIf { time -> time > 0 }
     }

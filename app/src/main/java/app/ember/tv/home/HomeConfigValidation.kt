@@ -1,5 +1,6 @@
 package app.ember.tv.home
 
+import app.ember.tv.data.toHex
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -14,7 +15,7 @@ internal object HomeConfigValidation {
             p.artwork.values.forEach {art->
                 require(art.data.length<=AppArtImport.MAX_ENCODED && art.id.matches(Regex("[0-9a-f]{64}")))
                 val bytes=Base64.getDecoder().decode(art.data)
-                val hash=MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") {"%02x".format(it)}
+                val hash=MessageDigest.getInstance("SHA-256").digest(bytes).toHex()
                 require(hash==art.id)
             }
         }

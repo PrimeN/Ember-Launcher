@@ -1,5 +1,6 @@
 package app.ember.tv.player
 
+import app.ember.tv.data.toHex
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -121,7 +122,7 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
                 val relay=MediaRelay().also {cleanup=it}
                 val items=chosen.map {e->
                     val relative=NetworkLocation.child(path,e.name)
-                    val identity="network:"+java.security.MessageDigest.getInstance("SHA-256").digest((account.id+":"+relative).toByteArray()).joinToString(""){"%02x".format(it)}
+                    val identity="network:"+java.security.MessageDigest.getInstance("SHA-256").digest((account.id+":"+relative).toByteArray()).toHex()
                     QueueMedia(relay.register(NetworkFiles.resource(account,relative,e.size),e.name),e.name,identity)
                 }
                 MediaFiles.launch(activity,items,listOf(relay))

@@ -15,7 +15,7 @@ internal object SourceDiagnostics {
     @Synchronized fun record(group:String?,id:String,at:Long,duration:Long?,success:Boolean,cached:Boolean,empty:Boolean,failure:SourceFailure?) {
         val category=group?.takeIf {it in groups} ?: "sources"
         val reference=java.security.MessageDigest.getInstance("SHA-256").digest("$category:$id".toByteArray())
-            .take(6).joinToString("") {"%02x".format(it)}
+            .copyOf(6).toHex()
         val row=SourceDiagnostic(category,reference,at,duration,success,cached,empty,if(success)null else failure ?: SourceFailure.UNAVAILABLE)
         current.value=(listOf(row)+current.value.filterNot {it.group==category && it.reference==reference}).take(LIMIT)
     }

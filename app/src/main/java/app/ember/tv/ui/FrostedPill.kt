@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.toHex
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
@@ -68,7 +69,7 @@ internal object FrostCache {
                 // Hash exactly the sampled pixels used by the algorithm: changed bytes cannot reuse stale blur.
                 val content=java.nio.ByteBuffer.allocate(pixels.size*4+8).putInt(size.first).putInt(size.second)
                 pixels.forEach(content::putInt)
-                val digest=java.security.MessageDigest.getInstance("SHA-256").digest(content.array()).joinToString(""){"%02x".format(it)}
+                val digest=java.security.MessageDigest.getInstance("SHA-256").digest(content.array()).toHex()
                 val diskKey="frost-v1:$realm:$radius:$digest"
                 val saved=if(disk!=null && ticket!=null)disk.read(diskKey,ticket) else null
                 if(saved!=null) {

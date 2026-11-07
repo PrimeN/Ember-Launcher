@@ -1,5 +1,6 @@
 package app.ember.tv.player
 
+import app.ember.tv.data.toHex
 import java.io.Closeable
 import java.io.InputStream
 import java.net.InetAddress
@@ -34,7 +35,7 @@ internal data class ByteRange(val start:Long,val end:Long) {
  * Binds loopback only, requires an unguessable token, bounds workers/headers, closes active reads.
  */
 internal class MediaRelay:Closeable {
-    private val token=ByteArray(32).also(SecureRandom()::nextBytes).joinToString(""){"%02x".format(it)}
+    private val token=ByteArray(32).also(SecureRandom()::nextBytes).toHex()
     private val socket=ServerSocket(0,8,InetAddress.getByName("127.0.0.1"))
     private val media=ConcurrentHashMap<String,RemoteMedia>()
     private val families=ConcurrentHashMap<String,(String)->RemoteMedia>()

@@ -1,5 +1,6 @@
 package app.ember.tv.streaming
 
+import app.ember.tv.data.toHex
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -53,7 +54,7 @@ internal object OfferRequests {
     fun imdb(value: String?) = value?.takeIf { it.matches(Regex("tt[0-9]{5,12}")) }
     fun identity(credential: String, region: String, title: String): String {
         val fingerprint = MessageDigest.getInstance("SHA-256").digest(credential.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+            .toHex()
         return "$fingerprint:$region:$title"
     }
 }

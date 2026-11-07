@@ -14,7 +14,7 @@ import java.util.Locale
 data class CollectionPage(val items: List<Meta>, val nextSkip: Int, val end: Boolean, val fingerprint: String? = null) {
     companion object {
         fun fingerprint(value: Any): String = MessageDigest.getInstance("SHA-256")
-            .digest(value.toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+            .digest(value.toString().toByteArray(Charsets.UTF_8)).toHex()
     }
 }
 

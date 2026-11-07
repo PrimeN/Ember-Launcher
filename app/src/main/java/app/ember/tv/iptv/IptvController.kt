@@ -2,6 +2,7 @@
 
 package app.ember.tv.iptv
 
+import app.ember.tv.data.toHex
 import androidx.compose.runtime.mutableLongStateOf
 
 import androidx.core.content.edit
@@ -376,7 +377,7 @@ class IptvController(
     } + epg.feeds
 
     private fun fingerprint(feed: EpgFeed) = java.security.MessageDigest.getInstance("SHA-256")
-        .digest((feed.url + "\n" + feed.userAgent).toByteArray()).joinToString("") { "%02x".format(it) }
+        .digest((feed.url + "\n" + feed.userAgent).toByteArray()).toHex()
 
     fun addGuide(name: String, url: String, agent: String): String? {
         val parsed = url.trim().toHttpUrlOrNull()

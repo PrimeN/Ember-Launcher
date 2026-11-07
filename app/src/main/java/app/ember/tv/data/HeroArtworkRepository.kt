@@ -42,7 +42,7 @@ internal class HeroArtworkRepository(
     private val permits = Semaphore(2)
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+    private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).toHex()
     private fun key(id: HeroIdentity, locale: String, tmdb: String, fanart: String) =
         hash("${CachePolicy.epoch(CacheKind.IMAGES)}:v2:${id.movie}:${id.tmdb}:${id.imdb}:${HeroArtworkSelection.language(locale)}:${hash("$tmdb\u0000$fanart")}")
     private fun valid(record: Record): Boolean = now() >= record.saved && now() < record.expires &&

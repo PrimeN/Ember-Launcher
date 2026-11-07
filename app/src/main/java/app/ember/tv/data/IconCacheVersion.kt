@@ -31,7 +31,7 @@ internal class IconCacheVersion(private val file: File) {
 
     companion object {
         fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+            .digest(value.toByteArray()).toHex()
         fun key(epoch: String, url: String) = "ember-icon:$epoch:${digest(url)}"
     }
 }

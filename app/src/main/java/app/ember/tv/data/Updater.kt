@@ -136,7 +136,7 @@ object Updater {
                     }
                 }
             }
-            verify(r, done, digest.digest().joinToString("") { "%02x".format(it) })?.let { error(it) }
+            verify(r, done, digest.digest().toHex())?.let { error(it) }
             if (r.zippedApk) ActionsUpdates.extract(archive, out, r.assetName)
             Result.success(out)
         } catch (e: CancellationException) {

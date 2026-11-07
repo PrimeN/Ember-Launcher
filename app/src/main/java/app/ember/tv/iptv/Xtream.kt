@@ -1,5 +1,6 @@
 package app.ember.tv.iptv
 
+import app.ember.tv.data.toHex
 import app.ember.tv.tracker.int
 import app.ember.tv.tracker.list
 import app.ember.tv.tracker.str
@@ -48,7 +49,7 @@ object Xtream {
     /** Share a budget between duplicate entries for one host/account, without retaining its password. */
     fun budgetKey(s: IptvSource): String = java.security.MessageDigest.getInstance("SHA-256")
         .digest((base(s).lowercase(java.util.Locale.ROOT) + "\n" + s.username).toByteArray())
-        .joinToString("") { "%02x".format(it) }
+        .toHex()
     private suspend fun request(s: IptvSource, url: String, interactive: Boolean) =
         ProviderRequests.read(budgetKey(s), url, s.userAgent, interactive) { Json.parseToJsonElement(it.bufferedReader().readText()) }
 }

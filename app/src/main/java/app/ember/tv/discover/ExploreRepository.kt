@@ -1,5 +1,6 @@
 package app.ember.tv.discover
 
+import app.ember.tv.data.toHex
 import app.ember.tv.data.ApiKeys
 import app.ember.tv.data.Meta
 import app.ember.tv.tracker.*
@@ -48,7 +49,7 @@ class ExploreRepository(
         }
         val now = clock()
         synchronized(memory) { memory[id]?.takeIf { now - it.first in 0 until ttl }?.let { return it.second } }
-        val name = MessageDigest.getInstance("SHA-256").digest(id.toByteArray()).joinToString("") { "%02x".format(it) }
+        val name = MessageDigest.getInstance("SHA-256").digest(id.toByteArray()).toHex()
         val file = cacheDir?.let { File(it, "$name.json") }
         val saved = withContext(Dispatchers.IO) { runCatching {
             file?.takeIf { it.isFile && it.length() <= 2_000_000 }?.let {

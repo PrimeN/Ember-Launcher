@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.toHex
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 
 /** A focused action can be visible while the non-focusable title is still above the viewport. */
@@ -28,7 +29,7 @@ internal fun sourceRowKeys(sources: List<app.ember.tv.data.StreamOption>): List<
             source.infoHash, source.fileIdx?.toString(), source.serverRef, source.name, source.title)
             .map { it?.let { value -> kotlinx.serialization.json.JsonPrimitive(value) } ?: kotlinx.serialization.json.JsonNull }).toString()
         val hash = java.security.MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+            .toHex()
         val occurrence = counts[hash] ?: 0
         counts[hash] = occurrence + 1
         "$hash:$occurrence"

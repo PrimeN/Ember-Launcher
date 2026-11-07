@@ -615,7 +615,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     var homeHiddenTitles by mutableStateOf(prefs.homeHiddenTitles); private set
-    internal fun homeTitleVisible(meta: Meta) = app.ember.tv.data.HomeTitleVisibility.key(profiles.profileId, meta) !in homeHiddenTitles
+    /** Nothing hidden on this profile (the usual case): no title needs hashing (#57). */
+    private val hidesHomeTitles by derivedStateOf {
+        val prefix = app.ember.tv.data.HomeTitleVisibility.prefix(profiles.profileId)
+        homeHiddenTitles.any { it.startsWith(prefix) }
+    }
+    internal fun homeTitleVisible(meta: Meta) = !hidesHomeTitles ||
+        app.ember.tv.data.HomeTitleVisibility.key(profiles.profileId, meta) !in homeHiddenTitles
     val hiddenHomeTitleCount get() = homeHiddenTitles.count { it.startsWith(app.ember.tv.data.HomeTitleVisibility.prefix(profiles.profileId)) }
     fun restoreHomeTitles() {
         val prefix = app.ember.tv.data.HomeTitleVisibility.prefix(profiles.profileId)

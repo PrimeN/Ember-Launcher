@@ -1,5 +1,6 @@
 package app.ember.tv.home
 
+import app.ember.tv.data.toHex
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -23,7 +24,7 @@ internal object AppArtImport {
         val bitmap=decode(bytes)
         val encoded=try {ByteArrayOutputStream().also {require(bitmap.compress(Bitmap.CompressFormat.WEBP,85,it))}.toByteArray()}finally{bitmap.recycle()}
         val data=Base64.getEncoder().encodeToString(encoded);require(data.length<=MAX_ENCODED) {"Choose a simpler image."}
-        val id=MessageDigest.getInstance("SHA-256").digest(encoded).joinToString("") {"%02x".format(it)}
+        val id=MessageDigest.getInstance("SHA-256").digest(encoded).toHex()
         return AppArt(id,data)
     }
     private fun java.io.InputStream.readBytesBounded(max:Int):ByteArray {

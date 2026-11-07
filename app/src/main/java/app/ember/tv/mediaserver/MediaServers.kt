@@ -1,5 +1,6 @@
 package app.ember.tv.mediaserver
 
+import app.ember.tv.data.toHex
 import android.content.Context
 import app.ember.tv.data.Meta
 import app.ember.tv.data.StreamOption
@@ -82,7 +83,7 @@ class MediaServers(val accounts: Accounts, val plex: PlexClient = PlexClient(acc
     private var cacheProfile: String? = null
     internal fun accountFingerprint(): String {
         val input=listOf(accounts.plexAccessToken.orEmpty())+accounts.servers().sortedBy {it.key}.map {it.key+":"+it.userId+":"+it.token}
-        return java.security.MessageDigest.getInstance("SHA-256").digest(input.joinToString("\u0000").toByteArray()).joinToString(""){"%02x".format(it)}
+        return java.security.MessageDigest.getInstance("SHA-256").digest(input.joinToString("\u0000").toByteArray()).toHex()
     }
     suspend fun restoreHome(profile: String): List<ServerRow> {
         if(cacheProfile!=profile) { rowCache.clear(); cacheProfile=profile }

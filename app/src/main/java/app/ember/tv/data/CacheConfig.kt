@@ -30,5 +30,5 @@ object CachePolicy {
     fun fresh(kind: CacheKind, at: Long, now: Long = System.currentTimeMillis(), ceiling: Long = Long.MAX_VALUE) =
         now - at in 0 until minOf(config.millis(kind), ceiling)
     internal fun digest(value: String) = java.security.MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+        .digest(value.toByteArray(Charsets.UTF_8)).toHex()
 }

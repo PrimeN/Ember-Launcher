@@ -42,6 +42,6 @@ object Pin {
     /** Stored as a salted SHA-256, never as the digits. */
     fun hash(pin: String, salt: String): String {
         val md = java.security.MessageDigest.getInstance("SHA-256")
-        return md.digest("$salt:$pin".toByteArray()).joinToString("") { "%02x".format(it) }
+        return md.digest("$salt:$pin".toByteArray()).toHex()
     }
 }
