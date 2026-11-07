@@ -12,5 +12,9 @@ data class CustomPerformance(
     val collectionMotion:Boolean=true,
     val prefetch:Int=1,
 ) {
-    fun normalized()=copy(prefetch=prefetch.coerceIn(0,2))
+    fun normalized()=copy(prefetch=prefetch.coerceIn(PREFETCH))
+    companion object {
+        /** Rows loaded ahead of the one in view; the phone page offers the same range (#51). */
+        val PREFETCH=0..2
+    }
 }

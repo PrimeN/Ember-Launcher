@@ -97,11 +97,12 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         TileLabels.choices.forEach { (kind, label) ->
             toggle("look.labels.$kind", LOOK, "Labels under tiles: $label", read = { kind !in look.tileLabelsOff }, write = { on -> if (on == (kind in look.tileLabelsOff)) look.toggleTileLabel(kind) })
         }
-        choice("look.performance", LOOK, "Performance profile", DevicePerformance.options, read = { look.devicePerformance }, write = look::updateDevicePerformance)
+        choice("look.performance", LOOK, "Performance profile",
+            DevicePerformance.choices(app.ember.tv.ui.Art.display4K || look.devicePerformance == "ultra"), read = { look.devicePerformance }, write = look::updateDevicePerformance)
         choice("look.quality", LOOK, "Image quality (Custom profile)", listOf("economy" to "Economy", "balanced" to "Balanced", "high" to "High"), read = { look.artworkQuality }, write = look::updateArtworkQuality)
         out.config(serializer<app.ember.tv.data.CustomPerformance>(), "look.custom", LOOK, "Custom profile: ", { look.customPerformance }, look::updateCustomPerformance, mapOf(
             "heroAnalysis" to Field("Hero colour analysis"), "colorAnalysis" to Field("Tile colour analysis"), "animations" to Field("Animations"),
-            "progressiveArtwork" to Field("Progressive artwork"), "collectionMotion" to Field("Animated collections"), "prefetch" to Field("Rows loaded ahead", range = 0..3)))
+            "progressiveArtwork" to Field("Progressive artwork"), "collectionMotion" to Field("Animated collections"), "prefetch" to Field("Rows loaded ahead", range = app.ember.tv.data.CustomPerformance.PREFETCH)))
         toggle("look.glass", LOOK, "Modern glass", read = { look.navigationGlass }, write = look::updateNavigationGlass)
         choice("look.glassStyle", LOOK, "Glass style", GlassStyle.choices, read = { look.navigationGlassMethod }, write = look::updateNavigationGlassMethod)
         choice("look.focusMedia", LOOK, "Focused background: media rows", FocusBackground.choices, read = { look.mediaFocusBackground }, write = look::updateMediaFocusBackground)
