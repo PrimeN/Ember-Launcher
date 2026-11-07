@@ -470,6 +470,17 @@ internal fun ModernHero(
     val focusBackdrop = LocalFocusBackdrop.current
     var focused by remember { mutableStateOf(false) }
     val watchFocus = remember { FocusRequester() }
+    // Entering Home from the menu lands on Watch now while nothing on Home was focused yet (#66):
+    // geometric search from a centred menu tab otherwise picks the first row's card below it.
+    val heroNavigation = LocalNavigationFocus.current
+    val heroScene = LocalFocusScene.current
+    androidx.compose.runtime.DisposableEffect(heroNavigation, heroScene, watchFocus) {
+        if (heroNavigation != null && heroScene != null) {
+            heroNavigation.register(heroScene, HERO_ENTRY, watchFocus)
+            if (heroNavigation.preferred(heroScene) == null) heroNavigation.focused(heroScene, HERO_ENTRY)
+        }
+        onDispose { if (heroNavigation != null && heroScene != null) heroNavigation.unregister(heroScene, HERO_ENTRY, watchFocus) }
+    }
     val saveFocus = remember { FocusRequester() }
     val safe = HeroBanner.index(index, items.size)
     LaunchedEffect(items, focused, safe, rotating, reduceMotion, presented?.mediaKey()) {
@@ -901,3 +912,6 @@ fun AppsGrid(
         }
     }
 }
+
+/** Home's default entry point from the menu: the hero's Watch now button (#66). */
+internal const val HERO_ENTRY = "hero-watch-now"
