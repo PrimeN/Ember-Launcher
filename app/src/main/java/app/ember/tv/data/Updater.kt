@@ -101,6 +101,17 @@ object Updater {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val out = File(dir, "ember-update.apk")
         val archive = File(dir, "ember-update.zip")
+        // The last verified download, by the release's checksum: pressing Install again installs it
+        // instead of downloading everything again (#99).
+        val marker = File(context.cacheDir, "updates-verified")
+        if (r.sha256 != null) {
+            val saved = runCatching { marker.readText().split('|') }.getOrNull()
+            if (saved?.size == 2 && saved[0] == r.sha256 && out.isFile && out.length() == saved[1].toLongOrNull()) {
+                onProgress(1f)
+                return@withContext Result.success(out)
+            }
+        }
+        marker.delete()
         try {
             dir.listFiles()?.forEach { it.delete() }
             check(!r.zippedApk || (r.sha256 != null && r.sizeBytes in 1..ActionsUpdates.MAX_ARCHIVE_BYTES)) {
@@ -138,6 +149,7 @@ object Updater {
             }
             verify(r, done, digest.digest().toHex())?.let { error(it) }
             if (r.zippedApk) ActionsUpdates.extract(archive, out, r.assetName)
+            r.sha256?.let { runCatching { marker.writeText("$it|${out.length()}") } }
             Result.success(out)
         } catch (e: CancellationException) {
             out.delete(); throw e
@@ -213,8 +225,48 @@ object Updater {
         }, {})
     }
 
-    /** Hands the APK to Android's installer, which asks before installing. */
+    /** Install progress and failures from Android's installer, for Settings > Updates (#99). */
+    @Volatile var statusListener: ((String) -> Unit)? = null
+    fun report(message: String) { statusListener?.invoke(message) }
+
+    /**
+     * Hands the APK to Android's installer (#99). A PackageInstaller session reports back: Android
+     * asks for the confirmation it needs (opened by [UpdateInstallReceiver]) and says why when it
+     * fails, where a plain view intent can be dropped without a word. Once Ember has installed
+     * itself this way, Android 12+ can apply later updates without the extra prompt. If a session
+     * can't be created, the plain intent is used. Writes the file: call off the main thread.
+     */
     fun install(context: Context, apk: File) {
+        val sessionStarted = runCatching { installWithSession(context.applicationContext, apk) }.isSuccess
+        if (!sessionStarted) installWithIntent(context, apk)
+    }
+
+    private fun installWithSession(context: Context, apk: File) {
+        val installer = context.packageManager.packageInstaller
+        val params = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(context.packageName)
+            setSize(apk.length())
+            if (android.os.Build.VERSION.SDK_INT >= 31) setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        }
+        val id = installer.createSession(params)
+        try {
+            installer.openSession(id).use { session ->
+                session.openWrite("base.apk", 0, apk.length()).use { out ->
+                    apk.inputStream().use { it.copyTo(out, 256 * 1024) }
+                    session.fsync(out)
+                }
+                val callback = Intent(context, UpdateInstallReceiver::class.java).setPackage(context.packageName)
+                // Mutable: the installer adds its status to this intent.
+                val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or (if (android.os.Build.VERSION.SDK_INT >= 31) android.app.PendingIntent.FLAG_MUTABLE else 0)
+                session.commit(android.app.PendingIntent.getBroadcast(context, id, callback, flags).intentSender)
+            }
+        } catch (e: Exception) {
+            runCatching { installer.abandonSession(id) }
+            throw e
+        }
+    }
+
+    private fun installWithIntent(context: Context, apk: File) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", apk)
         val i = Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, "application/vnd.android.package-archive")
@@ -240,4 +292,31 @@ object Updater {
         }
         return false
     }
+}
+
+/** What Android's installer says about an update session (#99). */
+class UpdateInstallReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val status = intent.getIntExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, android.content.pm.PackageInstaller.STATUS_FAILURE)
+        if (status == android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            val confirm = if (android.os.Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+                else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
+            val opened = confirm != null && runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+            Updater.report(if (opened) "Android will ask to install the update." else "Android didn't open its installer. Press Install again; it won't download again.")
+            return
+        }
+        Updater.report(updateInstallMessage(status))
+    }
+}
+
+/** The message for an installer status (#99). */
+internal fun updateInstallMessage(status: Int): String = when (status) {
+    android.content.pm.PackageInstaller.STATUS_SUCCESS -> "Update installed."
+    android.content.pm.PackageInstaller.STATUS_FAILURE_ABORTED -> "The update wasn't installed. Press Install to try again; it won't download again."
+    android.content.pm.PackageInstaller.STATUS_FAILURE_BLOCKED -> "This TV blocked the update (a device policy or another installer)."
+    android.content.pm.PackageInstaller.STATUS_FAILURE_CONFLICT -> "The update conflicts with the installed Ember (a different signature). It can only be installed after uninstalling this copy."
+    android.content.pm.PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "This update isn't compatible with this TV."
+    android.content.pm.PackageInstaller.STATUS_FAILURE_INVALID -> "Android says the update file is invalid. Check for updates and try again."
+    android.content.pm.PackageInstaller.STATUS_FAILURE_STORAGE -> "Not enough storage on this TV to install the update."
+    else -> "The update couldn't be installed. Press Install to try again."
 }

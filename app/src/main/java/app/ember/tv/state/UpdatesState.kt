@@ -43,8 +43,14 @@ class UpdatesState(
     internal var installerAllowed: () -> Boolean = { Updater.canInstall(app) }
     internal var requestInstallPermission: () -> Boolean = { Updater.openInstallPermission(app) }
     internal var downloadRelease: suspend (Updater.Release, (Float) -> Unit) -> Result<File> = { release, progress -> Updater.download(app, release, progress) }
-    internal var installRelease: (File) -> Unit = { Updater.install(app, it) }
+    /** Copies the APK into Android's installer, so it runs off the main thread (#99). */
+    internal var installRelease: suspend (File) -> Unit = { file -> withContext(Dispatchers.IO) { Updater.install(app, file) } }
     private var downloadRevision = 0L
+
+    init {
+        // What Android's installer reports (confirmation needed, failed, cancelled) shows here (#99).
+        Updater.statusListener = { message -> scope.launch { updateMessage = message } }
+    }
 
     fun updateUpdateChannel(v: String) {
         stopDownload()
@@ -133,7 +139,11 @@ class UpdatesState(
         downloadJob = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 val file = downloadRelease(r) { p -> scope.launch {
-                    if (revision == downloadRevision && channel == activeChannel && updateProgress != null) updateProgress = p
+                    if (revision == downloadRevision && channel == activeChannel && updateProgress != null) {
+                        updateProgress = p
+                        // The bar is full but checking and handing over the file takes a moment (#99).
+                        if (p >= 1f) updateMessage = "Preparing the install…"
+                    }
                 } }
                 ensureActive()
                 if (revision != downloadRevision || channel != activeChannel) return@launch

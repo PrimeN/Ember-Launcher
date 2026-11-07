@@ -99,6 +99,19 @@ class ActionsUpdatesTest {
         assertEquals(listOf("ember-update.apk"),output.parentFile!!.listFiles()!!.map { it.name })
     }
 
+    @Test fun aVerifiedDownloadIsReusedInsteadOfDownloadedAgain() = runBlocking {
+        val archive = zip("release/$apkName")
+        val context = PersistenceContext(temp.newFolder())
+        val release = ActionsUpdates.releaseOf(artifact(archive),run())!!
+        Updater.download(context,release,{},bytesHttp(archive)).getOrThrow()
+        // #99: pressing Install again after the installer didn't appear must not download again.
+        val offline = OkHttpClient.Builder().addInterceptor { error("no download expected") }.build()
+        var progress = 0f
+        val again = Updater.download(context,release,{ progress = it },offline).getOrThrow()
+        assertArrayEquals(payload,again.readBytes())
+        assertEquals(1f,progress)
+    }
+
     @Test fun damagedArchivesAndUnsignedOrUnexpectedApksAreRejectedAndCleanedUp() = runBlocking {
         for (bad in listOf(zip("../$apkName"),zip("ember-tv-0.9.6-216200000-debug.apk"),zip(apkName,"other.apk"),zip("readme.txt"))) {
             val context = PersistenceContext(temp.newFolder())
