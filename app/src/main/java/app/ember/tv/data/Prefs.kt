@@ -476,8 +476,8 @@ class Prefs(context: Context) {
 
     /** Size of everything on screen: "xsmall", "small", "default", "large" or "xlarge" (ui/UiSizes.kt). */
     var uiSize: String
-        get() = sp.read(PreferenceKeys.UI_SIZE) ?: "default"
-        set(v) = sp.edit { putString(PreferenceKeys.UI_SIZE.name, v) }
+        get() = sp.read(PreferenceKeys.UI_SCALE) ?: app.ember.tv.ui.UiSizes.fromLegacy(sp.read(PreferenceKeys.UI_SIZE))
+        set(v) = sp.edit { putString(PreferenceKeys.UI_SCALE.name, v) }
 
     /** Text size on top of that: "xsmall" to "xlarge", as above. */
     var textSize: String

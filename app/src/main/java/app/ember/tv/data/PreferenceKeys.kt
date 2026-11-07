@@ -113,7 +113,10 @@ internal object PreferenceKeys {
     val TEXT_SIZE = PreferenceKey<String?>("textSize", PreferenceType.STRING, "default")
     val THEME = PreferenceKey<String?>("theme", PreferenceType.STRING, "night")
     val TRACKERS_OFF = PreferenceKey<Set<String>>("trackersOff", PreferenceType.SET, emptySet())
+    /** Interface size on the scale before #38; read only to carry a choice over to [UI_SCALE]. */
     val UI_SIZE = PreferenceKey<String?>("uiSize", PreferenceType.STRING, "default")
+    /** Interface size on the current scale (ui/UiSizes.kt, #38). */
+    val UI_SCALE = PreferenceKey<String?>("uiScale", PreferenceType.STRING, null)
     val UI_STYLE = PreferenceKey<String?>("uiStyle", PreferenceType.STRING, InterfaceStyles.MODERN)
     val UPDATE_AUTO_CHECK = PreferenceKey<Boolean>("updateAutoCheck", PreferenceType.BOOLEAN, true)
     val UPDATE_BETA = PreferenceKey<Boolean>("updateBeta", PreferenceType.BOOLEAN, false)
@@ -144,7 +147,7 @@ internal object PreferenceKeys {
         SEEDED_TEST_ADDONS, SERVER_HERO_ON, SERVER_HERO_SOURCE, SERVER_SECTIONS_OFF, SERVICES_FETCHED_AT, SERVICES_JSON,
         SERVICES_OFF, SERVICES_ON, SERVICES_SOURCE, SETTINGS_STYLE, SETUP_CHECKLIST_HIDDEN, SHOW_WATCHED_BADGES,
         SMART_ROWS_OFF, SOURCES_COMBINED, STREAM_DESC_TEMPLATE, STREAM_FORMAT_ON, STREAM_NAME_TEMPLATE, SUBTITLE_CONFIG,
-        SUBTITLES_ON, TEXT_SIZE, THEME, TRACKERS_OFF, UI_SIZE, UI_STYLE,
+        SUBTITLES_ON, TEXT_SIZE, THEME, TRACKERS_OFF, UI_SIZE, UI_SCALE, UI_STYLE,
         UPDATE_AUTO_CHECK, UPDATE_BETA, UPDATE_BETA_SOURCE, UPDATE_CHANNEL, UPDATE_CHECKED_AT, WATCH_PROVIDER, WATCH_REGION,
         WEATHER_PLACE, WEATHER_PROVIDER, WEATHER_FALLBACK, WEATHER_CACHE, WL,
     )
