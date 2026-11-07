@@ -14,6 +14,19 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "0.9.7", "Faster and more polished",
+            listOf(
+                "Faster startup, scrolling and artwork loading, especially on Chromecast with Google TV and similar devices.",
+                "Improved stability, and the crash log now also records freezes and memory restarts.",
+                "New startup screen and refreshed Ember branding.",
+                "Smoother glass effects that follow your theme.",
+                "More consistent buttons, focus effects and easier-to-read text.",
+                "New option to hide the labels under apps, titles and collections.",
+                "Smaller default interface size, with steps either side.",
+                "Fixed server artwork and Library backgrounds.",
+            ),
+        ),
+        Release(
             "0.9.6", "Public updates and polished navigation",
             listOf(
                 "Standard and beta updates use public Ember downloads without a GitHub token. Beta can choose published Releases or the latest successful signed Actions APK.",
