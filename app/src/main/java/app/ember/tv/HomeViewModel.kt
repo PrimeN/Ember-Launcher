@@ -214,7 +214,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     var apps by mutableStateOf<List<AppEntry>>(emptyList()); internal set
     var watchlist by mutableStateOf(prefs.watchlist); internal set
     var hidden by mutableStateOf(prefs.hidden); internal set
-    var addons by mutableStateOf(prefs.addons); internal set
+    // Encrypted: read on IO as the first startup step (#46), not on the main thread while the
+    // view model is built. Everything that uses the list runs after that step.
+    var addons by mutableStateOf<List<String>>(emptyList()); internal set
+    @Volatile private var addonsLoaded = false
+    /** Before a change is saved: never save over the stored list before it has been read. */
+    private fun ensureAddons() { if (!addonsLoaded) { addons = prefs.addons; addonsLoaded = true } }
     var pausedAddons by mutableStateOf(prefs.pausedAddons); private set
     val activeAddons: List<String> get() = addons.filter { AddonAccess.key(it) !in pausedAddons }
     init { AddonAccess.paused = pausedAddons }
@@ -691,6 +696,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (url.toHttpUrlOrNull()?.pathSegments?.lastOrNull() != "manifest.json") {
             return "The link should end in manifest.json."
         }
+        ensureAddons()
         if (url in addons) return "That addon is already added."
         if (!prefs.saveAddons(addons + url)) return "Encrypted storage is unavailable. The add-on was not added."
         addons = addons + url
@@ -711,6 +717,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun removeAddon(url: String) {
+        ensureAddons()
         if (!prefs.saveAddons(addons - url)) { notice = "Encrypted storage is unavailable. The add-on was kept."; return }
         if (AddonAccess.key(url) in prefs.addonNames) renameAddon(url, "")
         AddonClient.cancel(url); client.forget(url); collections.invalidatePages()
@@ -1196,6 +1203,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         startupPresentation.preferencesRestored()
         refreshApps()
         viewModelScope.launch {
+        val loaded = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { prefs.addons }
+        if (!addonsLoaded) { addons = loaded; addonsLoaded = true }
         restoreServerHome()
         restoreSnapshot()
         // What the trackers said last time, until they answer (or when offline).
