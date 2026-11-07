@@ -293,7 +293,7 @@ private fun OptionLine(s: ControlsState, r: OptionRow, focus: Boolean, onClick: 
             else if (r.value.isNotBlank()) Text(r.value, fontSize = 12.sp, color = if (focused) Color(0xFF555555) else Soft, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp).weight(1f, fill = false))
             if (r.action == null) Image(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, colorFilter = ColorFilter.tint(if (focused) fg else Soft), modifier = Modifier.size(18.dp))
         }
-        if (r.toggle != null) r.note?.let { Text(it, fontSize = 11.sp, color = Soft, modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)) }
+        if (r.toggle != null) r.note?.let { Text(it, fontSize = 12.sp, color = Soft, modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)) }
         Box(Modifier.fillMaxWidth().padding(horizontal = 10.dp).height(1.dp).background(Divider))
     }
 }
