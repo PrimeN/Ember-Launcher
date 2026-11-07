@@ -94,7 +94,7 @@ internal fun DetailsActionButton(
             if(selected)this.selected=true
             if(!enabled)disabled()
         },radius=if(isEmberX)EmberXLayout.Radius else TvTokens.Shape.Pill,container=Color.Transparent,focusedContainer=Color.Transparent,
-        focusedContent=foreground,outline=false,focusedScale=1.04f) {
+        focusedContent=foreground,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.Control) {
         FrostedPill(Modifier.fillMaxWidth()) {
             if(inline) {
                 Row(Modifier.fillMaxWidth().height(inlineHeight).navigationGlass(shape).background(fill,shape)

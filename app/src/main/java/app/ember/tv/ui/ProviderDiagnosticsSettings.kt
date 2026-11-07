@@ -47,7 +47,7 @@ internal fun ProviderDiagnosticsSettings() {
                 if(rows.size>12)Chip(if(showAll)"Show latest 12" else "Show all ${rows.size}") {showAll=!showAll}
         }
         rows.take(if(showAll)64 else 12).forEach {row->key(row.group,row.reference) {
-            Focusable(onClick={},modifier=Modifier.fillMaxWidth(),focusedScale=1f) {
+            Focusable(onClick={},modifier=Modifier.fillMaxWidth(),focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
                 Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                     Text("${row.group.replaceFirstChar {it.uppercase()}} · ${row.reference}",fontSize=13.sp)
                     Text(listOfNotNull(row.durationMillis?.let {"$it ms"},

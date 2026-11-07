@@ -348,7 +348,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                     }
                 }
                 if(guideEngaged && activeChoice.kind!="addons" && selected.isNotEmpty())Text("Select a channel to watch · Hold OK for channel options",
-                    color=LiveColors.Muted,fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(vertical=4.dp))
+                    color=LiveColors.Muted,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(vertical=4.dp))
             }
         }
     }

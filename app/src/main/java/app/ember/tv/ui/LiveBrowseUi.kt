@@ -47,7 +47,7 @@ internal fun LiveToolbarAction(label:String,icon:ImageVector,modifier:Modifier=M
 
 @Composable
 internal fun LiveSidebarHeading(label:String) {
-    Text(label.uppercase(),color=LiveColors.Muted,fontSize=10.sp,fontWeight=FontWeight.SemiBold,
+    Text(label.uppercase(),color=LiveColors.Muted,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,fontWeight=FontWeight.SemiBold,
         letterSpacing=1.sp,modifier=Modifier.padding(start=12.dp,top=12.dp,bottom=6.dp).semantics {heading()})
 }
 
@@ -69,7 +69,7 @@ internal fun LiveSidebarEntry(
             this.selected=selected
             stateDescription=listOfNotNull("$count channels",expanded?.let {if(it)"Expanded" else "Collapsed"}).joinToString(", ")
         },container=if(selected)LiveColors.Current else Color.Transparent,
-        focusedContainer=LiveColors.Focus,focusedContent=LiveColors.OnFocus,focusedScale=1.015f,radius=14,outline=false) {
+        focusedContainer=LiveColors.Focus,focusedContent=LiveColors.OnFocus,focusedScale=app.ember.tv.ui.TvTokens.Focus.Inline,radius=app.ember.tv.ui.TvTokens.Shape.Control,outline=false) {
         val color=if(focused)LiveColors.OnFocus else LiveColors.Text
         Row(Modifier.fillMaxWidth().padding(start=if(nested)22.dp else 12.dp,end=10.dp,top=10.dp,bottom=10.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -78,7 +78,7 @@ internal fun LiveSidebarEntry(
             }
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                 Text(title,color=color,fontSize=if(nested)12.sp else 14.sp,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
-                Text("$count "+if(count==1)"channel" else "channels",color=color.copy(alpha=.7f),fontSize=11.sp)
+                Text("$count "+if(count==1)"channel" else "channels",color=color.copy(alpha=.7f),fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp)
             }
             expanded?.let {Icon(if(it)Icons.Outlined.ExpandMore else if(rtl)Icons.Outlined.ChevronLeft else Icons.Outlined.ChevronRight,null,tint=color,modifier=Modifier.size(16.dp))}
         }

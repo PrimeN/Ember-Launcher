@@ -189,12 +189,12 @@ private fun Line(modifier: Modifier, role: Role = Role.Button, onClick: () -> Un
         role = role,
         // Inset from the panel's edges with round ends, so the bar sits inside the rounded panel.
         modifier = modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 1.dp).onFocusChanged { focused = it.isFocused },
-        radius = 14,
+        radius = app.ember.tv.ui.TvTokens.Shape.Control,
         container = Color.Transparent,
         focusedContainer = FocusBar,
         focusedContent = OnPillColor,
         outline = false,
-        focusedScale = 1f,
+        focusedScale = app.ember.tv.ui.TvTokens.Focus.None,
     ) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 46.dp).padding(start = 14.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),

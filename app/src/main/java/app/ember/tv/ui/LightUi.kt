@@ -348,7 +348,7 @@ private fun WeatherDayRow(day: app.ember.tv.weather.WeatherDay, modifier: Modifi
         if (date == java.time.LocalDate.now()) "Today" else date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale) + " " + date.dayOfMonth
     } }.getOrDefault(day.date) }
     // Focusable so the remote can move through the days; nothing happens on OK.
-    Focusable(onClick = {}, modifier = modifier.fillMaxWidth(), radius = 12, container = Panel, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = 1f) {
+    Focusable(onClick = {}, modifier = modifier.fillMaxWidth(), radius = app.ember.tv.ui.TvTokens.Shape.Card, container = Panel, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(label, Modifier.width(64.dp), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text(app.ember.tv.weather.Weather.describe(day.code), Modifier.weight(1f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -364,14 +364,14 @@ private fun Modifier.lightArrows(onUp: (() -> Unit)? = null, onDown: (() -> Unit
 
 @Composable
 private fun LightIcon(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Focusable(onClick, modifier.size(36.dp).semantics { contentDescription = label }, radius = 18, container = Color.White.copy(alpha = .06f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.65f), focusedContent = Color(0xFF101722)) {
+    Focusable(onClick, modifier.size(36.dp).semantics { contentDescription = label }, radius = app.ember.tv.ui.TvTokens.Shape.Large, container = Color.White.copy(alpha = .06f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.65f), focusedContent = Color(0xFF101722)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(20.dp)) }
     }
 }
 
 @Composable
 private fun LightButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, onLongClick:(()->Unit)?=null, onClick: () -> Unit) {
-    Focusable(onClick, modifier, onLongClick=onLongClick,radius = 24, container = LocalLightTint.current.copy(alpha=.22f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.7f), focusedContent = Color(0xFF101722)) {
+    Focusable(onClick, modifier, onLongClick=onLongClick,radius = app.ember.tv.ui.TvTokens.Shape.Panel, container = LocalLightTint.current.copy(alpha=.22f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.7f), focusedContent = Color(0xFF101722)) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, Modifier.size(19.dp)); Text(label, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -386,7 +386,7 @@ private fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, lau
     Column(modifier.width(grid.width.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Focusable(onClick, Modifier.fillMaxWidth().height(grid.height.dp).onFocusChanged { focused = it.isFocused }.graphicsLayer {
             scaleX = scale; scaleY = scale; translationY = if (focused && millis > 0) -3.dp.toPx() else 0f
-        }, onLongClick = onLongClick, radius = grid.radius.toInt().coerceAtLeast(2), container = Color(0xFF262C3C), focusedScale = 1f) {
+        }, onLongClick = onLongClick, radius = grid.radius.toInt().coerceAtLeast(2), container = Color(0xFF262C3C), focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
             if (bitmap != null) Image(bitmap.asImageBitmap(), app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Apps, app.label, Modifier.size(30.dp)) }
         }
@@ -397,7 +397,7 @@ private fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, lau
 @Composable
 private fun LightFolderTile(grid: LightLayout.Grid, modifier: Modifier = Modifier, label:String="More Apps", open: () -> Unit) {
     Column(modifier.width(grid.width.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Focusable(open, Modifier.fillMaxWidth().height(grid.height.dp), radius = 12, container = Color(0x325B668A)) {
+        Focusable(open, Modifier.fillMaxWidth().height(grid.height.dp), radius = app.ember.tv.ui.TvTokens.Shape.Card, container = Color(0x325B668A)) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Folder, label, Modifier.size(32.dp)) }
         }
         Text(label, fontSize = 13.sp, color = Color.White)

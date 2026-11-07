@@ -339,7 +339,7 @@ private fun TabBar(s: ControlsState, modifier: Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Image(icon, null, colorFilter = ColorFilter.tint(tint), modifier = Modifier.size(16.dp))
-                Text(label, fontSize = 11.sp, color = tint)
+                Text(label, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, color = tint)
             }
         }
     }

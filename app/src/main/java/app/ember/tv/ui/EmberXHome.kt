@@ -53,8 +53,8 @@ internal fun EmberXTopBar(tabs:List<String>,current:String,onTab:(String)->Unit,
                             down=navigation.content(current)
                         }
                     }.semantics {this.selected=selected;role=Role.Tab}
-                    .openNavigationTab(id,selected,enabled=id!=NavTabs.SETTINGS){onTab(id)},radius=4,container=Color.Transparent,
-                    focusedContainer=EmberXColors.Selected,focusedContent=Color.White,outline=false,focusedScale=1f) {
+                    .openNavigationTab(id,selected,enabled=id!=NavTabs.SETTINGS){onTab(id)},radius=app.ember.tv.ui.TvTokens.Shape.Tight,container=Color.Transparent,
+                    focusedContainer=EmberXColors.Selected,focusedContent=Color.White,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
                     Column(Modifier.height(42.dp).padding(horizontal=9.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally) {
                         Text(tabTitle(id),fontSize=14.sp,fontWeight=if(selected)FontWeight.Bold else FontWeight.Medium,
                             color=if(selected)Color.White else EmberXColors.Secondary,maxLines=1)
@@ -97,8 +97,8 @@ internal fun EmberXHero(items:List<Meta>,index:Int,onIndex:(Int)->Unit,height:an
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(if(large).86f else .53f).padding(top=24.dp,bottom=38.dp),
             verticalArrangement=Arrangement.spacedBy(9.dp)) {
             Row(horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-                Text("EMBER X",color=EmberXColors.Accent,fontWeight=FontWeight.Bold,fontSize=10.sp,letterSpacing=1.sp)
-                Text(if(meta.type=="movie")"FILM" else "SERIES",color=EmberXColors.Secondary,fontSize=10.sp,letterSpacing=1.sp)
+                Text("EMBER X",color=EmberXColors.Accent,fontWeight=FontWeight.Bold,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,letterSpacing=1.sp)
+                Text(if(meta.type=="movie")"FILM" else "SERIES",color=EmberXColors.Secondary,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,letterSpacing=1.sp)
             }
             HeroTitle(meta,expanded=true)
             Text(listOfNotNull(meta.releaseInfo,meta.runtime,meta.ageRating,meta.genres?.take(3)?.joinToString(" · ")).joinToString("   "),

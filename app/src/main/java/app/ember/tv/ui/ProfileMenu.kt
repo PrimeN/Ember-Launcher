@@ -68,7 +68,7 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
                 measurer.measure(text, androidx.compose.ui.text.TextStyle(fontSize = size, fontWeight = weight), softWrap = false, maxLines = 1).size.width.toDp()
             val avatars = MenuSizing.profileAvatarStripWidth(menu?.profiles?.size ?: 1)
             val actions = menu?.actions?.maxOfOrNull { width(it.label, 13.sp, FontWeight.Medium) + 46.dp } ?: 0.dp
-            val header = maxOf(width("Who's watching?", 13.sp, FontWeight.SemiBold), width(currentLine, 11.sp, FontWeight.Normal).coerceAtMost(160.dp))
+            val header = maxOf(width("Who's watching?", 13.sp, FontWeight.SemiBold), width(currentLine, app.ember.tv.ui.TvTokens.Type.Caption.sp, FontWeight.Normal).coerceAtMost(160.dp))
             MenuSizing.profileMenuWidth(maxOf(avatars, actions, header) + 20.dp + 8.dp, availableWidth, fontScale)
         }
     }
@@ -134,7 +134,7 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
                                             if (!active) menu.onSwitch(p.id)
                                         }
                                     }
-                                    Text(p.name, color = Fg, fontSize = 11.sp, maxLines = 1, softWrap = false,
+                                    Text(p.name, color = Fg, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, maxLines = 1, softWrap = false,
                                         overflow = TextOverflow.Ellipsis)
                                 }
                             } }
@@ -142,15 +142,15 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
                                 verticalArrangement = Arrangement.spacedBy(9.dp)) {
                                 Focusable(onClick = { close(false); menu.onAction(ProfileMenuAction.PROFILES) },
                                     modifier = Modifier.size(36.dp).semantics { contentDescription = "Add or manage profiles" },
-                                    radius = 50, container = WashHi, focusedContainer = PillColor, focusedContent=OnPillColor, focusedScale = 1.05f) {
+                                    radius = app.ember.tv.ui.TvTokens.Shape.Pill, container = WashHi, focusedContainer = PillColor, focusedContent=OnPillColor, focusedScale = app.ember.tv.ui.TvTokens.Focus.Control) {
                                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                         MaterialGlyph(Icons.Outlined.PersonAdd, androidx.tv.material3.LocalContentColor.current)
                                     }
                                 }
-                                Text("Add", color = Fg, fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                                Text("Add", color = Fg, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                             }
                         }
-                        Text(currentLine, color = Mute, fontSize = 11.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                        Text(currentLine, color = Mute, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                         menu.actions.forEach { action -> key(action) {
                             ProfileMenuRow(action) { close(false); menu.onAction(action) }
                         } }

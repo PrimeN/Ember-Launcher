@@ -151,7 +151,7 @@ internal fun ProfileColorPicker(selected:Int,onSelect:(Int)->Unit) {
                             contentDescription=label
                             this.selected=index==current
                         },role=Role.RadioButton,radius=TvTokens.Shape.Pill,
-                        container=color,focusedContainer=color,focusedContent=readablePillText(color),focusedScale=1.08f) {
+                        container=color,focusedContainer=color,focusedContent=readablePillText(color),focusedScale=app.ember.tv.ui.TvTokens.Focus.Round) {
                         Box(Modifier.size(44.dp),contentAlignment=Alignment.Center) {
                             if(index==current)MaterialGlyph(Icons.Outlined.Check,readablePillText(color),22.dp)
                         }

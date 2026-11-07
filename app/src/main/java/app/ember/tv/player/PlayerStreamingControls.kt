@@ -209,7 +209,7 @@ private fun DropUp(name: String, current: String, open: Boolean, button: FocusRe
 private fun DropRow(text: String, selected: Boolean, onFocus: (Boolean) -> Unit, modifier: Modifier = Modifier, dim: Boolean = false, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp).onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) },
-        radius = 4, container = Color.Transparent, focusedContainer = Color.White, focusedContent = Color.Black, outline = false, focusedScale = 1f) {
+        radius = app.ember.tv.ui.TvTokens.Shape.Tight, container = Color.Transparent, focusedContainer = Color.White, focusedContent = Color.Black, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(18.dp)) {
                 if (selected) Image(Icons.Outlined.Check, null, colorFilter = ColorFilter.tint(if (focused) Color.Black else Color.White), modifier = Modifier.fillMaxSize())
@@ -229,8 +229,8 @@ private fun StreamingIcon(icon: ImageVector, name: String, onLabel: ((String?) -
         val was = focused
         focused = it.isFocused
         if (it.isFocused) onLabel?.invoke(name) else if (was) onLabel?.invoke(null)
-    }, radius = 50, container = Color.Transparent, focusedContainer = Color.White.copy(alpha = .92f), focusedContent = Color.Black,
-        outline = false, focusedScale = 1.06f) {
+    }, radius = app.ember.tv.ui.TvTokens.Shape.Pill, container = Color.Transparent, focusedContainer = Color.White.copy(alpha = .92f), focusedContent = Color.Black,
+        outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.Round) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Image(icon, name, colorFilter = ColorFilter.tint(if (focused) Color.Black else Color.White), modifier = Modifier.size(size * .62f))
         }
@@ -242,7 +242,7 @@ private fun StreamingIcon(icon: ImageVector, name: String, onLabel: ((String?) -
 private fun StreamingChip(text: String, modifier: Modifier = Modifier, arrow: String? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Focusable(onClick = onClick, modifier = modifier.heightIn(min = 40.dp).widthIn(max = 420.dp).onFocusChanged { focused = it.isFocused },
-        radius = 4, container = Color.White.copy(alpha = .16f), focusedContainer = Color.White, focusedContent = Color.Black, outline = false, focusedScale = 1f) {
+        radius = app.ember.tv.ui.TvTokens.Shape.Tight, container = Color.White.copy(alpha = .16f), focusedContainer = Color.White, focusedContent = Color.Black, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (focused) Color.Black else Color.White, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
@@ -255,8 +255,8 @@ private fun StreamingChip(text: String, modifier: Modifier = Modifier, arrow: St
 @Composable
 private fun StreamingSquare(icon: ImageVector, name: String, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Focusable(onClick = onClick, modifier = Modifier.size(40.dp).onFocusChanged { focused = it.isFocused }, radius = 4,
-        container = Color.White.copy(alpha = .16f), focusedContainer = Color.White, focusedContent = Color.Black, outline = false, focusedScale = 1f) {
+    Focusable(onClick = onClick, modifier = Modifier.size(40.dp).onFocusChanged { focused = it.isFocused }, radius = app.ember.tv.ui.TvTokens.Shape.Tight,
+        container = Color.White.copy(alpha = .16f), focusedContainer = Color.White, focusedContent = Color.Black, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
         Box(Modifier.fillMaxSize().background(Color.Transparent, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
             Image(icon, name, colorFilter = ColorFilter.tint(if (focused) Color.Black else Color.White), modifier = Modifier.size(22.dp))
         }

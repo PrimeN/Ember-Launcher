@@ -184,7 +184,7 @@ internal fun ChannelRow(
             if (favourite) stateDescription = "Favourite"
             nowNext.first?.let { p -> progressBarRangeInfo = ProgressBarRangeInfo(((clock - p.start).toFloat() / (p.stop - p.start).coerceAtLeast(1)).coerceIn(0f, 1f), 0f..1f) }
         }.onFocusChanged { if (it.isFocused) onFocus() },
-        radius = 12,
+        radius = app.ember.tv.ui.TvTokens.Shape.Card,
     ) {
         Row(Modifier.clearAndSetSemantics { }.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(c.number?.toString() ?: "", color = Mute, fontSize = 13.sp, modifier = Modifier.width(36.dp))

@@ -310,7 +310,7 @@ private fun IconButton(icon: ImageVector, label: String, big: Boolean = false, m
     var focused by remember { mutableStateOf(false) }
     val size = if(big && isEmberX)56.dp else if (big) 48.dp else 40.dp
     Focusable(onClick=onClick,modifier=modifier.size(size).onFocusChanged {focused=it.isFocused},
-        radius=50,container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=1.08f) {
+        radius=app.ember.tv.ui.TvTokens.Shape.Pill,container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.Round) {
         // Focused: the white focus fill shows as designed; the glass returns when focus leaves (#39).
         Box(Modifier.fillMaxSize().navigationGlass(CircleShape,focused=focused),contentAlignment=Alignment.Center) {
             Image(icon,contentDescription=label,colorFilter=ColorFilter.tint(if(focused)OnPillColor else Color.White),modifier=Modifier.size(if(big)26.dp else 21.dp))
