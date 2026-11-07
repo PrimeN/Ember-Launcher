@@ -42,9 +42,14 @@ private fun heroSize(options:RenderOptions):Pair<Int,Int> {
  * is reused; only the network queue differs.
  */
 internal object HeroImages {
-    @Volatile private var loader: coil.ImageLoader? = null
-    fun loader(context: android.content.Context): coil.ImageLoader = loader ?: synchronized(this) {
-        loader ?: context.imageLoader.newBuilder().okHttpClient { app.ember.tv.data.Net.heroArtworkClient() }.build().also { loader = it }
+    private var base: coil.ImageLoader? = null
+    private var loader: coil.ImageLoader? = null
+    /** Follows the app's loader, so a replaced one (tests, Clear cache) is never served stale. */
+    @Synchronized fun loader(context: android.content.Context): coil.ImageLoader {
+        val app = context.imageLoader
+        loader?.takeIf { base === app }?.let { return it }
+        return app.newBuilder().okHttpClient { app.ember.tv.data.Net.heroArtworkClient() }.build()
+            .also { base = app; loader = it }
     }
 }
 

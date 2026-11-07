@@ -124,19 +124,35 @@ class FocusArtworkUiTest {
         assertTrue("Captions must stay light over the vivid photo",text.single().layoutInput.style.color.red>.8f)
     }
 
-    @Test fun stalledArtworkKeepsTheSelectedPosterVisibleAndNavigationResponsive() {
+    @Test fun stalledArtworkKeepsTheSelectedWideCardVisibleAndNavigationResponsive() {
         val started=AtomicBoolean(false)
         val pending=CompletableDeferred<Drawable>()
         load={started.set(true);pending.await()}
         val state=FocusBackdropState().apply {
             focus(FocusTile(FocusTileKind.MEDIA,"server-movie","fixture://pending"),
-                FocusTileImage(image(android.graphics.Color.RED,100,150),"card"))
+                FocusTileImage(image(android.graphics.Color.RED,160,90),"card"))
         }
         scene(state,navigation=true)
         compose.waitUntil(5000) {started.get() && shownColor()==android.graphics.Color.RED}
         compose.onRoot().performKeyInput {keyDown(Key.DirectionRight);keyUp(Key.DirectionRight)}
         compose.onNodeWithTag("live").assertIsFocused()
         assertFalse("Navigation must work before artwork completes",pending.isCompleted)
+    }
+
+    @Test fun aPosterIsNotStretchedAcrossTheScreenWhileTheWidePictureLoads() {
+        // #56: a portrait tile picture does not stand in; the tinted background stays.
+        val started=AtomicBoolean(false)
+        val pending=CompletableDeferred<Drawable>()
+        load={started.set(true);pending.await()}
+        val state=FocusBackdropState().apply {
+            focus(FocusTile(FocusTileKind.MEDIA,"poster-only","fixture://pending"),
+                FocusTileImage(image(android.graphics.Color.RED,100,150),"card"))
+        }
+        scene(state)
+        compose.waitUntil(5000) {started.get()}
+        compose.runOnIdle {assertNull(published.get()?.drawable)}
+        pending.complete(image(android.graphics.Color.BLUE))
+        awaitColor(android.graphics.Color.BLUE)
     }
 
     @Test fun aLateImageCannotReplaceTheNewSelection() {
