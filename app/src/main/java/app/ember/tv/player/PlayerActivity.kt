@@ -343,6 +343,8 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        // A dialog still showing would leak its window when the player closes (#77).
+        leaveDialog?.let { runCatching { it.dismiss() } }; leaveDialog = null
         getSharedPreferences("ember",MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(contentProfileListener)
         handler.removeCallbacks(closeKept)
         handler.removeCallbacks(hideLiveBanner)
