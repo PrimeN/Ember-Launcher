@@ -27,6 +27,9 @@ data class AddonInfo(
     /** The manifest's "id" (e.g. org.kris.ultra.max.v5); Collections name addons by it. */
     val manifestId: String? = null,
 ) {
+    /** Short on purpose (#50): the default repeats every catalog's raw JSON, and catalogs repeat it again. */
+    override fun toString() = "AddonInfo($name, $url, ${catalogs.size} catalogs)"
+
     /** Resource names this addon serves, e.g. catalog, meta, stream, subtitles. */
     val provides: List<String> get() = (resources.map { it.name } + if (catalogs.isNotEmpty()) listOf("catalog") else emptyList()).distinct()
 

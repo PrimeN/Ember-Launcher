@@ -139,7 +139,7 @@ class CatalogsState(
     /** Every catalog of every addon, in the user's order. */
     var allCatalogs by mutableStateOf<List<CatalogDef>>(emptyList())
     internal fun updateIconConfiguration() = app.ember.tv.ui.IconArtworkCache.configuration("catalogs",
-        listOf(allCatalogs, prefs.catalogNames, catalogHome, catalogDiscoverOff, catalogLive).toString())
+        app.ember.tv.data.CatalogIconSignature.of(allCatalogs, prefs.catalogNames, catalogHome, catalogDiscoverOff, catalogLive))
     var catalogHome by mutableStateOf(prefs.catalogHome)
     var catalogDiscoverOff by mutableStateOf(prefs.catalogDiscoverOff)
     /** Catalogs on Home unless switched off: the first six usable ones of each addon, as before. */
