@@ -55,10 +55,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LocalFireDepartment as IcEmberIcon
 import androidx.compose.material.icons.outlined.Settings as IcSettingsIcon
 import androidx.compose.material.icons.outlined.PlayArrow as IcPlayIconVector
 import androidx.compose.material.icons.outlined.Wifi as IcWifiIcon
@@ -106,27 +107,28 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                             .verticalScroll(rememberMenuScrollState())
                             .padding(bottom = 20.dp),
                     ) {
-                        // ---- header: who is watching, time ----
+                        // ---- header: date and time on the left; Ember, the TV's settings and the
+                        // profile on the right, like the TV's own panel (#59) ----
                         Row(
-                            Modifier.fillMaxWidth().background(FloatingPanelStyle.header).padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            Modifier.fillMaxWidth().background(FloatingPanelStyle.header).padding(start = 22.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
+                            verticalAlignment = Alignment.Top,
                         ) {
-                            if (vm.profiles.all.size > 1) {
-                                val p = vm.profiles.profile
-                                Box(
-                                    Modifier.size(40.dp).clip(CircleShape)
-                                        .background(Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })),
-                                    contentAlignment = Alignment.Center,
-                                ) { Text(p.name.take(1).uppercase(), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F)) }
+                            Column(Modifier.weight(1f).padding(top = 4.dp)) {
+                                Text(info.date, fontSize = 15.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(info.time, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             }
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.ui_quick_settings), fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
-                                if (vm.profiles.all.size > 1) Text(vm.profiles.profile.name, fontSize = 14.sp, color = Fg)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(info.time, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                                Text(info.date, fontSize = TvTokens.Type.Caption.sp, color = Mute)
+                            val p = vm.profiles.profile
+                            HeaderButton(stringResource(R.string.ui_ember_settings), if (onReturn == null) Modifier.focusRequester(first) else Modifier,
+                                onClick = { onClose(); onSettings() }) { EmberMark(26.dp) }
+                            HeaderButton(stringResource(R.string.ui_qs_tv_settings), onClick = {
+                                onClose(); vm.openSettingsGuarded { QuickActions.open(context, Settings.ACTION_SETTINGS) }
+                            }) { androidx.tv.material3.Icon(IcSettings, contentDescription = null, modifier = Modifier.size(24.dp)) }
+                            HeaderButton(if (vm.profiles.all.size > 1) "${p.name} · switch" else p.name, onClick = {
+                                onClose()
+                                if (vm.profiles.all.size > 1) vm.profiles.showProfilePicker = true
+                                else vm.openSettingsPage(SettingsTab.PROFILES.name)
+                            }, filled = Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })) {
+                                Text(p.name.take(1).uppercase(), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
                             }
                         }
 
@@ -141,8 +143,6 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                         val back = onReturn?.let { (title, go) -> Tile("Back to $title", "Continue where you stopped", IcPlayIcon, Modifier.focusRequester(first), highlight = true) { onClose(); go() } }
                         Tiles(
                             listOfNotNull(back) + listOf(
-                                Tile(stringResource(R.string.ui_ember_settings), "Look, Home, player, addons", IcEmber, if (back == null) Modifier.focusRequester(first) else Modifier, highlight = true) { onClose(); onSettings() },
-                                Tile(stringResource(R.string.ui_qs_tv_settings), "The TV's own settings", IcSettings, highlight = true) { tv(Settings.ACTION_SETTINGS) },
                                 Tile(stringResource(R.string.ui_network), info.networkShort, if (info.ethernet) IcEthernet else IcWifi) { tv(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) },
                                 Tile(stringResource(R.string.ui_qs_picture), info.displayShort, IcTv) {
                                     val menu = firmwareMenus.firstOrNull { it.kind == app.ember.tv.device.DeviceMenuKind.PICTURE }
@@ -231,6 +231,26 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
     if (audioPicker) AudioOutputDialog { audioPicker = false }
 }
 
+/**
+ * A round button in the panel's header. Its name shows underneath while it is focused, like the
+ * TV's own panel; the space is kept so the row never jumps.
+ */
+@Composable
+private fun HeaderButton(label: String, modifier: Modifier = Modifier, filled: Color? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Column(Modifier.width(76.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Focusable(onClick = onClick,
+            modifier = modifier.size(48.dp).onFocusChanged { focused = it.isFocused }
+                .semantics { contentDescription = label },
+            radius = TvTokens.Shape.Pill, container = filled ?: WashHi,
+            focusedContainer = filled ?: PillColor, focusedContent = OnPillColor, outline = filled != null, focusedScale = TvTokens.Focus.Round) {
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { icon() }
+        }
+        Text(if (focused) label else "", fontSize = TvTokens.Type.Caption.sp, color = Fg, maxLines = 2,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp).heightIn(min = 30.dp))
+    }
+}
+
 private class Tile(
     val title: String,
     val note: String?,
@@ -290,7 +310,6 @@ private fun Heading(text: String, accent: Color) {
     Text(text, color = accent, fontSize = 14.sp, modifier = Modifier.padding(start = 28.dp, top = 14.dp, bottom = 2.dp))
 }
 
-private val IcEmber get() = Icons.Outlined.IcEmberIcon
 private val IcPlayIcon get() = Icons.Outlined.IcPlayIconVector
 private val IcSettings get() = Icons.Outlined.IcSettingsIcon
 private val IcWifi get() = Icons.Outlined.IcWifiIcon
