@@ -80,6 +80,7 @@ import app.ember.tv.tracker.TrackerHub
 import app.ember.tv.tracker.arr
 import app.ember.tv.tracker.bool
 import app.ember.tv.tracker.list
+import app.ember.tv.tracker.obj
 import app.ember.tv.tracker.str
 import app.ember.tv.ui.FocusMemory
 import app.ember.tv.ui.Ui
@@ -134,7 +135,7 @@ class TitleState(
 
     fun retrySource(url: String) {
         val d = details ?: return
-        loadStreams(d.meta.addonType, d.episode?.id ?: d.meta.lookupId, only = url)
+        loadStreams(d.meta.addonType, d.episode?.id ?: directVideoId ?: d.meta.lookupId, only = url)
     }
 
     fun retrySources() {
@@ -144,15 +145,26 @@ class TitleState(
             (d.episode?.serverRef ?: d.meta.serverRef)?.let(::loadNativeSources)
             return
         }
-        if (d.meta.type != "movie" && d.episode == null) openDetails(d.meta, fromServer = pinnedServer != null)
+        if (!d.meta.playsDirectly && d.episode == null && directVideoId == null) openDetails(d.meta, fromServer = pinnedServer != null)
         else {
             loadOffers(d.meta)
-            loadStreams(d.meta.addonType, d.episode?.id ?: d.meta.lookupId, retainResults = true)
+            loadStreams(d.meta.addonType, d.episode?.id ?: directVideoId ?: d.meta.lookupId, retainResults = true)
         }
     }
 
-    /** Stremio content types: "movie" or "series". Anime is listed as series. */
-    private val Meta.addonType: String get() = if (type == "movie") "movie" else "series"
+    /**
+     * The Stremio type addons are asked with: "movie", a live type ("tv", "channel", "events") as
+     * given (#70), otherwise "series" (anime is listed as series).
+     */
+    private val Meta.addonType: String get() = when {
+        type == "movie" -> "movie"
+        type.lowercase(java.util.Locale.ROOT) in LIVE_TYPES -> type
+        else -> "series"
+    }
+    /** One playable item, not a show with episodes: movies and live channels or events. */
+    private val Meta.playsDirectly: Boolean get() = type == "movie" || type.lowercase(java.util.Locale.ROOT) in LIVE_TYPES
+    /** The meta's behaviorHints.defaultVideoId: the video Stremio plays for it (#70). */
+    private var directVideoId: String? = null
 
     /** IMDb id when known, otherwise the addon's own id (e.g. kitsu:123). */
     private val Meta.lookupId: String get() = imdb ?: id
@@ -238,8 +250,9 @@ class TitleState(
             }
             return
         }
-        details = DetailsUi(meta = meta, loadingEpisodes = meta.type != "movie",
-            loadingStreams = meta.type == "movie", loadingOffers = watch().whereToWatchReady)
+        directVideoId = null
+        details = DetailsUi(meta = meta, loadingEpisodes = !meta.playsDirectly,
+            loadingStreams = meta.playsDirectly, loadingOffers = watch().whereToWatchReady)
         detailsJob = visit.scope.launch {
             // TMDB-only titles (Hidden gems) need an IMDb id before addons can find them.
             @Suppress("NAME_SHADOWING")
@@ -257,6 +270,7 @@ class TitleState(
             var addonImdbRating: String? = null
             if (metaAddon != null) {
                 val fetched = runCatching { client.meta(metaAddon, type, id) }.getOrNull()
+                directVideoId = fetched?.first.obj("behaviorHints").str("defaultVideoId")?.takeIf { it.isNotBlank() && it != id }
                 // runCatching also swallows cancellation; stop here if another title was opened meanwhile.
                 ensureActive()
                 if (details?.meta?.id != meta.id) return@launch
@@ -281,10 +295,10 @@ class TitleState(
             }
 
             loadRatings(full, addonImdbRating)
-            if (type == "movie") {
-                details = details?.copy(meta = full, loadingEpisodes = false)
+            if (meta.playsDirectly || (episodes.isEmpty() && directVideoId != null)) {
+                details = details?.copy(meta = full, loadingEpisodes = false, loadingStreams = true)
                 enhanceMeta(full)
-                loadStreams(type, id)
+                loadStreams(type, directVideoId ?: id)
                 return@launch
             }
             if (episodes.isEmpty()) {
@@ -350,7 +364,7 @@ class TitleState(
     private fun loadNativeAddons() {
         val d = details ?: return
         val imdb = d.meta.imdb ?: return
-        if (d.meta.type != "movie" && d.meta.episode == null && d.episode == null) return
+        if (!d.meta.playsDirectly && d.meta.episode == null && d.episode == null) return
         val season = d.episode?.season ?: d.meta.season
         val episode = d.episode?.episode ?: d.meta.episode
         val id = if (season != null && episode != null) "$imdb:$season:$episode" else imdb
@@ -623,3 +637,6 @@ class TitleState(
     }
 
 }
+
+/** Stremio's live content types; played as one item with their own type (#70). */
+private val LIVE_TYPES = setOf("tv", "channel", "channels", "events")
