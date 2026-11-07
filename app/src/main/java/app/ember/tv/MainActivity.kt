@@ -582,6 +582,11 @@ private fun Root(
             (navigation.startup.established || app.ember.tv.ui.Ui.light || tab==NavTabs.SETTINGS || vm.details!=null || startupDialog))
             startup.controlsReady()
     }
+    // Home never waits behind the startup curtain for more than a moment after its first frame (#33),
+    // whatever the focus handoff is doing.
+    LaunchedEffect(startup.frameShown) {
+        if(startup.frameShown && !startup.ready) {kotlinx.coroutines.delay(app.ember.tv.state.StartupPresentation.MAX_CURTAIN_MS);startup.revealForInput()}
+    }
     LaunchedEffect(vm.profiles.profileId,app.ember.tv.data.WatchedStore.version,lifecycle) {
         if(lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))vm.reloadWatched()
     }

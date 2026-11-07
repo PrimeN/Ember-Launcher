@@ -18,4 +18,9 @@ internal class StartupPresentation {
     fun controlsReady() {if(frameShown)advance(StartupStage.READY)}
     /** A deliberate key can reveal the laid-out Home before the automatic focus handoff completes. */
     fun revealForInput() {if(frameShown)advance(StartupStage.READY)}
+
+    companion object {
+        /** The longest the curtain stays once Home has drawn its first frame (#33). */
+        const val MAX_CURTAIN_MS=2_000L
+    }
 }

@@ -32,7 +32,15 @@ internal class InitialNavigationFocusState {
         return try {runCatching(request).getOrDefault(false).also {if(it)established=true}}
         finally {requesting=false}
     }
+    /**
+     * The preferred target never took focus (#33): stop retrying and let ordinary focus search
+     * and queued presses carry on from wherever focus is, instead of asking on every frame forever.
+     */
+    fun giveUp() {established=true}
 }
+
+/** About two seconds at 60 fps: plenty for the first interactive layout, short enough to never spin. */
+internal const val MAX_STARTUP_FOCUS_FRAMES=120
 
 /** Directional entry can wait for a placed target without losing the originating key. */
 internal fun Modifier.initialNavigationFocusGroup(state:InitialNavigationFocusState,ready:()->Boolean,
@@ -70,12 +78,14 @@ internal fun Modifier.initialNavigationFocus(owner:NavigationFocus,tab:String,en
             if(owner.startup.established && pending.size==0)return@collect
             // A placed target can reject focus before the first interactive layout is ready.
             // Retry on frames, independently of artwork completion or another button press.
+            var frames=0
             while(!owner.startup.established && active && owner.tabReady(currentTab)) {
                 withFrameNanos { }
                 if(!active || !owner.tabReady(currentTab))break
                 owner.startup.ensure(true, owner.focusedTab == currentTab || owner.focusedTab == null && focused && owner.preferred(currentTab) != null) {
                     owner.tab(currentTab).requestFocus() && owner.focusedTab == currentTab
                 }
+                if(!owner.startup.established && ++frames>=MAX_STARTUP_FOCUS_FRAMES) {owner.startup.giveUp();break}
             }
             if(!owner.startup.established)return@collect
             while(pending.size>0) {
