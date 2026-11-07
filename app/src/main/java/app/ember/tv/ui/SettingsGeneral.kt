@@ -152,6 +152,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         SettingsTab.APPEARANCE -> buildList {
             add("interface"); add("theme"); add("accent_colour")
             if (active == "modern") add("menu")
+            add("tile-labels")
             add("settings_style")
         }
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
@@ -177,6 +178,17 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.appearancePage(vm: H
 @Composable
 private fun AppearancePart(vm: HomeViewModel, key: String) {
     when (key) {
+        "tile-labels" -> Section("Labels under tiles", "Turn off a kind to remove its text under the tiles. Names are still read out by accessibility services.", id = "tile-labels") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                app.ember.tv.data.TileLabels.choices.forEach { (kind, label) ->
+                    ToggleRow(label, when (kind) {
+                        app.ember.tv.data.TileLabels.APPS -> "App names under app icons and folders"
+                        app.ember.tv.data.TileLabels.MEDIA -> "Titles and progress under movie and show cards"
+                        else -> "Folder names under collection tiles"
+                    }, kind !in vm.look.tileLabelsOff) { vm.look.toggleTileLabel(kind) }
+                }
+            }
+        }
         "card-focus" -> Section("Card focus effects","For apps and media cards. Low-performance devices and reduced motion keep a static focus cue.",id="card-focus") {
             ButtonRow {app.ember.tv.data.CardFocusStyle.choices.forEach {(id,label)->Chip(label,selected=vm.look.cardFocusStyle==id){vm.look.updateCardFocusStyle(id)}}}
         }

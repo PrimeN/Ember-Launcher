@@ -60,6 +60,10 @@ class Prefs(context: Context) {
     var blurUnwatchedEpisodes:Boolean
         get()=runCatching {sp.read(PreferenceKeys.BLUR_UNWATCHED_EPISODES)}.getOrDefault(false)
         set(value)=sp.edit {putBoolean(PreferenceKeys.BLUR_UNWATCHED_EPISODES.name,value)}
+    var tileLabelsOff: Set<String>
+        get() = sp.read(PreferenceKeys.TILE_LABELS_OFF).filter { it in TileLabels.kinds }.toSet()
+        set(v) = sp.edit { putStringSet(PreferenceKeys.TILE_LABELS_OFF.name, v.filter { it in TileLabels.kinds }.toSet()) }
+
     var cardFocusStyle:String
         get()=runCatching {CardFocusStyle.normalize(sp.read(PreferenceKeys.CARD_FOCUS_STYLE))}.getOrDefault(CardFocusStyle.SUBTLE)
         set(value)=sp.edit {putString(PreferenceKeys.CARD_FOCUS_STYLE.name,CardFocusStyle.normalize(value))}

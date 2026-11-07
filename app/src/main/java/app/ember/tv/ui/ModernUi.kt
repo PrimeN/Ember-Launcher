@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.TileLabels
+
 import app.ember.tv.isSaved
 import app.ember.tv.resumeLabel
 import app.ember.tv.toggleWatchlist
@@ -609,8 +611,9 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
                 }
             }
         }
-        // Details under the focused card only; the space is kept so rows do not jump.
-        Text(
+        // Details under the focused card only; the space is kept so rows do not jump, unless
+        // Labels under tiles > Titles is off (#43).
+        if (tileLabelShown(TileLabels.MEDIA)) Text(
             if (focused) meta.resumeLabel() ?: listOfNotNull(meta.releaseInfo, meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }).joinToString(" · ") else "",
             fontSize = 12.sp,
             color = Mute,
@@ -666,7 +669,7 @@ fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFoc
             if(bitmap!=null)Image(bitmap.asImageBitmap(), contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
             else ArtworkPlaceholder(app.label,Modifier.fillMaxSize())
         }
-        Text(
+        if (tileLabelShown(TileLabels.APPS)) Text(
             if (focused) app.label else "",
             fontSize = 12.sp,
             color = Fg,

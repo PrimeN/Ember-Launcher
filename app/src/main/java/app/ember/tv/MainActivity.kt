@@ -599,6 +599,7 @@ private fun Root(
         app.ember.tv.ui.LocalTitleActions provides { titleActions = it },
         app.ember.tv.ui.LocalReduceMotion provides reduced,
         app.ember.tv.ui.LocalRenderOptions provides renderOptions,
+        app.ember.tv.ui.LocalTileLabelsOff provides vm.look.tileLabelsOff,
         app.ember.tv.ui.LocalHeroArtworkMode provides vm.look.heroArtworkMode,
         app.ember.tv.ui.LocalGlassBitmap provides glassBitmap.bitmap,
         app.ember.tv.ui.LocalGlassPreblurred provides glassBitmap.preblurred,

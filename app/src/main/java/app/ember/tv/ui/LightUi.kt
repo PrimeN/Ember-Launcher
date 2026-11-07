@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.TileLabels
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
@@ -390,7 +392,7 @@ private fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, lau
             if (bitmap != null) Image(bitmap.asImageBitmap(), app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Apps, app.label, Modifier.size(30.dp)) }
         }
-        Text(app.label, color = Color.White.copy(alpha = if (focused) 1f else .75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (tileLabelShown(TileLabels.APPS)) Text(app.label, color = Color.White.copy(alpha = if (focused) 1f else .75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -400,7 +402,7 @@ private fun LightFolderTile(grid: LightLayout.Grid, modifier: Modifier = Modifie
         Focusable(open, Modifier.fillMaxWidth().height(grid.height.dp), radius = TvTokens.Shape.Card, container = Color(0x325B668A)) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Folder, label, Modifier.size(32.dp)) }
         }
-        Text(label, fontSize = 13.sp, color = Color.White)
+        if (tileLabelShown(TileLabels.APPS)) Text(label, fontSize = 13.sp, color = Color.White)
     }
 }
 

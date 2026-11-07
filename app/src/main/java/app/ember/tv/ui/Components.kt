@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.TileLabels
+
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
@@ -336,8 +338,10 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
                 }
             }
         }
-        Text(meta.name, fontSize = if (width < 120.dp) 12.sp else 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { })
-        (meta.resumeLabel() ?: meta.badge)?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { }) }
+        // Labels under tiles > Titles (#43): off removes the title and its line; the card keeps
+        // its spoken name through mediaSemantics.
+        if (tileLabelShown(TileLabels.MEDIA)) Text(meta.name, fontSize = if (width < 120.dp) 12.sp else 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { })
+        if (tileLabelShown(TileLabels.MEDIA)) (meta.resumeLabel() ?: meta.badge)?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { }) }
     }
 }
 

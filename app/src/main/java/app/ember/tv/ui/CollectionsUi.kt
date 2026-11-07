@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.TileLabels
+
 import app.ember.tv.isSaved
 
 import androidx.compose.ui.res.stringResource
@@ -122,7 +124,7 @@ private fun FolderTile(f: CollectionFolder, size: Pair<Dp, Dp>, glow: Boolean, a
                 CollectionMediaPreview(preview, motion, Modifier.fillMaxSize())
             }
         }
-        if (!f.hideTitle) Text(f.title, fontSize = TvTokens.Type.Card.sp, color = if (focused) Fg else Mute, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+        if (!f.hideTitle && tileLabelShown(TileLabels.COLLECTIONS)) Text(f.title, fontSize = TvTokens.Type.Card.sp, color = if (focused) Fg else Mute, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
     }
 }
 

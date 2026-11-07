@@ -21,6 +21,8 @@ class LookState(
     var showWatchedBadges by mutableStateOf(prefs.showWatchedBadges);private set
     var blurUnwatchedEpisodes by mutableStateOf(prefs.blurUnwatchedEpisodes);private set
     var cardFocusStyle by mutableStateOf(prefs.cardFocusStyle);private set
+    var tileLabelsOff by mutableStateOf(prefs.tileLabelsOff);private set
+    fun toggleTileLabel(kind:String){tileLabelsOff=app.ember.tv.data.TileLabels.toggle(tileLabelsOff,kind);prefs.tileLabelsOff=tileLabelsOff}
     fun updateShowWatchedBadges(value:Boolean){showWatchedBadges=value;prefs.showWatchedBadges=value}
     fun updateBlurUnwatchedEpisodes(value:Boolean){blurUnwatchedEpisodes=value;prefs.blurUnwatchedEpisodes=value}
     fun updateCardFocusStyle(value:String){cardFocusStyle=app.ember.tv.data.CardFocusStyle.normalize(value);prefs.cardFocusStyle=cardFocusStyle}
