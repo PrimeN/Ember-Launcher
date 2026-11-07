@@ -2,6 +2,7 @@ package app.ember.tv.tracker
 
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import android.content.Context
@@ -38,6 +39,8 @@ abstract class TraktLikeTracker(
     private val clientSecret: String get() = ApiKeys.get(clientSecretKey)
 
     protected open val requiresClientSecret = false
+    /** A TV app is a public client: WeTrakr wants no client_secret at all (a wrong one burns the code). */
+    protected open val publicClient = false
     override val configured: Boolean
         get() = clientId.isNotBlank() && (!requiresClientSecret || clientSecret.isNotBlank())
 
@@ -76,14 +79,21 @@ abstract class TraktLikeTracker(
                 base + "oauth/device/token",
                 buildJsonObject {
                     put(tokenCodeField, session.deviceCode)
+                    // Clients differ on the field name; sending both costs nothing.
+                    if (tokenCodeField != "code") put("code", session.deviceCode)
                     put("client_id", clientId)
-                    put("client_secret", clientSecret)
+                    if (!publicClient) put("client_secret", clientSecret)
                 },
                 headers(false),
             )
         } catch (e: HttpException) {
             // Pending approval is normal; let the shared poller back off on 429.
             if (e.code == 400) return false
+            // Trakt and WeTrakr share these answers.
+            when (e.code) {
+                404, 409, 410 -> error("The code expired or was already used. Try again.")
+                418 -> error("Sign-in was declined on $name.")
+            }
             throw e
         }
         return saveTokens(r)
@@ -95,6 +105,8 @@ abstract class TraktLikeTracker(
         store.putAll(buildMap {
             put("$id.access",token)
             r.str("refresh_token")?.let {put("$id.refresh",it)}
+            // WeTrakr names the account in the token answer (#85).
+            r.str("username")?.trim()?.takeIf { it.isNotEmpty() }?.let { put("$id.account", "@$it") }
         })
         return true
     }
@@ -124,9 +136,11 @@ abstract class TraktLikeTracker(
                 base + refreshPath,
                 buildJsonObject {
                     put("refresh_token", refresh)
-                    put("client_id", clientId)
-                    put("client_secret", clientSecret)
-                    put("grant_type", "refresh_token")
+                    if (!publicClient) {
+                        put("client_id", clientId)
+                        put("client_secret", clientSecret)
+                        put("grant_type", "refresh_token")
+                    }
                     refreshRedirectUri?.let { put("redirect_uri", it) }
                 },
                 headers(false),
@@ -158,7 +172,17 @@ abstract class TraktLikeTracker(
     protected suspend fun authedPost(path: String, body: JsonObject): JsonElement =
         authorized { Http.post(base + path, body, it) }
 
-    protected suspend fun authedDelete(path: String): JsonElement = authorized { Http.delete(base + path, it) }
+    protected suspend fun authedDelete(path: String, body: JsonObject? = null): JsonElement = authorized { Http.delete(base + path, it, body) }
+
+    /** GET with the response headers, for X-Pagination-* paging. */
+    protected suspend fun authedGetPaged(path: String): Pair<JsonElement, okhttp3.Headers> {
+        var headers: okhttp3.Headers? = null
+        val body = authorized { sent -> Http.getPaged(base + path, sent).also { headers = it.second }.first }
+        return body to (headers ?: okhttp3.Headers.headersOf())
+    }
+
+    /** The saved tokens, for a sign-out that revokes them on the service. */
+    protected fun savedTokens(): Pair<String?, String?> = access() to store.get("$id.refresh")
 
     // ---- watchlist writes ----
     protected open val watchlistAddPath = "sync/watchlist"
@@ -506,14 +530,15 @@ class TraktTracker(context: Context) : TraktLikeTracker(
 }
 
 /**
- * WeTrakr endpoint, header and status mapping.
- * Request and response field names are best guesses and need a real-account test.
+ * WeTrakr (#87, #88), following its published API (api.wetrakr.com), its own Kodi add-on and
+ * NuvioTV's client: Trakt-style device sign-in as a public client, tracking lists by status
+ * (playing, planning, watched), compact pages for history, and Trakt-style scrobbles.
  */
 class WeTrakrTracker(context: Context) : TraktLikeTracker(
     context = context,
     id = "wetrakr",
     name = "WeTrakr",
-    blurb = "Movies, shows and anime: progress and watchlist.",
+    blurb = "Movies and shows: progress, history, ratings and watchlist.",
     base = "https://api.wetrakr.com/",
     clientIdKey = "WETRAKR_CLIENT_ID",
     clientSecretKey = "WETRAKR_CLIENT_SECRET",
@@ -521,50 +546,305 @@ class WeTrakrTracker(context: Context) : TraktLikeTracker(
     versionHeader = "wetrakr-api-version" to "1",
     tokenCodeField = "device_code",
 ) {
-    // WeTrakr tracking-list paths and watchlist status.
+    override val publicClient = true
     override val watchlistAddPath = "sync/tracking"
     override val watchlistRemovePath = "sync/tracking/remove"
-    override val watchlistStatus: String? = "watchlist"
+    override val watchlistStatus: String? = "planning"
 
-    // The old client only removed tracking entries; there is no known playback delete.
-    override val supportsPlaybackRemoval = false
+    private val watchedFile = StampedKeysFile(java.io.File(context.filesDir, "wetrakr_watched.txt"))
+    @Volatile private var watchedCache: Pair<String, Set<String>>? = null
+    private val watchedLock = Mutex()
+    private val ratings = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<JsonElement>>>()
+    /** Scrobble bodies of the Continue watching rows, so one can be removed (DELETE scrobble/playing). */
+    private val playing = java.util.concurrent.ConcurrentHashMap<String, JsonObject>()
 
-    override suspend fun continueWatching(): List<TrackedItem> =
-        authedGet("sync/tracking/in_progress/all?limit=30").list().mapNotNull { row ->
-            val pct = row.obj("playback").int("progress_percent")?.let { it / 100f }
-            val show = row.obj("show")
-            val isMovie = row.str("type") == "movie"
-            val ids = if (show != null && !isMovie) show.get("ids") else (row as? JsonObject)?.get("ids")
-            val s = row.int("season_number")
-            val n = row.int("number")
-            TrackedItem(
-                key = "wetrakr:p:${row.long("id")}",
-                title = show.str("title") ?: "",
-                kind = if (isMovie) Kind.MOVIE else Kind.SHOW,
-                progress = pct,
-                detail = if (s != null && n != null) "S$s · E$n" else null,
-                tmdbId = ids.long("tmdb"),
-                imdbId = ids.str("imdb"),
-                season = s,
-                episode = n,
-                source = name,
-            ).takeIf { it.title.isNotBlank() || it.tmdbId != null }
+    override fun signedOut() {
+        watchedFile.clear()
+        watchedCache = null
+        ratings.clear()
+        playing.clear()
+    }
+
+    /** Signing out also revokes the token on WeTrakr, in the background. */
+    override fun disconnect() {
+        val (access, refresh) = savedTokens()
+        super.disconnect()
+        if (access == null || refresh == null) return
+        background.launch {
+            runCatching {
+                Http.post(base + "oauth/logout", buildJsonObject { put("refresh_token", refresh) },
+                    headers(false) + ("Authorization" to "Bearer $access"))
+            }
         }
+    }
 
-    override suspend fun watchlist(): List<TrackedItem> =
-        authedGet("sync/tracking/watchlist/all?limit=40").list().mapNotNull { row ->
-            val show = row.obj("show")
-            val isMovie = row.str("type") == "movie"
-            val ids = if (show != null && !isMovie) show.get("ids") else (row as? JsonObject)?.get("ids")
-            TrackedItem(
-                key = "wetrakr:w:${row.long("id")}",
-                title = show.str("title") ?: "",
-                kind = if (isMovie) Kind.MOVIE else Kind.SHOW,
-                tmdbId = ids.long("tmdb"),
-                imdbId = ids.str("imdb"),
-                source = name,
-            ).takeIf { it.title.isNotBlank() || it.tmdbId != null }
+    // ---- reads ----
+
+    override suspend fun continueWatching(): List<TrackedItem> = coroutineScope {
+        val movies = async { pages("sync/tracking/playing/movies", "movie_level_1") }
+        val episodes = async { pages("sync/tracking/playing/episodes", "show_level_1,episode_level_1") }
+        val out = weTrakrPlaying(movies.await(), episodes.await(), name)
+        playing.clear()
+        out.forEach { (item, body) -> playing[item.key] = body }
+        out.map { it.first }
+    }
+
+    override suspend fun watchlist(): List<TrackedItem> = coroutineScope {
+        val movies = async { pages("sync/tracking/planning/movies", "movie_level_1") }
+        val shows = async { pages("sync/tracking/planning/shows", "show_level_1") }
+        movies.await().mapNotNull { weTrakrMedia(it, Kind.MOVIE, "wetrakr:w:m:", name) } +
+            shows.await().mapNotNull { weTrakrMedia(it, Kind.SHOW, "wetrakr:w:s:", name) }
+    }
+
+    /** Every page of a full list (100 a page), following X-Pagination-Page-Count. */
+    private suspend fun pages(path: String, extended: String): List<JsonElement> {
+        val out = ArrayList<JsonElement>()
+        for (page in 1..20) {
+            val (body, headers) = authedGetPaged("$path?page=$page&limit=100&extended=$extended")
+            val rows = body.list()
+            out += rows
+            val count = headers["X-Pagination-Page-Count"]?.trim()?.toIntOrNull()
+            if (rows.isEmpty() || (count ?: page) <= page) break
         }
+        return out
+    }
+
+    /** Every row of a compact list (5,000 a page), following the X-Pagination-Next cursor. */
+    private suspend fun compact(path: String): List<JsonElement> {
+        val out = ArrayList<JsonElement>()
+        val seen = HashSet<String>()
+        var after: String? = null
+        repeat(50) {
+            val query = "$path?compact=true&limit=5000" + (after?.let { "&after=" + java.net.URLEncoder.encode(it, "UTF-8") } ?: "")
+            val (body, headers) = authedGetPaged(query)
+            out += body.list()
+            after = headers["X-Pagination-Next"]?.trim()?.takeIf { it.isNotEmpty() && seen.add(it) } ?: return out
+        }
+        return out
+    }
+
+    override fun needsAccountName() = isConnected() && store.get("$id.account") == null
+    override suspend fun loadAccountName() {
+        val root = runCatching { authedGet("account/settings") }.getOrNull() ?: return
+        val user = root.obj("user") ?: root
+        val label = user.str("display_name")?.trim()?.takeIf { it.isNotEmpty() } ?: user.str("username")?.let { "@$it" } ?: return
+        if (isConnected()) store.put("$id.account", label)
+    }
+
+    /** Watched movies, episodes and finished shows; downloaded again only when last_activities moves. */
+    override suspend fun watched(): Set<String> = watchedLock.withLock {
+        val activity = authedGet("sync/last_activities")
+        val stamp = weTrakrWatchStamp(activity)
+        val current = watchedCache ?: watchedFile.read()?.also { watchedCache = it }
+        if (current != null && current.first == stamp) return@withLock current.second
+        val keys = coroutineScope {
+            val movies = async { compact("sync/tracking/watched/movies") }
+            val episodes = async { compact("sync/tracking/watched/episodes") }
+            val shows = async { compact("sync/tracking/watched/shows") }
+            weTrakrWatchedKeys(movies.await(), episodes.await(), shows.await())
+        }
+        watchedCache = stamp to keys
+        watchedFile.write(stamp, keys)
+        keys
+    }
+
+    // ---- writes ----
+
+    /** WeTrakr answers 200 even when it can't place a title: notFound / errored say so. */
+    private suspend fun write(path: String, body: JsonObject): Boolean {
+        val r = limited { authedPost(path, body) }
+        if (weTrakrUnresolved(r)) throw TrackerRefusal(id, "$name couldn't match this title.")
+        return true
+    }
+
+    override suspend fun addToWatchlist(ref: TitleRef): Boolean =
+        ref.hasIds && write("sync/tracking", weTrakrBody(ref, ids(ref), "planning"))
+    override suspend fun removeFromWatchlist(ref: TitleRef): Boolean =
+        ref.hasIds && write("sync/tracking/remove", weTrakrBody(ref, ids(ref), "planning"))
+
+    override fun supportsHistory(ref: TitleRef) = ref.hasIds
+    /** Watched adds a play; unwatched removes every play of that movie, episode or show. */
+    override suspend fun markWatched(ref: TitleRef, season: Int?, episode: Int?, watched: Boolean): Boolean =
+        ref.hasIds && write(if (watched) "sync/tracking" else "sync/tracking/remove/all", weTrakrBody(ref, ids(ref), "watched", season, episode))
+
+    override suspend fun removePlayback(itemKey: String): Boolean {
+        val body = playing[itemKey] ?: return false
+        authedDelete("scrobble/playing", body)
+        playing.remove(itemKey)
+        return true
+    }
+
+    override val rates = true
+    override suspend fun rate(ref: TitleRef, rating: Int?): Boolean {
+        if (!ref.hasIds) return false
+        val key = if (ref.kind == Kind.MOVIE) "movies" else "shows"
+        val body = buildJsonObject {
+            putJsonArray(key) { add(buildJsonObject { put("ids", ids(ref)); rating?.let { put("rating", it.coerceIn(1, 10)) } }) }
+        }
+        write(if (rating != null) "sync/ratings" else "sync/ratings/remove", body)
+        ratings.remove(key)
+        return true
+    }
+
+    override suspend fun ratingOf(ref: TitleRef): Int? {
+        if (!ref.hasIds) return null
+        val key = if (ref.kind == Kind.MOVIE) "movies" else "shows"
+        val now = System.currentTimeMillis()
+        val rows = ratings[key]?.takeIf { now - it.first < 10 * 60_000L }?.second
+            ?: pages("sync/ratings/$key", if (ref.kind == Kind.MOVIE) "movie_level_1" else "show_level_1").also { ratings[key] = now to it }
+        return rows.firstOrNull { sameTitle(it, ref) }?.let(::weTrakrRating)
+    }
+
+    /** Trakt's scrobble shape, plus the title and app version WeTrakr uses to resolve and label it. */
+    override suspend fun scrobble(item: TrackedItem, state: ScrobbleState, progress: Float) {
+        val body = weTrakrScrobbleBody(item, progress) ?: return
+        authedPost("scrobble/${state.path}", body)
+    }
+
+    private companion object {
+        val background = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    }
+}
+
+private const val TMDB_IMAGES = "https://image.tmdb.org/t/p/"
+
+/** WeTrakr images are TMDB paths. */
+internal fun weTrakrImage(path: String?, size: String = "w342"): String? = when {
+    path.isNullOrBlank() -> null
+    path.startsWith("https://") -> path
+    path.startsWith("/") && !path.startsWith("//") -> TMDB_IMAGES + size + path
+    else -> null
+}
+
+/** A compact movie or show row as a tracked item. */
+internal fun weTrakrMedia(row: JsonElement, kind: Kind, keyPrefix: String, source: String): TrackedItem? {
+    val ids = row.obj("ids")
+    val id = row.long("id")
+    val title = row.str("title") ?: row.str("name") ?: ""
+    if (title.isBlank() && ids.long("tmdb") == null && ids.str("imdb") == null) return null
+    return TrackedItem(
+        key = keyPrefix + (id ?: ids.long("tmdb") ?: title.hashCode()),
+        title = title,
+        year = row.int("year") ?: (row.str("release_date") ?: row.str("first_air_date"))?.take(4)?.toIntOrNull(),
+        kind = kind,
+        poster = weTrakrImage(row.str("poster_path")),
+        tmdbId = ids.long("tmdb"),
+        imdbId = ids.str("imdb"),
+        source = source,
+    )
+}
+
+/** Continue watching from the playing lists, each with the scrobble body that removes it. */
+internal fun weTrakrPlaying(movies: List<JsonElement>, episodes: List<JsonElement>, source: String): List<Pair<TrackedItem, JsonObject>> {
+    val out = ArrayList<Pair<TrackedItem, JsonObject>>()
+    for (row in movies) {
+        val pct = row.obj("playback").dbl("progress_percent")?.toFloat()?.coerceIn(0f, 100f) ?: continue
+        val item = weTrakrMedia(row, Kind.MOVIE, "wetrakr:p:m:", source) ?: continue
+        val ids = row.obj("ids") ?: continue
+        out += item.copy(progress = pct / 100f, detail = "${pct.toInt()}% watched") to buildJsonObject { putJsonObject("movie") { put("ids", ids) } }
+    }
+    for (row in episodes) {
+        val pct = row.obj("playback").dbl("progress_percent")?.toFloat()?.coerceIn(0f, 100f) ?: continue
+        val show = row.obj("show")
+        val ids = row.obj("show_ids") ?: show.obj("ids") ?: continue
+        val s = row.int("season_number") ?: continue
+        val n = row.int("number") ?: continue
+        val title = show.str("title") ?: continue
+        out += TrackedItem(
+            key = "wetrakr:p:e:${row.long("id") ?: "${ids.long("tmdb")}:$s:$n"}",
+            title = title,
+            year = show.int("year") ?: show.str("first_air_date")?.take(4)?.toIntOrNull(),
+            kind = Kind.SHOW,
+            poster = weTrakrImage(show.str("poster_path")),
+            progress = pct / 100f,
+            detail = "S$s · E$n",
+            tmdbId = ids.long("tmdb"),
+            imdbId = ids.str("imdb"),
+            season = s,
+            episode = n,
+            source = source,
+        ) to buildJsonObject {
+            putJsonObject("show") { put("ids", ids) }
+            putJsonObject("episode") { put("season", s); put("number", n) }
+        }
+    }
+    return out
+}
+
+/** A tracking write: movies or shows with a status, optionally scoped to one episode. */
+internal fun weTrakrBody(ref: TitleRef, ids: JsonObject, status: String, season: Int? = null, episode: Int? = null): JsonObject = buildJsonObject {
+    if (ref.kind == Kind.MOVIE) putJsonArray("movies") { add(buildJsonObject { put("ids", ids); put("status", status) }) }
+    else putJsonArray("shows") {
+        add(buildJsonObject {
+            put("ids", ids)
+            put("status", status)
+            if (season != null && episode != null) putJsonArray("seasons") {
+                add(buildJsonObject {
+                    put("number", season)
+                    putJsonArray("episodes") { add(buildJsonObject { put("number", episode) }) }
+                })
+            }
+        })
+    }
+}
+
+/** True when a write answer lists anything under notFound or errored. */
+internal fun weTrakrUnresolved(r: JsonElement?): Boolean = listOf("notFound", "not_found", "errored").any { key ->
+    when (val v = (r as? JsonObject)?.get(key)) {
+        is kotlinx.serialization.json.JsonArray -> v.isNotEmpty()
+        is JsonObject -> v.values.any { (it as? kotlinx.serialization.json.JsonArray)?.isNotEmpty() == true ||
+            (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()?.let { n -> n > 0 } == true }
+        else -> false
+    }
+}
+
+/** Your rating on a ratings row: interactions.user.rating, a number or {rating, rated_at}. */
+internal fun weTrakrRating(row: JsonElement): Int? {
+    val user = row.obj("interactions").obj("user")
+    val value = (user?.get("rating") as? JsonObject)?.dbl("rating") ?: user.dbl("rating") ?: row.dbl("rating")
+    return value?.let { kotlin.math.round(it).toInt() }?.takeIf { it in 1..10 }
+}
+
+/** What moves when your watched history changes; the rest of last_activities is ignored. */
+internal fun weTrakrWatchStamp(activity: JsonElement?): String =
+    listOf("movies", "episodes", "shows").joinToString("|") { s ->
+        listOf("last_tracking_watched_at", "last_tracking_removed_at").joinToString(",") { activity.obj(s).str(it).orEmpty() }
+    }.takeIf { it.replace("|", "").replace(",", "").isNotEmpty() } ?: activity.str("all").orEmpty()
+
+/** Watched keys from WeTrakr's compact watched lists (#88). Finished shows count as a whole. */
+internal fun weTrakrWatchedKeys(movies: List<JsonElement>, episodes: List<JsonElement>, shows: List<JsonElement>): Set<String> {
+    val out = HashSet<String>()
+    for (row in movies) { val i = row.obj("ids"); out += watchedKeys(true, i.str("imdb"), i.long("tmdb"), null, null) }
+    for (row in shows) { val i = row.obj("ids"); out += watchedKeys(false, i.str("imdb"), i.long("tmdb"), null, null) }
+    for (row in episodes) {
+        val i = row.obj("show_ids") ?: row.obj("show").obj("ids") ?: continue
+        val s = row.int("season_number") ?: continue
+        val n = row.int("number") ?: continue
+        out += watchedKeys(false, i.str("imdb"), i.long("tmdb"), s, n)
+    }
+    return out
+}
+
+/** Scrobble body: a movie, or a show and an episode, with progress 0-100 and the app version. */
+internal fun weTrakrScrobbleBody(item: TrackedItem, progress: Float, version: String = app.ember.tv.BuildConfig.VERSION_NAME): JsonObject? {
+    if (item.tmdbId == null && item.imdbId.isNullOrBlank()) return null
+    val ids = buildJsonObject {
+        item.imdbId?.takeIf { it.isNotBlank() }?.let { put("imdb", it) }
+        item.tmdbId?.let { put("tmdb", it) }
+    }
+    val movie = item.kind == Kind.MOVIE
+    val s = item.season
+    val e = item.episode
+    if (!movie && (s == null || e == null)) return null
+    return buildJsonObject {
+        if (movie) putJsonObject("movie") { put("ids", ids) }
+        else {
+            putJsonObject("show") { put("ids", ids) }
+            putJsonObject("episode") { put("season", s); put("number", e) }
+        }
+        put("progress", (progress * 100f).coerceIn(0f, 100f))
+        put("app_version", version)
+    }
 }
 
 /** True when a {ids:{imdb, tmdb}} block is the same title as [ref]. */

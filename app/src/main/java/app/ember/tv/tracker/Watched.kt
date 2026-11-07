@@ -30,3 +30,24 @@ internal class TrackerWatchedFile(private val file: java.io.File) {
 
     fun clear() { file.delete() }
 }
+
+/** Watched keys with the activity stamp they were read at (first line "#stamp"). */
+internal class StampedKeysFile(private val file: java.io.File) {
+    fun read(): Pair<String, Set<String>>? = runCatching {
+        if (!file.exists()) return null
+        val lines = file.readLines()
+        val first = lines.firstOrNull() ?: return null
+        if (!first.startsWith("#")) return null
+        first.removePrefix("#") to lines.drop(1).filterTo(HashSet()) { it.isNotBlank() }
+    }.getOrNull()
+
+    fun write(stamp: String, keys: Set<String>) {
+        runCatching {
+            val tmp = java.io.File(file.path + ".tmp")
+            tmp.writeText("#" + stamp + "\n" + keys.joinToString("\n"))
+            if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
+        }
+    }
+
+    fun clear() { file.delete() }
+}

@@ -48,8 +48,15 @@ object Http {
                 .build()
         )
 
-    suspend fun delete(url: String, headers: Map<String, String> = emptyMap()): JsonElement =
-        call(Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.delete().build())
+    suspend fun delete(url: String, headers: Map<String, String> = emptyMap(), body: JsonObject? = null): JsonElement =
+        call(Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.delete(body?.toString()?.toRequestBody(jsonType)).build())
+
+    /** A GET that also hands back the response headers, for paging (X-Pagination-*). */
+    suspend fun getPaged(url: String, headers: Map<String, String> = emptyMap()): Pair<JsonElement, okhttp3.Headers> {
+        var seen: okhttp3.Headers? = null
+        val body = read(client.newCall(Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.get().build())) { seen = it }
+        return body to (seen ?: okhttp3.Headers.headersOf())
+    }
 
     suspend fun privateGet(url: String, headers: Map<String, String>): JsonElement =
         read(privateClient.newCall(Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }
@@ -63,9 +70,10 @@ object Http {
     private suspend fun call(request: Request): JsonElement = read(client.newCall(request))
 
     /** Cancellation covers response-body consumption as well as waiting for headers. */
-    internal suspend fun read(call: okhttp3.Call, maxBytes: Long = Long.MAX_VALUE): JsonElement = coroutineScope {
+    internal suspend fun read(call: okhttp3.Call, maxBytes: Long = Long.MAX_VALUE, onHeaders: ((okhttp3.Headers) -> Unit)? = null): JsonElement = coroutineScope {
         try {
             withResponse(call) { r ->
+                onHeaders?.invoke(r.headers)
                 withContext(Dispatchers.IO) {
                     val text = if (maxBytes == Long.MAX_VALUE) r.body?.string().orEmpty() else r.body?.let { body ->
                         check(body.contentLength() <= maxBytes) { "Provider response was too large." }
