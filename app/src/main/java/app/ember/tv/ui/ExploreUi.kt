@@ -219,7 +219,8 @@ private fun DiscoverCollections(vm: HomeViewModel) {
             RecoveryPanel("No collections to show", "Import collections and choose which ones appear in Discover in Settings > Stremio.")
         }
         items(collections, key = { it.id }) { collection ->
-            CollectionRow(collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids) { folder -> vm.collections.openFolder(collection, folder) }
+            CollectionRow(collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
+                onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(collection, f, delta) })) { folder -> vm.collections.openFolder(collection, folder) }
         }
     }
 }

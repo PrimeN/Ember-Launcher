@@ -407,7 +407,8 @@ fun ModernHome(
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
                         )
                     }
-                    is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids) { f -> vm.collections.openFolder(b.collection, f) }
+                    is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
+                        onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(b.collection, f, delta) })) { f -> vm.collections.openFolder(b.collection, f) }
                     is HomeViewModel.HomeBlock.Shortcuts -> ListButtons(vm, b.ids, onList)
                     is HomeViewModel.HomeBlock.Loading -> ModernSection(b.title) {LoadingCards(wide)}
                     is HomeViewModel.HomeBlock.Pinned -> ModernSection("Your shortcuts") {

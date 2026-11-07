@@ -68,7 +68,9 @@ import androidx.compose.material.icons.outlined.PlayCircleOutline as PlayCircleI
 
 /** A Collection on Home: its title, then a row of folder tiles. */
 @Composable
-fun CollectionRow(c: MediaCollection, animations: Boolean = false, onOpen: (CollectionFolder) -> Unit) {
+fun CollectionRow(c: MediaCollection, animations: Boolean = false, onMove: ((CollectionFolder, Int) -> Unit)? = null, onOpen: (CollectionFolder) -> Unit) {
+    // Hold OK on a folder to move it (#69), e.g. the ones used most to the front.
+    var moving by remember(c.id) { mutableStateOf<CollectionFolder?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(c.title, fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.padding(start = 4.dp))
         // Sized like the other rows: wide folders 5¼ across, poster folders like poster cards.
@@ -79,9 +81,19 @@ fun CollectionRow(c: MediaCollection, animations: Boolean = false, onOpen: (Coll
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp),
             ) {
-                items(c.folders, key = { it.id }) { f -> FolderTile(f, tileSize(f, wide, poster), glow = c.focusGlowEnabled != false, animations = animations, owner = c.id, backdrop = c.backdropImageUrl) { onOpen(f) } }
+                items(c.folders, key = { it.id }) { f -> FolderTile(f, tileSize(f, wide, poster), glow = c.focusGlowEnabled != false, animations = animations, owner = c.id, backdrop = c.backdropImageUrl,
+                    onLongClick = onMove?.let { { moving = f } }) { onOpen(f) } }
             }
         }
+    }
+    moving?.let { f ->
+        val index = c.folders.indexOfFirst { it.id == f.id }
+        val last = c.folders.lastIndex
+        if (index < 0 || onMove == null) { moving = null; return@let }
+        OptionMenu("Move ${f.title.ifBlank { "folder" }}", buildList {
+            if (index > 0) { add(MenuOption("To the front") { onMove(f, -index) }); add(MenuOption("Left") { onMove(f, -1) }) }
+            if (index < last) { add(MenuOption("Right") { onMove(f, 1) }); add(MenuOption("To the end") { onMove(f, last - index) }) }
+        }) { moving = null }
     }
 }
 
@@ -96,7 +108,7 @@ private fun tileSize(f: CollectionFolder, wide: Dp, poster: Dp): Pair<Dp, Dp> = 
  * one), and the name underneath unless the folder hides it.
  */
 @Composable
-private fun FolderTile(f: CollectionFolder, size: Pair<Dp, Dp>, glow: Boolean, animations: Boolean, owner: String, backdrop: String?, onClick: () -> Unit) {
+private fun FolderTile(f: CollectionFolder, size: Pair<Dp, Dp>, glow: Boolean, animations: Boolean, owner: String, backdrop: String?, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val background = (f.heroBackdropUrl ?: backdrop ?: f.coverImageUrl)?.takeUnless { CollectionMotion.knownKind(it) == CollectionMediaKind.VIDEO }
     val focusBackground = rememberFocusTile(FocusTileKind.COLLECTION, "$owner/${f.id}", background)
@@ -105,6 +117,7 @@ private fun FolderTile(f: CollectionFolder, size: Pair<Dp, Dp>, glow: Boolean, a
     Column(Modifier.width(w), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Focusable(
             onClick = onClick,
+            onLongClick = onLongClick,
             modifier = Modifier.width(w).height(h).focusBackdrop(focusBackground).onFocusChanged { focused = it.isFocused || it.hasFocus },
             container = PanelHi,
             outline = glow,
