@@ -32,11 +32,11 @@ internal fun artworkPhase(hasModel:Boolean,loaded:Boolean,failed:Boolean)=when {
 }
 
 @Composable internal fun ArtworkImage(model:Any?,description:String?,modifier:Modifier=Modifier,
-    contentScale:ContentScale=ContentScale.Crop,fade:Boolean=true,onError:()->Unit={},onSuccess:(Drawable)->Unit={}) {
+    contentScale:ContentScale=ContentScale.Crop,fade:Boolean=true,iconCache:Boolean=false,onError:()->Unit={},onSuccess:(Drawable)->Unit={}) {
     var loaded by remember(model){mutableStateOf(false)}
     var failed by remember(model){mutableStateOf(false)}
     val phase=artworkPhase(model!=null,loaded,failed)
-    val request=tileImageRequest(model,fade)
+    val request=tileImageRequest(model,fade,iconCache)
     val context=androidx.compose.ui.platform.LocalContext.current
     val cached=request is coil.request.ImageRequest && IconArtworkCache.cached(request)
     val cacheReady=!cached || IconArtworkCache.epoch!="loading"

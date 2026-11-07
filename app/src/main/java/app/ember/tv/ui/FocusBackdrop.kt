@@ -97,12 +97,16 @@ internal fun Modifier.focusBackdrop(binding: FocusTileBinding) = onFocusChanged 
     return LocalRenderOptions.current.colorAnalysis && LocalFocusBackdrop.current!=null && mode==FocusBackground.COLORS
 }
 
-/** Software tile pixels can be sampled without copying a large hardware bitmap. */
-@Composable internal fun tileImageRequest(model: Any?,fade:Boolean=false): Any? {
+/**
+ * Software tile pixels can be sampled without copying a large hardware bitmap. Only collection
+ * images use the configuration-scoped icon cache ([iconCache]); posters, landscape cards and people
+ * use the main image loader and its larger memory cache (#29).
+ */
+@Composable internal fun tileImageRequest(model: Any?,fade:Boolean=false,iconCache:Boolean=false): Any? {
     val context = LocalContext.current
     val enabled = tileNeedsSoftwarePixels()
     val duration=if(fade)PolishMotion.duration(TvTokens.Motion.Image,LocalRenderOptions.current,LocalReduceMotion.current) else 0
-    val remote = IconArtworkCache.remote(model)
+    val remote = iconCache && IconArtworkCache.remote(model)
     val epoch = if (remote) IconArtworkCache.epoch else ""
     return remember(context, model, enabled,duration,epoch) {
         if(model==null || !remote && !enabled && duration==0)model else {

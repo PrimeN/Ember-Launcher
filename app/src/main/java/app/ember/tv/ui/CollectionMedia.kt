@@ -50,7 +50,8 @@ internal fun CollectionImage(url: String, description: String?, modifier: Modifi
             .placeholder(still).error(still)
             .apply { if (!motion) decoderFactory(BitmapFactoryDecoder.Factory()) }.build()
     }
-    ArtworkImage(request, description, modifier.then(Modifier.alpha(alpha)), contentScale = contentScale,fade=!motion,
+    // Collection covers can change behind the same link: they keep the configuration-scoped icon cache.
+    ArtworkImage(request, description, modifier.then(Modifier.alpha(alpha)), contentScale = contentScale,fade=!motion,iconCache=true,
         onSuccess = { if (!motion) { still = it; onDrawable(it) }; onSuccess() },
         onError = { if (motion && still != null) animationFailed = true else onError() })
 }
