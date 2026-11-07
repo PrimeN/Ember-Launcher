@@ -254,6 +254,30 @@ jobs:
           echo "artifact=ember-tv-${ver}-${EMBER_VERSION_CODE}-${kind}" >> "$GITHUB_OUTPUT"
           echo "::notice title=APK::$(ls app/build/outputs/apk/*/*.apk | xargs -n1 basename | tr '\n' ' ')"
 
+      # R8 renames classes in release builds; the mapping turns a crash log's "c60.o(unavailable:32)"
+      # back into Ember's own names (#54). Kept with each build and attached to each release.
+      - name: Name the R8 mapping
+        id: mapping
+        shell: bash
+        run: |
+          m=app/build/outputs/mapping/release/mapping.txt
+          [ -f "$m" ] || { echo "No R8 mapping (not a minified build)."; exit 0; }
+          ver=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          out="app/build/outputs/mapping/ember-tv-${ver}-${EMBER_VERSION_CODE}-mapping.txt.gz"
+          gzip -9 -c "$m" > "$out"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+          echo "::notice title=R8 mapping::$(basename "$out") ($(du -h "$out" | cut -f1))"
+
+      - name: Upload R8 mapping
+        if: steps.mapping.outputs.file != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.name.outputs.artifact }}-mapping
+          path: ${{ steps.mapping.outputs.file }}
+          compression-level: 0
+          retention-days: 3
+
       # Artifacts count against the account's Actions storage quota (about 500 MB on a free plan), so
       # APKs expire after 3 days and reports after 1. Signed builds of main and beta stay available as
       # the "latest build" and "beta build" releases, which do not count against that quota. If the quota is full,
@@ -384,7 +408,9 @@ jobs:
           name: ${{ steps.release.outputs.name }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: app/build/outputs/apk/**/*.apk
+          files: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/mapping/*-mapping.txt.gz
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
 
@@ -405,7 +431,9 @@ jobs:
           name: Latest build (${{ github.run_number }})
           prerelease: true
           target_commitish: ${{ github.sha }}
-          files: app/build/outputs/apk/**/*.apk
+          files: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/mapping/*-mapping.txt.gz
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
 
@@ -427,6 +455,8 @@ jobs:
           name: Beta build (${{ github.run_number }})
           prerelease: true
           target_commitish: ${{ github.sha }}
-          files: app/build/outputs/apk/**/*.apk
+          files: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/mapping/*-mapping.txt.gz
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
