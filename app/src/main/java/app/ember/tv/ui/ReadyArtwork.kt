@@ -46,10 +46,10 @@ internal object HeroImages {
     private var loader: coil.ImageLoader? = null
     /** Follows the app's loader, so a replaced one (tests, Clear cache) is never served stale. */
     @Synchronized fun loader(context: android.content.Context): coil.ImageLoader {
-        val app = context.imageLoader
-        loader?.takeIf { base === app }?.let { return it }
-        return app.newBuilder().okHttpClient { app.ember.tv.data.Net.heroArtworkClient() }.build()
-            .also { base = app; loader = it }
+        val current = context.imageLoader
+        loader?.takeIf { base === current }?.let { return it }
+        return current.newBuilder().okHttpClient { app.ember.tv.data.Net.heroArtworkClient() }.build()
+            .also { base = current; loader = it }
     }
 }
 
