@@ -319,6 +319,11 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.TRACKERS_OFF)
         set(v) = sp.edit { putStringSet(PreferenceKeys.TRACKERS_OFF.name, v) }
 
+    /** Keep connected trackers in sync with each other (#90). */
+    var trackerSync: Boolean
+        get() = sp.read(PreferenceKeys.TRACKER_SYNC)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.TRACKER_SYNC.name, v) }
+
     /** Tracker ids that are not told what you watch (#80). */
     var trackersQuiet: Set<String>
         get() = sp.read(PreferenceKeys.TRACKERS_QUIET)

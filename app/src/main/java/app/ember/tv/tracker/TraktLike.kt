@@ -9,6 +9,7 @@ import android.content.Context
 import app.ember.tv.data.ApiKeys
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -181,6 +182,9 @@ abstract class TraktLikeTracker(
         return body to (headers ?: okhttp3.Headers.headersOf())
     }
 
+    /** Trakt allows about one write a second; batches wait between requests. */
+    protected suspend fun pace() = kotlinx.coroutines.delay(1_100)
+
     /** The saved tokens, for a sign-out that revokes them on the service. */
     protected fun savedTokens(): Pair<String?, String?> = access() to store.get("$id.refresh")
 
@@ -309,13 +313,13 @@ class TraktTracker(context: Context) : TraktLikeTracker(
     override val refreshPath = "oauth/token"
     override val refreshRedirectUri: String? = "urn:ietf:wg:oauth:2.0:oob"
 
-    private val watchedFile = java.io.File(context.filesDir, "trakt_watched.txt")
-    @Volatile private var watchedCache: Pair<String, Set<String>>? = null
+    private val watchedFile = StampedKeysFile(java.io.File(context.filesDir, "trakt_watched_items.txt"))
+    @Volatile private var watchedCache: Pair<String, List<SyncItem>>? = null
     private val watchedLock = Mutex()
     private val ratings = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<JsonElement>>>()
 
     override fun signedOut() {
-        watchedFile.delete()
+        watchedFile.clear()
         watchedCache = null
         ratings.clear()
     }
@@ -340,34 +344,48 @@ class TraktTracker(context: Context) : TraktLikeTracker(
      * Every watched movie and episode. Trakt's last_activities says when history last changed,
      * so the full lists are only downloaded again after something was watched or removed.
      */
-    override suspend fun watched(): Set<String> = watchedLock.withLock {
+    override suspend fun watched(): Set<String> = syncWatched().flatMapTo(HashSet()) { it.keys }
+
+    override suspend fun syncWatched(): List<SyncItem> = watchedLock.withLock {
         val activity = authedGet("sync/last_activities")
         val stamp = listOf(activity.obj("movies").str("watched_at"), activity.obj("episodes").str("watched_at")).joinToString("|")
-        val current = watchedCache ?: readWatched()?.also { watchedCache = it }
+        val current = watchedCache ?: watchedFile.read()?.let { (s, lines) -> s to lines.mapNotNull(SyncItem::decode) }?.also { watchedCache = it }
         if (current != null && current.first == stamp) return@withLock current.second
-        val keys = coroutineScope {
+        val items = coroutineScope {
             val movies = async { authedGet("sync/watched/movies") }
             val shows = async { authedGet("sync/watched/shows") }
-            traktWatchedKeys(movies.await(), shows.await())
+            traktWatchedItems(movies.await(), shows.await())
         }
-        watchedCache = stamp to keys
-        writeWatched(stamp, keys)
-        keys
+        watchedCache = stamp to items
+        watchedFile.write(stamp, items.mapTo(LinkedHashSet()) { it.encode() })
+        items
     }
 
-    private fun readWatched(): Pair<String, Set<String>>? = runCatching {
-        if (!watchedFile.exists()) return null
-        val lines = watchedFile.readLines()
-        val stamp = lines.firstOrNull()?.removePrefix("#")?.takeIf { lines.first().startsWith("#") } ?: return null
-        stamp to lines.drop(1).filterTo(HashSet()) { it.isNotBlank() }
-    }.getOrNull()
+    // ---- two-way sync (#90) ----
+    override val syncs = true
 
-    private fun writeWatched(stamp: String, keys: Set<String>) {
-        runCatching {
-            val tmp = java.io.File(watchedFile.path + ".tmp")
-            tmp.writeText("#" + stamp + "\n" + keys.joinToString("\n"))
-            if (!tmp.renameTo(watchedFile)) { watchedFile.delete(); tmp.renameTo(watchedFile) }
+    override suspend fun syncRatings(): Map<SyncItem, Int> = coroutineScope {
+        val movies = async { authedGet("sync/ratings/movies").list() }
+        val shows = async { authedGet("sync/ratings/shows").list() }
+        ratingRows(movies.await(), true) { it.int("rating") } + ratingRows(shows.await(), false) { it.int("rating") }
+    }
+
+    override suspend fun applySync(category: SyncCategory, add: List<SyncItem>, remove: List<SyncItem>) {
+        val (addPath, removePath) = when (category) {
+            SyncCategory.WATCHED -> "sync/history" to "sync/history/remove"
+            SyncCategory.WATCHLIST -> "sync/watchlist" to "sync/watchlist/remove"
+            SyncCategory.RATINGS -> return
         }
+        add.batches().forEach { limited { authedPost(addPath, syncBatch(it)) }; pace() }
+        remove.batches().forEach { limited { authedPost(removePath, syncBatch(it)) }; pace() }
+    }
+
+    override suspend fun applyRatings(set: Map<SyncItem, Int>, clear: List<SyncItem>) {
+        set.keys.toList().batches().forEach { chunk ->
+            limited { authedPost("sync/ratings", syncBatch(chunk, extra = { mapOf("rating" to JsonPrimitive(set.getValue(it))) })) }
+            pace()
+        }
+        clear.batches().forEach { limited { authedPost("sync/ratings/remove", syncBatch(it)) }; pace() }
     }
 
     // ---- ratings (#84) ----
@@ -551,8 +569,8 @@ class WeTrakrTracker(context: Context) : TraktLikeTracker(
     override val watchlistRemovePath = "sync/tracking/remove"
     override val watchlistStatus: String? = "planning"
 
-    private val watchedFile = StampedKeysFile(java.io.File(context.filesDir, "wetrakr_watched.txt"))
-    @Volatile private var watchedCache: Pair<String, Set<String>>? = null
+    private val watchedFile = StampedKeysFile(java.io.File(context.filesDir, "wetrakr_watched_items.txt"))
+    @Volatile private var watchedCache: Pair<String, List<SyncItem>>? = null
     private val watchedLock = Mutex()
     private val ratings = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<JsonElement>>>()
     /** Scrobble bodies of the Continue watching rows, so one can be removed (DELETE scrobble/playing). */
@@ -631,21 +649,57 @@ class WeTrakrTracker(context: Context) : TraktLikeTracker(
         if (isConnected()) store.put("$id.account", label)
     }
 
+    override suspend fun watched(): Set<String> = syncWatched().flatMapTo(HashSet()) { it.keys }
+
     /** Watched movies, episodes and finished shows; downloaded again only when last_activities moves. */
-    override suspend fun watched(): Set<String> = watchedLock.withLock {
+    override suspend fun syncWatched(): List<SyncItem> = watchedLock.withLock {
         val activity = authedGet("sync/last_activities")
         val stamp = weTrakrWatchStamp(activity)
-        val current = watchedCache ?: watchedFile.read()?.also { watchedCache = it }
+        val current = watchedCache ?: watchedFile.read()?.let { (s, lines) -> s to lines.mapNotNull(SyncItem::decode) }?.also { watchedCache = it }
         if (current != null && current.first == stamp) return@withLock current.second
-        val keys = coroutineScope {
+        val items = coroutineScope {
             val movies = async { compact("sync/tracking/watched/movies") }
             val episodes = async { compact("sync/tracking/watched/episodes") }
             val shows = async { compact("sync/tracking/watched/shows") }
-            weTrakrWatchedKeys(movies.await(), episodes.await(), shows.await())
+            weTrakrWatchedItems(movies.await(), episodes.await(), shows.await())
         }
-        watchedCache = stamp to keys
-        watchedFile.write(stamp, keys)
-        keys
+        watchedCache = stamp to items
+        watchedFile.write(stamp, items.mapTo(LinkedHashSet()) { it.encode() })
+        items
+    }
+
+    // ---- two-way sync (#90) ----
+    override val syncs = true
+
+    override suspend fun syncRatings(): Map<SyncItem, Int> = coroutineScope {
+        val movies = async { pages("sync/ratings/movies", "movie_level_1") }
+        val shows = async { pages("sync/ratings/shows", "show_level_1") }
+        ratingRows(movies.await(), true, ::weTrakrRating) + ratingRows(shows.await(), false, ::weTrakrRating)
+    }
+
+    /** Every item needs a status; episodes inherit it from their show. */
+    override suspend fun applySync(category: SyncCategory, add: List<SyncItem>, remove: List<SyncItem>) {
+        val (status, addPath, removePath) = when (category) {
+            SyncCategory.WATCHED -> Triple("watched", "sync/tracking", "sync/tracking/remove/all")
+            SyncCategory.WATCHLIST -> Triple("planning", "sync/tracking", "sync/tracking/remove")
+            SyncCategory.RATINGS -> return
+        }
+        val fields = mapOf("status" to JsonPrimitive(status))
+        add.batches().forEach { batchWrite(addPath, syncBatch(it, extra = { i -> if (i.isEpisode) emptyMap() else fields }, showExtra = fields)) }
+        remove.batches().forEach { batchWrite(removePath, syncBatch(it, extra = { i -> if (i.isEpisode) emptyMap() else fields }, showExtra = fields)) }
+    }
+
+    override suspend fun applyRatings(set: Map<SyncItem, Int>, clear: List<SyncItem>) {
+        set.keys.toList().batches().forEach { chunk ->
+            batchWrite("sync/ratings", syncBatch(chunk, extra = { mapOf("rating" to JsonPrimitive(set.getValue(it))) }))
+        }
+        clear.batches().forEach { batchWrite("sync/ratings/remove", syncBatch(it)) }
+    }
+
+    /** A batch where a few unknown titles are fine: only the account limit (420) stops it. */
+    private suspend fun batchWrite(path: String, body: JsonObject) {
+        limited { authedPost(path, body) }
+        pace()
     }
 
     // ---- writes ----
@@ -812,15 +866,19 @@ internal fun weTrakrWatchStamp(activity: JsonElement?): String =
     }.takeIf { it.replace("|", "").replace(",", "").isNotEmpty() } ?: activity.str("all").orEmpty()
 
 /** Watched keys from WeTrakr's compact watched lists (#88). Finished shows count as a whole. */
-internal fun weTrakrWatchedKeys(movies: List<JsonElement>, episodes: List<JsonElement>, shows: List<JsonElement>): Set<String> {
-    val out = HashSet<String>()
-    for (row in movies) { val i = row.obj("ids"); out += watchedKeys(true, i.str("imdb"), i.long("tmdb"), null, null) }
-    for (row in shows) { val i = row.obj("ids"); out += watchedKeys(false, i.str("imdb"), i.long("tmdb"), null, null) }
+internal fun weTrakrWatchedKeys(movies: List<JsonElement>, episodes: List<JsonElement>, shows: List<JsonElement>): Set<String> =
+    weTrakrWatchedItems(movies, episodes, shows).flatMapTo(HashSet()) { it.keys }
+
+/** Watched movies, episodes and finished shows from WeTrakr (#88, #90). */
+internal fun weTrakrWatchedItems(movies: List<JsonElement>, episodes: List<JsonElement>, shows: List<JsonElement>): List<SyncItem> {
+    val out = ArrayList<SyncItem>()
+    for (row in movies) { val i = row.obj("ids"); SyncItem.of(true, i.str("imdb"), i.long("tmdb"))?.let { out += it } }
+    for (row in shows) { val i = row.obj("ids"); SyncItem.of(false, i.str("imdb"), i.long("tmdb"))?.let { out += it } }
     for (row in episodes) {
         val i = row.obj("show_ids") ?: row.obj("show").obj("ids") ?: continue
         val s = row.int("season_number") ?: continue
         val n = row.int("number") ?: continue
-        out += watchedKeys(false, i.str("imdb"), i.long("tmdb"), s, n)
+        SyncItem.of(false, i.str("imdb"), i.long("tmdb"), s, n)?.let { out += it }
     }
     return out
 }
@@ -854,18 +912,22 @@ internal fun sameTitle(meta: JsonElement?, ref: TitleRef): Boolean {
 }
 
 /** Watched keys from Trakt's sync/watched/movies and sync/watched/shows (#83). */
-internal fun traktWatchedKeys(movies: JsonElement?, shows: JsonElement?): Set<String> {
-    val out = HashSet<String>()
+internal fun traktWatchedKeys(movies: JsonElement?, shows: JsonElement?): Set<String> =
+    traktWatchedItems(movies, shows).flatMapTo(HashSet()) { it.keys }
+
+/** Watched movies and episodes from Trakt (#83, #90). */
+internal fun traktWatchedItems(movies: JsonElement?, shows: JsonElement?): List<SyncItem> {
+    val out = ArrayList<SyncItem>()
     for (row in movies.list()) {
         val ids = row.obj("movie").obj("ids")
-        out += watchedKeys(true, ids.str("imdb"), ids.long("tmdb"), null, null)
+        SyncItem.of(true, ids.str("imdb"), ids.long("tmdb"))?.let { out += it }
     }
     for (row in shows.list()) {
         val ids = row.obj("show").obj("ids")
         val imdb = ids.str("imdb"); val tmdb = ids.long("tmdb")
         for (s in row.arr("seasons").list()) {
             val season = s.int("number") ?: continue
-            for (e in s.arr("episodes").list()) e.int("number")?.let { out += watchedKeys(false, imdb, tmdb, season, it) }
+            for (e in s.arr("episodes").list()) e.int("number")?.let { n -> SyncItem.of(false, imdb, tmdb, season, n)?.let { out += it } }
         }
     }
     return out

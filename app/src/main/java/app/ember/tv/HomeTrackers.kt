@@ -45,8 +45,10 @@ internal fun HomeViewModel.refreshTrackers(force: Boolean = true, only: Set<Stri
     }
     val watchedOwner=profiles.profileId
     trackerRefreshJob = viewModelScope.launch {
-        // Watchlist changes made while a tracker could not be reached go out first.
+        // Watchlist changes made while a tracker could not be reached go out first, then the
+        // watched marks, ratings and finished plays that were owed (#89).
         if (only == null) sendPendingWatchlist()
+        if (only == null) hub.sendQueued()
         // Account names for Settings, read once after sign-in (#85).
         if (only == null && hub.loadAccountNames()) trackerRev++
         // When every tracker failed (offline), keep what is shown rather than emptying the rows.
@@ -87,7 +89,85 @@ internal fun HomeViewModel.refreshTrackers(force: Boolean = true, only: Set<Stri
         }
         saveSnapshot()
         if (only == null) refreshSmartRows()
+        if (only == null) syncTrackers()
     }
+}
+
+private fun Meta.syncItem() = app.ember.tv.tracker.SyncItem.of(type == "movie", imdb, tmdbId, anime = type == "anime")
+
+/**
+ * Keep trackers in sync (#90): one round, at most every 15 minutes unless [force]. The first
+ * round after switching it on copies everything across (the back-fill).
+ */
+internal fun HomeViewModel.syncTrackers(force: Boolean = false, allowMassRemoval: Boolean = false) {
+    if (!trackerSyncOn || !personalOn || !featureOn(Features.TRACKERS) || trackerSyncBusy) return
+    val now = System.currentTimeMillis()
+    if (!force && now - trackerSyncAt < 15 * 60_000L) return
+    val trackers = hub.trackers.filter { it.syncs && it.isConnected() && it.id !in hub.quiet }
+    if (trackers.isEmpty()) { trackerSyncStatus = "Connect Trakt, Simkl or WeTrakr to sync."; return }
+    trackerSyncAt = now
+    trackerSyncBusy = true
+    trackerSyncStatus = "Syncing…"
+    val profile = profiles.profileId
+    val local = app.ember.tv.tracker.TrackerSyncEngine.Local(
+        id = app.ember.tv.tracker.TrackerSyncEngine.localId(profile),
+        watchlist = watchlist.mapNotNull { it.syncItem() },
+        removeWatched = { items -> viewModelScope.launch { forgetWatched(profile, items) } },
+        removeFromWatchlist = { items -> viewModelScope.launch { removeFromLocalWatchlist(profile, items) } },
+    )
+    viewModelScope.launch {
+        try {
+            val r = withContext(Dispatchers.Default) { trackerSync.run(trackers, local, allowMassRemoval) }
+            trackerSyncHeld = r.held
+            val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())
+            trackerSyncStatus = buildString {
+                append("Synced at $time")
+                if (r.copied > 0) append(" · copied ${r.copied}")
+                if (r.removed > 0) append(" · removed ${r.removed}")
+                if (r.copied + r.removed == 0) append(" · everything matches")
+                if (r.failed.isNotEmpty()) append(". Couldn't reach ${r.failed.joinToString(" and ")}; it will try again.")
+                r.refused.forEach { append(" ").append(it) }
+            }
+            if (r.copied + r.removed > 0) { trackersAt = 0L; smartRowsLoadedAt = 0L; refreshTrackers() }
+        } catch (e: CancellationException) { throw e
+        } catch (e: Exception) {
+            trackerSyncStatus = "Sync stopped: ${e.message.orEmpty()}"
+        } finally { trackerSyncBusy = false }
+    }
+}
+
+/** Switches syncing on (starting with the back-fill) or off. */
+internal fun HomeViewModel.toggleTrackerSync() {
+    trackerSyncOn = !trackerSyncOn
+    prefs.trackerSync = trackerSyncOn
+    trackerSyncHeld = emptyMap()
+    if (trackerSyncOn) syncTrackers(force = true) else trackerSyncStatus = null
+}
+
+/** Mirrors removals that were held back because a tracker suddenly reported a large drop. */
+internal fun HomeViewModel.applyHeldRemovals() {
+    trackerSyncHeld = emptyMap()
+    syncTrackers(force = true, allowMassRemoval = true)
+}
+
+/** A title unwatched on a tracker loses Ember's watched mark too (#90). */
+private suspend fun HomeViewModel.forgetWatched(profile: String, items: List<app.ember.tv.tracker.SyncItem>) {
+    val keys = items.flatMapTo(HashSet()) { it.keys }
+    if (keys.isEmpty()) return
+    val loaded = withContext(Dispatchers.IO) { watchedStore.forget(profile, keys) }
+    if (profiles.profileId == profile) { watchedIndex = loaded; watchedProfile = profile }
+    remoteWatched = remoteWatched - keys
+}
+
+/** A title taken off the watchlist on a tracker leaves Ember's watchlist too (#90). */
+private fun HomeViewModel.removeFromLocalWatchlist(profile: String, items: List<app.ember.tv.tracker.SyncItem>) {
+    if (profiles.profileId != profile) return
+    val gone = app.ember.tv.tracker.SyncIndex(items)
+    val kept = watchlist.filterNot { m -> m.syncItem()?.let { it in gone } == true }
+    if (kept.size == watchlist.size) return
+    watchlist = kept
+    prefs.watchlist = kept
+    trackerWatchlist = trackerWatchlist.filterNot { m -> m.syncItem()?.let { it in gone } == true }
 }
 
 /** Loads the last known tracker watched marks at start, before any network (#83). */
@@ -219,6 +299,8 @@ internal fun HomeViewModel.disconnectTracker(id: String) {
     linkTasks.cancel(id)
     hub.byId(id).disconnect()
     remoteWatched = emptySet()
+    // Another account signed in later must not be compared with this one (#90).
+    viewModelScope.launch(Dispatchers.IO) { trackerSnapshots.forget(id) }
     viewModelScope.launch(Dispatchers.IO) { remoteWatchedFile.clear() }
     trackerMessage = null
     trackerRev++

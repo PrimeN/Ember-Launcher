@@ -58,6 +58,21 @@ interface Tracker {
 
     /** Every watched movie and episode, as watched keys (see watchedKeys), or null when not offered (#83). */
     suspend fun watched(): Set<String>? = null
+
+    // ---- two-way sync between trackers (#90) ----
+    /** True when this service can take part in keeping trackers in sync. */
+    val syncs: Boolean get() = false
+    /** Watched movies and episodes (and finished shows, which sync leaves out). */
+    suspend fun syncWatched(): List<SyncItem> = error("$name does not sync")
+    /** Watchlist movies and shows. */
+    suspend fun syncWatchlist(): List<SyncItem> = watchlist().mapNotNull(SyncItem::of)
+    /** Your ratings of movies and shows. */
+    suspend fun syncRatings(): Map<SyncItem, Int> = error("$name does not sync")
+    /** False when removing from the watchlist would also delete history (Simkl). */
+    val removesFromWatchlist: Boolean get() = true
+    /** Applies a batch; throws when the service could not take it. */
+    suspend fun applySync(category: SyncCategory, add: List<SyncItem>, remove: List<SyncItem>) {}
+    suspend fun applyRatings(set: Map<SyncItem, Int>, clear: List<SyncItem>) {}
 }
 
 /** A service refused a change for a reason a retry won't fix, e.g. a free-account limit (#82). */

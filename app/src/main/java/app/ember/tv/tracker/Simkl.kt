@@ -29,7 +29,8 @@ class SimklTracker(context: Context) : Tracker {
     private val base = "https://api.simkl.com/"
     private val clientId get() = ApiKeys.get("SIMKL_CLIENT_ID")
     private val store = TokenStore(context)
-    private val library = SimklLibrary(java.io.File(context.filesDir, "simkl_library.json"), { get(it) })
+    // A new file name: the old copy was saved without the episodes of completed shows.
+    private val library = SimklLibrary(java.io.File(context.filesDir, "simkl_library_v2.json"), { get(it) })
 
     override fun isConnected() = !store.get("simkl.access").isNullOrBlank()
     override fun accountLabel(): String? = if (isConnected()) store.get("simkl.account") ?: "Signed in" else null
@@ -123,6 +124,51 @@ class SimklTracker(context: Context) : Tracker {
 
     /** Completed movies and shows, and each watched episode, from the library on the TV (#83). */
     override suspend fun watched(): Set<String> = simklWatchedKeys(library.entries())
+
+    // ---- two-way sync (#90) ----
+    override val syncs = true
+    /** Simkl can only take a title off the watchlist by deleting its history, so sync never does. */
+    override val removesFromWatchlist = false
+
+    override suspend fun syncWatched(): List<SyncItem> = simklWatchedItems(library.entries())
+
+    override suspend fun syncRatings(): Map<SyncItem, Int> {
+        val movies = get("sync/ratings/movies")
+        val shows = get("sync/ratings/shows")
+        return ratingRows(movies.rows("movies"), true) { it.int("user_rating") ?: it.int("rating") } +
+            ratingRows(shows.rows("shows"), false) { it.int("user_rating") ?: it.int("rating") }
+    }
+
+    override suspend fun applySync(category: SyncCategory, add: List<SyncItem>, remove: List<SyncItem>) {
+        when (category) {
+            SyncCategory.WATCHED -> {
+                add.batches().forEach { post("sync/history", syncBatch(it)) }
+                remove.batches().forEach { post("sync/history/remove", syncBatch(it)) }
+            }
+            SyncCategory.WATCHLIST -> {
+                // Adding to plan-to-watch would move a title out of Watching or Completed: only titles
+                // that aren't in your Simkl library at all are added.
+                val entries = library.entries()
+                val known = SyncIndex(listOf("movies", "shows", "anime").flatMap { type ->
+                    entries.arr(type).list().mapNotNull { e ->
+                        val ids = e.obj(if (type == "movies") "movie" else "show").obj("ids")
+                        SyncItem.of(type == "movies", ids.str("imdb"), ids.long("tmdb"))
+                    }
+                })
+                add.filter { it !in known }.batches().forEach { batch ->
+                    post("sync/add-to-list", syncBatch(batch, extra = { mapOf("to" to kotlinx.serialization.json.JsonPrimitive("plantowatch")) }))
+                }
+            }
+            SyncCategory.RATINGS -> Unit
+        }
+    }
+
+    override suspend fun applyRatings(set: Map<SyncItem, Int>, clear: List<SyncItem>) {
+        set.keys.toList().batches().forEach { chunk ->
+            post("sync/ratings", syncBatch(chunk, extra = { mapOf("rating" to kotlinx.serialization.json.JsonPrimitive(set.getValue(it))) }))
+        }
+        clear.batches().forEach { post("sync/ratings/remove", syncBatch(it)) }
+    }
 
     private fun parse(
         key: String,
@@ -279,21 +325,25 @@ internal fun historyBody(ref: TitleRef, season: Int?, episode: Int?, ids: JsonOb
     }
 }
 
-/** Watched keys (see [watchedKey]) from a Simkl library (#83). */
-internal fun simklWatchedKeys(library: JsonElement): Set<String> {
-    val out = HashSet<String>()
+/** Watched keys (see watchedKeys) from a Simkl library (#83). */
+internal fun simklWatchedKeys(library: JsonElement): Set<String> = simklWatchedItems(library).flatMapTo(HashSet()) { it.keys }
+
+/** Completed movies and shows and each watched episode; anime is marked so sync leaves it out (#90). */
+internal fun simklWatchedItems(library: JsonElement): List<SyncItem> {
+    val out = ArrayList<SyncItem>()
     for (e in library.arr("movies").list()) {
         if (e.str("status") != "completed") continue
         val ids = e.obj("movie").obj("ids")
-        out += watchedKeys(true, ids.str("imdb"), ids.long("tmdb"), null, null)
+        SyncItem.of(true, ids.str("imdb"), ids.long("tmdb"))?.let { out += it }
     }
     for (type in listOf("shows", "anime")) for (e in library.arr(type).list()) {
         val ids = e.obj("show").obj("ids")
         val imdb = ids.str("imdb"); val tmdb = ids.long("tmdb")
-        if (e.str("status") == "completed") out += watchedKeys(false, imdb, tmdb, null, null)
+        val anime = type == "anime"
+        if (e.str("status") == "completed") SyncItem.of(false, imdb, tmdb, anime = anime)?.let { out += it }
         for (s in e.arr("seasons").list()) {
             val season = s.int("number") ?: continue
-            for (ep in s.arr("episodes").list()) ep.int("number")?.let { out += watchedKeys(false, imdb, tmdb, season, it) }
+            for (ep in s.arr("episodes").list()) ep.int("number")?.let { n -> SyncItem.of(false, imdb, tmdb, season, n, anime)?.let { out += it } }
         }
     }
     return out

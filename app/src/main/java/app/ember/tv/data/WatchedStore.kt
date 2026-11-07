@@ -82,6 +82,12 @@ internal class WatchedStore(context:Context) {
         val before=load(profile);val after=before.changed(meta,value)
         save(profile,before,after)
     }
+    /** Drops watched marks for titles removed on your trackers (#90); unwatched marks stay. */
+    fun forget(profile:String,keys:Set<String>):WatchedIndex=synchronized(lock) {
+        val before=load(profile)
+        val after=WatchedIndex(before.yes.filterTo(linkedSetOf()) {it !in keys},before.no)
+        save(profile,before,after)
+    }
     /** Retrieved history is completion evidence, but never overrides an explicit local choice. */
     fun learn(profile:String,history:List<Meta>):WatchedIndex=synchronized(lock) {
         val before=load(profile)

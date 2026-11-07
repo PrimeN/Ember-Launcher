@@ -11,6 +11,8 @@ import kotlinx.coroutines.sync.withLock
 import app.ember.tv.data.WatchedStore
 import app.ember.tv.data.WatchedIndex
 import app.ember.tv.tracker.TrackerWatchedFile
+import app.ember.tv.tracker.SyncSnapshots
+import app.ember.tv.tracker.TrackerSyncEngine
 import app.ember.tv.tracker.describe
 import app.ember.tv.data.WatchedKeys
 import app.ember.tv.data.KidsContentPolicy
@@ -295,6 +297,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     var trackersQuiet by mutableStateOf(prefs.trackersQuiet); internal set
     /** Your tracker rating for the open title: (title id, rating) (#84). */
     var myRating by mutableStateOf<Pair<String, Int?>?>(null); internal set
+    /** Keep trackers in sync (#90): the switch, what the last round did, and drops held back. */
+    var trackerSyncOn by mutableStateOf(prefs.trackerSync); internal set
+    var trackerSyncStatus by mutableStateOf<String?>(null); internal set
+    var trackerSyncHeld by mutableStateOf<Map<String, Int>>(emptyMap()); internal set
+    var trackerSyncBusy by mutableStateOf(false); internal set
+    internal var trackerSyncAt = 0L
+    internal val trackerSnapshots by lazy { SyncSnapshots(app.filesDir) }
+    internal val trackerSync by lazy { TrackerSyncEngine(trackerSnapshots) }
     /** Why the last watchlist change was turned down by a tracker, if it was (#82). */
     internal var watchlistRefusal: String? = null
     var trackerRev by mutableIntStateOf(0); internal set

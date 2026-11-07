@@ -12,6 +12,9 @@ import app.ember.tv.startPlexLink
 import app.ember.tv.toggleScreensaverSource
 import app.ember.tv.toggleTracker
 import app.ember.tv.toggleTrackerReports
+import app.ember.tv.toggleTrackerSync
+import app.ember.tv.syncTrackers
+import app.ember.tv.applyHeldRemovals
 import app.ember.tv.updatePhotoFolder
 
 import androidx.compose.ui.res.stringResource
@@ -483,6 +486,32 @@ internal fun WeatherSection(vm: HomeViewModel) {
 @Composable
 internal fun TextInput(value: String, onChange: (String) -> Unit, placeholder: String, password: Boolean = false, width: Int = 520, numeric: Boolean = false) {
     TvTextField(value, onChange, Modifier.width(width.dp), placeholder = placeholder, password = password, keyboardType = if(numeric)androidx.compose.ui.text.input.KeyboardType.Number else androidx.compose.ui.text.input.KeyboardType.Text)
+}
+
+/** Keep trackers in sync (#90): the switch, the last round, and drops waiting for your say. */
+@Composable
+internal fun TrackerSyncCard(vm: HomeViewModel) {
+    Column(
+        modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Keep trackers in sync", fontSize = 18.sp)
+        Text("Copies watched history, watchlist and ratings between Trakt, Simkl and WeTrakr and Ember's own watchlist, " +
+            "both ways, including removals. The first sync copies everything each one already has.", color = Mute, fontSize = 13.sp)
+        ButtonRow(spacing = 10.dp) {
+            Chip(if (vm.trackerSyncOn) "Sync: on" else "Sync: off", vm.trackerSyncOn) { vm.toggleTrackerSync() }
+            if (vm.trackerSyncOn && !vm.trackerSyncBusy) Chip("Sync now") { vm.syncTrackers(force = true) }
+        }
+        vm.trackerSyncStatus?.let { Text(it, color = Mute, fontSize = 13.sp) }
+        if (vm.trackerSyncHeld.isNotEmpty()) {
+            Text(vm.trackerSyncHeld.entries.joinToString(" ") { (name, n) -> "$name suddenly reports $n fewer titles than last time." } +
+                " Those removals were not copied to your other trackers, in case it was a bad read. Check on the service, then:",
+                color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+            Chip("Copy those removals too") { vm.applyHeldRemovals() }
+        }
+        Text("Not synced: Simkl watchlist removals (Simkl would delete the history too) and anime, whose episode numbers differ between services.",
+            color = Mute, fontSize = 12.sp)
+    }
 }
 
 @Composable

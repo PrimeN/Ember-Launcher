@@ -68,8 +68,11 @@ internal class SimklLibrary(
     }
 
     companion object {
-        /** Episodes come with watching shows, so watched marks (#83) need no extra calls. */
-        const val ALL_ITEMS = "sync/all-items?extended=full"
+        /**
+         * Episodes come with each show, including completed and dropped ones (recorded episodes
+         * only), so watched marks (#83) and sync (#90) need no extra calls.
+         */
+        const val ALL_ITEMS = "sync/all-items?extended=full&include_all_episodes=original"
         private val json = Json { ignoreUnknownKeys = true }
 
         private fun removals(a: JsonElement?) = listOf("movies", "tv_shows", "anime").map { a.obj(it).str("removed_from_list") }

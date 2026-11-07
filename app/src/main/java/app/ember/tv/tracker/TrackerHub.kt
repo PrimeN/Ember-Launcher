@@ -14,7 +14,13 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
         SimklTracker(context),
         AniListTracker(context),
         MalTracker(context),
-    ))
+    )) {
+        TrackerQueue.init(context.filesDir)
+        queueOn = true
+    }
+
+    /** Changes that fail are kept for later (#89); off in tests that build a hub by hand. */
+    internal var queueOn = false
 
     val health = app.ember.tv.data.SourceHealth("trackers")
     private val progressCache = mutableMapOf<String, List<TrackedItem>>()
@@ -122,9 +128,45 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
     /** Explicit watched / unwatched marks, sent as history to every tracker that takes them (#79). */
     suspend fun markWatched(ref: TitleRef, season: Int?, episode: Int?, watched: Boolean): Outcome =
         fanOut { t -> if (t.supportsHistory(ref)) t.markWatched(ref, season, episode, watched) else null }
+            .also { queue(if (watched) "watched" else "unwatched", ref, season, episode, null, it.failedIds) }
 
     /** Your rating, 1 to 10, or null to clear it (#84). */
     suspend fun rate(ref: TitleRef, rating: Int?): Outcome = fanOut { t -> if (t.rates && ref.hasIds) t.rate(ref, rating) else null }
+        .also { queue("rate", ref, null, null, rating ?: 0, it.failedIds) }
+
+    private fun queue(type: String, ref: TitleRef, season: Int?, episode: Int?, rating: Int?, targets: Set<String>) {
+        if (!queueOn || targets.isEmpty()) return
+        val item = SyncItem.of(ref.kind == Kind.MOVIE, ref.imdbId, ref.tmdbId, season, episode, ref.kind == Kind.ANIME) ?: return
+        TrackerQueue.add(TrackerQueue.Op(type, item, rating, targets))
+    }
+
+    /**
+     * Sends what was owed while a tracker couldn't be reached (#89). A tracker that has since
+     * been disconnected, or no longer reports, is dropped from the list.
+     */
+    suspend fun sendQueued(): Int {
+        if (!queueOn) return 0
+        var sent = 0
+        val reporting = reporting().associateBy { it.id }
+        for (op in TrackerQueue.all()) {
+            val remaining = op.targets.filterTo(HashSet()) { id ->
+                val t = reporting[id] ?: return@filterTo false
+                val ref = op.item.ref().let { if (op.item.anime) it.copy(kind = Kind.ANIME) else it }
+                val result = runCatching {
+                    when (op.type) {
+                        "watched", "unwatched" -> t.markWatched(ref, op.item.season, op.item.episode, op.type == "watched")
+                        "rate" -> t.rate(ref, op.rating?.takeIf { it in 1..10 })
+                        else -> true
+                    }
+                }
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                if (result.isSuccess) sent++
+                result.isFailure && result.exceptionOrNull() !is TrackerRefusal
+            }
+            if (remaining != op.targets) TrackerQueue.update(op, remaining)
+        }
+        return sent
+    }
 
     /** Your rating from the first tracker that has one (#84). */
     suspend fun ratingOf(ref: TitleRef): Int? = trackers.filter { it.isConnected() && it.rates }.firstNotNullOfOrNull { t ->
@@ -133,7 +175,7 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
 
     val canRate: Boolean get() = trackers.any { it.isConnected() && it.rates }
 
-    data class Outcome(val sent: List<String>, val failed: List<String>, val refused: List<String>)
+    data class Outcome(val sent: List<String>, val failed: List<String>, val refused: List<String>, val failedIds: Set<String> = emptySet())
 
     private suspend fun fanOut(call: suspend (Tracker) -> Boolean?): Outcome = coroutineScope {
         val results = reporting().map { t -> async { t to runCatching { call(t) } } }.awaitAll()
@@ -142,6 +184,7 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
             sent = results.filter { it.second.getOrNull() == true }.map { it.first.name },
             failed = results.filter { it.second.isFailure && it.second.exceptionOrNull() !is TrackerRefusal }.map { it.first.name },
             refused = results.mapNotNull { (it.second.exceptionOrNull() as? TrackerRefusal)?.message },
+            failedIds = results.filter { it.second.isFailure && it.second.exceptionOrNull() !is TrackerRefusal }.mapTo(HashSet()) { it.first.id },
         )
     }
 
@@ -178,10 +221,16 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
     suspend fun scrobble(item: TrackedItem, state: ScrobbleState, progress: Float): List<String> {
         val completed = mutableListOf<String>()
         // Hidden from Home still reports; only "Report what I watch" off stops it (#80).
+        val failed = HashSet<String>()
         reporting().filter { it.scrobbles }.forEach {
             val result = runCatching { it.scrobble(item, state, progress) }
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            if (result.isSuccess) completed += it.name
+            if (result.isSuccess) completed += it.name else failed += it.id
+        }
+        // A finished play that couldn't be reported is kept as a watched mark (#89).
+        if (state == ScrobbleState.STOP && progress >= 0.8f) {
+            queue("watched", TitleRef(item.kind, item.tmdbId, item.imdbId, item.title, item.year), item.season, item.episode, null,
+                failed.filterTo(HashSet()) { id -> trackers.firstOrNull { it.id == id }?.let { it.supportsHistory(TitleRef(item.kind, item.tmdbId, item.imdbId, item.title, item.year)) } == true })
         }
         return completed
     }
