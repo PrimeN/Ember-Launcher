@@ -110,10 +110,11 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                         // ---- header: date and time on the left; Ember, the TV's settings and the
                         // profile on the right, like the TV's own panel (#59) ----
                         Row(
-                            Modifier.fillMaxWidth().background(FloatingPanelStyle.header).padding(start = 22.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
-                            verticalAlignment = Alignment.Top,
+                            Modifier.fillMaxWidth().background(FloatingPanelStyle.header).padding(start = 26.dp, end = 22.dp, top = 24.dp, bottom = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Column(Modifier.weight(1f).padding(top = 4.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(info.date, fontSize = 15.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(info.time, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             }
@@ -231,23 +232,14 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
     if (audioPicker) AudioOutputDialog { audioPicker = false }
 }
 
-/**
- * A round button in the panel's header. Its name shows underneath while it is focused, like the
- * TV's own panel; the space is kept so the row never jumps.
- */
+/** A round button in the panel's header; its name is spoken, not shown (#64). */
 @Composable
 private fun HeaderButton(label: String, modifier: Modifier = Modifier, filled: Color? = null, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Column(Modifier.width(76.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Focusable(onClick = onClick,
-            modifier = modifier.size(48.dp).onFocusChanged { focused = it.isFocused }
-                .semantics { contentDescription = label },
-            radius = TvTokens.Shape.Pill, container = filled ?: WashHi,
-            focusedContainer = filled ?: PillColor, focusedContent = OnPillColor, outline = filled != null, focusedScale = TvTokens.Focus.Round) {
-            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { icon() }
-        }
-        Text(if (focused) label else "", fontSize = TvTokens.Type.Caption.sp, color = Fg, maxLines = 2,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 6.dp).heightIn(min = 30.dp))
+    Focusable(onClick = onClick,
+        modifier = modifier.size(48.dp).semantics { contentDescription = label },
+        radius = TvTokens.Shape.Pill, container = filled ?: WashHi,
+        focusedContainer = filled ?: PillColor, focusedContent = OnPillColor, outline = filled != null, focusedScale = TvTokens.Focus.Round) {
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { icon() }
     }
 }
 
