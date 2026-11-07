@@ -309,5 +309,17 @@ class MediaServers(val accounts: Accounts, val plex: PlexClient = PlexClient(acc
         return account
     }
 
+    /** Finishes a Jellyfin Quick Connect sign-in (#97). */
+    suspend fun addQuickConnect(url: String, secret: String): ServerAccount {
+        val account = jellyfin.quickConnectFinish(url, secret)
+        accounts.saveServers(accounts.servers().filterNot { it.url == account.url && it.userId == account.userId } + account)
+        return account
+    }
+
+    /** Provider ids ("plex" or a server key) whose last load was refused: Ember was signed out (#94). */
+    fun signedOut(): Set<String> = health.entries.values
+        .filter { it.id.endsWith(":rows") && it.failed && it.failure == app.ember.tv.data.SourceFailure.ACCESS }
+        .mapTo(HashSet()) { it.id.substringBefore(":rows") }
+
     fun removeServer(key: String) = accounts.saveServers(accounts.servers().filterNot { it.key == key })
 }

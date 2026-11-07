@@ -540,6 +540,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     var plexUserName by mutableStateOf(servers.accounts.plexUserName); internal set
     internal var serverUserJob: Job? = null
     var serverMessage by mutableStateOf<String?>(null); internal set
+    /** Servers already reported as having signed Ember out, so the notice shows once (#94). */
+    internal var signedOutNoticed: Set<String> = emptySet()
+    /** Provider ids ("plex" or a server key) that refused Ember's sign-in on the last load (#94). */
+    val serversSignedOut: Set<String> get() = servers.signedOut()
     internal var serverPlaybackDirty = false
     internal var serversLoadedAt = 0L
     internal var serverRefreshJob: Job? = null

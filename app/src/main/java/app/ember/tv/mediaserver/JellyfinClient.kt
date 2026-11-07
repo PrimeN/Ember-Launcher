@@ -18,7 +18,9 @@ import java.net.URLEncoder
 import java.util.UUID
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * Jellyfin and Emby share an API:
@@ -27,16 +29,26 @@ import kotlinx.coroutines.coroutineScope
 class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=ServerHttp()) {
 
     private fun authValue(token: String?) =
-        "MediaBrowser Client=\"Ember TV\", Device=\"Android TV\", DeviceId=\"${accounts.deviceId()}\", Version=\"0.7\"" +
+        "MediaBrowser Client=\"Ember TV\", Device=\"Android TV\", DeviceId=\"${accounts.deviceId()}\", Version=\"${app.ember.tv.BuildConfig.VERSION_NAME}\"" +
             (token?.let { ", Token=\"$it\"" } ?: "")
 
-    private fun headers(token: String?): Map<String, String> = buildMap {
+    /**
+     * Jellyfin takes one token, in the Authorization header: X-Emby-Authorization, X-Emby-Token
+     * and api_key are deprecated, off by default from 10.12 and gone in 10.13 (#93). Emby still
+     * reads its own X-Emby headers.
+     */
+    private fun headers(token: String?, kind: String): Map<String, String> = buildMap {
         put("Accept", "application/json")
-        // Emby reads X-Emby-Authorization; current Jellyfin prefers Authorization. Send both.
-        put("Authorization", authValue(token))
-        put("X-Emby-Authorization", authValue(token))
-        token?.let { put("X-Emby-Token", it) }
+        if (kind == "jellyfin") put("Authorization", authValue(token))
+        else {
+            put("X-Emby-Authorization", authValue(token))
+            token?.let { put("X-Emby-Token", it) }
+        }
     }
+    private fun headers(a: ServerAccount) = headers(a.token, a.kind)
+
+    /** The token on URLs handed to the player or image loader: ApiKey for Jellyfin, api_key for Emby (#93). */
+    private fun tokenParam(a: ServerAccount) = tokenParamName(a.kind) + "=" + URLEncoder.encode(a.token, "UTF-8")
 
     /**
      * Accepts "192.168.1.5:8096", "jellyfin.example.com" or a full URL. Without a scheme,
@@ -53,15 +65,37 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
                 put("Username", user)
                 put("Pw", password)
             },
-            headers(null),
+            headers(null, kind),
         )
         val token = r.str("AccessToken") ?: error("Sign-in failed")
         val userId = r.obj("User").str("Id") ?: error("Sign-in failed")
-        val name = serverResult { http.get("$url/System/Info/Public", headers(null)).str("ServerName") }.getOrNull()
+        val name = serverResult { http.get("$url/System/Info/Public", headers(null, kind)).str("ServerName") }.getOrNull()
             ?: kind.replaceFirstChar { it.uppercase() }
         return ServerAccount(UUID.randomUUID().toString(), kind, name, url, userId, token, r.obj("User").str("Name") ?: user)
     }
-    suspend fun users(a: ServerAccount): List<ServerUser> = http.get("${a.url}/Users/Public", headers(a.token)).list().mapNotNull { item ->
+    // ---- Quick Connect (#97): approve a code from a signed-in Jellyfin app instead of typing a password ----
+    suspend fun quickConnectEnabled(url: String): Boolean =
+        (http.get("$url/QuickConnect/Enabled", headers(null, "jellyfin")) as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+
+    /** (secret, code). Jellyfin 10.9+ starts with POST; older servers used GET. */
+    suspend fun quickConnectBegin(url: String): Pair<String, String> {
+        val r = try { http.post("$url/QuickConnect/Initiate", null, headers(null, "jellyfin")) }
+            catch (e: ServerHttpException) { if (e.status == 404 || e.status == 405) http.get("$url/QuickConnect/Initiate", headers(null, "jellyfin")) else throw e }
+        return (r.str("Secret") ?: error("The server returned no Quick Connect code.")) to (r.str("Code") ?: error("The server returned no Quick Connect code."))
+    }
+
+    suspend fun quickConnectApproved(url: String, secret: String): Boolean =
+        http.get("$url/QuickConnect/Connect?secret=${URLEncoder.encode(secret, "UTF-8")}", headers(null, "jellyfin")).str("Authenticated") == "true"
+
+    suspend fun quickConnectFinish(url: String, secret: String): ServerAccount {
+        val r = http.post("$url/Users/AuthenticateWithQuickConnect", buildJsonObject { put("Secret", secret) }, headers(null, "jellyfin"))
+        val token = r.str("AccessToken") ?: error("Sign-in failed")
+        val userId = r.obj("User").str("Id") ?: error("Sign-in failed")
+        val name = serverResult { http.get("$url/System/Info/Public", headers(null, "jellyfin")).str("ServerName") }.getOrNull() ?: "Jellyfin"
+        return ServerAccount(UUID.randomUUID().toString(), "jellyfin", name, url, userId, token, r.obj("User").str("Name") ?: "")
+    }
+
+    suspend fun users(a: ServerAccount): List<ServerUser> = http.get("${a.url}/Users/Public", headers(a)).list().mapNotNull { item ->
         val id = item.str("Id") ?: return@mapNotNull null
         val name = item.str("Name") ?: return@mapNotNull null
         ServerUser(id, name, item.str("HasPassword") == "true")
@@ -71,20 +105,26 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val label = a.kind.replaceFirstChar { it.uppercase() }
         val fields = "Fields=ProviderIds,Overview&EnableImageTypes=Primary,Backdrop,Thumb,Logo"
         val favorites = async { serverResult {
-            http.get("${a.url}/Users/${a.userId}/Items?Recursive=true&IncludeItemTypes=Movie,Series&Filters=IsFavorite&Limit=100&$fields", headers(a.token))
+            http.get("${a.url}/Users/${a.userId}/Items?Recursive=true&IncludeItemTypes=Movie,Series&Filters=IsFavorite&Limit=100&$fields", headers(a))
                 .arr("Items").list().mapNotNull { if (it.str("Type") == "Series") seriesMeta(a, it) else toMeta(a, it) }
         }.getOrDefault(emptyList()) }
+        // Next up (#96): the next episode of shows you're watching, as Plex's On Deck does.
+        val nextUp = async { serverResult {
+            http.get("${a.url}/Shows/NextUp?UserId=${a.userId}&Limit=20&EnableResumable=false&$fields", headers(a)).arr("Items").list()
+        }.getOrDefault(emptyList()) }
         val resume = serverResult {
-            http.get("${a.url}/Users/${a.userId}/Items/Resume?Limit=20&MediaTypes=Video&$fields", headers(a.token)).arr("Items").list()
+            http.get("${a.url}/Users/${a.userId}/Items/Resume?Limit=20&MediaTypes=Video&$fields", headers(a)).arr("Items").list()
         }.onFailure { onFailure(it) }.getOrDefault(emptyList())
         val latest = serverResult {
             http.get(
                 "${a.url}/Users/${a.userId}/Items/Latest?Limit=30&IncludeItemTypes=Movie,Episode&GroupItems=false&$fields",
-                headers(a.token),
+                headers(a),
             ).list()
         }.onFailure { onFailure(it) }.getOrDefault(emptyList())
         val out = ArrayList<ServerRow>()
-        resume.mapNotNull { toMeta(a, it) }.takeIf { it.isNotEmpty() }?.let { out += ServerRow("Continue on ${a.name}", label, it, inProgress = true,id="${a.kind}:${a.key}:resume") }
+        val inProgress = resume.mapNotNull { it.str("SeriesId") }.toSet()
+        val continuing = resume + nextUp.await().filter { (it.str("SeriesId") ?: "") !in inProgress }
+        continuing.mapNotNull { toMeta(a, it) }.distinctBy { it.id }.takeIf { it.isNotEmpty() }?.let { out += ServerRow("Continue on ${a.name}", label, it, inProgress = true,id="${a.kind}:${a.key}:resume") }
         latest.mapNotNull { toMeta(a, it) }.takeIf { it.isNotEmpty() }?.let { out += ServerRow("Recently added on ${a.name}", label, it,id="${a.kind}:${a.key}:recent") }
         val favoriteItems = favorites.await()
         if (favoriteItems.isNotEmpty()) out += ServerRow("Favorites on ${a.name}", label, favoriteItems, id = "${a.kind}:${a.key}:watchlist")
@@ -92,19 +132,17 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     }
 
     /** Movie and TV libraries (views) on a Jellyfin or Emby server, the newest 60 of each. */
-    suspend fun libraries(a: ServerAccount, onFailure: (Throwable) -> Unit = {}): List<ServerLibrary> {
-        val views = http.get("${a.url}/Users/${a.userId}/Views", headers(a.token)).arr("Items").list()
-        val out = ArrayList<ServerLibrary>()
-        for (v in views) {
-            val kind = v.str("CollectionType") ?: continue
-            if (kind != "movies" && kind != "tvshows") continue
-            val id = v.str("Id") ?: continue
+    suspend fun libraries(a: ServerAccount, onFailure: (Throwable) -> Unit = {}): List<ServerLibrary> = coroutineScope {
+        val views = http.get("${a.url}/Users/${a.userId}/Views", headers(a)).arr("Items").list()
+        // A few at a time rather than one after another (#98); the order stays the server's.
+        val permits = kotlinx.coroutines.sync.Semaphore(3)
+        views.map { v -> async { permits.withPermit {
+            val kind = v.str("CollectionType")?.takeIf { it == "movies" || it == "tvshows" } ?: return@withPermit null
+            val id = v.str("Id") ?: return@withPermit null
             val ref=ServerRef(a.kind,a.key,"library:$kind:$id").value
-            val result=serverResult { browse(a,"library:$kind:$id",ServerFilter(),0) }.onFailure { onFailure(it) }.getOrNull() ?: continue
-            out += ServerLibrary(a.name,v.str("Name")?:kind,if(kind=="movies")"movies" else "shows",result.items,ref,ref,result.total)
-
-        }
-        return out
+            val result=serverResult { browse(a,"library:$kind:$id",ServerFilter(),0) }.onFailure { onFailure(it) }.getOrNull() ?: return@withPermit null
+            ServerLibrary(a.name,v.str("Name")?:kind,if(kind=="movies")"movies" else "shows",result.items,ref,ref,result.total)
+        } } }.awaitAll().filterNotNull()
     }
 
     /** A series: opens as a normal title by its ids; its episodes on the server are found there. */
@@ -127,7 +165,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val name = it.str("Name") ?: return null
         val providers = it.obj("ProviderIds")
         val imdb = providers.str("Imdb")
-        val key = "api_key=${a.token}"
+        val key = tokenParam(a)
         return Meta(
             id = "${a.kind}show:${a.key}:$id",
             serverRef=ServerRef(a.kind,a.key,id).value,
@@ -152,7 +190,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val id = it.str("Id") ?: return null
         val isEpisode = type == "Episode"
         val name = (if (isEpisode) it.str("SeriesName") else null) ?: it.str("Name") ?: return null
-        val key = "api_key=${a.token}"
+        val key = tokenParam(a)
         val posterItem = (if (isEpisode) it.str("SeriesId") else null) ?: it.str("PrimaryImageItemId") ?: it.str("ParentPrimaryImageItemId") ?: id
         val runtime = it.long("RunTimeTicks")
         val position = it.obj("UserData").long("PlaybackPositionTicks")
@@ -201,7 +239,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val found = http.get(
             "${a.url}/Users/${a.userId}/Items?searchTerm=$term&IncludeItemTypes=$type&Recursive=true" +
                 "&Fields=ProviderIds,ProductionYear&Limit=20",
-            headers(a.token),
+            headers(a),
         ).arr("Items").list()
         val match = found.firstOrNull { m ->
             val p = m.obj("ProviderIds")
@@ -215,11 +253,11 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val matchId = match.str("Id") ?: return emptyList()
 
         val item: JsonElement = if (q.movie) {
-            http.get("${a.url}/Users/${a.userId}/Items/$matchId?Fields=MediaSources", headers(a.token))
+            http.get("${a.url}/Users/${a.userId}/Items/$matchId?Fields=MediaSources", headers(a))
         } else {
             http.get(
                 "${a.url}/Shows/$matchId/Episodes?UserId=${a.userId}&Season=${q.season}&Fields=MediaSources",
-                headers(a.token),
+                headers(a),
             ).arr("Items").list().firstOrNull { it.int("ParentIndexNumber") == q.season && it.int("IndexNumber") == q.episode }
                 ?: return emptyList()
         }
@@ -229,10 +267,10 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     /** File versions of one movie or episode, by its item id. */
     /** IMDb and TMDB ids of an item, or of its show when the item is an episode. */
     suspend fun titleIds(a: ServerAccount, itemId: String): Pair<String?, Long?> {
-        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId", headers(a.token))
+        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId", headers(a))
         val target = if (item.str("Type") == "Episode") {
             val series = item.str("SeriesId") ?: return null to null
-            http.get("${a.url}/Users/${a.userId}/Items/$series", headers(a.token))
+            http.get("${a.url}/Users/${a.userId}/Items/$series", headers(a))
         } else {
             item
         }
@@ -241,12 +279,12 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     }
 
     suspend fun sourcesFor(a: ServerAccount, itemId: String): List<StreamOption> =
-        options(a, http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=MediaSources", headers(a.token)))
+        options(a, http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=MediaSources", headers(a)))
 
     private fun options(a: ServerAccount, item: JsonElement): List<StreamOption> {
         val itemId = item.str("Id") ?: return emptyList()
         val sources = item.arr("MediaSources").list().ifEmpty { listOf(item) }
-        val key = "api_key=${a.token}"
+        val key = tokenParam(a)
         return sources.map { src ->
             val streams = src.arr("MediaStreams").list()
             val video = streams.firstOrNull { it.str("Type") == "Video" }
@@ -302,7 +340,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
      * chapter markers (Emby's IntroStart/IntroEnd/CreditsStart).
      */
     suspend fun qualities(a:ServerAccount):List<ServerQuality> {
-        val policy=http.get("${a.url}/Users/${a.userId}",headers(a.token)).obj("Policy")
+        val policy=http.get("${a.url}/Users/${a.userId}",headers(a)).obj("Policy")
         return if(policy.str("EnableVideoPlaybackTranscoding")=="true")ServerQuality.entries.toList() else listOf(ServerQuality.ORIGINAL)
     }
     suspend fun playback(a:ServerAccount,itemId:String,sourceId:String,quality:ServerQuality):StreamOption {
@@ -313,13 +351,13 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val response=http.post("${a.url}/Items/$itemId/PlaybackInfo",buildJsonObject{
             put("UserId",a.userId);put("MediaSourceId",sourceId);put("MaxStreamingBitrate",quality.bitrate)
             put("EnableDirectPlay",false);put("EnableDirectStream",true);put("EnableTranscoding",true);put("DeviceProfile",profile)
-        },headers(a.token))
+        },headers(a))
         val selected=response.arr("MediaSources").list().firstOrNull{it.str("Id")==sourceId}?:error("The selected version was not returned.")
         val path=selected.str("TranscodingUrl")?:selected.str("DirectStreamUrl")?:error("The server did not offer a compatible stream.")
         val base=a.url.toHttpUrl()
         val url=base.resolve(path)?:error("Invalid stream address.")
         check(url.scheme==base.scheme&&url.host==base.host&&url.port==base.port) { "Cross-origin stream conversion was refused." }
-        val authenticated=url.newBuilder().setQueryParameter("api_key",a.token).setQueryParameter("MaxWidth",quality.width.toString()).setQueryParameter("MaxHeight",quality.height.toString()).build().toString()
+        val authenticated=url.newBuilder().setQueryParameter(tokenParamName(a.kind),a.token).setQueryParameter("MaxWidth",quality.width.toString()).setQueryParameter("MaxHeight",quality.height.toString()).build().toString()
         val session=response.str("PlaySessionId")?:error("The server returned no playback session.")
         val method=if(selected.str("TranscodingUrl")!=null)"Transcode" else "DirectStream"
         val transport=original.serverPlayback!!.copy(parts=listOf(ServerPart(sourceId,authenticated,original.serverPlayback.durationMs)),sessionId=session,method=method,quality=quality)
@@ -327,21 +365,21 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     }
     suspend fun stopTranscode(a:ServerAccount,transport:ServerPlayback) {
         if(transport.method!="Transcode")return
-        http.ack("${a.url}/Videos/ActiveEncodings?DeviceId=${URLEncoder.encode(accounts.deviceId(),"UTF-8")}&PlaySessionId=${URLEncoder.encode(transport.sessionId,"UTF-8")}",headers(a.token),"DELETE")
+        http.ack("${a.url}/Videos/ActiveEncodings?DeviceId=${URLEncoder.encode(accounts.deviceId(),"UTF-8")}&PlaySessionId=${URLEncoder.encode(transport.sessionId,"UTF-8")}",headers(a),"DELETE")
     }
 
     suspend fun markers(a: ServerAccount, itemId: String): List<Marker> {
         val segments = serverResult {
             http.get(
                 "${a.url}/MediaSegments/$itemId?includeSegmentTypes=Intro&includeSegmentTypes=Recap&includeSegmentTypes=Outro",
-                headers(a.token),
+                headers(a),
             ).arr("Items").list().mapNotNull { m ->
                 val kind = when (m.str("Type")) { "Intro" -> "intro"; "Recap" -> "recap"; "Outro" -> "credits"; else -> return@mapNotNull null }
                 Marker(kind, (m.long("StartTicks") ?: return@mapNotNull null) / 10_000, (m.long("EndTicks") ?: return@mapNotNull null) / 10_000)
             }
         }.getOrDefault(emptyList())
         if (segments.isNotEmpty()) return segments
-        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=Chapters", headers(a.token))
+        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=Chapters", headers(a))
         val chapters = item.arr("Chapters").list()
         val runtime = (item.long("RunTimeTicks") ?: 0L) / 10_000
         fun at(type: String) = chapters.firstOrNull { it.str("MarkerType") == type }?.long("StartPositionTicks")?.div(10_000)
@@ -354,7 +392,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     }
 
     suspend fun chapters(a: ServerAccount, itemId: String): List<Chapter> {
-        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=Chapters", headers(a.token))
+        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=Chapters", headers(a))
         return item.arr("Chapters").list().mapIndexedNotNull { i, c ->
             // Emby's intro and credits markers are not chapters to jump to.
             if (c.str("MarkerType")?.let { it != "Chapter" } == true) return@mapIndexedNotNull null
@@ -364,7 +402,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
 
     /** Seek thumbnails (Jellyfin 10.9+ trickplay): tiles of thumbnails, the size closest to 320 px wide. */
     suspend fun trickplay(a: ServerAccount, itemId: String, selectedSource:String?=null): Trickplay? {
-        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=Trickplay", headers(a.token))
+        val item = http.get("${a.url}/Users/${a.userId}/Items/$itemId?Fields=Trickplay", headers(a))
         val bySource = item.obj("Trickplay") ?: return null
         val (sourceId, sizes) = (if (selectedSource != null) bySource.entries.firstOrNull { it.key == selectedSource } else bySource.entries.firstOrNull()) ?: return null
         val pick = (sizes as? kotlinx.serialization.json.JsonObject)?.entries
@@ -382,33 +420,33 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
     }
 
     suspend fun actions(a:ServerAccount,itemId:String):ServerActionState {
-        val body=http.get("${a.url}/Users/${a.userId}/Items/$itemId",headers(a.token));val data=body.obj("UserData")
+        val body=http.get("${a.url}/Users/${a.userId}/Items/$itemId",headers(a));val data=body.obj("UserData")
         return ServerActionState(data.str("Played")=="true",data.str("IsFavorite")?.toBooleanStrictOrNull(),a.kind=="jellyfin" && (data.long("PlaybackPositionTicks")?:0L)>0)
     }
     suspend fun favorite(a:ServerAccount,itemId:String,value:Boolean) {
-        http.ack("${a.url}/Users/${a.userId}/FavoriteItems/$itemId",headers(a.token),if(value)"POST" else "DELETE")
+        http.ack("${a.url}/Users/${a.userId}/FavoriteItems/$itemId",headers(a),if(value)"POST" else "DELETE")
     }
     suspend fun hideResume(a:ServerAccount,itemId:String) {
         check(a.kind=="jellyfin") { "This server does not expose resume hiding." }
-        http.ack("${a.url}/Users/${a.userId}/Items/$itemId/HideFromResume?Hide=true",headers(a.token),"POST")
+        http.ack("${a.url}/Users/${a.userId}/Items/$itemId/HideFromResume?Hide=true",headers(a),"POST")
     }
     suspend fun markWatched(a:ServerAccount,itemId:String,watched:Boolean=true):Boolean = serverResult {
-        http.ack("${a.url}/Users/${a.userId}/PlayedItems/$itemId",headers(a.token),if(watched)"POST" else "DELETE")
+        http.ack("${a.url}/Users/${a.userId}/PlayedItems/$itemId",headers(a),if(watched)"POST" else "DELETE")
     }.isSuccess
     suspend fun report(a:ServerAccount,itemId:String,state:ReportState,positionMs:Long,session:ServerPlayback?=null) {
         val path=when(state){ReportState.START->"Sessions/Playing";ReportState.STOP->"Sessions/Playing/Stopped";else->"Sessions/Playing/Progress"}
         val body=buildJsonObject { put("ItemId",itemId);put("PositionTicks",positionMs*10000);put("IsPaused",state==ReportState.PAUSE)
             session?.let { put("MediaSourceId",it.sourceId);put("PlaySessionId",it.sessionId);put("PlayMethod",it.method) }
         }
-        http.ack("${a.url}/$path",headers(a.token),"POST",body)
+        http.ack("${a.url}/$path",headers(a),"POST",body)
     }
     suspend fun item(a:ServerAccount,id:String):Meta {
-        val body=http.get("${a.url}/Users/${a.userId}/Items/$id?Fields=ProviderIds,Overview,MediaSources",headers(a.token))
+        val body=http.get("${a.url}/Users/${a.userId}/Items/$id?Fields=ProviderIds,Overview,MediaSources",headers(a))
         return (if(body.str("Type")=="Series")seriesMeta(a,body) else toMeta(a,body))?:error("The server item is unavailable.")
     }
-    suspend fun seasons(a:ServerAccount,series:String):List<ServerSeason> = http.get("${a.url}/Shows/$series/Seasons?UserId=${a.userId}",headers(a.token)).arr("Items").list().mapNotNull { item->item.int("IndexNumber")?.let{ServerSeason(it,item.str("Name")?:"Season $it")} }.sortedBy{it.number}
+    suspend fun seasons(a:ServerAccount,series:String):List<ServerSeason> = http.get("${a.url}/Shows/$series/Seasons?UserId=${a.userId}",headers(a)).arr("Items").list().mapNotNull { item->item.int("IndexNumber")?.let{ServerSeason(it,item.str("Name")?:"Season $it")} }.sortedBy{it.number}
     suspend fun episodes(a:ServerAccount,series:String,season:Int,offset:Int):ServerPage {
-        val body=http.get("${a.url}/Shows/$series/Episodes?UserId=${a.userId}&Season=$season&StartIndex=$offset&Limit=100&IsMissing=false&Fields=ProviderIds,Overview",headers(a.token))
+        val body=http.get("${a.url}/Shows/$series/Episodes?UserId=${a.userId}&Season=$season&StartIndex=$offset&Limit=100&IsMissing=false&Fields=ProviderIds,Overview",headers(a))
         val raw=body.arr("Items").list();val next=offset+raw.size;val total=body.int("TotalRecordCount")
         return ServerPage(raw.mapNotNull{toMeta(a,it)},next,raw.isEmpty()||total?.let{next>=it}?: (raw.size<100),total)
     }
@@ -419,9 +457,12 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val fields="ProviderIds,Overview"
         val uri="${a.url}/Users/${a.userId}/Items?ParentId=$id&IncludeItemTypes=$type&Recursive=true&Fields=$fields&SortBy=$sort&SortOrder=${if(filter.sort=="title")"Ascending" else "Descending"}&StartIndex=$offset&Limit=$limit"+
             (if(filter.query.isNotBlank())"&SearchTerm="+URLEncoder.encode(filter.query,"UTF-8") else "")+(if(filter.unwatched)"&IsPlayed=false" else "")+(filter.genre?.let{"&GenreIds="+URLEncoder.encode(it,"UTF-8")}?:"")
-        val body=http.get(uri,headers(a.token));val raw=body.arr("Items").list();val next=offset+raw.size;val total=body.int("TotalRecordCount")
+        val body=http.get(uri,headers(a));val raw=body.arr("Items").list();val next=offset+raw.size;val total=body.int("TotalRecordCount")
         return ServerPage(raw.mapNotNull{if(it.str("Type")=="Series")seriesMeta(a,it) else toMeta(a,it)},next,raw.isEmpty()||total?.let{next>=it}?: (raw.size<limit),total)
     }
-    suspend fun genres(a:ServerAccount,library:String):List<Pair<String,String>> = http.get("${a.url}/Genres?UserId=${a.userId}&ParentId=${library.substringAfterLast(':')}&Recursive=true",headers(a.token)).arr("Items").list().mapNotNull{m->m.str("Id")?.let{it to (m.str("Name")?:it)}}
-    fun artwork(a:ServerAccount,path:String)=a.url+path to headers(a.token)
+    suspend fun genres(a:ServerAccount,library:String):List<Pair<String,String>> = http.get("${a.url}/Genres?UserId=${a.userId}&ParentId=${library.substringAfterLast(':')}&Recursive=true",headers(a)).arr("Items").list().mapNotNull{m->m.str("Id")?.let{it to (m.str("Name")?:it)}}
+    fun artwork(a:ServerAccount,path:String)=a.url+path to headers(a)
 }
+
+/** Jellyfin's supported URL token is ApiKey; Emby's is api_key (#93). */
+internal fun tokenParamName(kind: String) = if (kind == "jellyfin") "ApiKey" else "api_key"

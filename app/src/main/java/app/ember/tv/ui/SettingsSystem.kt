@@ -12,6 +12,7 @@ import app.ember.tv.startPlexLink
 import app.ember.tv.toggleScreensaverSource
 import app.ember.tv.toggleTracker
 import app.ember.tv.toggleTrackerReports
+import app.ember.tv.quickConnect
 import app.ember.tv.toggleTrackerSync
 import app.ember.tv.syncTrackers
 import app.ember.tv.applyHeldRemovals
@@ -334,6 +335,8 @@ internal fun MediaServersSection(vm: HomeViewModel) {
     var url by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    @Suppress("UNUSED_VARIABLE") val health = vm.serverHealth.toList() // redraw when a load finishes
+    val signedOut = vm.serversSignedOut
 
     Section(stringResource(R.string.ui_media_servers), stringResource(R.string.ui_continue_and_recently_added_rows_from)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -346,7 +349,12 @@ internal fun MediaServersSection(vm: HomeViewModel) {
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.ui_plex), fontSize = 18.sp)
-                    Text(if (vm.plexConnected) "Connected" else "Not connected", color = Mute, fontSize = 13.sp)
+                    Text(if (!vm.plexConnected) "Not connected" else if ("plex" in signedOut) "Signed out" else "Connected", color = Mute, fontSize = 13.sp)
+                }
+                if (vm.plexConnected && "plex" in signedOut) {
+                    // #94: Plex refused the saved sign-in.
+                    Text("Plex no longer accepts Ember's sign-in (it was revoked or the password changed).", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+                    Chip("Sign in again") { vm.startPlexLink() }
                 }
                 Text(stringResource(R.string.ui_sign_in_with_a_code_at), color = Mute, fontSize = 13.sp)
                 if (vm.plexConnected) {
@@ -369,7 +377,11 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                         Text(a.name, fontSize = 18.sp)
                         if (a.userName.isNotBlank()) Note("User: ${a.userName}")
                         Text("${a.kind.replaceFirstChar { it.uppercase() }} · ${a.url}", color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (a.key in signedOut) Text("This server signed Ember out (device removed or password changed).",
+                            color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
                     }
+                    // #94: fills in the form below with this server, ready for the password or Quick Connect.
+                    if (a.key in signedOut) Chip("Sign in again") { kind = a.kind; url = a.url; user = a.userName; password = "" }
                     Chip("Switch user") { userAccount = a; choosingUser = true }
                     Chip(stringResource(R.string.ui_remove)) { vm.removeServer(a.key) }
                 }
@@ -402,10 +414,16 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 TextInput(url, { url = it }, "Server address, e.g. 192.168.1.20:8096")
                 TextInput(user, { user = it }, "Username")
                 TextInput(password, { password = it }, "Password", password = true)
-                Chip(stringResource(R.string.ui_add_server)) {
-                    vm.addServer(kind, url, user, password)
-                    password = ""
+                ButtonRow(spacing = 10.dp) {
+                    Chip(stringResource(R.string.ui_add_server)) {
+                        vm.addServer(kind, url, user, password)
+                        password = ""
+                    }
+                    // #97: approve a code from the Jellyfin app instead of typing a password.
+                    if (kind == "jellyfin") Chip("Use Quick Connect") { vm.quickConnect(url) }
                 }
+                if (kind == "jellyfin") Text("Quick Connect: enter the address, then approve the code in the Jellyfin app or web (Profile › Quick Connect). No username or password needed.",
+                    color = Mute, fontSize = 12.sp)
             }
         }
     }

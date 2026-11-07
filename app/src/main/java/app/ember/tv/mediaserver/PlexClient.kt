@@ -15,7 +15,7 @@ internal suspend fun <T> serverResult(block:suspend()->T):Result<T> = try { Resu
 class PlexClient(private val accounts: Accounts,private val http:ServerHttp=ServerHttp(),private val clock:()->Long=System::currentTimeMillis) {
     private fun headers(token:String?=null)=buildMap {
         put("Accept","application/json");put("X-Plex-Product","Ember TV");put("X-Plex-Client-Identifier",accounts.deviceId())
-        put("X-Plex-Device","Android TV");put("X-Plex-Device-Name","Ember TV");put("X-Plex-Platform","Android");put("X-Plex-Version","1")
+        put("X-Plex-Device","Android TV");put("X-Plex-Device-Name","Ember TV");put("X-Plex-Platform","Android");put("X-Plex-Version",app.ember.tv.BuildConfig.VERSION_NAME)
         token?.let { put("X-Plex-Token",it) }
     }
     val connected get()=!accounts.plexToken.isNullOrBlank()
@@ -108,17 +108,18 @@ class PlexClient(private val accounts: Accounts,private val http:ServerHttp=Serv
         return PlexHomeSession(user.id, user.name, PlexUsers.token(response))
     }
     internal fun selectHomeUser(session: PlexHomeSession) { accounts.plexHome = session; refreshConnections() }
-    suspend fun libraries(onFailure:(Throwable)->Unit={}):List<ServerLibrary> {
-        val out=mutableListOf<ServerLibrary>()
-        for(s in serverResult{servers()}.onFailure{onFailure(it)}.getOrDefault(emptyList())) {
-            val dirs=serverResult{get(s,"/library/sections")}.onFailure{onFailure(it)}.getOrNull().obj("MediaContainer").arr("Directory").list()
-            for(d in dirs) {
-                val type=d.str("type")?.takeIf{it in listOf("movie","show")}?:continue;val id=d.str("key")?:continue
+    /** Every server's movie and show libraries, a few at a time (#98), in the servers' order. */
+    suspend fun libraries(onFailure:(Throwable)->Unit={}):List<ServerLibrary> = coroutineScope {
+        val permits=Semaphore(4)
+        serverResult{servers()}.onFailure{onFailure(it)}.getOrDefault(emptyList()).map { s->async {
+            val dirs=permits.withPermit { serverResult{get(s,"/library/sections")}.onFailure{onFailure(it)}.getOrNull() }.obj("MediaContainer").arr("Directory").list()
+            dirs.map { d->async { permits.withPermit {
+                val type=d.str("type")?.takeIf{it in listOf("movie","show")}?:return@withPermit null;val id=d.str("key")?:return@withPermit null
                 val ref=ServerRef("plex",s.id,"library:$id").value
-                val p=serverResult{browse(ref,ServerFilter(),0,60)}.onFailure{onFailure(it)}.getOrNull()?:continue
-                out+=ServerLibrary(s.name,d.str("title")?:type,if(type=="movie")"movies" else "shows",p.items,ref,ref,p.total)
-            }
-        };return out
+                val p=serverResult{browse(ref,ServerFilter(),0,60)}.onFailure{onFailure(it)}.getOrNull()?:return@withPermit null
+                ServerLibrary(s.name,d.str("title")?:type,if(type=="movie")"movies" else "shows",p.items,ref,ref,p.total)
+            } } }.awaitAll().filterNotNull()
+        } }.awaitAll().flatten()
     }
     suspend fun browse(ref:String,filter:ServerFilter,offset:Int,limit:Int=60):ServerPage {
         val r=ServerRef.parse(ref)?:error("Invalid Plex library.");val s=server(r.account);val id=r.item.removePrefix("library:")

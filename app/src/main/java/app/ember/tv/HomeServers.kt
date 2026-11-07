@@ -55,6 +55,14 @@ internal fun HomeViewModel.refreshServers(force: Boolean = false, only: String? 
         if(revision!=serverRefreshRevision || profiles.profileId!=owner)return@launch
         if (fresh != null) serverRows = fresh
         if(serverHealth.none {it.id.endsWith(":rows") && it.failed})serversLoadedAt=System.currentTimeMillis()
+        // A server that signed Ember out says so once, instead of its rows quietly going stale (#94).
+        val refused = servers.signedOut()
+        val newly = refused - signedOutNoticed
+        if (newly.isNotEmpty()) {
+            val names = newly.map { id -> if (id == "plex") "Plex" else serverAccounts.firstOrNull { it.key == id }?.name ?: "A media server" }
+            notice = "${names.joinToString(" and ")} signed Ember out. Sign in again in Settings › Media servers."
+        }
+        signedOutNoticed = refused
         servers.saveHome(profiles.profileId)
         updateScreensaver()
     }
@@ -101,6 +109,38 @@ internal fun HomeViewModel.addServer(kind: String, url: String, user: String, pa
             },
             onFailure = { "Could not sign in. Check the address, username and password. ${it.message.orEmpty()}" },
         )
+    }
+}
+
+/**
+ * Jellyfin Quick Connect (#97): the TV shows a code, you approve it in the Jellyfin app or web
+ * (Profile › Quick Connect), and Ember signs in without a password.
+ */
+internal fun HomeViewModel.quickConnect(rawUrl: String) {
+    if (rawUrl.isBlank()) { serverMessage = "Enter the server address first."; return }
+    val url = servers.jellyfin.normalize(rawUrl)
+    serverMessage = null
+    var approved: String? = null
+    runLink("quickconnect", "Jellyfin", begin = {
+        check(servers.jellyfin.quickConnectEnabled(url)) { "Quick Connect is off on this server. Turn it on in the Jellyfin dashboard (General), or sign in with your password." }
+        val (secret, code) = servers.jellyfin.quickConnectBegin(url)
+        approved = secret
+        app.ember.tv.tracker.LinkSession(code, "the Jellyfin app › Profile › Quick Connect", secret, 5, 600)
+    }, poll = { session -> servers.jellyfin.quickConnectApproved(url, session.deviceCode) }, report = { serverMessage = it }) {
+        // runLink already cleared the code; finish with the approved secret.
+        val secret = approved ?: return@runLink
+        viewModelScope.launch {
+            serverMessage = runCatching { servers.addQuickConnect(url, secret) }.fold(
+                onSuccess = { a ->
+                    serverAccounts = servers.accounts.servers()
+                    invalidateServerLibraries()
+                    enableTab(NavTabs.LIBRARY)
+                    syncServers(initial = true, only = a.key)
+                    "${a.name} added."
+                },
+                onFailure = { "Quick Connect was approved but signing in failed. ${it.message.orEmpty()}" },
+            )
+        }
     }
 }
 
