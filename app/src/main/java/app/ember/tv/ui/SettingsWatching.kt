@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -349,28 +352,49 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
         modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text(vm.addonLabel(url), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // What the addon's manifest says about itself (#60): logo, version, description, id,
+        // how many catalogs it has and which types it covers.
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            AddonLogo(info?.logo, vm.addonLabel(url))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(vm.addonLabel(url), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false))
+                    info?.version?.let { v ->
+                        Text("v$v", fontSize = TvTokens.Type.Caption.sp, color = Fg, maxLines = 1,
+                            modifier = Modifier.background(WashHi, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp))
+                    }
+                }
+                info?.description?.let { Text(it, fontSize = 13.sp, color = Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                info?.originalName?.let { Text("Renamed from $it", fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1) }
+                info?.manifestId?.let { Text("ID: $it", fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (info != null) {
+                        if (info.catalogs.isNotEmpty()) {
+                            androidx.tv.material3.Icon(Icons.Outlined.Folder, contentDescription = "Catalogs", tint = Mute, modifier = Modifier.size(16.dp))
+                            Text(info.catalogs.size.toString(), fontSize = TvTokens.Type.Caption.sp, color = Mute)
+                        }
+                        if (info.types.isNotEmpty()) {
+                            androidx.tv.material3.Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = "Types", tint = Mute,
+                                modifier = Modifier.padding(start = if (info.catalogs.isNotEmpty()) 6.dp else 0.dp).size(16.dp))
+                            Text(info.types.joinToString(", "), fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false))
+                        }
+                    }
+                }
                 Text(
-                    listOfNotNull(
-                        info?.originalName?.let { "Renamed from $it" },
-                        info?.let { a ->
-                            a.provides.mapNotNull {
-                                when (it) {
-                                    "catalog" -> "Rows"
-                                    "meta" -> "Details"
-                                    "stream" -> "Sources"
-                                    "subtitles" -> "Subtitles"
-                                    else -> null
-                                }
-                            }.joinToString(" · ").ifBlank { "Nothing this launcher uses" }
-                        } ?: if (vm.addonAvailable(url)) "Manifest not loaded" else "Paused",
-                    ).joinToString(" · "),
-                    fontSize = 12.sp,
-                    color = Mute,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    info?.let { a ->
+                        (a.provides.mapNotNull {
+                            when (it) {
+                                "catalog" -> "Rows"
+                                "meta" -> "Details"
+                                "stream" -> "Sources"
+                                "subtitles" -> "Subtitles"
+                                else -> null
+                            }
+                        } + listOfNotNull("Has its own settings".takeIf { a.configurable })).joinToString(" · ").ifBlank { "Nothing this launcher uses" }
+                    } ?: if (vm.addonAvailable(url)) "Manifest not loaded" else "Paused",
+                    fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -970,4 +994,22 @@ private fun BadgesSection(vm: HomeViewModel) {
         }
     }
     preview?.let { (mode, label) -> BadgePreview(mode, label, hiddenCategories = f.detailedBadgeCategoriesOff) { preview = null } }
+}
+
+/** The addon's logo from its manifest, or its initial when it has none or it does not load. */
+@Composable
+private fun AddonLogo(logo: String?, name: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var failed by remember(logo) { mutableStateOf(logo == null) }
+    Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(WashHi), contentAlignment = Alignment.Center) {
+        if (failed) Text(name.trim().take(1).uppercase(), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Fg)
+        else coil.compose.AsyncImage(
+            model = remember(logo) {
+                coil.request.ImageRequest.Builder(context).data(logo).size(168)
+                    .decoderFactory(coil.decode.SvgDecoder.Factory()).build()
+            },
+            contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+            onError = { failed = true }, modifier = Modifier.fillMaxSize().padding(6.dp),
+        )
+    }
 }

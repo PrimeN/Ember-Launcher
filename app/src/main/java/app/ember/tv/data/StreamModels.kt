@@ -1,6 +1,8 @@
 package app.ember.tv.data
 
 import app.ember.tv.tracker.arr
+import app.ember.tv.tracker.bool
+import app.ember.tv.tracker.obj
 import app.ember.tv.tracker.list
 import app.ember.tv.tracker.str
 import kotlinx.serialization.json.JsonArray
@@ -26,6 +28,12 @@ data class AddonInfo(
     val originalName: String? = null,
     /** The manifest's "id" (e.g. org.kris.ultra.max.v5); Collections name addons by it. */
     val manifestId: String? = null,
+    /** What the manifest says about itself, shown in Settings > Addons. */
+    val version: String? = null,
+    val description: String? = null,
+    val logo: String? = null,
+    /** The addon has its own settings page (behaviorHints.configurable). */
+    val configurable: Boolean = false,
 ) {
     /** Short on purpose (#50): the default repeats every catalog's raw JSON, and catalogs repeat it again. */
     override fun toString() = "AddonInfo($name, $url, ${catalogs.size} catalogs)"
@@ -60,6 +68,10 @@ data class AddonInfo(
             },
             catalogs = j.arr("catalogs").list(),
             manifestId = j.str("id"),
+            version = j.str("version")?.trim()?.takeIf { it.isNotEmpty() }?.take(24),
+            description = j.str("description")?.trim()?.takeIf { it.isNotEmpty() }?.take(600),
+            logo = (j.str("logo") ?: j.str("icon"))?.trim()?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
+            configurable = j.obj("behaviorHints").bool("configurable") == true,
         )
 
         private fun JsonArray?.strings(): List<String> =
