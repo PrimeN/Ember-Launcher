@@ -72,6 +72,13 @@ object Net {
             }
         }.build()
 
+    /**
+     * Full-screen pictures (hero banner, focused backdrop) get their own lane over the same
+     * connections, so a page of tile images queued for one site never holds them back (#56).
+     */
+    private val heroDispatcher by lazy { okhttp3.Dispatcher().apply { maxRequests = 4; maxRequestsPerHost = 2 } }
+    fun heroArtworkClient(): OkHttpClient = artworkClient().newBuilder().dispatcher(heroDispatcher).build()
+
     /** The shared client with its own time limits (seconds). */
     fun client(connect: Long, read: Long): OkHttpClient = base.newBuilder()
         .connectTimeout(connect, TimeUnit.SECONDS)

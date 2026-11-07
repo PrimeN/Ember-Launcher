@@ -36,6 +36,18 @@ private fun heroSize(options:RenderOptions):Pair<Int,Int> {
     return options.heroSize(width,(height*fraction).toInt())
 }
 
+/**
+ * The picture on screen right now loads through its own request lane (#56). It shares the app
+ * loader's memory and disk caches (and its fetchers), so a prefetched or already shown picture
+ * is reused; only the network queue differs.
+ */
+internal object HeroImages {
+    @Volatile private var loader: coil.ImageLoader? = null
+    fun loader(context: android.content.Context): coil.ImageLoader = loader ?: synchronized(this) {
+        loader ?: context.imageLoader.newBuilder().okHttpClient { app.ember.tv.data.Net.heroArtworkClient() }.build().also { loader = it }
+    }
+}
+
 /** Display and prefetch must use the same bounds, precision and memory-cache identity. */
 internal fun heroRequest(context:android.content.Context,url:String,size:Pair<Int,Int>,options:RenderOptions):ImageRequest =
     ImageRequest.Builder(context).data(url).size(size.first,size.second)
@@ -91,7 +103,7 @@ fun rememberReadyArtwork(meta: Meta?): ReadyArtwork {
                 backgroundFocusX=value.backgroundFocusX.takeIf {background==value.background},backgroundFocusY=value.backgroundFocusY.takeIf {background==value.background}),drawable),options)
         }
         val request = heroRequest(context,heroArtworkUrl(raw,options,wide),size,options)
-        val loader = context.imageLoader
+        val loader = HeroImages.loader(context)
         val cached = request.memoryCacheKey?.let { loader.memoryCache?.get(it) }?.bitmap
         if (cached != null) { ready = shown(if(wide)raw else null, cached.toDrawable(resources)); return@LaunchedEffect }
         val previewUrl = cardArt(raw, wide, uhd = false)

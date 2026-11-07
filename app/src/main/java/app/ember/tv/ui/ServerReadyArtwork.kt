@@ -9,7 +9,6 @@ import app.ember.tv.data.*
 import app.ember.tv.mediaserver.ServerImagePolicy
 import app.ember.tv.mediaserver.loadFirstServerImage
 import coil.compose.AsyncImage
-import coil.imageLoader
 import coil.request.SuccessResult
 import kotlinx.coroutines.ensureActive
 
@@ -37,7 +36,7 @@ internal fun rememberServerReadyArtwork(meta: Meta, size: Pair<Int, Int>): Ready
     LaunchedEffect(identity, key, meta.background, size, options) {
         if(nativeFailed)return@LaunchedEffect
         val url = meta.background?.takeIf(String::isNotBlank) ?: return@LaunchedEffect
-        val result = context.imageLoader.execute(heroRequest(context, heroArtworkUrl(url, options), size, options)) as? SuccessResult
+        val result = HeroImages.loader(context).execute(heroRequest(context, heroArtworkUrl(url, options), size, options)) as? SuccessResult
         ensureActive()
         if(result!=null)ready=framedArtwork(ReadyArtwork(latest, result.drawable,source=url),options) else nativeFailed=true
     }
@@ -45,7 +44,7 @@ internal fun rememberServerReadyArtwork(meta: Meta, size: Pair<Int, Int>): Ready
     LaunchedEffect(identity, key, nativeFailed, candidates, size, options) {
         if(!nativeFailed && !meta.background.isNullOrBlank())return@LaunchedEffect
         val result = loadFirstServerImage(candidates) { url, wide ->
-            (context.imageLoader.execute(heroRequest(context, heroArtworkUrl(url, options, wide), size, options)) as? SuccessResult)?.drawable
+            (HeroImages.loader(context).execute(heroRequest(context, heroArtworkUrl(url, options, wide), size, options)) as? SuccessResult)?.drawable
         }
         ensureActive()
         if(result!=null) {
