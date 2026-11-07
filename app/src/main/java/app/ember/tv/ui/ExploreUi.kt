@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import app.ember.tv.isSaved
 
 import androidx.compose.foundation.background
