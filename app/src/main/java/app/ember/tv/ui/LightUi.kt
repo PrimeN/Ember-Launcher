@@ -129,6 +129,14 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     fun goHero() { if (current != null) scope.launch { state.scrollToItem(0); withFrameNanos { }; runCatching { heroFocus.requestFocus() } } else goTop() }
     fun dockUp() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) runCatching { shelfFocus.requestFocus() } else goHero() }
     fun headerDown() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) dockUp() else if (current != null) goHero() else if (apps.isNotEmpty() || hasFolders) focusApps() }
+    // The target Ember falls back to when the window returns with nothing focused (#103).
+    val navigation = LocalNavigationFocus.current
+    val entry = when { current != null -> heroFocus; apps.isNotEmpty() || hasFolders -> appsFocus; else -> topFocus }
+    DisposableEffect(navigation, entry) {
+        navigation?.register(NavTabs.HOME, LIGHT_ENTRY, entry)
+        navigation?.focused(NavTabs.HOME, LIGHT_ENTRY)
+        onDispose { navigation?.unregister(NavTabs.HOME, LIGHT_ENTRY, entry) }
+    }
     val latestCurrent by rememberUpdatedState(current)
     LaunchedEffect(profile) {
         delay(100)
@@ -528,3 +536,6 @@ private fun LightCarouselCatalog(vm: HomeViewModel) {
     if (open) CatalogSourcePicker(vm, "Carousel catalog", chosen, { key -> vm.look.updateLightHome { it.copy(heroCatalog = key) } }) { open = false }
     RestoreToolbarFocus(open, focus)
 }
+
+/** Light Home's default focus target, for a window that returns with nothing focused (#103). */
+internal const val LIGHT_ENTRY = "light-entry"

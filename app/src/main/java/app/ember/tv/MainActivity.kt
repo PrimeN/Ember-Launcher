@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -839,8 +840,25 @@ private fun RootContent(
         val side = !app.ember.tv.ui.Ui.emberX && !light && vm.look.menuPosition == "side" && current != NavTabs.SETTINGS
         val navigation = app.ember.tv.ui.LocalNavigationFocus.current!!
         val searchTabFocus = navigation.tab(NavTabs.SEARCH)
+        // Start-up and TV wake (#103): the window can come back with nothing focused. Android then
+        // spends the first D-pad press giving the view focus, and the next one searches from nowhere
+        // and lands on the top-left tab (Search). Put focus on the page's default target instead.
+        var contentHasFocus by remember { mutableStateOf(false) }
+        val windowFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+        val rootView = androidx.compose.ui.platform.LocalView.current
+        val focusPage by androidx.compose.runtime.rememberUpdatedState(current)
+        LaunchedEffect(windowFocused) {
+            if (!windowFocused) return@LaunchedEffect
+            repeat(3) { androidx.compose.runtime.withFrameNanos { } }
+            if (contentHasFocus) return@LaunchedEffect
+            if (!rootView.hasFocus()) rootView.requestFocus()
+            val page = focusPage
+            val target = (if (page == NavTabs.HOME) navigation.preferred(NavTabs.HOME) else null)
+                ?: navigation.tab(app.ember.tv.ui.navigationTabForPage(page, tabs)).takeIf { !light }
+            target?.let { runCatching { it.requestFocus() } }
+        }
         val pageBackdrop = remember(current, vm.profiles.profileId) { app.ember.tv.ui.PageBackdropState() }
-        Box(Modifier.fillMaxSize().initialNavigationFocus(navigation,
+        Box(Modifier.fillMaxSize().onFocusChanged { contentHasFocus = it.hasFocus }.initialNavigationFocus(navigation,
             app.ember.tv.ui.navigationTabForPage(current,tabs),
             enabled=discoveryInteractive,available=!light && current!=NavTabs.SETTINGS)) {
           app.ember.tv.ui.PageBackdropHost(pageBackdrop) {
