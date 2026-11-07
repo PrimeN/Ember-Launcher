@@ -6,6 +6,7 @@ import app.ember.tv.tracker.list
 import app.ember.tv.tracker.str
 import java.net.URLEncoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeToSequence
 import kotlinx.coroutines.ensureActive
 
 /** Xtream Codes API: live categories and channels from player_api.php. */
