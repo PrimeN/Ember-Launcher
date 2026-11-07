@@ -267,11 +267,16 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     "${summary.keys} key(s)",
                 ).joinToString(", ")
                 if (!apply) return "Backup checked: $what. Tick the box and send it again to restore it on the TV."
-                onPhoneMain {
-                    phoneNote("Restoring a backup from your phone ($what)")
-                    backup.restoreNow(payload)
+                // Replacing every setting, sign-in and key is approved on the TV, like smaller phone
+                // changes and the TV's own restore (#52).
+                val sent = onPhoneMain {
+                    stage("Restore a backup from your phone ($what). This replaces every setting, sign-in and key, then restarts Ember.") {
+                        phoneNote("Restoring a backup from your phone ($what)")
+                        backup.restoreNow(payload)
+                        "Restoring the backup. Ember restarts in a moment."
+                    }
                 }
-                return "Restoring: $what. Ember restarts on the TV in a moment."
+                return if (sent.startsWith("Sent to the TV")) "Backup checked: $what. Approve the restore on the TV to replace its settings; Ember then restarts." else sent
             }
         }
       }
