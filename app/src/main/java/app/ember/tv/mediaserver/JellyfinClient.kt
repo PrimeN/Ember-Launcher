@@ -357,7 +357,8 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         val base=a.url.toHttpUrl()
         val url=base.resolve(path)?:error("Invalid stream address.")
         check(url.scheme==base.scheme&&url.host==base.host&&url.port==base.port) { "Cross-origin stream conversion was refused." }
-        val authenticated=url.newBuilder().setQueryParameter(tokenParamName(a.kind),a.token).setQueryParameter("MaxWidth",quality.width.toString()).setQueryParameter("MaxHeight",quality.height.toString()).build().toString()
+        // The server's URL may carry its own token: only one goes out (#93).
+        val authenticated=url.newBuilder().removeAllQueryParameters("api_key").removeAllQueryParameters("ApiKey").setQueryParameter(tokenParamName(a.kind),a.token).setQueryParameter("MaxWidth",quality.width.toString()).setQueryParameter("MaxHeight",quality.height.toString()).build().toString()
         val session=response.str("PlaySessionId")?:error("The server returned no playback session.")
         val method=if(selected.str("TranscodingUrl")!=null)"Transcode" else "DirectStream"
         val transport=original.serverPlayback!!.copy(parts=listOf(ServerPart(sourceId,authenticated,original.serverPlayback.durationMs)),sessionId=session,method=method,quality=quality)

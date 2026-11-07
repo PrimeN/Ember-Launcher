@@ -185,7 +185,9 @@ class MetadataAccountAndActionMenuSafetyTest {
         val media = MediaServers(session, jellyfin = JellyfinClient(session, http))
         live.saveServers(listOf(a.copy(userId = "user-b", token = "fixture-b")))
         media.report("jellyfin|server|item", ReportState.PROGRESS, 1000, 6000)
-        assertEquals("fixture-a", sent!!.header("X-Emby-Token"))
+        // Jellyfin takes one token, in the Authorization header (#93).
+        assertTrue(sent!!.header("Authorization")!!.contains("Token=\"fixture-a\""))
+        assertNull(sent!!.header("X-Emby-Token"))
     }
 
     private suspend fun response(text: String, length: Long, limit: Long): Pair<String?, Boolean> {
