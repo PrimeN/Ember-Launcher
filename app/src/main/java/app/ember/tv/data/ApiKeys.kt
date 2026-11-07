@@ -69,6 +69,12 @@ object ApiKeys {
             listOf(Field("SIMKL_CLIENT_ID", "Client ID")),
         ),
         Service(
+            "AniList",
+            "Optional: lets Ember update your AniList progress when you finish an episode. Your list reads by username without it.",
+            "anilist.co/settings/developer > Create client, redirect URL https://anilist.co/api/v2/oauth/pin. Then open anilist.co/api/v2/oauth/authorize?client_id=YOUR_ID&response_type=token on your phone, approve, and paste the token here (easiest from the phone page).",
+            listOf(Field("ANILIST_TOKEN", "Access token")),
+        ),
+        Service(
             "MyAnimeList",
             "Reading your anime list by username.",
             "myanimelist.net/apiconfig > Create ID. App type: other.",

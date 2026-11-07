@@ -50,9 +50,15 @@ internal data class WatchedIndex(val yes:Set<String> = emptySet(),val no:Set<Str
         } else explicit(WatchedKeys.keys(meta))?.let {return it}
         return null
     }
-    fun watched(meta:Meta):Boolean {
+    /** [remote]: what your trackers say you watched (#83). Your own marks on this TV come first. */
+    fun watched(meta:Meta,remote:Set<String> = emptySet()):Boolean {
         if(meta.type!="movie" && meta.season==null && meta.episode==null && WatchedKeys.bases(meta).any {it in incompleteShows})return false
-        return explicitStatus(meta) ?: meta.watched ?: (meta.progress?.let {it.isFinite() && it>=.92f && (meta.type=="movie" || meta.season!=null && meta.episode!=null)}==true)
+        return explicitStatus(meta) ?: remoteStatus(meta,remote) ?: meta.watched ?: (meta.progress?.let {it.isFinite() && it>=.92f && (meta.type=="movie" || meta.season!=null && meta.episode!=null)}==true)
+    }
+    /** Tracker keys use IMDb and TMDB ids only, so only those aliases are checked. */
+    private fun remoteStatus(meta:Meta,remote:Set<String>):Boolean? {
+        if(remote.isEmpty())return null
+        return if(WatchedKeys.keys(meta).any {(it.contains(":i:") || it.contains(":t:")) && it in remote})true else null
     }
     fun changed(meta:Meta,value:Boolean):WatchedIndex {
         val keys=WatchedKeys.keys(meta).toSet()

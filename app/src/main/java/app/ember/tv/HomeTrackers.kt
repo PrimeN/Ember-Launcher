@@ -12,6 +12,7 @@ import app.ember.tv.tracker.LinkSession
 import app.ember.tv.tracker.SmartRows
 import app.ember.tv.tracker.Tmdb
 import app.ember.tv.tracker.list
+import app.ember.tv.tracker.describe
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -28,6 +29,7 @@ internal fun HomeViewModel.refreshTrackers(force: Boolean = true, only: Set<Stri
     if (!featureOn(app.ember.tv.data.Features.TRACKERS)) {
         // Trackers off: nothing is loaded, and the player does not report either.
         hub.disabled = hub.trackers.map { it.id }.toSet()
+        hub.quiet = hub.disabled
         hub.health.retain(emptySet())
         continueItems = emptyList()
         trackerWatchlist = emptyList()
@@ -36,6 +38,7 @@ internal fun HomeViewModel.refreshTrackers(force: Boolean = true, only: Set<Stri
         return
     }
     hub.disabled = trackersOff
+    hub.quiet = trackersQuiet
     if (hub.trakt() == null) {
         libraryHistory = emptyList()
         LocalLibrary.saveTrackerHistory(emptyList())
@@ -44,6 +47,8 @@ internal fun HomeViewModel.refreshTrackers(force: Boolean = true, only: Set<Stri
     trackerRefreshJob = viewModelScope.launch {
         // Watchlist changes made while a tracker could not be reached go out first.
         if (only == null) sendPendingWatchlist()
+        // Account names for Settings, read once after sign-in (#85).
+        if (only == null && hub.loadAccountNames()) trackerRev++
         // When every tracker failed (offline), keep what is shown rather than emptying the rows.
         // What they said is also kept on the TV for the next start without network.
         hub.continueWatchingOrNull(only)?.let { list ->
@@ -73,9 +78,22 @@ internal fun HomeViewModel.refreshTrackers(force: Boolean = true, only: Set<Stri
                 if(profiles.profileId==watchedOwner){watchedIndex=learned;watchedProfile=watchedOwner}
             }
         }
+        // Everything you've watched on your trackers, for watched marks (#83). Each service only
+        // downloads its lists again when its history changed.
+        if (only == null) hub.watched()?.let { keys ->
+            ensureActive()
+            remoteWatched = keys
+            withContext(Dispatchers.IO) { remoteWatchedFile.write(keys) }
+        }
         saveSnapshot()
         if (only == null) refreshSmartRows()
     }
+}
+
+/** Loads the last known tracker watched marks at start, before any network (#83). */
+internal suspend fun HomeViewModel.restoreRemoteWatched() {
+    val keys = withContext(Dispatchers.IO) { remoteWatchedFile.read() }
+    if (remoteWatched.isEmpty()) remoteWatched = keys
 }
 
 internal fun HomeViewModel.retryTracker(statusId: String) = refreshTrackers(only = setOf(statusId.substringBefore(':')))
@@ -89,6 +107,8 @@ internal suspend fun HomeViewModel.syncPendingWatchlist(p: app.ember.tv.data.Pen
         if (p.targets == null && targets.isEmpty() && ref.hasIds) return@withLock emptyList()
         val result = hub.writeWatchlist(ref, p.add, targets)
         LocalLibrary.remaining(p, result.pending)
+        // A refusal is final (#82): it is not queued again, and the notice says why.
+        result.refused.values.firstOrNull()?.let { watchlistRefusal = it }
         result.succeeded.values.toList()
     }
 
@@ -198,10 +218,20 @@ internal fun HomeViewModel.linkUsername(trackerId: String, name: String) {
 internal fun HomeViewModel.disconnectTracker(id: String) {
     linkTasks.cancel(id)
     hub.byId(id).disconnect()
+    remoteWatched = emptySet()
+    viewModelScope.launch(Dispatchers.IO) { remoteWatchedFile.clear() }
     trackerMessage = null
     trackerRev++
     smartRowsLoadedAt = 0L
     refreshTrackers()
+}
+
+/** "Report what I watch" for one tracker, separate from showing it on Home (#80). */
+internal fun HomeViewModel.toggleTrackerReports(id: String) {
+    trackersQuiet = if (id in trackersQuiet) trackersQuiet - id else trackersQuiet + id
+    prefs.trackersQuiet = trackersQuiet
+    hub.quiet = trackersQuiet
+    trackerRev++
 }
 
 internal fun HomeViewModel.toggleTracker(id: String) {
@@ -210,4 +240,32 @@ internal fun HomeViewModel.toggleTracker(id: String) {
     trackerRev++
     smartRowsLoadedAt = 0L
     refreshTrackers()
+}
+
+/** True when the title can be rated on a connected tracker (#84). */
+internal fun HomeViewModel.canRate(meta: Meta): Boolean =
+    personalOn && featureOn(Features.TRACKERS) && hub.canRate && meta.toRef().hasIds
+
+/** Reads your rating for the title from your trackers (#84). */
+internal fun HomeViewModel.loadMyRating(meta: Meta) {
+    if (!canRate(meta)) return
+    val id = meta.id
+    val owner = profiles.profileId
+    viewModelScope.launch {
+        val rating = hub.ratingOf(meta.toRef())
+        ensureActive()
+        if (profiles.profileId == owner && myRating?.first != id) myRating = id to rating
+    }
+}
+
+/** Sends your rating, 1 to 10, or clears it, on every tracker that takes ratings (#84). */
+internal fun HomeViewModel.rateTitle(meta: Meta, rating: Int?) {
+    if (!canRate(meta)) return
+    myRating = meta.id to rating
+    val owner = profiles.profileId
+    viewModelScope.launch {
+        val out = hub.rate(meta.toRef(), rating?.coerceIn(1, 10))
+        ensureActive()
+        if (profiles.profileId == owner) notice = (if (rating == null) "Rating cleared." else "Rated $rating out of 10.") + out.describe()
+    }
 }

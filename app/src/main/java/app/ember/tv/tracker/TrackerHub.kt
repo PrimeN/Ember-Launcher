@@ -23,6 +23,12 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
     /** Tracker ids switched off for Home. They stay signed in. */
     var disabled: Set<String> = emptySet()
 
+    /** Tracker ids that are not told what you watch. Separate from Home (#80). */
+    var quiet: Set<String> = emptySet()
+
+    /** Connected trackers that receive what you watch and your marks. */
+    private fun reporting() = trackers.filter { it.isConnected() && it.id !in quiet }
+
     fun byId(id: String) = trackers.first { it.id == id }
 
     private fun active() = trackers.filter { it.isConnected() && it.id !in disabled }
@@ -93,20 +99,68 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
     fun trakt(): TraktTracker? = (trackers.firstOrNull { it.id == "trakt" } as? TraktTracker)
         ?.takeIf { it.isConnected() && it.id !in disabled }
 
-    data class WatchlistResult(val succeeded: Map<String, String>, val pending: Set<String>)
+    /** [refused]: tracker id to the reason a service turned the change down for good (#82). */
+    data class WatchlistResult(val succeeded: Map<String, String>, val pending: Set<String>, val refused: Map<String, String> = emptyMap())
 
     fun watchlistTargets(ref: TitleRef, add: Boolean): Set<String> = active()
         .filter { it.supportsWatchlist(ref, add) }.map { it.id }.toSet()
 
     /** Retry only the services still owed this change, retaining disconnected/disabled targets. */
     suspend fun writeWatchlist(ref: TitleRef, add: Boolean, targets: Set<String>): WatchlistResult = coroutineScope {
-        val succeeded = active().filter { it.id in targets && it.supportsWatchlist(ref, add) }
+        val results = active().filter { it.id in targets && it.supportsWatchlist(ref, add) }
             .map { t -> async {
-                val ok = runCatching { if (add) t.addToWatchlist(ref) else t.removeFromWatchlist(ref) }.getOrDefault(false)
+                val result = runCatching { if (add) t.addToWatchlist(ref) else t.removeFromWatchlist(ref) }
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                if (ok) t.id to t.name else null
-            } }.awaitAll().filterNotNull().toMap()
-        WatchlistResult(succeeded, targets - succeeded.keys)
+                t to result
+            } }.awaitAll()
+        val succeeded = results.filter { it.second.getOrDefault(false) }.associate { it.first.id to it.first.name }
+        // A refusal (e.g. Trakt's free-account limit) is final: no point retrying it on every refresh.
+        val refused = results.mapNotNull { (t, r) -> (r.exceptionOrNull() as? TrackerRefusal)?.let { t.id to (it.message ?: t.name) } }.toMap()
+        WatchlistResult(succeeded, targets - succeeded.keys - refused.keys, refused)
+    }
+
+    /** Explicit watched / unwatched marks, sent as history to every tracker that takes them (#79). */
+    suspend fun markWatched(ref: TitleRef, season: Int?, episode: Int?, watched: Boolean): Outcome =
+        fanOut { t -> if (t.supportsHistory(ref)) t.markWatched(ref, season, episode, watched) else null }
+
+    /** Your rating, 1 to 10, or null to clear it (#84). */
+    suspend fun rate(ref: TitleRef, rating: Int?): Outcome = fanOut { t -> if (t.rates && ref.hasIds) t.rate(ref, rating) else null }
+
+    /** Your rating from the first tracker that has one (#84). */
+    suspend fun ratingOf(ref: TitleRef): Int? = trackers.filter { it.isConnected() && it.rates }.firstNotNullOfOrNull { t ->
+        runCatching { t.ratingOf(ref) }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrNull()
+    }
+
+    val canRate: Boolean get() = trackers.any { it.isConnected() && it.rates }
+
+    data class Outcome(val sent: List<String>, val failed: List<String>, val refused: List<String>)
+
+    private suspend fun fanOut(call: suspend (Tracker) -> Boolean?): Outcome = coroutineScope {
+        val results = reporting().map { t -> async { t to runCatching { call(t) } } }.awaitAll()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        Outcome(
+            sent = results.filter { it.second.getOrNull() == true }.map { it.first.name },
+            failed = results.filter { it.second.isFailure && it.second.exceptionOrNull() !is TrackerRefusal }.map { it.first.name },
+            refused = results.mapNotNull { (it.second.exceptionOrNull() as? TrackerRefusal)?.message },
+        )
+    }
+
+    /**
+     * Watched movies and episodes from the trackers shown on Home (#83).
+     * Null when none of them could be read, so the last known marks stay.
+     */
+    suspend fun watched(): Set<String>? = coroutineScope {
+        val results = active().map { t -> async { runCatching { t.watched() } } }.awaitAll()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        val read = results.mapNotNull { it.getOrNull() }
+        if (read.isEmpty() && results.any { it.isFailure }) null else read.flatten().toSet()
+    }
+
+    /** Reads account names that are not known yet (#85). One call per tracker, once. */
+    suspend fun loadAccountNames(): Boolean {
+        val missing = trackers.filter { it.needsAccountName() }
+        missing.forEach { runCatching { it.loadAccountName() }.onFailure { e -> if (e is kotlinx.coroutines.CancellationException) throw e } }
+        return missing.isNotEmpty()
     }
 
     /** Removes a Continue watching entry from the tracker it came from. */
@@ -119,11 +173,19 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
     /** Sends progress to every connected tracker that accepts it. Used by the player later. */
     suspend fun scrobble(item: TrackedItem, state: ScrobbleState, progress: Float): List<String> {
         val completed = mutableListOf<String>()
-        trackers.filter { it.isConnected() && it.scrobbles && it.id !in disabled }.forEach {
+        // Hidden from Home still reports; only "Report what I watch" off stops it (#80).
+        reporting().filter { it.scrobbles }.forEach {
             val result = runCatching { it.scrobble(item, state, progress) }
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
             if (result.isSuccess) completed += it.name
         }
         return completed
     }
+}
+
+/** " Sent to Trakt and Simkl." plus anything that could not be sent, for notices. */
+fun TrackerHub.Outcome.describe(): String = buildString {
+    if (sent.isNotEmpty()) append(" Sent to ${sent.joinToString(" and ")}.")
+    if (failed.isNotEmpty()) append(" Couldn't reach ${failed.joinToString(" and ")}.")
+    refused.forEach { append(" ").append(it) }
 }

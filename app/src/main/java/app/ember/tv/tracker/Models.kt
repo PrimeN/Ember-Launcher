@@ -23,6 +23,8 @@ data class TrackedItem(
     val source: String = "",
     /** Trakt's own id, needed for "related" lookups. */
     val traktId: Long? = null,
+    /** An id addons understand when there is no IMDb or TMDB id, e.g. kitsu:123 for anime (#81). */
+    val addonId: String? = null,
 ) {
     /** Used to merge the same title coming from several trackers. */
     val dedupeKey: String

@@ -21,8 +21,10 @@ class WatchedFeedbackTest {
         override suspend fun scrobble(item: TrackedItem, state: ScrobbleState, progress: Float) { if (fail) error("unavailable") }
     }
     @Test fun feedbackNamesOnlySuccessfulEnabledServices() = runBlocking {
-        val hub = TrackerHub(listOf(tracker("completed", false), tracker("failed", true), tracker("disabled", false)))
-        hub.disabled = setOf("disabled")
-        assertEquals(listOf("completed"), hub.scrobble(TrackedItem("one", "Film"), ScrobbleState.STOP, 1f))
+        val hub = TrackerHub(listOf(tracker("completed", false), tracker("failed", true), tracker("quiet", false), tracker("hidden", false)))
+        // Hidden from Home still reports; only "Report what I watch" off stops it (#80).
+        hub.quiet = setOf("quiet")
+        hub.disabled = setOf("hidden")
+        assertEquals(listOf("completed", "hidden"), hub.scrobble(TrackedItem("one", "Film"), ScrobbleState.STOP, 1f))
     }
 }

@@ -37,8 +37,9 @@ internal fun HomeViewModel.toggleWatchlist(meta: Meta) {
                 if (item.id.startsWith("plexwatchlist:")) servers.plex.removeFromWatchlist(item.id.removePrefix("plexwatchlist:"))
                 else item.serverRef?.let { servers.favorite(it, false) }
             }.onFailure { ensureActive() } }
+            watchlistRefusal = null
             val names = syncWatchlistChange(add = false, meta = meta)
-            if (profiles.profileId == owner) notice = "Removed from watchlist" + names.syncedSuffix(meta)
+            if (profiles.profileId == owner) notice = "Removed from watchlist" + names.syncedSuffix(meta) + watchlistRefusal?.let { " $it" }.orEmpty()
             LocalLibrary.saveTrackerWatchlist(trackerWatchlist)
         }
     } else {
@@ -46,8 +47,9 @@ internal fun HomeViewModel.toggleWatchlist(meta: Meta) {
         watchlist = watchlist + meta.withoutServerSecrets()
         prefs.watchlist = watchlist
         viewModelScope.launch {
+            watchlistRefusal = null
             val names = syncWatchlistChange(add = true, meta = meta)
-            if (profiles.profileId == owner) notice = "Added to watchlist" + names.syncedSuffix(meta)
+            if (profiles.profileId == owner) notice = "Added to watchlist" + names.syncedSuffix(meta) + watchlistRefusal?.let { " $it" }.orEmpty()
         }
     }
 }
@@ -102,15 +104,6 @@ internal fun HomeViewModel.markTitleWatched(meta: Meta) {
 }
 
 internal fun HomeViewModel.markWatchedItem(m: Meta, season: Int?, episode: Int?, key: String, serverRef: String?) {
-    val item = TrackedItem(
-        key = key,
-        title = if (season != null) "${m.name} S${season}E${episode}" else m.name,
-        kind = when (m.type) { "movie" -> Kind.MOVIE; "anime" -> Kind.ANIME; else -> Kind.SHOW },
-        tmdbId = m.tmdbId,
-        imdbId = m.imdb,
-        season = season,
-        episode = episode,
-    )
     val activityScope=LocalActivity.scope(profiles.profile)
     val serverIdentity=servers.accountFingerprint()
     app.ember.tv.player.PositionStore(getApplication<Application>(),activityScope).clear(key)
@@ -121,8 +114,8 @@ internal fun HomeViewModel.markWatchedItem(m: Meta, season: Int?, episode: Int?,
         if(profiles.profileId!=activeProfile)return@launch
         watchedIndex=loaded
         watchedProfile=activeProfile
-        // A stop at 100% is how the players report "watched", so every tracker understands it.
-        val reported = if (personalOn) runCatching { hub.scrobble(item, app.ember.tv.tracker.ScrobbleState.STOP, 1f) }.getOrDefault(emptyList()) else emptyList()
+        // Sent as history (#79): a 100% scrobble is ignored by Trakt when it was scrobbled recently.
+        val reported = if (personalOn) hub.markWatched(m.toRef(), season, episode, true).sent else emptyList()
         val onServer = serverRef?.let {ref->watchedServerMutex.withLock {profiles.profileId==activeProfile && isWatched(marked) && servers.accountFingerprint()==serverIdentity && servers.markWatched(ref)}} == true
         ensureActive()
         if (profiles.profileId != activeProfile || !isWatched(marked)) return@launch

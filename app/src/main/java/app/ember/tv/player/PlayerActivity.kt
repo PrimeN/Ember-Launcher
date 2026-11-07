@@ -808,7 +808,8 @@ class PlayerActivity : ComponentActivity() {
             // A Kids profile (or one without personal rows) never reports to your trackers.
             val profile = prefs.profiles.firstOrNull { it.id == prefs.currentProfile }
             val privateProfile = profile != null && (profile.kids || !profile.personal)
-            h.disabled = if (privateProfile || app.ember.tv.data.Features.TRACKERS in prefs.featuresOff) h.trackers.map { it.id }.toSet() else prefs.trackersOff
+            // Hiding a tracker from Home no longer stops reports; "Report what I watch" does (#80).
+            h.quiet = if (privateProfile || app.ember.tv.data.Features.TRACKERS in prefs.featuresOff) h.trackers.map { it.id }.toSet() else prefs.trackersQuiet
         }
         localActivityScope=app.ember.tv.data.LocalActivity.scope(this,watchProfileId)
         memory=TrackMemory(this,localActivityScope)

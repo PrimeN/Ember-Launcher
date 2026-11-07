@@ -10,6 +10,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import app.ember.tv.data.WatchedStore
 import app.ember.tv.data.WatchedIndex
+import app.ember.tv.tracker.TrackerWatchedFile
+import app.ember.tv.tracker.describe
 import app.ember.tv.data.WatchedKeys
 import app.ember.tv.data.KidsContentPolicy
 import app.ember.tv.data.KidsMetadata
@@ -260,8 +262,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val loaded=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){watchedStore.load(profile)}
         kotlinx.coroutines.currentCoroutineContext().ensureActive()
         if(profiles.profileId==profile){watchedIndex=loaded;watchedProfile=profile}
+        if(remoteWatched.isEmpty())restoreRemoteWatched()
     }
-    fun isWatched(meta:Meta):Boolean=(if(watchedProfile==profiles.profileId)watchedIndex else WatchedIndex()).watched(meta)
+    /** What your trackers say you watched (#83); used on profiles with personal rows. */
+    internal var remoteWatched by mutableStateOf<Set<String>>(emptySet())
+    internal val remoteWatchedFile by lazy { TrackerWatchedFile(java.io.File(app.filesDir, "tracker_watched.txt")) }
+    fun isWatched(meta:Meta):Boolean=(if(watchedProfile==profiles.profileId)watchedIndex else WatchedIndex()).watched(meta,if(personalOn)remoteWatched else emptySet())
     fun isEpisodeWatched(show:Meta,ep:Episode):Boolean=isWatched(WatchedKeys.episode(show,ep))
     fun setTitleWatched(meta:Meta,value:Boolean) {
         val profile=profiles.profileId
@@ -274,6 +280,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             notice=if(value)"Marked as watched on this TV." else "Marked as unwatched on this TV."
             val ref=app.ember.tv.mediaserver.ServerRef.of(meta)?.value
             if(ref!=null)watchedServerMutex.withLock {if(profiles.profileId==profile && isWatched(meta)==value && servers.accountFingerprint()==serverIdentity)servers.markWatched(ref,value)}
+            // Your trackers hear about it too, as history rather than a fake scrobble (#79).
+            if(personalOn && featureOn(app.ember.tv.data.Features.TRACKERS)) {
+                val sent=hub.markWatched(meta.toRef(),meta.season,meta.episode,value)
+                if(profiles.profileId==profile)notice=(if(value)"Marked as watched on this TV." else "Marked as unwatched on this TV.")+sent.describe()
+            }
         }
     }
 
@@ -281,6 +292,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     var continueItems by mutableStateOf<List<Meta>>(emptyList()); internal set
     var trackerWatchlist by mutableStateOf<List<Meta>>(emptyList()); internal set
     var trackersOff by mutableStateOf(prefs.trackersOff); internal set
+    var trackersQuiet by mutableStateOf(prefs.trackersQuiet); internal set
+    /** Your tracker rating for the open title: (title id, rating) (#84). */
+    var myRating by mutableStateOf<Pair<String, Int?>?>(null); internal set
+    /** Why the last watchlist change was turned down by a tracker, if it was (#82). */
+    internal var watchlistRefusal: String? = null
     var trackerRev by mutableIntStateOf(0); internal set
     var link by mutableStateOf<LinkUi?>(null); internal set
     var trackerMessage by mutableStateOf<String?>(null); internal set
@@ -376,7 +392,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal var smartRowsRevision = 0L
 
     internal fun TrackedItem.toMeta() = Meta(
-        id = key,
+        // Anime from AniList / MyAnimeList open by their Kitsu id, which anime addons know (#81).
+        id = addonId ?: key,
         type = when (kind) {
             Kind.MOVIE -> "movie"
             Kind.SHOW -> "series"
@@ -1249,6 +1266,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             android.content.IntentFilter(android.content.Intent.ACTION_LOCALE_CHANGED),androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         homeShortcuts.reload()
         hub.disabled = trackersOff
+        hub.quiet = trackersQuiet
         startupPresentation.preferencesRestored()
         refreshApps()
         viewModelScope.launch {

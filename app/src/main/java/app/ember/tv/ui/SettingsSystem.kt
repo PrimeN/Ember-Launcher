@@ -11,6 +11,7 @@ import app.ember.tv.startLink
 import app.ember.tv.startPlexLink
 import app.ember.tv.toggleScreensaverSource
 import app.ember.tv.toggleTracker
+import app.ember.tv.toggleTrackerReports
 import app.ember.tv.updatePhotoFolder
 
 import androidx.compose.ui.res.stringResource
@@ -515,6 +516,8 @@ internal fun TrackerRow(vm: HomeViewModel, t: Tracker, openKeys: () -> Unit) {
             !t.configured -> Chip(stringResource(R.string.ui_add_the_key_in_api_keys)) { openKeys() }
             connected -> ButtonRow(spacing = 10.dp) {
                 Chip(stringResource(R.string.ui_use_on_home) + if (t.id in vm.trackersOff) "off" else "on") { vm.toggleTracker(t.id) }
+                // Separate from Home (#80): a hidden tracker still hears what you watch unless this is off.
+                if (t.scrobbles) Chip(stringResource(R.string.ui_report_what_i_watch) + if (t.id in vm.trackersQuiet) "off" else "on") { vm.toggleTrackerReports(t.id) }
                 Chip(stringResource(R.string.ui_disconnect)) { vm.disconnectTracker(t.id) }
             }
             t.mode == LinkMode.DEVICE_CODE -> Chip(stringResource(R.string.ui_connect_name, t.name)) { vm.startLink(t.id) }

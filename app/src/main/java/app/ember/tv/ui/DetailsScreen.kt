@@ -129,8 +129,13 @@ fun DetailsScreen(
     onOpenPersonTitle: (app.ember.tv.data.Meta) -> Unit = {},
     filterPersonTitles: suspend (List<app.ember.tv.data.Meta>) -> List<app.ember.tv.data.Meta> = { it },
     personProfileKey: String = "default",
+    /** Rating on your trackers (#84): shown when a connected tracker takes ratings. */
+    canRate: Boolean = false,
+    myRating: Int? = null,
+    onRate: (Int?) -> Unit = {},
 ) {
     val meta = d.meta
+    var rating by remember(meta.id) { mutableStateOf(false) }
     var synopsis by remember(meta.id) { mutableStateOf(false) }
     var more by remember(meta.id) { mutableStateOf(false) }
     // Server sources: holding OK opens player choice, playback quality and server actions.
@@ -494,6 +499,14 @@ fun DetailsScreen(
         if(!d.episode?.overview.isNullOrBlank() && !meta.description.isNullOrBlank())Chip("About the series") {more=false;synopsis=true}
         if(d.metaSources.isNotEmpty())Text("Details from "+d.metaSources.joinToString(" and "),color=Mute,fontSize=12.sp)
         if(isContinue)Chip("Remove from Continue Watching") {more=false;onRemoveContinue()}
+        if(canRate)Chip(if(myRating!=null)"Your rating: $myRating/10 · change" else "Rate on your trackers") {more=false;rating=true}
+    }
+    if(rating)MediaDialog("Rate · ${meta.name}",{rating=false}) {
+        Text("1 is the lowest, 10 the highest. Sent to your trackers that take ratings.",color=Mute,fontSize=14.sp)
+        ButtonRow(spacing=6.dp) {
+            (1..10).forEach {n-> Chip(n.toString(),n==myRating) {rating=false;onRate(n)} }
+        }
+        if(myRating!=null)Chip("Clear my rating") {rating=false;onRate(null)}
     }
     person?.let { selected -> key(selected,personProfileKey) {
         PersonDialog(selected,meta,{person=null},filterPersonTitles) { title -> person=null;onOpenPersonTitle(title) }

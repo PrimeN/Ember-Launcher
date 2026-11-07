@@ -737,6 +737,7 @@ private fun RootContent(
                     restore={runCatching {navigation.preferred("details")?.requestFocus()==true}.getOrDefault(false)},
                     back={runCatching {backFocus.requestFocus()}.getOrDefault(false)})) {
                     androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalFocusScene provides "details") {
+                    LaunchedEffect(d.meta.id) { vm.loadMyRating(d.meta) }
                     DetailsScreen(
                         modifier = Modifier,
                         d = d,
@@ -776,6 +777,9 @@ private fun RootContent(
                         offersCredit = vm.watch.offersCredit,
                         onOpenOffer = onOpenOffer,
                         offerInstalled = { vm.watch.offerPackages(it).first != null },
+                        canRate = vm.canRate(d.meta),
+                        myRating = vm.myRating?.takeIf { it.first == d.meta.id }?.second,
+                        onRate = { vm.rateTitle(d.meta, it) },
                     )
                     }
                 }

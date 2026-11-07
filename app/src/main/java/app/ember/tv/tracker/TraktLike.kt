@@ -2,6 +2,8 @@ package app.ember.tv.tracker
 
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import android.content.Context
 import app.ember.tv.data.ApiKeys
 import kotlinx.serialization.json.JsonElement
@@ -41,8 +43,13 @@ abstract class TraktLikeTracker(
 
     private fun access() = store.get("$id.access")
     override fun isConnected() = !access().isNullOrBlank()
-    override fun accountLabel(): String? = if (isConnected()) "Signed in" else null
-    override fun disconnect() = store.remove("$id.access", "$id.refresh")
+    override fun accountLabel(): String? = if (isConnected()) store.get("$id.account") ?: "Signed in" else null
+    override fun disconnect() {
+        store.remove("$id.access", "$id.refresh", "$id.account")
+        signedOut()
+    }
+    /** Clears what was kept on the TV for this account. */
+    protected open fun signedOut() {}
 
     protected fun headers(auth: Boolean = true): Map<String, String> {
         val h = mutableMapOf(apiKeyHeader to clientId, versionHeader.first to versionHeader.second)
@@ -84,6 +91,7 @@ abstract class TraktLikeTracker(
 
     private fun saveTokens(r: JsonElement): Boolean {
         val token = r.str("access_token") ?: return false
+        if (access() == null) signedOut() // a new sign-in starts from a clean slate
         store.putAll(buildMap {
             put("$id.access",token)
             r.str("refresh_token")?.let {put("$id.refresh",it)}
@@ -179,14 +187,25 @@ abstract class TraktLikeTracker(
 
     override suspend fun addToWatchlist(ref: TitleRef): Boolean {
         if (!ref.hasIds) return false
-        authedPost(watchlistAddPath, listBody(ref))
+        limited { authedPost(watchlistAddPath, listBody(ref)) }
         return true
     }
 
     override suspend fun removeFromWatchlist(ref: TitleRef): Boolean {
         if (!ref.hasIds) return false
-        authedPost(watchlistRemovePath, listBody(ref))
+        limited { authedPost(watchlistRemovePath, listBody(ref)) }
         return true
+    }
+
+    /** HTTP 420 is Trakt's account limit (e.g. a free account's watchlist size): retrying won't help (#82). */
+    protected suspend fun <T> limited(call: suspend () -> T): T = try { call() } catch (e: HttpException) {
+        if (e.code == 420) throw TrackerRefusal(id, "$name account limit reached, so $name was not changed. Free accounts have smaller limits.")
+        throw e
+    }
+
+    protected fun ids(ref: TitleRef) = buildJsonObject {
+        ref.imdbId?.takeIf { it.isNotBlank() }?.let { put("imdb", it) }
+        ref.tmdbId?.let { put("tmdb", it) }
     }
 
     override suspend fun removePlayback(itemKey: String): Boolean {
@@ -265,6 +284,89 @@ class TraktTracker(context: Context) : TraktLikeTracker(
     // Trakt refreshes through the same endpoint as sign-in.
     override val refreshPath = "oauth/token"
     override val refreshRedirectUri: String? = "urn:ietf:wg:oauth:2.0:oob"
+
+    private val watchedFile = java.io.File(context.filesDir, "trakt_watched.txt")
+    @Volatile private var watchedCache: Pair<String, Set<String>>? = null
+    private val watchedLock = Mutex()
+    private val ratings = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<JsonElement>>>()
+
+    override fun signedOut() {
+        watchedFile.delete()
+        watchedCache = null
+        ratings.clear()
+    }
+
+    // ---- account name (#85) ----
+    override suspend fun loadAccountName() {
+        val user = runCatching { authedGet("users/settings").obj("user") }.getOrNull() ?: return
+        val label = user.str("name")?.trim()?.takeIf { it.isNotEmpty() } ?: user.str("username")?.let { "@$it" } ?: return
+        if (isConnected()) store.put("$id.account", label)
+    }
+    override fun needsAccountName() = isConnected() && store.get("$id.account") == null
+
+    // ---- watched marks and history (#79, #83) ----
+    override fun supportsHistory(ref: TitleRef) = ref.hasIds
+    override suspend fun markWatched(ref: TitleRef, season: Int?, episode: Int?, watched: Boolean): Boolean {
+        if (!ref.hasIds) return false
+        limited { authedPost(if (watched) "sync/history" else "sync/history/remove", historyBody(ref, season, episode, ids(ref))) }
+        return true
+    }
+
+    /**
+     * Every watched movie and episode. Trakt's last_activities says when history last changed,
+     * so the full lists are only downloaded again after something was watched or removed.
+     */
+    override suspend fun watched(): Set<String> = watchedLock.withLock {
+        val activity = authedGet("sync/last_activities")
+        val stamp = listOf(activity.obj("movies").str("watched_at"), activity.obj("episodes").str("watched_at")).joinToString("|")
+        val current = watchedCache ?: readWatched()?.also { watchedCache = it }
+        if (current != null && current.first == stamp) return@withLock current.second
+        val keys = coroutineScope {
+            val movies = async { authedGet("sync/watched/movies") }
+            val shows = async { authedGet("sync/watched/shows") }
+            traktWatchedKeys(movies.await(), shows.await())
+        }
+        watchedCache = stamp to keys
+        writeWatched(stamp, keys)
+        keys
+    }
+
+    private fun readWatched(): Pair<String, Set<String>>? = runCatching {
+        if (!watchedFile.exists()) return null
+        val lines = watchedFile.readLines()
+        val stamp = lines.firstOrNull()?.removePrefix("#")?.takeIf { lines.first().startsWith("#") } ?: return null
+        stamp to lines.drop(1).filterTo(HashSet()) { it.isNotBlank() }
+    }.getOrNull()
+
+    private fun writeWatched(stamp: String, keys: Set<String>) {
+        runCatching {
+            val tmp = java.io.File(watchedFile.path + ".tmp")
+            tmp.writeText("#" + stamp + "\n" + keys.joinToString("\n"))
+            if (!tmp.renameTo(watchedFile)) { watchedFile.delete(); tmp.renameTo(watchedFile) }
+        }
+    }
+
+    // ---- ratings (#84) ----
+    override val rates = true
+    override suspend fun rate(ref: TitleRef, rating: Int?): Boolean {
+        if (!ref.hasIds) return false
+        val key = if (ref.kind == Kind.MOVIE) "movies" else "shows"
+        val body = buildJsonObject {
+            putJsonArray(key) { add(buildJsonObject { put("ids", ids(ref)); rating?.let { put("rating", it.coerceIn(1, 10)) } }) }
+        }
+        limited { authedPost(if (rating != null) "sync/ratings" else "sync/ratings/remove", body) }
+        ratings.remove(key)
+        return true
+    }
+
+    override suspend fun ratingOf(ref: TitleRef): Int? {
+        if (!ref.hasIds) return null
+        val key = if (ref.kind == Kind.MOVIE) "movies" else "shows"
+        val now = System.currentTimeMillis()
+        val rows = ratings[key]?.takeIf { now - it.first < 10 * 60_000L }?.second
+            ?: authedGet("sync/ratings/$key").list().also { ratings[key] = now to it }
+        return rows.firstOrNull { sameTitle(it.obj(if (ref.kind == Kind.MOVIE) "movie" else "show"), ref) }?.int("rating")
+    }
 
     override suspend fun continueWatching(): List<TrackedItem> =
         authedGet("sync/playback").list().mapNotNull { row ->
@@ -463,4 +565,28 @@ class WeTrakrTracker(context: Context) : TraktLikeTracker(
                 source = name,
             ).takeIf { it.title.isNotBlank() || it.tmdbId != null }
         }
+}
+
+/** True when a {ids:{imdb, tmdb}} block is the same title as [ref]. */
+internal fun sameTitle(meta: JsonElement?, ref: TitleRef): Boolean {
+    val ids = meta.obj("ids")
+    return (!ref.imdbId.isNullOrBlank() && ids.str("imdb") == ref.imdbId) || (ref.tmdbId != null && ids.long("tmdb") == ref.tmdbId)
+}
+
+/** Watched keys from Trakt's sync/watched/movies and sync/watched/shows (#83). */
+internal fun traktWatchedKeys(movies: JsonElement?, shows: JsonElement?): Set<String> {
+    val out = HashSet<String>()
+    for (row in movies.list()) {
+        val ids = row.obj("movie").obj("ids")
+        out += watchedKeys(true, ids.str("imdb"), ids.long("tmdb"), null, null)
+    }
+    for (row in shows.list()) {
+        val ids = row.obj("show").obj("ids")
+        val imdb = ids.str("imdb"); val tmdb = ids.long("tmdb")
+        for (s in row.arr("seasons").list()) {
+            val season = s.int("number") ?: continue
+            for (e in s.arr("episodes").list()) e.int("number")?.let { out += watchedKeys(false, imdb, tmdb, season, it) }
+        }
+    }
+    return out
 }

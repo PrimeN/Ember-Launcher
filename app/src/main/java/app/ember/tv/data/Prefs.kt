@@ -319,6 +319,11 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.TRACKERS_OFF)
         set(v) = sp.edit { putStringSet(PreferenceKeys.TRACKERS_OFF.name, v) }
 
+    /** Tracker ids that are not told what you watch (#80). */
+    var trackersQuiet: Set<String>
+        get() = sp.read(PreferenceKeys.TRACKERS_QUIET)
+        set(v) = sp.edit { putStringSet(PreferenceKeys.TRACKERS_QUIET.name, v) }
+
     /** "builtin", "ask", or the package name of an installed player. */
     var player: String
         get() = sp.read(PreferenceKeys.PLAYER)!!
