@@ -287,12 +287,12 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                 }
             }
             Row(Modifier.fillMaxWidth().graphicsLayer { alpha = if (idle) 0f else 1f }.padding(horizontal = 24.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (windowWidth >= (if(vm.launcherExtras.options.nowPlaying) 1000.dp else 800.dp)) LightButton(vm.weather.weatherText ?: "Weather", Icons.Outlined.Cloud, Modifier.widthIn(max = 240.dp).focusRequester(topFocus).lightArrows(onDown = ::headerDown)) { panel = "weather" }
-                else LightIcon("Weather", Icons.Outlined.Cloud, Modifier.focusRequester(topFocus).lightArrows(onDown = ::headerDown)) { panel = "weather" }
-                if (inputs.isNotEmpty()) LightIcon("Inputs", Icons.AutoMirrored.Outlined.Input, Modifier.lightArrows(onDown = ::headerDown)) {
+                if (windowWidth >= (if(vm.launcherExtras.options.nowPlaying) 1000.dp else 800.dp)) LightButton(vm.weather.weatherText ?: "Weather", Icons.Outlined.Cloud, Modifier.widthIn(max = 240.dp).focusRequester(topFocus).lightArrows(onDown = ::headerDown), glass = true) { panel = "weather" }
+                else LightIcon("Weather", Icons.Outlined.Cloud, Modifier.focusRequester(topFocus).lightArrows(onDown = ::headerDown), glass = true) { panel = "weather" }
+                if (inputs.isNotEmpty()) LightIcon("Inputs", Icons.AutoMirrored.Outlined.Input, Modifier.lightArrows(onDown = ::headerDown), glass = true) {
                     if (vm.profiles.profile.kids) onTab(NavTabs.QUICK) else panel = "inputs"
                 }
-                if(vm.launcherExtras.options.nowPlaying && !vm.profiles.profile.kids)LightIcon("Now Playing",Icons.Outlined.MusicNote){panel="playing"}
+                if(vm.launcherExtras.options.nowPlaying && !vm.profiles.profile.kids)LightIcon("Now Playing",Icons.Outlined.MusicNote,glass=true){panel="playing"}
                 Spacer(Modifier.weight(1f))
                 Row(Modifier.lightGlass(30).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(if (online) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, if (online) "Internet connected" else "No internet", Modifier.size(18.dp), tint = Color.White.copy(alpha = .8f))
@@ -398,16 +398,23 @@ private fun Modifier.lightArrows(onUp: (() -> Unit)? = null, onDown: (() -> Unit
 }
 
 @Composable
-private fun LightIcon(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Focusable(onClick, modifier.size(36.dp).semantics { contentDescription = label }, radius = TvTokens.Shape.Large, container = Color.White.copy(alpha = .06f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.65f), focusedContent = Color(0xFF101722)) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(20.dp)) }
+private fun LightIcon(label: String, icon: ImageVector, modifier: Modifier = Modifier, glass: Boolean = false, onClick: () -> Unit) {
+    // glass: the same material as the rest of the top bar and the system (#65).
+    var focused by remember { mutableStateOf(false) }
+    Focusable(onClick, modifier.size(36.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label }, radius = TvTokens.Shape.Large,
+        container = if (glass) Color.Transparent else Color.White.copy(alpha = .06f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.65f), focusedContent = Color(0xFF101722)) {
+        Box(Modifier.fillMaxSize().then(if (glass && !focused) Modifier.glassSurface(RoundedCornerShape(TvTokens.Shape.Large.dp), dock = true) else Modifier),
+            contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(20.dp)) }
     }
 }
 
 @Composable
-private fun LightButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, onLongClick:(()->Unit)?=null, onClick: () -> Unit) {
-    Focusable(onClick, modifier, onLongClick=onLongClick,radius = TvTokens.Shape.Panel, container = LocalLightTint.current.copy(alpha=.22f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.7f), focusedContent = Color(0xFF101722)) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun LightButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, glass: Boolean = false, onLongClick:(()->Unit)?=null, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Focusable(onClick, modifier.onFocusChanged { focused = it.isFocused }, onLongClick=onLongClick,radius = TvTokens.Shape.Panel,
+        container = if (glass) Color.Transparent else LocalLightTint.current.copy(alpha=.22f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.7f), focusedContent = Color(0xFF101722)) {
+        Row(Modifier.then(if (glass && !focused) Modifier.glassSurface(RoundedCornerShape(TvTokens.Shape.Panel.dp), dock = true) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, Modifier.size(19.dp)); Text(label, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
