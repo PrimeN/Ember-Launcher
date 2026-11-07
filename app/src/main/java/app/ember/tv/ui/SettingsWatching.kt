@@ -161,7 +161,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 vm.playerSettings.updatePlaybackConfig { it.copy(confirmExit = v == "ask") }
             }
             Note("Ask first shows Stop watching? with Keep watching selected. Pressing Back again leaves, so a double press still exits.")
-            SwitchChip("Home: keep playing in a small window", c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
+            ToggleRow("Home: keep playing in a small window", null, c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
             Text("Back to the last video from Home", fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
             Choice(app.ember.tv.player.QuickReturn.keys, app.ember.tv.player.QuickReturn.key(c)) { v ->
                 vm.playerSettings.updatePlaybackConfig { app.ember.tv.player.QuickReturn.choose(it, v) }
@@ -182,8 +182,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "audio-output" -> Section(stringResource(R.string.ui_audio_output), stringResource(R.string.ui_for_a_receiver_or_soundbar_over), id = "audio-output") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SwitchChip(
-                if (c.passthrough) "Passthrough (bitstream)" else "Passthrough (off: decode everything to PCM)",
+            ToggleRow(
+                "Passthrough (bitstream)", if (c.passthrough) null else "Off: decode everything to PCM",
                 c.passthrough,
             ) { vm.playerSettings.updatePlaybackConfig { it.copy(passthrough = !it.passthrough) } }
             if (c.passthrough) {
@@ -235,7 +235,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 ),
                 c.ffmpegVideo,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpegVideo = m) } }
-            SwitchChip(stringResource(R.string.ui_tunneled_playback), c.tunneling) {
+            ToggleRow(stringResource(R.string.ui_tunneled_playback), null, c.tunneling) {
                 vm.playerSettings.updatePlaybackConfig { it.copy(tunneling = !it.tunneling) }
             }
             Note(
@@ -251,7 +251,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 c.frameRate,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(frameRate = m) } }
             if (c.frameRate == "always") {
-                SwitchChip(stringResource(R.string.ui_match_resolution_too), c.matchResolution) {
+                ToggleRow(stringResource(R.string.ui_match_resolution_too), null, c.matchResolution) {
                     vm.playerSettings.updatePlaybackConfig { it.copy(matchResolution = !it.matchResolution) }
                 }
             }
@@ -281,7 +281,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "trailers" -> Section(stringResource(R.string.ui_trailers), stringResource(R.string.ui_experimental)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SwitchChip(stringResource(R.string.ui_play_trailers_in_ember_experimental), c.trailersInApp) { vm.playerSettings.updatePlaybackConfig { it.copy(trailersInApp = !it.trailersInApp) } }
+            ToggleRow(stringResource(R.string.ui_play_trailers_in_ember_experimental), null, c.trailersInApp) { vm.playerSettings.updatePlaybackConfig { it.copy(trailersInApp = !it.trailersInApp) } }
             Note(
                 stringResource(R.string.ui_plays_youtube_trailers_in_the_built) +
                     "YouTube changes often, so this can stop working until Ember is updated; when it fails, the YouTube app opens instead. " +
@@ -291,7 +291,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "playback_info" -> Section(stringResource(R.string.ui_playback_info)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SwitchChip(stringResource(R.string.ui_show_at_start), c.infoOnStart) {
+            ToggleRow(stringResource(R.string.ui_show_at_start), null, c.infoOnStart) {
                 vm.playerSettings.updatePlaybackConfig { it.copy(infoOnStart = !it.infoOnStart) }
             }
             Note(stringResource(R.string.ui_during_playback_press_info_menu_or))
@@ -628,14 +628,8 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OnOff("Your Stremio addons", c.addonSubs) { vm.playerSettings.updateSubtitleConfig { it.copy(addonSubs = !it.addonSubs) } }
                 OnOff("OpenSubtitles (free, no key)", c.stremioOpenSubs) { vm.playerSettings.updateSubtitleConfig { it.copy(stremioOpenSubs = !it.stremioOpenSubs) } }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OnOff("OpenSubtitles.com", c.openSubsCom) { vm.playerSettings.updateSubtitleConfig { it.copy(openSubsCom = !it.openSubsCom) } }
-                    Text(if (osReady) "Key set" else "Needs an API key", color = Mute, fontSize = 13.sp)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OnOff("SubDL", c.subdl) { vm.playerSettings.updateSubtitleConfig { it.copy(subdl = !it.subdl) } }
-                    Text(if (subdlReady) "Key set" else "Needs an API key", color = Mute, fontSize = 13.sp)
-                }
+                OnOff("OpenSubtitles.com", c.openSubsCom, note = if (osReady) "Key set" else "Needs an API key") { vm.playerSettings.updateSubtitleConfig { it.copy(openSubsCom = !it.openSubsCom) } }
+                OnOff("SubDL", c.subdl, note = if (subdlReady) "Key set" else "Needs an API key") { vm.playerSettings.updateSubtitleConfig { it.copy(subdl = !it.subdl) } }
                 Chip(stringResource(R.string.ui_api_keys)) { openKeys() }
                 Note(
                     stringResource(R.string.ui_opensubtitles_free_is_the_same_service) +
@@ -699,7 +693,7 @@ internal fun StremioFormatPage(vm: HomeViewModel) {
         PartHeader("Source text")
         Section(stringResource(R.string.ui_stream_results), stringResource(R.string.ui_how_addon_sources_are_shown_on)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SwitchChip(stringResource(R.string.ui_custom_format), on) { vm.sourceFormat.updateStreamFormatOn(!on) }
+                ToggleRow(stringResource(R.string.ui_custom_format), null, on) { vm.sourceFormat.updateStreamFormatOn(!on) }
                 Note(
                     if (on) stringResource(R.string.ui_templates_use_the_same_syntax_as) +
                         "A connected keyboard can make editing templates easier. Templates are included in backups."

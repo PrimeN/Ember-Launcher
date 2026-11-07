@@ -394,7 +394,7 @@ internal fun RpdbOptions(vm: HomeViewModel, c: PosterConfig, openKeys: () -> Uni
                     Chip(label, selected = c.rpdbStyle == id && paid) { if (paid) vm.metadata.updatePosterConfig { it.copy(rpdbStyle = id) } }
                 }
             }
-            SwitchChip(stringResource(R.string.ui_textless_artwork), c.rpdbTextless && paid) {
+            ToggleRow(stringResource(R.string.ui_textless_artwork), null, c.rpdbTextless && paid) {
                 if (paid) vm.metadata.updatePosterConfig { it.copy(rpdbTextless = !it.rpdbTextless) }
             }
         }
@@ -497,9 +497,10 @@ internal fun LazyListScope.ratingsPage(vm: HomeViewModel, openKeys: () -> Unit) 
 
 // ---------------------------------------------------------------- Metadata (AniList, TVDB)
 
+/** One On/Off setting in a section: the same full-width row as every other boolean setting (#36). */
 @Composable
-internal fun OnOff(label: String, on: Boolean, onToggle: () -> Unit) =
-    SwitchChip(label, on, onClick = onToggle)
+internal fun OnOff(label: String, on: Boolean, note: String? = null, onToggle: () -> Unit) =
+    SettingToggle(label, note, on, onToggle)
 
 @Composable
 internal fun MetadataPage(vm: HomeViewModel, openKeys: () -> Unit) {
@@ -545,10 +546,8 @@ internal fun MetadataPage(vm: HomeViewModel, openKeys: () -> Unit) {
 
         Section(stringResource(R.string.ui_tvdb_tv_shows), if (tvdbReady) "Using your TVDB key." else "Needs a TVDB API key.") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ButtonRow(spacing = 10.dp) {
-                    OnOff("Use TVDB", c.tvdbOn) { vm.metadata.updateMetaConfig { it.copy(tvdbOn = !it.tvdbOn) } }
-                    Chip(if (tvdbReady) "Change the key in API keys" else "Add the key in API keys") { openKeys() }
-                }
+                OnOff("Use TVDB", c.tvdbOn) { vm.metadata.updateMetaConfig { it.copy(tvdbOn = !it.tvdbOn) } }
+                Chip(if (tvdbReady) "Change the key in API keys" else "Add the key in API keys") { openKeys() }
                 if (c.tvdbOn) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ToggleRow(stringResource(R.string.ui_description), null, c.tvdbDescription) { vm.metadata.updateMetaConfig { it.copy(tvdbDescription = !it.tvdbDescription) } }
