@@ -10,8 +10,11 @@ internal data class LightSlide(
 )
 
 internal object LightCarousel {
-    /** Continue Watching stays first, then app previews and recommendations. */
-    fun compose(own: List<Meta>, external: List<LightMedia>, recommendations: List<Meta>): List<LightSlide> {
+    /**
+     * Continue Watching stays first, then the chosen catalog's titles ([featured], #61), then app
+     * previews and recommendations.
+     */
+    fun compose(own: List<Meta>, external: List<LightMedia>, recommendations: List<Meta>, featured: List<Meta> = emptyList()): List<LightSlide> {
         fun Meta.slide(continuing: Boolean) = LightSlide("media:${mediaKey()}", name,
             if (continuing) listOfNotNull("Continue watching", season?.let { "S$it" }, episode?.let { "E$it" }).joinToString(" · ") else "Recommended",
             background ?: poster, meta = this, continuing = continuing)
@@ -19,7 +22,8 @@ internal object LightCarousel {
             listOf("Continue watching", it.description).filter(String::isNotBlank).joinToString(" · "), it.artwork, external = it, continuing = true) } + own.take(8).map { it.slide(true) }
             ).take(8)
         val next = external.filterNot { it.continuing }.map { LightSlide(it.id, it.title, it.description.ifBlank { "From your apps" }, it.artwork, external = it) } + recommendations.map { it.slide(false) }
-        return (continueItems + next).distinctBy { slide ->
+        val chosen = featured.map { it.slide(false) }
+        return (continueItems + chosen + next).distinctBy { slide ->
             slide.meta?.let { "media:${it.mediaKey()}" } ?: slide.external?.let { "app:${it.pkg}:${LightMediaProvider.normalize(it.title)}:${it.description}" } ?: slide.id
         }.take(24)
     }

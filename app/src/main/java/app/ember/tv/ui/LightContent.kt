@@ -55,9 +55,10 @@ internal fun rememberLightSlides(vm: HomeViewModel, refresh: Int): List<LightSli
     val own = if (vm.profiles.personalOn && options.watchNext) (
         (if (vm.sections.sectionOn(HomeViewModel.HOME_CONTINUE)) vm.inProgressItems else emptyList()) +
             (if (vm.sections.sectionOn(HomeViewModel.HOME_UPNEXT)) vm.upNextRow?.items.orEmpty() else emptyList())) else emptyList()
-    return remember(own, external, vm.heroItems, options, kids, allowed, watch,desktop) {
+    val featured = if (kids) emptyList() else vm.lightFeaturedItems
+    return remember(own, external, vm.heroItems, featured, options, kids, allowed, watch,desktop) {
         LightCarousel.compose(own, LightMediaProvider.personalized(LightMediaProvider.visible(external, allowed, kids, watch, options.recommendations),desktop),
-            if (options.recommendations) vm.heroItems else emptyList())
+            if (options.recommendations && featured.isEmpty()) vm.heroItems else emptyList(), featured)
     }
 }
 

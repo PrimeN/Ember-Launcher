@@ -443,8 +443,29 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
         vm.appAccess.page(false).forEach {app->SettingToggle("${app.label} recommendations",null,app.pkg !in home.mutedApps){vm.personalHomes.update {it.copy(mutedApps=if(app.pkg in it.mutedApps)it.mutedApps-app.pkg else it.mutedApps+app.pkg)}}}
         Chip("App folders") {vm.openSettingsPage("HOME_TOOLS")}
         SettingToggle("Recommendations", null, options.recommendations) { vm.look.updateLightHome { it.copy(recommendations = !it.recommendations) } }
+        LightCarouselCatalog(vm)
         SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
         Text("Full-screen carousel when idle", fontSize = 15.sp)
         ButtonRow { listOf(0, 15, 30, 60, 120).forEach { seconds -> Chip(if (seconds == 0) "Off" else "${seconds}s", selected = options.idleSeconds == seconds) { vm.look.updateLightHome { it.copy(idleSeconds = seconds) } } } }
     }
+}
+
+/** Which Home catalog leads Light's carousel (#61): the same choices as Modern's hero banner. */
+@Composable
+private fun LightCarouselCatalog(vm: HomeViewModel) {
+    var open by remember { mutableStateOf(false) }
+    val focus = remember { FocusRequester() }
+    val choices = vm.rows.distinctBy(app.ember.tv.data.HeroBanner::sourceKey)
+    val chosen = vm.look.lightHome.heroCatalog
+    val selected = choices.firstOrNull { app.ember.tv.data.HeroBanner.sourceKey(it) == chosen }
+    Chip("Carousel catalog: " + (selected?.displayTitle ?: if (chosen == null) "Automatic mix" else "Unavailable — using automatic mix"),
+        modifier = Modifier.focusRequester(focus)) { open = true }
+    Text("Its titles play after Continue watching. Choose a catalog enabled for Home, or mix them automatically.", color = Mute, fontSize = 13.sp)
+    if (open) OptionMenu("Carousel catalog", buildList {
+        add(MenuOption("Automatic mix", selected = chosen == null) { vm.look.updateLightHome { it.copy(heroCatalog = null) } })
+        choices.forEach { row -> add(MenuOption("${row.displayTitle} · ${row.addonName}", selected = chosen == app.ember.tv.data.HeroBanner.sourceKey(row)) {
+            vm.look.updateLightHome { it.copy(heroCatalog = app.ember.tv.data.HeroBanner.sourceKey(row)) }
+        }) }
+    }) { open = false }
+    RestoreToolbarFocus(open, focus)
 }

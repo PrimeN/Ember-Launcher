@@ -544,6 +544,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Up to ten allowed titles from the chosen Home catalog, or a balanced automatic mix. */
     val heroItems: List<Meta> by derivedStateOf { HeroBanner.items(rows, look.heroCatalog, ::homeTitleVisible) }
+    /** Light's own carousel catalog (#61): empty when it mixes automatically or the catalog is unavailable. */
+    val lightFeaturedItems: List<Meta> by derivedStateOf {
+        val source = look.lightHome.heroCatalog
+        if (source == null || rows.none { HeroBanner.sourceKey(it) == source }) emptyList()
+        else HeroBanner.items(rows, source, ::homeTitleVisible)
+    }
 
     internal var appsJob: Job? = null
     internal var appsLoadedAt: Long? = null

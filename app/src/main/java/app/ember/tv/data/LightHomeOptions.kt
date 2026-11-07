@@ -9,6 +9,11 @@ data class LightHomeOptions(
     val recommendations: Boolean = true,
     val idleSeconds: Int = 30,
     val motion: Boolean = true,
+    /**
+     * A Home catalog whose titles lead the carousel after Continue watching (#61); null mixes
+     * them automatically, as before. Separate from Modern's hero banner choice.
+     */
+    val heroCatalog: String? = null,
 ) {
     fun normalized() = copy(idleSeconds = idleSeconds.takeIf { it in setOf(0, 15, 30, 60, 120) } ?: 30)
 }
