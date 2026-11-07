@@ -23,6 +23,27 @@ object CatalogIdentity {
         is JsonArray -> JsonArray(value.map(::tree))
         is JsonPrimitive -> if (value.isString) JsonPrimitive(migrate(value.content)) else value
     }
+    // By identity: a store's equals/hashCode are not part of its contract (test fixtures are proxies).
+    private val migrated = HashMap<Int, java.lang.ref.WeakReference<SharedPreferences>>()
+    /**
+     * [migratePreferences] once per preferences store per process (#31). It ran in every Prefs
+     * constructor, copying and re-parsing the catalog, profile and Home layout settings each time,
+     * including once per private server image. Android returns the same store object for a name,
+     * so this is once per process; a restore calls [forget] so restored values are migrated.
+     */
+    fun migrateOnce(sp: SharedPreferences) {
+        val id = System.identityHashCode(sp)
+        synchronized(migrated) {
+            if (migrated[id]?.get() === sp) return
+            migrated[id] = java.lang.ref.WeakReference(sp)
+        }
+        try { migratePreferences(sp) } catch (error: RuntimeException) { forget(sp); throw error }
+    }
+    fun forget(sp: SharedPreferences) {
+        val id = System.identityHashCode(sp)
+        synchronized(migrated) { if (migrated[id]?.get() === sp) migrated.remove(id) }
+    }
+
     /** Idempotent migration also covers profiles and base64 Home section identities in backups. */
     fun migratePreferences(sp: SharedPreferences) {
         val names = setOf("catalogOrder", "catalogHome", "catalogNames", "catalogLive", "catalogDiscoverOff", "profiles", "homeLayout", "homeListStyle", "addonNames", "seededTestAddons")

@@ -10,7 +10,7 @@ import kotlinx.serialization.json.Json
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("ember", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
-    init { CatalogIdentity.migratePreferences(sp) }
+    init { CatalogIdentity.migrateOnce(sp) }
 
     var cacheConfig: CacheConfig
         get() = runCatching { json.decodeFromString<CacheConfig>(sp.read(PreferenceKeys.CACHE_CONFIG)!!).also { require(it.valid()) } }.getOrDefault(CacheConfig())

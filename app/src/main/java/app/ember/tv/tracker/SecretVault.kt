@@ -67,20 +67,38 @@ internal class SecretVault(private val prefs: SharedPreferences, private val cip
         check(cipher.decrypt(PROBE, cipher.encrypt(PROBE, probe)).contentEquals(probe)) { "Keystore round trip failed" }
     }
 
-    fun get(name: String): String? = prefs.getString(name, null)?.let { open(name, it) }
+    /**
+     * Opened values by name, with the sealed text they came from (#30). Every read used to go through
+     * the Keystore; on TV hardware that is a slow trip to the secure hardware, repeated several times
+     * per server image. A value is reused only while its stored sealed text is unchanged, so a write
+     * by anything else simply reads again. Values are already in memory whenever they are used;
+     * nothing extra is written anywhere.
+     */
+    private val opened = java.util.concurrent.ConcurrentHashMap<String, Pair<String, String?>>()
+
+    fun get(name: String): String? = prefs.getString(name, null)?.let { cached(name, it) }
 
     fun all(): Map<String, String> = prefs.all.mapNotNull { (name, stored) ->
-        (stored as? String)?.let { open(name, it) }?.let { name to it }
+        (stored as? String)?.let { cached(name, it) }?.let { name to it }
     }.toMap()
+
+    private fun cached(name: String, stored: String): String? {
+        opened[name]?.takeIf { it.first == stored }?.let { return it.second }
+        return open(name, stored).also { opened[name] = stored to it }
+    }
 
     /** Null removes a value. Written synchronously; false when nothing was committed. */
     @Suppress("UseKtx") // The caller needs commit()'s result; KTX edit {} returns Unit.
     fun write(values: Map<String, String?>, clear: Boolean = false): Boolean {
         val sealed = values.mapValues { (name, value) -> value?.let { seal(name, it) } }
-        return prefs.edit().apply {
+        val committed = prefs.edit().apply {
             if (clear) clear()
             sealed.forEach { (name, value) -> if (value == null) remove(name) else putString(name, value) }
         }.commit()
+        if (clear) opened.clear()
+        if (committed) sealed.forEach { (name, value) -> if (value == null) opened.remove(name) else opened[name] = value to values[name] }
+        else values.keys.forEach(opened::remove)
+        return committed
     }
 
     private fun seal(name: String, value: String) =

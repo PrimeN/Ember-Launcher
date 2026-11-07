@@ -23,6 +23,30 @@ class SecretVaultTest {
         }
     }
 
+    /** #30: repeated reads open each value once; a changed stored value is opened again. */
+    @Test fun repeatedReadsDecryptOnceAndChangesAreSeen() {
+        val ctx=PersistenceContext(temp.root)
+        var decrypts=0
+        val counting=object:SecretCipher {
+            val inner=FixtureCipher()
+            override fun encrypt(name:String,value:ByteArray)=inner.encrypt(name,value)
+            override fun decrypt(name:String,blob:ByteArray):ByteArray {decrypts++;return inner.decrypt(name,blob)}
+        }
+        val prefs=ctx.getSharedPreferences(SecretVault.FILE,0)
+        val vault=SecretVault(prefs,counting)
+        assertTrue(vault.write(mapOf("plex.token" to "one")))
+        repeat(50) {assertEquals("one",vault.get("plex.token"))}
+        assertEquals(0,decrypts)
+        // Another writer (a second vault on the same file) changes the sealed text: read again.
+        assertTrue(SecretVault(prefs,counting).write(mapOf("plex.token" to "two")))
+        repeat(10) {assertEquals("two",vault.get("plex.token"))}
+        assertEquals(1,decrypts)
+        assertTrue(vault.write(mapOf("plex.token" to null)))
+        assertNull(vault.get("plex.token"))
+        assertTrue(vault.write(mapOf("a" to "x"),clear=true))
+        assertEquals(mapOf("a" to "x"),vault.all())
+    }
+
     @Test fun emptyInstallationReadsDoNotOpenOrWaitForTheKeystore() {
         val ctx=PersistenceContext(temp.root)
         val store=TokenStore(ctx) {error("Empty reads must not initialize the Keystore")}

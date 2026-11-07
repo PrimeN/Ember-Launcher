@@ -59,8 +59,17 @@ internal object ArtworkCaches {
     }
     fun blur(private:Boolean)=if(private)privateBlur else publicBlur
     fun originals()=originals
+    /**
+     * Realm per server, account and profile until access changes (#30). Every private image asked
+     * for it several times, and each answer read the sign-ins and built a Prefs (#31).
+     */
+    private val realms=java.util.concurrent.ConcurrentHashMap<String,Pair<Long,String?>>()
     suspend fun realm(context:Context,ref:ServerRef):String?=withContext(Dispatchers.IO) {
-        Accounts(context.applicationContext).artworkRealm(ref,Prefs(context).currentProfile)
+        val profile=context.getSharedPreferences("ember",Context.MODE_PRIVATE).read(PreferenceKeys.CURRENT_PROFILE) ?: Profile.MAIN
+        val key="${ref.provider}\u0000${ref.account}\u0000$profile"
+        val generation=access.get()
+        realms[key]?.takeIf {it.first==generation}?.let {return@withContext it.second}
+        Accounts(context.applicationContext).artworkRealm(ref,profile).also {realms[key]=generation to it}
     }
     fun ref(meta:Meta?,source:String?):ServerRef?=meta?.let(ServerRef::of) ?:
         source?.let(ServerMetadata::artworkParts)?.first

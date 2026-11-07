@@ -161,6 +161,8 @@ internal class BackupPersistence(
             is Set<*>->edit.putStringSet(key,value.filterIsInstance<String>().toSet())
             else->throw Backup.BackupException("Unsupported preference in $name.")
         }}
+        // Restored values may predate the catalog identity migration: let the next Prefs migrate them.
+        CatalogIdentity.forget(store)
         if(!edit.commit() || store.all!=values)throw Backup.BackupException("Could not save preferences in $name.")
     }
 
