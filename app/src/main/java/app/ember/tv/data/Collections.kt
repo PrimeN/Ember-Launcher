@@ -103,8 +103,24 @@ object Collections {
     private fun file(context: Context) = File(context.filesDir, "collections.json")
 
     // Old saved packs may contain an empty collection; do not discard the rest on upgrade.
-    fun load(context: Context): List<MediaCollection> =
-        runCatching { decode(file(context).readText()) }.getOrDefault(emptyList())
+    fun load(context: Context): List<MediaCollection> {
+        val f = file(context)
+        // Prepared at app start off the main thread (#75); used only if the file is unchanged since.
+        warm?.let { w -> warm = null; runCatching { w.get() }.getOrNull()?.takeIf { it.first == stamp(f) }?.let { return it.second } }
+        return readNow(f)
+    }
+
+    private fun readNow(f: File) = runCatching { decode(f.readText()) }.getOrDefault(emptyList())
+    private fun stamp(f: File) = f.lastModified() to f.length()
+    @Volatile private var warm: java.util.concurrent.Future<Pair<Pair<Long, Long>, List<MediaCollection>>>? = null
+
+    /** Starts reading and decoding the saved collections on a background thread (app start). */
+    fun warmUp(context: Context) {
+        val f = file(context.applicationContext)
+        val task = java.util.concurrent.FutureTask { val at = stamp(f); at to readNow(f) }
+        warm = task
+        Thread(task, "ember-collections-warmup").start()
+    }
 
     fun save(context: Context, list: List<MediaCollection>): Result<Unit> =
         runCatching {

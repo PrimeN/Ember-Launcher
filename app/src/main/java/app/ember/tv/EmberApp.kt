@@ -17,6 +17,8 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         // screen usually finds it ready instead of waiting on the secure hardware (#30).
         val appContext = this
         Thread({ runCatching { app.ember.tv.tracker.TokenStore(appContext).get("ms.deviceId") } }, "ember-vault-warmup").start()
+        // Collections are read and decoded off the main thread too; Home uses the result (#75).
+        app.ember.tv.data.Collections.warmUp(this)
         app.ember.tv.data.CacheManagement.init(this)
         app.ember.tv.data.Net.init(this)
         app.ember.tv.ui.IconArtworkCache.init(this)
