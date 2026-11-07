@@ -16,13 +16,13 @@ class NextEpisodeLoader(private val context: Context, private val serverSession:
     private val addons = Prefs(context).addons
     private val client = AddonClient()
 
-    suspend fun load(ep: Episode, prevAddon: String?, prevQuality: String?, serverQuality: app.ember.tv.mediaserver.ServerQuality = app.ember.tv.mediaserver.ServerQuality.ORIGINAL): Pair<StreamOption, List<SubtitleOption>>? =
+    suspend fun load(ep: Episode, prevAddon: String?, prevQuality: String?, serverQuality: app.ember.tv.mediaserver.ServerQuality = app.ember.tv.mediaserver.ServerQuality.ORIGINAL, bingeGroup: String? = null): Pair<StreamOption, List<SubtitleOption>>? =
         coroutineScope {
             val native = ep.serverRef ?: app.ember.tv.mediaserver.ServerRef.parse(ep.id)?.value
             if (native != null) {
                 val servers = serverSession ?: app.ember.tv.mediaserver.MediaServers.forPlayback(context)
                 val sources = servers.sourcesFor(native)
-                val pick = StreamParser.pickSimilar(sources, prevAddon, prevQuality) ?: return@coroutineScope null
+                val pick = StreamParser.pickSimilar(sources, prevAddon, prevQuality, bingeGroup) ?: return@coroutineScope null
                 val resolved = if (serverQuality == app.ember.tv.mediaserver.ServerQuality.ORIGINAL) pick else servers.playback(native, pick.serverPlayback!!.sourceId, serverQuality)
                 return@coroutineScope resolved to resolved.serverPlayback?.parts?.firstOrNull()?.subtitles.orEmpty()
             }
@@ -31,7 +31,7 @@ class NextEpisodeLoader(private val context: Context, private val serverSession:
                 .map { a -> async { runCatching { client.streams(a, "series", ep.id) }.getOrDefault(emptyList()) } }
             val subs = infos.filter { it.supports("subtitles", "series", ep.id) }
                 .map { a -> async { runCatching { client.subtitles(a, "series", ep.id) }.getOrDefault(emptyList()) } }
-            val pick = StreamParser.pickSimilar(streams.awaitAll().flatten(), prevAddon, prevQuality)
+            val pick = StreamParser.pickSimilar(streams.awaitAll().flatten(), prevAddon, prevQuality, bingeGroup)
                 ?: return@coroutineScope null
             pick to subs.awaitAll().flatten().distinctBy { it.url }
         }

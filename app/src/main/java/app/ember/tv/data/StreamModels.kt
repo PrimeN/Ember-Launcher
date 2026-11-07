@@ -134,6 +134,13 @@ data class StreamOption(
     val serverPlayback: app.ember.tv.mediaserver.ServerPlayback? = null,
     /** Request headers the addon asks players to send (behaviorHints.proxyHeaders.request). */
     val headers: Map<String, String> = emptyMap(),
+    /** behaviorHints.bingeGroup: "the same kind of source" across episodes (#74). */
+    val bingeGroup: String? = null,
+    /** behaviorHints.videoHash / videoSize: the OpenSubtitles hash of the file, when the addon knows it. */
+    val videoHash: String? = null,
+    val videoSize: Long? = null,
+    /** Subtitle tracks that come with this source. */
+    val subtitles: List<SubtitleOption> = emptyList(),
 ) {
     /** A web link that a video player can open right away. */
     val isDirect: Boolean get() = !url.isNullOrBlank() && !url.trimStart().startsWith("magnet:", ignoreCase = true)

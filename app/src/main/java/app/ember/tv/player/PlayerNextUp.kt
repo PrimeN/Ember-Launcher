@@ -80,7 +80,7 @@ internal fun PlayerActivity.playNext() {
     upNextCount.text = getString(R.string.pl_finding_a_source)
     playNowButton.isEnabled = false
     lifecycleScope.launch {
-        val found = runCatching { NextEpisodeLoader(this@playNext, servers).load(next, prevAddon, prevQuality, serverPlayback?.quality ?: app.ember.tv.mediaserver.ServerQuality.ORIGINAL) }.getOrNull()
+        val found = runCatching { NextEpisodeLoader(this@playNext, servers).load(next, prevAddon, prevQuality, serverPlayback?.quality ?: app.ember.tv.mediaserver.ServerQuality.ORIGINAL, prevBingeGroup) }.getOrNull()
         // Leaving the player cancels the lookup; that is not a missing source.
         ensureActive()
         if (found == null || found.first.url == null) {
@@ -96,6 +96,8 @@ internal fun PlayerActivity.playNext() {
         startOver = false
         prevAddon = stream.addonName
         prevQuality = stream.quality
+        prevBingeGroup = stream.bingeGroup
+        sourceHash = stream.videoHash?.let { it to stream.videoSize }
         serverReport(ReportState.STOP)
         serverRef = stream.serverRef
         serverPlayback = stream.serverPlayback
@@ -117,7 +119,7 @@ internal fun PlayerActivity.playNext() {
         view.useController = !advanced
         controls.details = controls.details?.copy(episodeTitle = next.title.takeIf { it.isNotBlank() }, synopsis = null)
         refreshControlsTitle()
-        start(stream.url!!, title, subs, stream.info?.filename ?: stream.title.lineSequence().firstOrNull())
+        start(stream.url!!, title, (stream.subtitles + subs).distinctBy { it.url }, stream.info?.filename ?: stream.title.lineSequence().firstOrNull())
         findNextServerEpisode()
         view.requestFocus()
     }

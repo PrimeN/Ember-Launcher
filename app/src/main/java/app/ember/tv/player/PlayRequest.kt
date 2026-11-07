@@ -53,7 +53,8 @@ data class PlayRequest(
         details?.let { PlayerDetails.put(resumeKey, it) }
         // Every addon subtitle goes to the player, which ranks them with the downloaded ones.
         val privatePlayback = stream.serverPlayback
-        val subs = if (privatePlayback == null) subtitles.take(60) else emptyList()
+        // The source's own subtitle tracks come first (#74).
+        val subs = if (privatePlayback == null) (stream.subtitles + subtitles).distinctBy { it.url }.take(60) else emptyList()
         return Intent(context, PlayerActivity::class.java)
             .putExtra(EXTRA_URL, stream.url.takeIf { privatePlayback == null })
             .putExtra(EXTRA_HEADER_NAMES, stream.headers.keys.toTypedArray())
@@ -80,6 +81,9 @@ data class PlayRequest(
             .putExtra(EXTRA_RELEASE, stream.info?.filename ?: stream.title.lineSequence().firstOrNull { it.isNotBlank() })
             .putExtra(EXTRA_PREV_ADDON, stream.addonName)
             .putExtra(EXTRA_PREV_QUALITY, stream.quality)
+            .putExtra(EXTRA_BINGE_GROUP, stream.bingeGroup)
+            .putExtra(EXTRA_VIDEO_HASH, stream.videoHash)
+            .putExtra(EXTRA_VIDEO_SIZE, stream.videoSize ?: -1L)
             .putExtra(EXTRA_NEXT_IDS, nextEpisodes.map { it.id }.toTypedArray())
             .putExtra(EXTRA_NEXT_SEASONS, nextEpisodes.map { it.season }.toIntArray())
             .putExtra(EXTRA_NEXT_NUMBERS, nextEpisodes.map { it.episode }.toIntArray())
@@ -122,6 +126,9 @@ data class PlayRequest(
         const val EXTRA_SERIES_NAME = "seriesName"
         const val EXTRA_PREV_ADDON = "prevAddon"
         const val EXTRA_PREV_QUALITY = "prevQuality"
+        const val EXTRA_BINGE_GROUP = "bingeGroup"
+        const val EXTRA_VIDEO_HASH = "videoHash"
+        const val EXTRA_VIDEO_SIZE = "videoSize"
         const val EXTRA_NEXT_IDS = "nextIds"
         const val EXTRA_NEXT_SEASONS = "nextSeasons"
         const val EXTRA_NEXT_NUMBERS = "nextNumbers"

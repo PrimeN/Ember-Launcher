@@ -1,6 +1,8 @@
 package app.ember.tv.data
 
+import app.ember.tv.tracker.arr
 import app.ember.tv.tracker.int
+import app.ember.tv.tracker.list
 import app.ember.tv.tracker.obj
 import app.ember.tv.tracker.str
 import kotlinx.serialization.json.JsonElement
@@ -80,6 +82,12 @@ object StreamParser {
         return serviceHosts.firstOrNull { (h, _) -> h.substringBefore('.') == scheme }?.second
     }
 
+    /** One subtitle from an addon, over the web only: a file:// or content:// link would show a local file. */
+    fun subtitle(addonName: String, s: JsonElement): SubtitleOption? {
+        val url = s.str("url")?.trim()?.takeIf { (it.startsWith("https://", true) || it.startsWith("http://", true)) && allowedUrl(it) } ?: return null
+        return SubtitleOption(addonName, s.str("lang") ?: s.str("label") ?: "Unknown", url)
+    }
+
     fun parse(addonName: String, j: JsonElement): StreamOption? {
         val url = j.str("url")?.trim()?.takeIf { it.isNotEmpty() && allowedUrl(it) }
         val hash = j.str("infoHash")?.trim()?.takeIf(String::isNotEmpty)
@@ -125,6 +133,10 @@ object StreamParser {
             debrid = debrid,
             info = info,
             headers = if (url != null) StreamHeaders.parse(j.obj("behaviorHints")) else emptyMap(),
+            bingeGroup = j.obj("behaviorHints").str("bingeGroup")?.trim()?.takeIf { it.isNotEmpty() }?.take(200),
+            videoHash = j.obj("behaviorHints").str("videoHash")?.trim()?.lowercase(java.util.Locale.ROOT)?.takeIf { videoHashRe.matches(it) },
+            videoSize = (j.obj("behaviorHints")?.get("videoSize") as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > 0 },
+            subtitles = j.arr("subtitles").list().mapNotNull { subtitle(addonName, it) }.take(30),
         )
     }
 
@@ -194,10 +206,15 @@ object StreamParser {
      * For auto-play: a direct source close to the last one, from the same addon and at
      * the same quality when possible, otherwise the best direct source.
      */
-    fun pickSimilar(options: List<StreamOption>, addonName: String?, quality: String?): StreamOption? =
+    /** OpenSubtitles hashes are 64-bit, written as 16 hex digits. */
+    private val videoHashRe = Regex("[0-9a-f]{16}")
+
+    /** The next episode's source: the same binge group (#74), then the same addon and quality. */
+    fun pickSimilar(options: List<StreamOption>, addonName: String?, quality: String?, bingeGroup: String? = null): StreamOption? =
         options.asSequence().filter { it.isDirect }
             .minWithOrNull(
                 compareBy<StreamOption> { it.kind == SourceKind.UNCACHED }
+                    .thenByDescending { bingeGroup != null && it.bingeGroup == bingeGroup }
                     .thenByDescending { it.addonName == addonName }
                     .thenByDescending { it.quality == quality }
                     .then(order)

@@ -175,13 +175,8 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
 
     suspend fun subtitles(addon: AddonInfo, type: String, id: String): List<SubtitleOption> {
         AddonAccess.requireAvailable(addon.url)
-        return getJson(endpoint(addon.base, "subtitles/$type/$id.json"), addon.url).arr("subtitles").list().mapNotNull { s ->
-            // Subtitles are downloaded over the web only; a file:// or content:// link would let an
-            // addon show the player a local file.
-            val url = s.str("url")?.trim()?.takeIf { (it.startsWith("https://", true) || it.startsWith("http://", true)) && StreamParser.allowedUrl(it) }
-                ?: return@mapNotNull null
-            SubtitleOption(addon.name, s.str("lang") ?: s.str("label") ?: "Unknown", url)
-        }
+        return getJson(endpoint(addon.base, "subtitles/$type/$id.json"), addon.url).arr("subtitles").list()
+            .mapNotNull { StreamParser.subtitle(addon.name, it) }
     }
 
     // ---- http ----

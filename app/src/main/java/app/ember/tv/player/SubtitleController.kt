@@ -85,7 +85,9 @@ class SubtitleController(
         onChange()
         autoSelect()
         searchJob = activity.lifecycleScope.launch {
-            val hashed = if (config.hashMatch && anyProvider && url.startsWith("http")) Subtitles.movieHash(url) else null
+            // The addon's own file hash when it gave one (#74): no need to download parts of the file.
+            val hashed: Pair<String, Long?>? = if (!config.hashMatch || !anyProvider) null
+                else query.hash?.let { it to query.size } ?: if (url.startsWith("http")) Subtitles.movieHash(url) else null
             val found = if (anyProvider) Subtitles.search(query.copy(hash = hashed?.first, size = hashed?.second), config) { batch ->
                 candidates=Subtitles.rank((candidates+batch).distinctBy { it.url ?: it.fileId.toString() },config,release,player()?.videoFormat?.frameRate?.takeIf { it>0 })
                 searched=true;onChange();autoSelect()

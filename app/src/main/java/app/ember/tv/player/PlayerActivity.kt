@@ -90,6 +90,9 @@ class PlayerActivity : ComponentActivity() {
     internal var seriesName = ""
     internal var prevAddon: String? = null
     internal var prevQuality: String? = null
+    /** The playing source's binge group and file hash, from its addon (#74). */
+    internal var prevBingeGroup: String? = null
+    internal var sourceHash: Pair<String, Long?>? = null
     internal val nextEpisodes = ArrayList<Episode>()
 
     // Media server titles report progress back to Plex, Jellyfin or Emby.
@@ -790,6 +793,8 @@ class PlayerActivity : ComponentActivity() {
         seriesName = intent.getStringExtra(PlayRequest.EXTRA_SERIES_NAME) ?: title
         prevAddon = intent.getStringExtra(PlayRequest.EXTRA_PREV_ADDON)
         prevQuality = intent.getStringExtra(PlayRequest.EXTRA_PREV_QUALITY)
+        prevBingeGroup = intent.getStringExtra(PlayRequest.EXTRA_BINGE_GROUP)
+        sourceHash = intent.getStringExtra(PlayRequest.EXTRA_VIDEO_HASH)?.let { it to intent.getLongExtra(PlayRequest.EXTRA_VIDEO_SIZE, -1L).takeIf { s -> s > 0 } }
         readNextEpisodes()
         serverRef = intent.getStringExtra(PlayRequest.EXTRA_SERVER_REF)
         if (serverRef != null) servers = MediaServers.forPlayback(applicationContext)
@@ -1148,8 +1153,8 @@ class PlayerActivity : ComponentActivity() {
                     season = item.season,
                     episode = item.episode,
                     release = release ?: title,
-                    hash = null,
-                    size = null,
+                    hash = sourceHash?.first,
+                    size = sourceHash?.second,
                 ),
                 addonSubs,
             )
