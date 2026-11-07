@@ -100,6 +100,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -324,27 +325,34 @@ internal fun ModernToggleRow(label: String, note: String?, on: Boolean, onToggle
 /** Settings > About > Crash log: the last crashes recorded on this TV, newest first. */
 @Composable
 internal fun CrashLogSection() {
-    var entries by remember { mutableStateOf(app.ember.tv.data.CrashLog.entries()) }
+    // Read off the main thread (#34): entries() waits for the crash log's writer, which also reads
+    // Android's exit history at startup.
+    var entries by remember { mutableStateOf<List<String>?>(null) }
     var shown by remember { mutableIntStateOf(0) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    LaunchedEffect(Unit) { entries = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.ember.tv.data.CrashLog.entries() } }
     Section(stringResource(R.string.ui_crash_log), stringResource(R.string.ui_if_ember_closes_by_itself_the),id="crash-log") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (entries.isEmpty()) {
+            val list = entries
+            if (list == null) {
+                Note("Loading…")
+            } else if (list.isEmpty()) {
                 Note(stringResource(R.string.ui_no_crashes_recorded))
             } else {
                 ButtonRow(spacing = 10.dp) {
-                    entries.forEachIndexed { i, _ -> if (i < 6) Chip(if (i == 0) "Latest" else "#${i + 1}", selected = shown == i) { shown = i } }
+                    list.forEachIndexed { i, _ -> if (i < 6) Chip(if (i == 0) "Latest" else "#${i + 1}", selected = shown == i) { shown = i } }
                     Chip(stringResource(R.string.ui_clear)) {
-                        app.ember.tv.data.CrashLog.clear()
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) { app.ember.tv.data.CrashLog.clear() }
                         entries = emptyList()
                         shown = 0
                     }
                 }
-                val text = entries.getOrElse(shown) { entries.first() }
+                val text = list.getOrElse(shown) { list.first() }
                 // Focusable so the remote can scroll through a long trace.
                 Focusable(onClick = {}, modifier = Modifier.width(760.dp), radius = 12, container = Panel) {
                     Text(
                         text.take(6_000),
-                        fontSize = 11.sp,
+                        fontSize = TvTokens.Type.Caption.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         modifier = Modifier.padding(14.dp),
                     )
