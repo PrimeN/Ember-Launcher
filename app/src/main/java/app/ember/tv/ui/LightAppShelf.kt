@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
-import app.ember.tv.light.LightMedia
+import app.ember.tv.light.ShelfCard
 
 /**
  * Light's App rows (#62): the focused app's own rows ("Continue watching", then each of its
@@ -35,7 +35,7 @@ import app.ember.tv.light.LightMedia
  * cards; each group's name sits over its first card.
  */
 @Composable
-internal fun LightAppShelf(groups: List<Pair<String, List<LightMedia>>>, first: FocusRequester, modifier: Modifier = Modifier, onOpen: (LightMedia) -> Unit) {
+internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: FocusRequester, modifier: Modifier = Modifier, onOpen: (ShelfCard) -> Unit) {
     val cards = groups.flatMap { (name, items) -> items.mapIndexed { i, item -> (if (i == 0) name else null) to item } }
     LazyRow(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 45.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(cards, key = { it.second.id }) { (header, item) ->
@@ -56,7 +56,7 @@ internal fun LightAppShelf(groups: List<Pair<String, List<LightMedia>>>, first: 
                     }
                 }
                 Text(item.title, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (item.description.isNotBlank()) Text(item.description, color = Color(0xFFD8DEF3), fontSize = TvTokens.Type.Caption.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (item.subtitle.isNotBlank()) Text(item.subtitle, color = Color(0xFFD8DEF3), fontSize = TvTokens.Type.Caption.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 else Spacer(Modifier.height(14.dp))
             }
         }

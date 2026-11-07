@@ -91,12 +91,18 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     var shelfPkg by remember(profile) { mutableStateOf<String?>(null) }
     val shelfFocus = remember { FocusRequester() }
     val shelfOn = options.appRows && !vm.profiles.profile.kids
-    val shelf by produceState(emptyList<Pair<String, List<app.ember.tv.light.LightMedia>>>(), shelfPkg, shelfOn) {
+    // Plex, Jellyfin and Emby come from Ember's own server connection (Google TV hides their rows
+    // from other launchers, #63); other apps from what they share with Android TV.
+    val serverShelf = remember(shelfPkg, shelfOn, vm.serverRows) {
+        shelfPkg?.takeIf { shelfOn && vm.profiles.personalOn }?.let { AppShelf.serverGroups(it, vm.serverRows) }.orEmpty()
+    }
+    val shared by produceState(emptyList<Pair<String, List<LightMedia>>>(), shelfPkg, shelfOn) {
         val pkg = shelfPkg
         if (!shelfOn || pkg == null) { value = emptyList(); return@produceState }
         delay(250)
         value = runCatching { LightMediaProvider.shelf(context, pkg) }.getOrDefault(emptyList())
     }
+    val shelf = remember(serverShelf, shared) { AppShelf.merge(serverShelf, shared) }
     val heroInView by remember(state) { derivedStateOf { state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset < 32 } }
     val topFocus = remember { FocusRequester() }
     val heroFocus = remember { FocusRequester() }
@@ -248,7 +254,9 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             if (showShelf) {
                 Box(Modifier.fillMaxWidth().height(heroHeight).background(Brush.verticalGradient(0f to Color(0x99000000), 1f to Color(0xCC000000))))
                 Column(Modifier.align(Alignment.TopStart).height(heroHeight).fillMaxWidth().padding(bottom = 28.dp), verticalArrangement = Arrangement.Bottom) {
-                    LightAppShelf(shelf, shelfFocus) { item ->
+                    LightAppShelf(shelf, shelfFocus) { card ->
+                        card.meta?.let { onOpenTitle(it); return@LightAppShelf }
+                        val item = card.media ?: return@LightAppShelf
                         val app = vm.appAccess.page(false).firstOrNull { it.pkg == item.pkg }
                         val intent = LightMediaProvider.episodeIntent(item)
                         if (app != null && intent != null) launch(app.copy(intent = intent))
@@ -468,8 +476,17 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
         vm.appAccess.page(false).forEach {app->SettingToggle("${app.label} recommendations",null,app.pkg !in home.mutedApps){vm.personalHomes.update {it.copy(mutedApps=if(app.pkg in it.mutedApps)it.mutedApps-app.pkg else it.mutedApps+app.pkg)}}}
         Chip("App folders") {vm.openSettingsPage("HOME_TOOLS")}
         SettingToggle("Recommendations", null, options.recommendations) { vm.look.updateLightHome { it.copy(recommendations = !it.recommendations) } }
-        SettingToggle("App rows", "When an app in the dock is selected, show its own rows above it (Continue watching, Recently added…). Needs apps that publish them and the permission above.",
-            options.appRows) { vm.look.updateLightHome { it.copy(appRows = !it.appRows) } }
+        SettingToggle("App rows", "When an app in the dock is selected, show its own rows above it (Continue watching, Recently added…).",
+            options.appRows) {
+            val on = !options.appRows
+            vm.look.updateLightHome { it.copy(appRows = on) }
+            if (on && !permission && !vm.profiles.profile.kids) request.launch(LightMediaProvider.PERMISSION)
+        }
+        if (options.appRows) {
+            if (!permission && !vm.profiles.profile.kids) Chip("Allow apps’ rows") { request.launch(LightMediaProvider.PERMISSION) }
+            Text("Plex, Jellyfin and Emby show your server's rows when the server is connected in Ember. Other apps show only the rows they share with Android TV; on Google TV many apps (Plex among them) share none with other launchers.",
+                color = Mute, fontSize = 13.sp)
+        }
         LightCarouselCatalog(vm)
         SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
         Text("Full-screen carousel when idle", fontSize = 15.sp)
