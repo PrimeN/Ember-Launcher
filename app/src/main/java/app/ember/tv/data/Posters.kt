@@ -78,6 +78,7 @@ object Posters {
     fun rpdbTier(key: String = rpdbKey()): Int = Regex("""^t(\d)-""").find(key)?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
     fun url(meta: Meta, c: PosterConfig = config): String? {
+        if (!meta.isPortraitArt) return null
         val movie = meta.type == "movie"
         val imdb = meta.imdb
         return when (c.provider) {

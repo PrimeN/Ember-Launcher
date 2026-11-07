@@ -194,7 +194,13 @@ data class SubtitleOption(val addonName: String, val lang: String, val url: Stri
  * One catalog from an addon manifest, with the options it accepts. Stremio catalogs take
  * "extra" options in the URL, e.g. /catalog/movie/top/genre=Action&skip=100.json.
  */
-data class CatalogExtraDef(val name: String, val required: Boolean = false, val options: List<String> = emptyList(), val default: String? = null)
+data class CatalogExtraDef(val name: String, val required: Boolean = false, val options: List<String> = emptyList(), val default: String? = null,
+    /** How many options may be chosen at once (optionsLimit, #72). */
+    val limit: Int = 1)
+
+/** Several chosen values for one extra travel in one map entry, separated by this (#72). */
+const val EXTRA_VALUES_SEPARATOR = '\u001F'
+fun extraValues(value: String): List<String> = value.split(EXTRA_VALUES_SEPARATOR).map { it.trim() }.filter { it.isNotEmpty() }
 
 data class CatalogDef(
     val addon: AddonInfo,
@@ -227,7 +233,9 @@ data class CatalogDef(
         extras.forEach { e ->
             val value = values[e.name].orEmpty()
             if (e.required && value.isBlank()) return "Choose ${e.name} to open this catalog."
-            if (value.isNotBlank() && e.options.isNotEmpty() && value !in e.options) return "Choose a supported ${e.name}."
+            val chosen = extraValues(value)
+            if (chosen.isNotEmpty() && e.options.isNotEmpty() && chosen.any { it !in e.options }) return "Choose a supported ${e.name}."
+            if (chosen.size > e.limit.coerceAtLeast(1)) return "Choose up to ${e.limit} for ${e.name}."
         }
         return null
     }

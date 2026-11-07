@@ -300,11 +300,13 @@ fun AppTile(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongClic
 @Composable
 fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 150.dp, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     val actions = LocalTitleActions.current
+    // Square and landscape art keep their shape instead of being cropped to a portrait poster (#72).
+    @Suppress("NAME_SHADOWING") val width = width * meta.cardWidthScale
     val backdrop = rememberMediaFocus(meta)
     Column(modifier = Modifier.width(width), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Focusable(onClick = onClick, onLongClick = onLongClick ?: actions?.let { action -> { action(meta) } }, modifier = Modifier.restoreFocus(meta.mediaKey()).mediaSemantics(meta, saved).focusBackdrop(backdrop),card=true) {
             Box(Modifier.clearAndSetSemantics { }) {
-                PosterImage(meta, Modifier.width(width).height(width * 1.5f), onImage = backdrop::loaded)
+                PosterImage(meta, Modifier.width(width).height(width * meta.cardRatio), onImage = backdrop::loaded)
                 WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
                 meta.safeProgress?.let { progress ->
                     Box(

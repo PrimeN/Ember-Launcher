@@ -184,10 +184,22 @@ internal fun CatalogOptions(def: CatalogDef, initial: Map<String, String>, close
         def.extras.forEach { extra ->
             var optionSearch by remember(extra.name) { mutableStateOf("") }
             if (extra.options.size > 30) TvTextField(optionSearch, { optionSearch = it }, Modifier.fillMaxWidth(), placeholder = "Find ${extra.name}")
-            Text(extra.name.replaceFirstChar { it.uppercase() } + if (extra.required) " · Required" else "", fontSize = 14.sp)
+            Text(extra.name.replaceFirstChar { it.uppercase() } + (if (extra.required) " · Required" else "") + (if (extra.limit > 1) " · up to ${extra.limit}" else ""), fontSize = 14.sp)
             if (extra.options.isNotEmpty()) ButtonRow(spacing = 6.dp) {
                 if (!extra.required) Chip("Any", values[extra.name].isNullOrBlank()) { values = values + (extra.name to "") }
-                extra.options.filter { it.contains(optionSearch, true) }.take(40).forEach { value -> Chip(value, values[extra.name] == value) { values = values + (extra.name to value) } }
+                val chosen = app.ember.tv.data.extraValues(values[extra.name].orEmpty())
+                extra.options.filter { it.contains(optionSearch, true) }.take(40).forEach { value ->
+                    Chip(value, value in chosen) {
+                        // Several at once where the catalog allows it (optionsLimit, #72).
+                        val next = when {
+                            extra.limit <= 1 -> listOf(value)
+                            value in chosen -> chosen - value
+                            chosen.size < extra.limit -> chosen + value
+                            else -> chosen.drop(1) + value
+                        }
+                        values = values + (extra.name to next.joinToString(app.ember.tv.data.EXTRA_VALUES_SEPARATOR.toString()))
+                    }
+                }
             } else TvTextField(values[extra.name].orEmpty(), { values = values + (extra.name to it) }, Modifier.fillMaxWidth(), placeholder = extra.name, password = CollectionSecrets.sensitive(extra.name))
         }
         error?.let { Text(it, color = Mute) }

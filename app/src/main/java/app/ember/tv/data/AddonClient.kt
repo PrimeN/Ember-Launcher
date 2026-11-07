@@ -110,7 +110,8 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
             searchOnly = "search" in required,
             otherRequired = (required - setOf("genre", "search", "skip")).isNotEmpty(),
             extras = extras.mapNotNull { option -> option.str("name")?.takeIf { it != "skip" && (it != "search" || "search" in required) }?.let { name ->
-                CatalogExtraDef(name, name in required, option.arr("options").strings(), option.str("default") ?: option.str("defaultValue"))
+                CatalogExtraDef(name, name in required, option.arr("options").strings(), option.str("default") ?: option.str("defaultValue"),
+                    limit = option.int("optionsLimit")?.coerceIn(1, 20) ?: 1)
             } } + (required - extras.mapNotNull { it.str("name") }.toSet() - setOf("skip")).map { CatalogExtraDef(it, true, if (it == "genre") genres else emptyList()) },
             supportsSkip = "skip" in supported,
         )
@@ -123,12 +124,16 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
         val requested = def.requestExtras + extras + listOfNotNull(genre?.takeIf { it.isNotBlank() }?.let { "genre" to it }, search?.let { "search" to it }).toMap()
         // An optional value the catalog does not offer (a collection's genre "None" on a catalog without
         // it) is left out, so the catalog loads unfiltered; a required one is sent as given.
-        val args = requested.filter { (name, value) ->
+        val args = requested.mapNotNull { (name, value) ->
             val extra = def.extras.firstOrNull { it.name == name }
-            extra == null || extra.required || extra.options.isEmpty() || value in extra.options
-        }
+            if (extra == null || extra.required || extra.options.isEmpty()) return@mapNotNull name to value
+            // Several values (optionsLimit, #72): keep the offered ones, up to the limit.
+            val kept = extraValues(value).filter { it in extra.options }.take(extra.limit.coerceAtLeast(1))
+            if (kept.isEmpty()) null else name to kept.joinToString(EXTRA_VALUES_SEPARATOR.toString())
+        }.toMap()
         def.missingRequired(args)?.let { error(it) }
-        val parts = args.filterValues { it.isNotBlank() }.map { "${enc(it.key)}=${enc(it.value)}" }.toMutableList()
+        // Several values go as repeated parameters (genre=Action&genre=Comedy), as Stremio sends them.
+        val parts = args.flatMap { (name, value) -> extraValues(value).map { "${enc(name)}=${enc(it)}" } }.toMutableList()
         if (skip > 0 && def.supportsSkip) parts += "skip=$skip"
         val extra = if (parts.isEmpty()) "" else "/" + parts.joinToString("&")
         return getJson(endpoint(def.addon.base, "catalog/${def.type}/${def.id}$extra.json"), def.addon.url, CacheKind.CATALOGS, refresh).arr("metas").list().map {value->

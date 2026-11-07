@@ -55,7 +55,15 @@ data class Meta(
     /** Optional normalized composition point for this exact background image, not a face-recognition result. */
     val backgroundFocusX: Float? = null,
     val backgroundFocusY: Float? = null,
+    /** Stremio's posterShape: "poster" (2:3, default), "square" (channel logos, music) or "landscape" (#72). */
+    val posterShape: String? = null,
 ) {
+    /** Height over width for this title's card. */
+    val cardRatio: Float get() = when (posterShape?.lowercase()) { "square" -> 1f; "landscape" -> 0.5625f; else -> 1.5f }
+    /** How much wider than a portrait card this title's card is: wide art gets more room. */
+    val cardWidthScale: Float get() = if (posterShape.equals("landscape", true)) 1.6f else 1f
+    /** Square and landscape art is the addon's own; portrait rating posters would be cropped to fit. */
+    val isPortraitArt: Boolean get() = posterShape == null || posterShape.equals("poster", true)
     /** Provider floats can be non-finite; they must never enter layout fractions. */
     val safeProgress:Float? get()=progress?.takeIf {it.isFinite()}?.coerceIn(0f,1f)
 
