@@ -137,8 +137,9 @@ internal enum class SettingsTab(val label: String, val group: String) {
     PHONE("Phone setup", "System"),
     UPDATES("Updates", "System"),
     DEBUG("Diagnostics", "System"),
-    ABOUT("About Ember", "System"),
-    LEGAL("Legal", "System"),
+    // About: what Ember is and its licences, in their own section (#67).
+    ABOUT("About Ember", "About"),
+    LEGAL("Legal", "About"),
 }
 
 /**

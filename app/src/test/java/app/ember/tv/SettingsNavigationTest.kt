@@ -10,7 +10,7 @@ class SettingsNavigationTest {
         val pages=SettingsCategory.entries.flatMap {it.pages}+SettingsTab.SEARCH
         assertEquals(SettingsTab.entries.toSet(),pages.toSet())
         assertEquals(pages.size,pages.distinct().size)
-        assertEquals(7,SettingsCategory.entries.size)
+        assertEquals(8,SettingsCategory.entries.size)
     }
     @Test fun externalDestinationsOpenTheirPageInTheCorrectCategory() {
         SettingsTab.entries.forEach {page->
@@ -47,7 +47,10 @@ class SettingsNavigationTest {
         assertEquals(SettingsCategory.HOME,SettingsCategory.of(SettingsTab.SCREENSAVER))
         assertEquals(SettingsCategory.SOURCES,SettingsCategory.of(SettingsTab.POSTERS))
         assertEquals(SettingsCategory.PLAYBACK,SettingsCategory.of(SettingsTab.AUDIO_VIDEO))
-        assertEquals(SettingsCategory.SYSTEM,SettingsCategory.of(SettingsTab.LEGAL))
+        // About and Legal have their own section (#67).
+        assertEquals(SettingsCategory.ABOUT,SettingsCategory.of(SettingsTab.LEGAL))
+        assertEquals(SettingsCategory.ABOUT,SettingsCategory.of(SettingsTab.ABOUT))
+        assertEquals(listOf(SettingsTab.ABOUT,SettingsTab.LEGAL),SettingsCategory.ABOUT.pages)
         // Every page is in the search index.
         assertEquals(SettingsTab.entries.toSet()-SettingsTab.SEARCH,SETTINGS_INDEX.map {it.first}.toSet())
     }

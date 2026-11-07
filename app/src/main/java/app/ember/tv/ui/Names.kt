@@ -77,6 +77,7 @@ internal fun SettingsTab.groupTitle(): String = stringResource(
         "Sources" -> R.string.group_sources
         "Accounts" -> R.string.group_accounts
         "System" -> R.string.group_system
+        "About" -> R.string.group_about
         else -> R.string.group_look
     },
 )
