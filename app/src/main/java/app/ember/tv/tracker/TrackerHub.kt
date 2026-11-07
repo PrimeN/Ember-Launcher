@@ -150,11 +150,15 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
      * Null when none of them could be read, so the last known marks stay.
      */
     suspend fun watched(): Set<String>? = coroutineScope {
-        val results = active().map { t -> async { runCatching { t.watched() } } }.awaitAll()
+        val enabled = active()
+        watchedCache.keys.retainAll(enabled.map { it.id }.toSet())
+        val results = enabled.map { t -> async { t.id to runCatching { t.watched() } } }.awaitAll()
         kotlinx.coroutines.currentCoroutineContext().ensureActive()
-        val read = results.mapNotNull { it.getOrNull() }
-        if (read.isEmpty() && results.any { it.isFailure }) null else read.flatten().toSet()
+        // One service offline keeps its last list rather than wiping its marks.
+        results.forEach { (id, r) -> r.getOrNull()?.let { watchedCache[id] = it } }
+        if (watchedCache.isEmpty() && results.any { it.second.isFailure }) null else watchedCache.values.flatten().toSet()
     }
+    private val watchedCache = java.util.concurrent.ConcurrentHashMap<String, Set<String>>()
 
     /** Reads account names that are not known yet (#85). One call per tracker, once. */
     suspend fun loadAccountNames(): Boolean {
