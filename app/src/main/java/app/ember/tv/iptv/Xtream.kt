@@ -30,12 +30,25 @@ object Xtream {
         val cats = request(s, api(s, "get_live_categories"), interactive).list()
             .associate { (it.str("category_id") ?: "") to (it.str("category_name") ?: "Other") }
         val ext = if (s.streamFormat == "m3u8") "m3u8" else "ts"
-        return request(s, api(s, "get_live_streams"), interactive).list().mapNotNull { c ->
-            val id = c.str("stream_id") ?: c.int("stream_id")?.toString() ?: return@mapNotNull null
-            Channel(
+        // Large providers send 30-60 MB here: read one channel at a time instead of holding the
+        // whole document as text and a JSON tree (#53).
+        return ProviderRequests.read(budgetKey(s), api(s, "get_live_streams"), s.userAgent, interactive) { input ->
+            streams(input, s, cats, ext)
+        }
+    }
+
+    /** Channels from a get_live_streams response, decoded element by element. */
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+    internal fun streams(input: java.io.InputStream, s: IptvSource, cats: Map<String, String>, ext: String): List<Channel> {
+        val out = ArrayList<Channel>()
+        // AUTO_DETECT: an error object instead of an array yields one element without a stream_id.
+        Json.decodeToSequence(input.buffered(64 * 1024), kotlinx.serialization.json.JsonElement.serializer(),
+            kotlinx.serialization.json.DecodeSequenceMode.AUTO_DETECT).forEach { c ->
+            val id = c.str("stream_id") ?: c.int("stream_id")?.toString() ?: return@forEach
+            out += Channel(
                 key = "${s.id}:$id",
                 sourceId = s.id,
-                name = c.str("name")?.trim() ?: return@mapNotNull null,
+                name = c.str("name")?.trim() ?: return@forEach,
                 url = "${base(s)}/live/${enc(s.username)}/${enc(s.password)}/$id.$ext",
                 logo = c.str("stream_icon")?.ifBlank { null },
                 group = cats[c.str("category_id") ?: ""] ?: "Other",
@@ -44,6 +57,8 @@ object Xtream {
                 userAgent = s.userAgent.ifBlank { null },
             )
         }
+        out.trimToSize()
+        return out
     }
 
     /** Share a budget between duplicate entries for one host/account, without retaining its password. */
