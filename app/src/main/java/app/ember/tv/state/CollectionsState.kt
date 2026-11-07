@@ -82,10 +82,13 @@ class CollectionsState(
             if (priority) flights[flightKey]?.takeIf { !it.priority && !it.started }?.let { flights.remove(flightKey); it.task.cancel() }
             flights.getOrPut(flightKey) {
                 lateinit var entry: Flight
-                val task = scope.async(Dispatchers.IO, start = kotlinx.coroutines.CoroutineStart.LAZY) {
+                // Queues for a slot on the folder's own scope, in the order the tabs were started, and
+                // only then moves to IO for the request: queuing from IO threads let a later tab
+                // overtake an earlier one (#91).
+                val task = scope.async(start = kotlinx.coroutines.CoroutineStart.LAZY) {
                     suspend fun request(): Result<CollectionPage> = requests.withPermit {
                         entry.started = true
-                        loadPage(source, defs, skip)
+                        kotlinx.coroutines.withContext(Dispatchers.IO) { loadPage(source, defs, skip) }
                     }
                     if (priority) request() else background.withPermit { request() }
                 }
