@@ -30,7 +30,7 @@ class ProfilesState(
     /** Personal rows (Continue watching, Up next, watchlist, tracker and server rows) are shown. */
     val personalOn: Boolean get() = profile.personal && !profile.kids
 
-    fun allows(c: CatalogDef): Boolean = profile.catalogs?.let { c.key in it } ?: true
+    fun allows(c: CatalogDef): Boolean = app.ember.tv.data.ProfileCatalogs.allows(profile, c)
     fun allowsApp(pkg: String): Boolean = profile.apps?.let { pkg in it } ?: true
 
     var setupRequested by mutableStateOf<String?>(null)

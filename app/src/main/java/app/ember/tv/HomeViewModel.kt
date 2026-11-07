@@ -493,6 +493,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 kotlinx.coroutines.withTimeoutOrNull(addonTimeout * 1000L) { runCatching { client.manifest(url) }.getOrNull() }
             } finally { permits.release() } }
         }.awaitAll().filterNotNull()
+            // An addon that declares adult content is never used on a kids profile (#71).
+            .filterNot { it.adult && profiles.profile.kids }
     }
 
     // ---- media servers ----

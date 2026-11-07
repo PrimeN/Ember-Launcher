@@ -355,7 +355,7 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
         // What the addon's manifest says about itself (#60): logo, version, description, id,
         // how many catalogs it has and which types it covers.
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            AddonLogo(info?.logo, vm.addonLabel(url))
+            AddonLogo(info?.logo ?: info?.background, vm.addonLabel(url)) // its artwork when it has no logo (#71)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(vm.addonLabel(url), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -392,14 +392,36 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
                                 "subtitles" -> "Subtitles"
                                 else -> null
                             }
-                        } + listOfNotNull("Has its own settings".takeIf { a.configurable })).joinToString(" · ").ifBlank { "Nothing this launcher uses" }
+                        } + listOfNotNull("TV guide".takeIf { a.epgProvider }, "Has its own settings".takeIf { a.configurable && !a.configurationRequired }))
+                            .joinToString(" · ").ifBlank { "Nothing this launcher uses" }
                     } ?: if (vm.addonAvailable(url)) "Manifest not loaded" else "Paused",
                     fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
         }
+        // What the manifest says about its content and setup (#71).
+        info?.let { a ->
+            val flags = listOfNotNull(
+                "Needs setting up before it works".takeIf { a.configurationRequired },
+                "Adult content · never used on kids profiles".takeIf { a.adult },
+                "Peer-to-peer sources · can share your IP address".takeIf { a.p2p },
+                a.contactEmail?.let { "Contact: $it" },
+            )
+            if (flags.isNotEmpty()) Text(flags.joinToString("\n"), fontSize = TvTokens.Type.Caption.sp,
+                color = if (a.configurationRequired || a.adult) Color(0xFFFFB4AB) else Mute)
+        }
         ButtonRow(spacing = 8.dp) {
             SwitchChip("Enabled", vm.addonAvailable(url)) { vm.pauseAddon(url, vm.addonAvailable(url)) }
+            info?.configureUrl?.let { link ->
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Chip(if (info?.configurationRequired == true) "Set it up" else "Its settings") {
+                    val opened = runCatching {
+                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.isSuccess
+                    if (!opened) vm.showNotice("No web browser on this TV. Open the addon's settings from a phone or computer.")
+                }
+            }
             if (!renaming) Chip(stringResource(R.string.ui_rename)) { renaming = true }
             Chip("Refresh") { vm.refreshAddon(url) }
             Chip(stringResource(R.string.ui_remove)) { vm.removeAddon(url) }

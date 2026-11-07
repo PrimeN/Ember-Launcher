@@ -45,3 +45,10 @@ object Pin {
         return md.digest("$salt:$pin".toByteArray()).toHex()
     }
 }
+
+/** Which catalogs a profile may use. */
+internal object ProfileCatalogs {
+    /** A kids profile never uses an addon that declares adult content, whatever its allowlist says (#71). */
+    fun allows(profile: Profile, c: CatalogDef): Boolean =
+        !(profile.kids && c.addon.adult) && (profile.catalogs?.let { c.key in it } ?: true)
+}

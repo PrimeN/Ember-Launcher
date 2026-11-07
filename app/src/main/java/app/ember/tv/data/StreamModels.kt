@@ -34,7 +34,17 @@ data class AddonInfo(
     val logo: String? = null,
     /** The addon has its own settings page (behaviorHints.configurable). */
     val configurable: Boolean = false,
+    /** Manifest behaviorHints (#71): adult content, peer-to-peer sources, setup still needed, a real TV guide. */
+    val adult: Boolean = false,
+    val p2p: Boolean = false,
+    val configurationRequired: Boolean = false,
+    val epgProvider: Boolean = false,
+    val contactEmail: String? = null,
+    val background: String? = null,
 ) {
+    /** Where the addon's own settings page is (Stremio's convention: /configure next to the manifest). */
+    val configureUrl: String? get() = if (configurable || configurationRequired) base.trimEnd('/') + "/configure" else null
+
     /** Short on purpose (#50): the default repeats every catalog's raw JSON, and catalogs repeat it again. */
     override fun toString() = "AddonInfo($name, $url, ${catalogs.size} catalogs)"
 
@@ -72,6 +82,12 @@ data class AddonInfo(
             description = j.str("description")?.trim()?.takeIf { it.isNotEmpty() }?.take(600),
             logo = (j.str("logo") ?: j.str("icon"))?.trim()?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
             configurable = j.obj("behaviorHints").bool("configurable") == true,
+            adult = j.obj("behaviorHints").bool("adult") == true,
+            p2p = j.obj("behaviorHints").bool("p2p") == true,
+            configurationRequired = j.obj("behaviorHints").bool("configurationRequired") == true,
+            epgProvider = j.obj("behaviorHints").bool("epgProvider") == true,
+            contactEmail = j.str("contactEmail")?.trim()?.takeIf { it.contains('@') && it.length <= 120 },
+            background = j.str("background")?.trim()?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
         )
 
         private fun JsonArray?.strings(): List<String> =
