@@ -200,7 +200,7 @@ fun ModernTopBar(
                             focusedContainer = PillColor,
                             focusedContent = OnPillColor,
                             outline = false,
-                            focusedScale = app.ember.tv.ui.TvTokens.Focus.Inline,
+                            focusedScale = TvTokens.Focus.Inline,
                         ) {
                             if (id == NavTabs.SEARCH) {
                                 Box(Modifier.size(42.dp).semantics { contentDescription = "Search" }, contentAlignment = Alignment.Center) {
@@ -250,7 +250,7 @@ private fun NavigationAction(label: String, icon: androidx.compose.ui.graphics.v
         modifier = Modifier.size(42.dp).semantics { contentDescription = label }
             .onFocusChanged { focused = it.isFocused || it.hasFocus },
         radius = TvTokens.Shape.Pill, container = Color.Transparent, focusedContainer = PillColor,
-        focusedContent = OnPillColor, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.Control,
+        focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Control,
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             MaterialGlyph(icon, if (focused) OnPillColor else Fg, 22.dp)
@@ -269,7 +269,7 @@ internal fun QuickButton(profile: app.ember.tv.data.Profile?, size: androidx.com
 @Composable
 fun ProfileAvatar(p: app.ember.tv.data.Profile, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val color = Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })
-    Focusable(onClick = onClick, modifier = modifier.size(size), radius = TvTokens.Shape.Pill, container = color, focusedContainer = color, focusedContent = Color(0xFF1F1F1F), focusedScale = app.ember.tv.ui.TvTokens.Focus.Round) {
+    Focusable(onClick = onClick, modifier = modifier.size(size), radius = TvTokens.Shape.Pill, container = color, focusedContainer = color, focusedContent = Color(0xFF1F1F1F), focusedScale = TvTokens.Focus.Round) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(p.name.take(1).uppercase(), fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
         }
@@ -288,7 +288,7 @@ internal fun RoundIcon(selected: Boolean, onClick: () -> Unit, modifier: Modifie
         focusedContainer = PillColor,
         focusedContent = OnPillColor,
         outline = false,
-        focusedScale = app.ember.tv.ui.TvTokens.Focus.Round,
+        focusedScale = TvTokens.Focus.Round,
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { glyph(if (focused) OnPillColor else Fg) }
     }
@@ -414,7 +414,7 @@ fun ModernHome(
                                 Focusable(onClick={vm.openHomeShortcut(shortcut)?.let(onList)},onLongClick={vm.homeShortcuts.toggle(shortcut)},modifier=Modifier.width(180.dp).height(68.dp)) {
                                     Column(Modifier.padding(10.dp)) {
                                         Text(shortcut.label,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                                        Text(when(shortcut.kind){"server"->"Media library";"network"->"Network folder";else->"Collection"},fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,color=Mute)
+                                        Text(when(shortcut.kind){"server"->"Media library";"network"->"Network folder";else->"Collection"},fontSize=TvTokens.Type.Caption.sp,color=Mute)
                                     }
                                 }
                             }
@@ -660,7 +660,7 @@ fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFoc
             },
             radius = TvTokens.Shape.Pill,
             container = Color(0xFFF1F3F4),
-            focusedScale = app.ember.tv.ui.TvTokens.Focus.Round,
+            focusedScale = TvTokens.Focus.Round,
             card=true,
         ) {
             if(bitmap!=null)Image(bitmap.asImageBitmap(), contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
@@ -719,7 +719,7 @@ private fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Program
             .onFocusChanged {if(it.isFocused)onFocus()}.semantics {
                 contentDescription=listOfNotNull(programme?.title ?: channel.name,channel.name,source.takeIf(String::isNotBlank),remaining?.let {"$it minutes remaining"}).distinct().joinToString(", ")
                 progress?.let {progressBarRangeInfo=androidx.compose.ui.semantics.ProgressBarRangeInfo(it,0f..1f)}
-            },container=LiveColors.Current,radius=app.ember.tv.ui.TvTokens.Shape.Control,focusedScale=app.ember.tv.ui.TvTokens.Focus.Inline) {
+            },container=LiveColors.Current,radius=TvTokens.Shape.Control,focusedScale=TvTokens.Focus.Inline) {
             Box(Modifier.fillMaxSize().clearAndSetSemantics {}) {
                 if(image!=null && !failed)AsyncImage(image,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop,onError={failed=true})
                 else Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(LiveColors.Current,LiveColors.Background))),contentAlignment=Alignment.Center) {
@@ -728,7 +728,7 @@ private fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Program
                 }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.3f to Color.Transparent,1f to Color(0xC008101C))))
                 Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start=12.dp,end=12.dp,bottom=20.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Text("LIVE",color=Color.White,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,fontWeight=FontWeight.Bold,modifier=Modifier.clip(RoundedCornerShape(3.dp)).background(LiveRed).padding(horizontal=6.dp,vertical=2.dp))
+                    Text("LIVE",color=Color.White,fontSize=TvTokens.Type.Caption.sp,fontWeight=FontWeight.Bold,modifier=Modifier.clip(RoundedCornerShape(3.dp)).background(LiveRed).padding(horizontal=6.dp,vertical=2.dp))
                     Spacer(Modifier.weight(1f))
                     remaining?.let {Text("$it min left",color=Color.White,fontSize=12.sp,fontWeight=FontWeight.Medium)}
                 }
@@ -812,7 +812,7 @@ private fun RailItem(id: String, contentId: String, selected: Boolean, expanded:
         focusedContainer = PillColor,
         focusedContent = OnPillColor,
         outline = false,
-        focusedScale = app.ember.tv.ui.TvTokens.Focus.Control,
+        focusedScale = TvTokens.Focus.Control,
     ) {
         Row(Modifier.fillMaxSize().padding(start = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { NavGlyph(id, if (focused) OnPillColor else Fg) }

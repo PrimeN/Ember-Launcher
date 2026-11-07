@@ -176,7 +176,7 @@ fun SwitchChip(label: String, on: Boolean, modifier: Modifier = Modifier, onClic
         focusedContainer = PillColor,
         focusedContent = OnPillColor,
         outline = false,
-        focusedScale = app.ember.tv.ui.TvTokens.Focus.Control,
+        focusedScale = TvTokens.Focus.Control,
     ) {
         Row(
             Modifier.padding(start = if (label.isEmpty()) 10.dp else 18.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
@@ -268,7 +268,7 @@ fun Chip(label: String, selected: Boolean = false, modifier: Modifier = Modifier
         focusedContainer = PillColor,
         focusedContent = OnPillColor,
         outline = false,
-        focusedScale = app.ember.tv.ui.TvTokens.Focus.Control,
+        focusedScale = TvTokens.Focus.Control,
     ) {
         Row((if(centered)Modifier.fillMaxWidth() else Modifier).padding(horizontal=18.dp,vertical=8.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=if(centered)Arrangement.Center else Arrangement.Start) {
@@ -329,7 +329,7 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
                             .clip(RoundedCornerShape(50))
                             .background(MaterialTheme.colorScheme.primary)
                             .padding(horizontal = 8.dp, vertical = 2.dp),
-                        fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp,
+                        fontSize = TvTokens.Type.Caption.sp,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -337,7 +337,7 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
             }
         }
         Text(meta.name, fontSize = if (width < 120.dp) 12.sp else 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { })
-        (meta.resumeLabel() ?: meta.badge)?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, color = Mute, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { }) }
+        (meta.resumeLabel() ?: meta.badge)?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { }) }
     }
 }
 

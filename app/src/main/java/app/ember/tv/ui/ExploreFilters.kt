@@ -224,7 +224,7 @@ private fun ExplorePicker(type: String, selected: List<ExploreRef>, repository: 
             if (!busy && error == null && results.isEmpty()) Text(if (type != "Services" && text.trim().length < 2) "Enter a name to search." else "No matches.", color = Mute, fontSize = 13.sp)
             LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(5.dp)) {
                 items(results, key = { it.id }) { ref ->
-                    Focusable(onClick = { onSelect(ref) }, modifier = Modifier.fillMaxWidth(), radius = app.ember.tv.ui.TvTokens.Shape.Control, container = if (selected.any { it.id == ref.id }) WashHi else Wash,
+                    Focusable(onClick = { onSelect(ref) }, modifier = Modifier.fillMaxWidth(), radius = TvTokens.Shape.Control, container = if (selected.any { it.id == ref.id }) WashHi else Wash,
                         focusedContainer = PillColor, focusedContent = OnPillColor) {
                         Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             AsyncImage(ref.image, contentDescription = null, modifier = Modifier.size(40.dp), contentScale = ContentScale.Fit)

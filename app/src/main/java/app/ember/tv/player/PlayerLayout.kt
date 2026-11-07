@@ -1,5 +1,7 @@
 package app.ember.tv.player
 
+import app.ember.tv.ui.TvTokens
+
 import androidx.compose.ui.graphics.toArgb
 import app.ember.tv.iptv.*
 import app.ember.tv.R
@@ -154,7 +156,7 @@ internal fun PlayerActivity.buildLayout(): View {
     skipButton = TextView(this).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
         setTextColor(0xFF1F1F1F.toInt())
-        minHeight=dp(32);minimumHeight=dp(32);minWidth=dp(48);textSize=app.ember.tv.ui.TvTokens.Type.NativeButton
+        minHeight=dp(32);minimumHeight=dp(32);minWidth=dp(48);textSize=TvTokens.Type.NativeButton
     setPadding(dp(10), dp(5), dp(10), dp(5))
         background = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = dp(28).toFloat()
@@ -207,8 +209,8 @@ internal fun PlayerActivity.styleNativeIcons(node:android.view.View) {
             cornerRadius=dp(50).toFloat();setColor(fill);setStroke(dp(1),0x29FFFFFF)
         }
         node.background=android.graphics.drawable.StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_focused),nativeFocusPill(app.ember.tv.ui.TvTokens.Shape.Pill))
-            addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_pressed),nativeFocusPill(app.ember.tv.ui.TvTokens.Shape.Pill))
+            addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_focused),nativeFocusPill(TvTokens.Shape.Pill))
+            addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_pressed),nativeFocusPill(TvTokens.Shape.Pill))
             addState(intArrayOf(),pill(0x1AFFFFFF))
         }
         node.imageTintList=android.content.res.ColorStateList(arrayOf(intArrayOf(-android.R.attr.state_enabled),intArrayOf(android.R.attr.state_focused),intArrayOf(android.R.attr.state_pressed),intArrayOf()),
@@ -223,15 +225,15 @@ internal fun PlayerActivity.styled(b: Button): Button = b.apply {
     isAllCaps = false
     // Inset, so buttons side by side keep a small gap.
     fun pill(color: Int) = android.graphics.drawable.InsetDrawable(
-        android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(if(playerLayoutStyle==app.ember.tv.data.InterfaceStyles.EMBER_X)8 else app.ember.tv.ui.TvTokens.Shape.NativePill).toFloat(); setColor(color) }, dp(4),
+        android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(if(playerLayoutStyle==app.ember.tv.data.InterfaceStyles.EMBER_X)8 else TvTokens.Shape.NativePill).toFloat(); setColor(color) }, dp(4),
     )
     background = android.graphics.drawable.StateListDrawable().apply {
-        addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_focused),android.graphics.drawable.InsetDrawable(nativeFocusPill(app.ember.tv.ui.TvTokens.Shape.NativePill),dp(4)))
-        addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_pressed),android.graphics.drawable.InsetDrawable(nativeFocusPill(app.ember.tv.ui.TvTokens.Shape.NativePill),dp(4)))
+        addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_focused),android.graphics.drawable.InsetDrawable(nativeFocusPill(TvTokens.Shape.NativePill),dp(4)))
+        addState(intArrayOf(android.R.attr.state_enabled,android.R.attr.state_pressed),android.graphics.drawable.InsetDrawable(nativeFocusPill(TvTokens.Shape.NativePill),dp(4)))
         addState(intArrayOf(), pill(0x26FFFFFF))
     }
     setTextColor(android.content.res.ColorStateList(arrayOf(intArrayOf(-android.R.attr.state_enabled),intArrayOf(android.R.attr.state_focused),intArrayOf(android.R.attr.state_pressed),intArrayOf()),intArrayOf(0x66FFFFFF,0xFF1F1F1F.toInt(),0xFF1F1F1F.toInt(),Color.WHITE)))
     stateListAnimator = null
-    minHeight=dp(32);minimumHeight=dp(32);minWidth=dp(48);textSize=app.ember.tv.ui.TvTokens.Type.NativeButton
+    minHeight=dp(32);minimumHeight=dp(32);minWidth=dp(48);textSize=TvTokens.Type.NativeButton
     setPadding(dp(10), dp(5), dp(10), dp(5))
 }

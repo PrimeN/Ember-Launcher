@@ -185,7 +185,7 @@ fun DetailsScreen(
                                 .border(if(sourcesHeadingFocused)2.dp else 0.dp,if(sourcesHeadingFocused)Ring else Color.Transparent,RoundedCornerShape(8.dp))
                                 .padding(4.dp))
                         if (hasAddons) Focusable(onClick = onRetrySources,
-                            modifier = Modifier.size(42.dp).semantics { contentDescription = "Refresh sources" }, radius = app.ember.tv.ui.TvTokens.Shape.Pill,
+                            modifier = Modifier.size(42.dp).semantics { contentDescription = "Refresh sources" }, radius = TvTokens.Shape.Pill,
                             container = Wash, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false) {
                             Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
                                 Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(22.dp))
@@ -311,17 +311,17 @@ fun DetailsScreen(
                         }
                         if(flix) {
                             meta.genres?.takeIf {it.isNotEmpty()}?.let {genres->
-                                Text("GENRES",fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=6.dp))
+                                Text("GENRES",fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=6.dp))
                                 ButtonRow(spacing=6.dp) {genres.take(4).forEach {genre->EmberXMetadataPill(genre)}}
                             }
                             val cast=d.credits?.people.orEmpty().filterNot {it.isCrew}.take(3)
                             if(cast.isNotEmpty()) {
-                                Text("CAST",fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
+                                Text("CAST",fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
                                 ButtonRow(spacing=6.dp) {cast.forEach {actor->EmberXMetadataPill(actor.name){person=actor}}}
                             }
                             val directors=d.credits?.people.orEmpty().filter {it.role?.contains("director",true)==true}.take(2)
                             if(directors.isNotEmpty()) {
-                                Text("DIRECTORS",fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
+                                Text("DIRECTORS",fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
                                 ButtonRow(spacing=6.dp) {directors.forEach {director->EmberXMetadataPill(director.name){person=director}}}
                             }
                         }
@@ -523,8 +523,8 @@ private fun CrewLines(crew: List<Person>, onPerson: (Person) -> Unit) {
                 Text(if (label == "Director" && people.size > 1) "Directors" else label, fontSize = 16.sp, color = Mute, modifier = Modifier.width(150.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
                     people.forEachIndexed { index, p ->
-                        Focusable(onClick = { onPerson(p) }, radius = app.ember.tv.ui.TvTokens.Shape.Small, container = androidx.compose.ui.graphics.Color.Transparent,
-                            focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
+                        Focusable(onClick = { onPerson(p) }, radius = TvTokens.Shape.Small, container = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
                             Text(p.name + if (index < people.lastIndex) "," else "", fontSize = 16.sp, maxLines = 1,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp))
                         }
@@ -542,8 +542,8 @@ private fun PersonCard(p: Person, onClick: () -> Unit) {
     val scale by androidx.compose.animation.core.animateFloatAsState(if (focused) 1.06f else 1f, label = "cast portrait")
     // Fixed width and two text lines keep long names from resizing the row.
     Focusable(onClick = onClick, modifier = Modifier.width(150.dp).onFocusChanged { focused = it.isFocused || it.hasFocus },
-        radius = app.ember.tv.ui.TvTokens.Shape.Card, container = androidx.compose.ui.graphics.Color.Transparent, focusedContainer = androidx.compose.ui.graphics.Color.Transparent,
-        focusedContent = Fg, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
+        radius = TvTokens.Shape.Card, container = androidx.compose.ui.graphics.Color.Transparent, focusedContainer = androidx.compose.ui.graphics.Color.Transparent,
+        focusedContent = Fg, outline = false, focusedScale = TvTokens.Focus.None) {
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
                 modifier = Modifier.size(126.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape).background(PanelHi)
@@ -604,12 +604,12 @@ private fun EpisodeCard(ep: Episode, selected: Boolean, width: androidx.compose.
                 )
                 }
                 WatchedBadge(watched,Modifier.align(Alignment.TopEnd))
-                if(blurred)Text("Unwatched",fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,color=Color.White,modifier=Modifier.align(Alignment.BottomStart).padding(6.dp)
+                if(blurred)Text("Unwatched",fontSize=TvTokens.Type.Caption.sp,color=Color.White,modifier=Modifier.align(Alignment.BottomStart).padding(6.dp)
                     .background(Color(0xBB202124),RoundedCornerShape(6.dp)).padding(horizontal=6.dp,vertical=3.dp))
                 if (selected) {
                     Text(
                         stringResource(R.string.ui_selected),
-                        fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp,
+                        fontSize = TvTokens.Type.Caption.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier
@@ -623,7 +623,7 @@ private fun EpisodeCard(ep: Episode, selected: Boolean, width: androidx.compose.
             }
         }
         Text(stringResource(R.string.ui_episode_line, ep.episode, ep.title), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { })
-        ep.released?.let { Text(it, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, color = Mute) }
+        ep.released?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = Mute) }
     }
 }
 
@@ -705,14 +705,14 @@ private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,images
     // Playback and information are siblings: a clickable Surface must not own the info button's focus.
     Row(Modifier.fillMaxWidth().height(nameHeight+badgesHeight+26.dp)
         .background(Panel,RoundedCornerShape(EmberXLayout.Radius.dp)),verticalAlignment=Alignment.CenterVertically) {
-        Focusable(onClick,onLongClick=onLongClick,focusedScale=app.ember.tv.ui.TvTokens.Focus.None,modifier=Modifier.weight(1f).fillMaxHeight()
+        Focusable(onClick,onLongClick=onLongClick,focusedScale=TvTokens.Focus.None,modifier=Modifier.weight(1f).fillMaxHeight()
             .focusRequester(playFocus).focusProperties {if(rtl)left=infoFocus else right=infoFocus}
             .semantics {contentDescription=listOf(title,description,s.addonName,s.qualityLabel,s.kind.label).filter(String::isNotBlank).joinToString(". ")}) {
             Row(Modifier.fillMaxSize().padding(horizontal=12.dp,vertical=10.dp),
                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.width(64.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                     Text(s.qualityLabel,fontSize=18.sp,lineHeight=22.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-                    Text(s.kind.label,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,lineHeight=13.sp,maxLines=2,overflow=TextOverflow.Ellipsis,
+                    Text(s.kind.label,fontSize=TvTokens.Type.Caption.sp,lineHeight=13.sp,maxLines=2,overflow=TextOverflow.Ellipsis,
                         color=if(s.kind==SourceKind.UNCACHED)Mute else MaterialTheme.colorScheme.primary)
                 }
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -732,7 +732,7 @@ private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,images
         Focusable(onClick={info=true},modifier=Modifier.padding(end=8.dp).size(32.dp)
             .focusRequester(infoFocus).focusProperties {if(rtl)right=playFocus else left=playFocus}
             .semantics {contentDescription="Source details for $title"},radius=TvTokens.Shape.Pill,
-            container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+            container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
             Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Icon(Icons.Outlined.Info,null,modifier=Modifier.size(20.dp))}
         }
     }
@@ -749,7 +749,7 @@ private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,images
 private fun EmberXSourcePill(tag:String,height:androidx.compose.ui.unit.Dp) {
     Box(Modifier.height(height).widthIn(max=180.dp).clip(RoundedCornerShape(6.dp)).background(PanelHi)
         .padding(horizontal=7.dp),contentAlignment=Alignment.Center) {
-        Text(tag,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,lineHeight=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+        Text(tag,fontSize=TvTokens.Type.Caption.sp,lineHeight=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
     }
 }
 
@@ -877,7 +877,7 @@ internal fun SourceBadge(b: app.ember.tv.data.BadgeFilter) {
                 colorFilter = imageTint,
                 modifier = Modifier.height(BADGE_IMAGE_H).width(BADGE_IMAGE_H * ratio))
         } else {
-            Text(b.name, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, fontWeight = FontWeight.SemiBold,
+            Text(b.name, fontSize = TvTokens.Type.Caption.sp, fontWeight = FontWeight.SemiBold,
                 color = appearance.foreground?.let(::Color) ?: Fg, maxLines = 1, softWrap = false)
         }
     }
@@ -906,7 +906,7 @@ private fun BadgeBox(fill: Color = PanelHi, border: Color? = null,
 
 @Composable
 private fun Badge(text: String) {
-    BadgeBox { Text(text, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, maxLines = 1) }
+    BadgeBox { Text(text, fontSize = TvTokens.Type.Caption.sp, maxLines = 1) }
 }
 
 
@@ -921,8 +921,8 @@ private fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,onClick
     Focusable(onClick,Modifier.fillMaxWidth().semantics {
         this.selected=selected;contentDescription="Season ${ep.season}, episode ${ep.episode}, ${ep.title}"
         stateDescription=if(watched)"Watched" else if(blurred)"Unwatched artwork blurred" else "Unwatched"
-    },radius=app.ember.tv.ui.TvTokens.Shape.Small,container=if(selected)EmberXColors.Selected.copy(alpha=.75f) else Color.Transparent,
-        focusedContainer=EmberXColors.Selected,focusedContent=Color.White,focusedScale=app.ember.tv.ui.TvTokens.Focus.Inline,card=true) {
+    },radius=TvTokens.Shape.Small,container=if(selected)EmberXColors.Selected.copy(alpha=.75f) else Color.Transparent,
+        focusedContainer=EmberXColors.Selected,focusedContent=Color.White,focusedScale=TvTokens.Focus.Inline,card=true) {
         Row(Modifier.fillMaxWidth().padding(7.dp),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically) {
             Box(Modifier.width(88.dp).height(50.dp).clip(RoundedCornerShape(4.dp)).clearAndSetSemantics {}) {
                 if(!ready)ArtworkPlaceholder(null,Modifier.fillMaxSize())
@@ -931,7 +931,7 @@ private fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,onClick
             }
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Text("${ep.episode}. ${ep.title}",fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis)
-                ep.released?.let {Text(it,color=EmberXColors.Muted,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,maxLines=1)}
+                ep.released?.let {Text(it,color=EmberXColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1)}
             }
         }
     }
@@ -940,11 +940,11 @@ private fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,onClick
 
 @Composable
 private fun EmberXMetadataPill(label:String,onClick:(()->Unit)?=null) {
-    if(onClick==null)Text(label,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,lineHeight=14.sp,color=Fg,maxLines=1,
+    if(onClick==null)Text(label,fontSize=TvTokens.Type.Caption.sp,lineHeight=14.sp,color=Fg,maxLines=1,
         modifier=Modifier.background(Color.White.copy(alpha=.10f),RoundedCornerShape(16.dp)).padding(horizontal=9.dp,vertical=5.dp))
-    else Focusable(onClick,modifier=Modifier.widthIn(max=124.dp).semantics {contentDescription=label},radius=app.ember.tv.ui.TvTokens.Shape.Large,
-        container=Color.White.copy(alpha=.10f),focusedContainer=Color.White,focusedContent=Color.Black,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.Inline) {
-        Text(label,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,lineHeight=14.sp,modifier=Modifier.padding(horizontal=9.dp,vertical=5.dp),
+    else Focusable(onClick,modifier=Modifier.widthIn(max=124.dp).semantics {contentDescription=label},radius=TvTokens.Shape.Large,
+        container=Color.White.copy(alpha=.10f),focusedContainer=Color.White,focusedContent=Color.Black,outline=false,focusedScale=TvTokens.Focus.Inline) {
+        Text(label,fontSize=TvTokens.Type.Caption.sp,lineHeight=14.sp,modifier=Modifier.padding(horizontal=9.dp,vertical=5.dp),
             maxLines=1,overflow=TextOverflow.Ellipsis)
     }
 }

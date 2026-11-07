@@ -45,7 +45,7 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
         container = if (floating) Color.Transparent else Wash,
         focusedContainer = PillColor,
         focusedContent = OnPillColor,
-        outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
+        outline = false, focusedScale = TvTokens.Focus.None) {
         Row(Modifier.fillMaxWidth().heightIn(min = if (floating) 46.dp else 52.dp)
             .padding(horizontal = TvTokens.Space.ButtonX.dp, vertical = if (floating) 8.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -67,7 +67,7 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
 internal fun SettingsDisclosure(label:String,expanded:Boolean,modifier:Modifier=Modifier,onClick:()->Unit) {
     val state=androidx.compose.ui.res.stringResource(if(expanded)app.ember.tv.R.string.settings_expanded else app.ember.tv.R.string.settings_collapsed)
     Focusable(onClick=onClick,modifier=modifier.widthIn(max=360.dp).fillMaxWidth().semantics {stateDescription=state},
-        radius=TvTokens.Shape.Pill,container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+        radius=TvTokens.Shape.Pill,container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
         Row(Modifier.fillMaxWidth().heightIn(min=44.dp).padding(horizontal=TvTokens.Space.ButtonX.dp,vertical=10.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Text(label,fontSize=TvTokens.Type.Label.sp,modifier=Modifier.weight(1f))

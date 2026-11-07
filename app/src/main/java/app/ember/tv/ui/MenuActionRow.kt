@@ -42,8 +42,8 @@ internal fun MenuActionRow(label: String, modifier: Modifier = Modifier, icon: I
     Box(Modifier.fillMaxWidth()) {
         Focusable(onClick, modifier.fillMaxWidth().onFocusChanged { focused = it.hasFocus }
             .semantics { contentDescription = label; if(selected)this.selected=true },
-            radius = app.ember.tv.ui.TvTokens.Shape.Card, container = if(selected)scheme.secondary.copy(alpha=.12f) else Color.Transparent,
-            focusedContainer = focusedFill, focusedContent = focusedInk, outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
+            radius = TvTokens.Shape.Card, container = if(selected)scheme.secondary.copy(alpha=.12f) else Color.Transparent,
+            focusedContainer = focusedFill, focusedContent = focusedInk, outline = false, focusedScale = TvTokens.Focus.None) {
             Box(Modifier.fillMaxWidth().heightIn(min = 40.dp), contentAlignment = Alignment.CenterStart) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = MenuSizing.ACTION_PADDING, vertical = 7.dp),
                     horizontalArrangement = Arrangement.spacedBy(MenuSizing.ACTION_GAP), verticalAlignment = Alignment.CenterVertically) {

@@ -76,7 +76,7 @@ internal fun PersonDialog(person:Person,current:Meta,close:()->Unit,
                 Chip(if(loading)"Searching…" else "Search",modifier=Modifier.focusRequester(search).focusProperties {if(choices.isNotEmpty() || titles.isNotEmpty()){if(rtl)left=results else right=results}}) {
                     if(!loading){selected=null;attempt++}
                 }
-                Text("Filmography from TMDB",fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,color=Mute)
+                Text("Filmography from TMDB",fontSize=TvTokens.Type.Caption.sp,color=Mute)
             }
             Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 Text("Other movies and shows",fontSize=15.sp,fontWeight=FontWeight.SemiBold)
@@ -99,7 +99,7 @@ internal fun PersonDialog(person:Person,current:Meta,close:()->Unit,
                                 Box(Modifier.width(38.dp).height(57.dp).background(PanelHi)) {title.poster?.let {ArtworkImage(it,null,Modifier.fillMaxSize())}}
                                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                                     Text(title.name,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
-                                    Text(listOfNotNull(title.releaseInfo,if(title.type=="movie")"Movie" else "Show").joinToString(" · "),color=Mute,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,maxLines=1)
+                                    Text(listOfNotNull(title.releaseInfo,if(title.type=="movie")"Movie" else "Show").joinToString(" · "),color=Mute,fontSize=TvTokens.Type.Caption.sp,maxLines=1)
                                 }
                             }
                         }

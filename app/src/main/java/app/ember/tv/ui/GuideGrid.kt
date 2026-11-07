@@ -152,7 +152,7 @@ internal fun GuideGrid(
                         if(channels.isEmpty())false else {moveChannel(channelIndex[selectedKey] ?: 0);true}
                     }),verticalArrangement=Arrangement.spacedBy(2.dp)) {
                         Text(dateLabel,
-                            color=LiveColors.Muted,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,maxLines=1)
+                            color=LiveColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1)
                         Row(Modifier.fillMaxWidth()) {
                             GuideTimeAction("Earlier programmes",Icons.AutoMirrored.Outlined.ArrowBack,Modifier.weight(1f)) {followLive=false;time=(time-2*3_600_000L).coerceAtLeast(start);reveal(time)}
                             GuideTimeAction("Jump to now",Icons.Outlined.Schedule,Modifier.weight(1f)) {followLive=true;time=clock;start=GuideWindow.start(clock);scope.launch {scroll.scrollTo(0)}}
@@ -162,12 +162,12 @@ internal fun GuideGrid(
                     Row(Modifier.weight(1f).horizontalScroll(scroll)) {
                         repeat(24) {halfHour ->Box(Modifier.width(150.dp).height(22.dp)) {
                             Text(if(halfHour==0 && start==GuideWindow.start(clock))"ON NOW" else timeOf(start+halfHour*GuideWindow.HALF_HOUR),
-                                color=LiveColors.Muted,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,modifier=Modifier.align(Alignment.CenterStart))
+                                color=LiveColors.Muted,fontSize=TvTokens.Type.Caption.sp,modifier=Modifier.align(Alignment.CenterStart))
                         }}
                     }
                 }
                 // Scroll changes update placement/drawing, not the entire guide composition.
-                Text(timeOf(clock),color=LiveRed,fontSize=app.ember.tv.ui.TvTokens.Type.Caption.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.width(64.dp)
+                Text(timeOf(clock),color=LiveRed,fontSize=TvTokens.Type.Caption.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.width(64.dp)
                     .clearAndSetSemantics { }
                     .absoluteOffset {
                         val x=GuideWindow.marker(fullWidth,railPixels,(clock-start)/60_000f*ppm,scroll.value.toFloat(),rtl)
@@ -193,7 +193,7 @@ internal fun GuideGrid(
                         val shown = remember(slots,from,to,selected) { (GuideWindow.visible(slots, from, to) + listOfNotNull(selected)).distinctBy { it.from }.sortedBy { it.from } }
                         val spoken = channel.name + ", " + (selected?.programme?.let { it.title + ", " + timeOf(it.start) + " to " + timeOf(it.stop) } ?: "No programme information, watch live")
                         Row(Modifier.fillMaxWidth().height(rowHeight), verticalAlignment = Alignment.CenterVertically) {
-                            Focusable(onClick = { onPlay(index) }, onLongClick = { onFavourite(channel) }, focusedScale = app.ember.tv.ui.TvTokens.Focus.None,
+                            Focusable(onClick = { onPlay(index) }, onLongClick = { onFavourite(channel) }, focusedScale = TvTokens.Focus.None,
                                 modifier = Modifier.width(rail).fillMaxHeight().onFocusChanged { if (it.isFocused) {selectedKey=channel.key;onGuideFocus()} }
                                     .onPreviewKeyEvent {event->
                                         when {
@@ -201,16 +201,16 @@ internal fun GuideGrid(
                                             event.key==Key.DirectionUp && index==0 -> if(event.type==KeyEventType.KeyDown)runCatching {rulerFocus.requestFocus()}.getOrDefault(false) else true
                                             else ->false
                                         }
-                                    },container=LiveColors.Cell,focusedContainer=LiveColors.Current,radius=app.ember.tv.ui.TvTokens.Shape.Card) {
+                                    },container=LiveColors.Cell,focusedContainer=LiveColors.Current,radius=TvTokens.Shape.Card) {
                                 Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     if (showLogos && channel.logo != null && rail>=110.dp) AsyncImage(channel.logo, null, modifier = Modifier.size(32.dp))
-                                    Text((channel.number?.let { "$it · " } ?: "") + (if (channel.key in favourites) "★ " else "") + channel.name, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,color=LiveColors.Text)
+                                    Text((channel.number?.let { "$it · " } ?: "") + (if (channel.key in favourites) "★ " else "") + channel.name, fontSize = TvTokens.Type.Caption.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,color=LiveColors.Text)
                                 }
                             }
                             Focusable(onClick = {
                                 val p = selected?.programme
                                 if (p != null && p.start > clock && onProgramme != null) onProgramme(channel, p) else onPlay(index)
-                            }, onLongClick = { onFavourite(channel) }, focusedScale = app.ember.tv.ui.TvTokens.Focus.None, outline = false,
+                            }, onLongClick = { onFavourite(channel) }, focusedScale = TvTokens.Focus.None, outline = false,
                                 container = androidx.compose.ui.graphics.Color.Transparent,
                                 modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(requester).onSizeChanged { viewport = it.width }
                                     .semantics { contentDescription = spoken
@@ -279,7 +279,7 @@ internal fun GuideGrid(
 private fun GuideTimeAction(label:String,icon:ImageVector,modifier:Modifier=Modifier,onClick:()->Unit) {
     var focused by remember {mutableStateOf(false)}
     Focusable(onClick=onClick,modifier=modifier.height(22.dp).semantics {contentDescription=label}.onFocusChanged {focused=it.isFocused},
-        container=Color.Transparent,focusedContainer=LiveColors.Focus,focusedContent=LiveColors.OnFocus,radius=app.ember.tv.ui.TvTokens.Shape.Small,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+        container=Color.Transparent,focusedContainer=LiveColors.Focus,focusedContent=LiveColors.OnFocus,radius=TvTokens.Shape.Small,outline=false,focusedScale=TvTokens.Focus.None) {
         Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
             MaterialGlyph(icon,if(focused)LiveColors.OnFocus else LiveColors.Muted,14.dp)
             ToolbarHint(label,focused)

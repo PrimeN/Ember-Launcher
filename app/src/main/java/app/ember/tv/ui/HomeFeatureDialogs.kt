@@ -108,7 +108,7 @@ internal fun HomeFeatureDialogs(vm:HomeViewModel,onLaunch:(AppEntry)->Unit) {
 @Composable internal fun HomeFolderLinks(vm:HomeViewModel) {
     val available=vm.personalHomes.current.folders.filter {f->f.packages.any(vm.appAccess::canLaunch)}
     if(available.isNotEmpty())ButtonRow {available.forEach {f->
-        Focusable(onClick={vm.homeFeatureAction="folder:${f.id}"},radius=app.ember.tv.ui.TvTokens.Shape.Panel,container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor) {
+        Focusable(onClick={vm.homeFeatureAction="folder:${f.id}"},radius=TvTokens.Shape.Panel,container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor) {
             Row(Modifier.padding(horizontal=14.dp,vertical=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
                 androidx.tv.material3.Icon(Icons.Outlined.Folder,null,Modifier.size(18.dp));Text(f.name,fontSize=14.sp,maxLines=1)
             }

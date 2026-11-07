@@ -997,8 +997,8 @@ private fun ResumeDialog(label: String, onResume: () -> Unit, onStartOver: () ->
     val maxWidth = (with(density) { screenPx.toDp() } - 48.dp).coerceAtLeast(1.dp)
     val width = with(density) { maxOf(
         measurer.measure(heading,androidx.compose.ui.text.TextStyle(fontSize=18.sp),softWrap=false).size.width.toDp() + 40.dp,
-        measurer.measure("▶ $label",androidx.compose.ui.text.TextStyle(fontSize=app.ember.tv.ui.TvTokens.Type.Label.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold),softWrap=false).size.width.toDp() + 98.dp,
-        measurer.measure(startOver,androidx.compose.ui.text.TextStyle(fontSize=app.ember.tv.ui.TvTokens.Type.Label.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.Medium),softWrap=false).size.width.toDp() + 76.dp,
+        measurer.measure("▶ $label",androidx.compose.ui.text.TextStyle(fontSize=TvTokens.Type.Label.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold),softWrap=false).size.width.toDp() + 98.dp,
+        measurer.measure(startOver,androidx.compose.ui.text.TextStyle(fontSize=TvTokens.Type.Label.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.Medium),softWrap=false).size.width.toDp() + 76.dp,
     ) }.coerceIn(minOf(220.dp,maxWidth),maxWidth)
     Dialog(onDismissRequest = onCancel, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         app.ember.tv.ui.DialogMotion()

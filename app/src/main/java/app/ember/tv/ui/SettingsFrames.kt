@@ -239,8 +239,8 @@ private fun SettingsCategoryButton(category:SettingsCategory,selected:Boolean,re
         .then(Modifier.focusProperties {if(rtl)left=content else right=content})
         .semantics {this.selected=selected}
         .onFocusChanged {focused=it.isFocused;if(it.isFocused)onFocus()},
-        radius=app.ember.tv.ui.TvTokens.Shape.Pill,container=if(selected)WashHi else Color.Transparent,
-        focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+        radius=TvTokens.Shape.Pill,container=if(selected)WashHi else Color.Transparent,
+        focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
         Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=14.dp,vertical=10.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             androidx.tv.material3.Icon(category.representative.icon(),null,tint=if(focused)OnPillColor else Fg,modifier=Modifier.size(22.dp))
@@ -256,8 +256,8 @@ private fun SettingsCategoryButton(category:SettingsCategory,selected:Boolean,re
 private fun SettingsTopicRow(topic:SettingsTab,modifier:Modifier=Modifier,onClick:()->Unit) {
     var focused by remember {mutableStateOf(false)}
     val foreground=if(focused)OnPillColor else Fg
-    Focusable(onClick=onClick,modifier=modifier.fillMaxWidth().onFocusChanged {focused=it.isFocused},radius=app.ember.tv.ui.TvTokens.Shape.Large,
-        container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+    Focusable(onClick=onClick,modifier=modifier.fillMaxWidth().onFocusChanged {focused=it.isFocused},radius=TvTokens.Shape.Large,
+        container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
         Row(Modifier.fillMaxWidth().heightIn(min=66.dp).padding(horizontal=16.dp,vertical=12.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
             androidx.tv.material3.Icon(topic.icon(),null,tint=foreground,modifier=Modifier.size(24.dp))
@@ -344,7 +344,7 @@ internal fun CrashLogSection() {
                 }
                 val text = list.getOrElse(shown) { list.first() }
                 // Focusable so the remote can scroll through a long trace.
-                Focusable(onClick = {}, modifier = Modifier.width(760.dp), radius = app.ember.tv.ui.TvTokens.Shape.Card, container = Panel) {
+                Focusable(onClick = {}, modifier = Modifier.width(760.dp), radius = TvTokens.Shape.Card, container = Panel) {
                     Text(
                         text.take(6_000),
                         fontSize = TvTokens.Type.Caption.sp,

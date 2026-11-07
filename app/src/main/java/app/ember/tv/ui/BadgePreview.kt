@@ -53,7 +53,7 @@ internal fun BadgePreview(mode: String, label: String, hiddenCategories: Set<Str
                             .semantics { contentDescription = badge.name + if (badge.isEnabled) "" else ", disabled" }
                             .focusable().padding(6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             SourceBadge(badge)
-                            Text(badge.name + if (badge.isEnabled) "" else " (disabled)", color = Mute, fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, maxLines = 2)
+                            Text(badge.name + if (badge.isEnabled) "" else " (disabled)", color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2)
                         }
                     }
                 }

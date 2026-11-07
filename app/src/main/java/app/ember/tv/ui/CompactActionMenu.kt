@@ -44,7 +44,7 @@ internal fun CompactActionMenu(title: String, labels: List<String>, close: () ->
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
             Text(title,color=Fg,fontSize=TvTokens.Type.Navigation.sp,fontWeight=FontWeight.SemiBold,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,
                 modifier=Modifier.weight(1f).semantics {heading()})
-            Focusable(close,Modifier.focusRequester(closeFocus).size(32.dp).semantics {contentDescription=closeLabel},radius=app.ember.tv.ui.TvTokens.Shape.Pill,
+            Focusable(close,Modifier.focusRequester(closeFocus).size(32.dp).semantics {contentDescription=closeLabel},radius=TvTokens.Shape.Pill,
                 container=Wash,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false) {
                 Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){MaterialGlyph(Icons.Outlined.Close,androidx.tv.material3.LocalContentColor.current,18.dp)}
             }

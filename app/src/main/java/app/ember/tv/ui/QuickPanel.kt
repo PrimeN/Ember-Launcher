@@ -256,8 +256,8 @@ private fun Tiles(tiles: List<Tile>) {
                     var focused by remember(t.title) {mutableStateOf(false)}
                     Focusable(onClick=t.onClick,
                         modifier=t.modifier.weight(1f).height(tileHeight).onFocusChanged {focused=it.isFocused},
-                        radius=app.ember.tv.ui.TvTokens.Shape.Control,container=if(t.highlight)WashHi else Panel,
-                        focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+                        radius=TvTokens.Shape.Control,container=if(t.highlight)WashHi else Panel,
+                        focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
                         Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                             MaterialGlyph(t.icon,if(focused)OnPillColor else if(t.highlight)accent else Fg,22.dp)
                             Text(t.title,fontSize=15.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -276,8 +276,8 @@ private fun Tiles(tiles: List<Tile>) {
 @Composable
 private fun InfoLine(label: String, value: String) {
     var focused by remember {mutableStateOf(false)}
-    Focusable(onClick={},modifier=Modifier.fillMaxWidth().onFocusChanged {focused=it.isFocused},radius=app.ember.tv.ui.TvTokens.Shape.Card,
-        container=Color.Transparent,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=app.ember.tv.ui.TvTokens.Focus.None) {
+    Focusable(onClick={},modifier=Modifier.fillMaxWidth().onFocusChanged {focused=it.isFocused},radius=TvTokens.Shape.Card,
+        container=Color.Transparent,focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
         Row(Modifier.padding(horizontal=16.dp,vertical=8.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Text(label,fontSize=13.sp,color=if(focused)OnPillColor.copy(alpha=.75f) else Mute,modifier=Modifier.weight(.8f))
             Text(value,fontSize=13.sp,lineHeight=18.sp,modifier=Modifier.weight(1.4f))

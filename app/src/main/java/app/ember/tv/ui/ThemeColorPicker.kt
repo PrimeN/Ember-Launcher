@@ -48,7 +48,7 @@ internal fun ThemeColorPicker(selected: Int, onSelect: (Int) -> Unit) {
             Focusable(onClick = { onSelect(index) }, modifier = Modifier.onFocusChanged { focused = it.isFocused }
                 .semantics { this.selected = chosen; contentDescription = label }, role = Role.RadioButton,
                 radius = TvTokens.Shape.Pill, container = resting.first, focusedContainer = focus.first,
-                focusedContent = focus.second, focusedScale = app.ember.tv.ui.TvTokens.Focus.Control) {
+                focusedContent = focus.second, focusedScale = TvTokens.Focus.Control) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(label, color = if (focused) focus.second else resting.second, fontSize = TvTokens.Type.Label.sp,

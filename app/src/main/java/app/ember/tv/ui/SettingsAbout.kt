@@ -109,7 +109,7 @@ internal fun LazyListScope.aboutPage(vm: HomeViewModel) {
             Text(stringResource(R.string.ui_why_app, Legal.APP), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Mute)
             Column(Modifier.width(860.dp).background(Panel, RoundedCornerShape(16.dp)).padding(vertical = 6.dp)) {
                 About.WHY.forEach { p ->
-                    Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = app.ember.tv.ui.TvTokens.Shape.Card, container = Panel) {
+                    Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = TvTokens.Shape.Card, container = Panel) {
                         Text(p, fontSize = 14.sp, lineHeight = 21.sp, color = Fg, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
                     }
                 }
@@ -123,7 +123,7 @@ internal fun LazyListScope.aboutPage(vm: HomeViewModel) {
         var asking by remember { mutableStateOf(false) }
         if (asking) PrivateUnlockDialog(vm) { asking = false }
         // The first release: ten presses ask for the password of the private set (when the build has one).
-        Focusable(onClick = { if (first) { taps++; if (taps >= 10) { taps = 0; asking = true } } }, modifier = Modifier.width(860.dp), radius = app.ember.tv.ui.TvTokens.Shape.Large, container = Panel) {
+        Focusable(onClick = { if (first) { taps++; if (taps >= 10) { taps = 0; asking = true } } }, modifier = Modifier.width(860.dp), radius = TvTokens.Shape.Large, container = Panel) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(r.version, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -203,11 +203,11 @@ internal fun LazyListScope.legalPage(id: String, title: String, subtitle: String
 @Composable
 internal fun LegalRow(item: Legal.Item) {
     Column {
-        Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = app.ember.tv.ui.TvTokens.Shape.Card, container = Panel) {
+        Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = TvTokens.Shape.Card, container = Panel) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(item.title, fontSize = 17.sp, color = MaterialTheme.colorScheme.primary)
                 Text(item.text, fontSize = 13.sp, lineHeight = 18.sp, color = Fg)
-                item.link?.let { Text(it.removePrefix("https://"), fontSize = app.ember.tv.ui.TvTokens.Type.Caption.sp, color = Mute) }
+                item.link?.let { Text(it.removePrefix("https://"), fontSize = TvTokens.Type.Caption.sp, color = Mute) }
             }
         }
         item.licenseAsset?.let { LegalLicenseDropdown(it) }
@@ -232,9 +232,9 @@ private fun LegalLicenseDropdown(asset: String) {
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 260.dp), contentPadding = PaddingValues(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 itemsIndexed(blocks) { _, block ->
-                    Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = app.ember.tv.ui.TvTokens.Shape.Small,
+                    Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = TvTokens.Shape.Small,
                         container = Wash, focusedContainer = PillColor, focusedContent = OnPillColor,
-                        outline = false, focusedScale = app.ember.tv.ui.TvTokens.Focus.None) {
+                        outline = false, focusedScale = TvTokens.Focus.None) {
                         Text(block, fontSize = 13.sp, lineHeight = 18.sp,
                             modifier = Modifier.padding(12.dp))
                     }
@@ -250,7 +250,7 @@ internal fun DisclaimerPage() {
         Section(stringResource(R.string.ui_disclaimer)) {}
         Column(Modifier.width(860.dp).background(Panel, RoundedCornerShape(16.dp)).padding(vertical = 6.dp)) {
             Legal.DISCLAIMER.forEach { para ->
-                Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = app.ember.tv.ui.TvTokens.Shape.Card, container = Panel) {
+                Focusable(onClick = {}, modifier = Modifier.fillMaxWidth(), radius = TvTokens.Shape.Card, container = Panel) {
                     Text(para, fontSize = 15.sp, lineHeight = 22.sp, color = Fg, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
                 }
             }
