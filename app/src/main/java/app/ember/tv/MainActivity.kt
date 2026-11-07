@@ -108,12 +108,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        app.ember.tv.ui.StartupHeroFocus.begin()
         // Remote sounds for every screen in this window (the activity's own dispatchKeyEvent is a
         // restricted androidx API); menus in their own windows are handled by TvDialog.
         val keys = window.callback
         window.callback = object : android.view.Window.Callback by keys {
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 app.ember.tv.ui.RemoteSounds.onKey(this@MainActivity, event)
+                // A key pressed while Home loads keeps your own focus (#100).
+                if (event.action == KeyEvent.ACTION_DOWN) app.ember.tv.ui.StartupHeroFocus.keyPressed()
                 if(event.action==KeyEvent.ACTION_DOWN)when(event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_UP,KeyEvent.KEYCODE_DPAD_DOWN,KeyEvent.KEYCODE_DPAD_LEFT,KeyEvent.KEYCODE_DPAD_RIGHT->vm.startupPresentation.revealForInput()
                 }

@@ -52,6 +52,7 @@ import app.ember.tv.device.DeviceInputs
 import app.ember.tv.light.*
 import coil.imageLoader
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Light Home: a measured app dock and compact status capsule in native Compose. */
@@ -128,13 +129,28 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     fun goHero() { if (current != null) scope.launch { state.scrollToItem(0); withFrameNanos { }; runCatching { heroFocus.requestFocus() } } else goTop() }
     fun dockUp() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) runCatching { shelfFocus.requestFocus() } else goHero() }
     fun headerDown() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) dockUp() else if (current != null) goHero() else if (apps.isNotEmpty() || hasFolders) focusApps() }
+    val latestCurrent by rememberUpdatedState(current)
     LaunchedEffect(profile) {
         delay(100)
         val returning = FocusMemory.pending?.let { key -> slides.firstOrNull { it.meta?.mediaKey() == key } }
         if (returning != null) {
             selected = returning.id; state.scrollToItem(0); withFrameNanos { }
             if (runCatching { heroFocus.requestFocus() }.getOrDefault(false)) FocusMemory.pending = null
-        } else if (apps.isNotEmpty() || hasFolders) focusApps() else goTop()
+            return@LaunchedEffect
+        }
+        // First load (#100): the carousel takes focus, now or when it arrives a moment later,
+        // unless a key was pressed meanwhile. Apps (or the top) hold focus until then.
+        val firstLoad = StartupHeroFocus.waiting()
+        if (!firstLoad || latestCurrent == null) {
+            if (apps.isNotEmpty() || hasFolders) {
+                state.scrollToItem(if (apps.isEmpty() && hasFolders) 1 else 0); withFrameNanos { }
+                runCatching { appsFocus.requestFocus() }
+            } else goTop()
+        }
+        if (firstLoad) {
+            if (latestCurrent == null) kotlinx.coroutines.withTimeoutOrNull(StartupHeroFocus.WINDOW_MS) { snapshotFlow { latestCurrent != null }.first { it } }
+            if (latestCurrent != null && StartupHeroFocus.waiting()) { state.scrollToItem(0); claimStartupFocus(heroFocus) }
+        }
     }
     fun launch(app: AppEntry) {
         if (launching != null) return

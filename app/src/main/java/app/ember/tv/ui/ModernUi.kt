@@ -482,6 +482,12 @@ internal fun ModernHero(
         }
         onDispose { if (heroNavigation != null && heroScene != null) heroNavigation.unregister(heroScene, HERO_ENTRY, watchFocus) }
     }
+    // First load (#100): the hero arrives after the rows, so it takes focus when it appears.
+    val heroInteractive = LocalSceneInteractive.current
+    LaunchedEffect(watchFocus, heroInteractive) {
+        if (heroInteractive && StartupHeroFocus.waiting() && claimStartupFocus(watchFocus) && heroNavigation != null && heroScene != null)
+            heroNavigation.focused(heroScene, HERO_ENTRY)
+    }
     val saveFocus = remember { FocusRequester() }
     val safe = HeroBanner.index(index, items.size)
     LaunchedEffect(items, focused, safe, rotating, reduceMotion, presented?.mediaKey()) {

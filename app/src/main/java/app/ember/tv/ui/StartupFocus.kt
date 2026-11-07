@@ -128,3 +128,35 @@ internal fun choiceStep(right:Boolean,rtl:Boolean)=if(right!=rtl)1 else -1
 
 internal fun returnsToNavigation(direction:FocusDirection,side:Boolean,rtl:Boolean):Boolean =
     direction==FocusDirection.Up || side && direction==(if(rtl)FocusDirection.Right else FocusDirection.Left)
+
+/**
+ * First load lands on the hero (#100). At start the hero is still loading, so the first card
+ * below it gets focus; once the hero appears it takes focus, one time, unless a key has been
+ * pressed since Ember started (then your own focus stays where you put it).
+ */
+internal object StartupHeroFocus {
+    const val WINDOW_MS = 8_000L
+    @Volatile private var startedAt = 0L
+    @Volatile private var acted = false
+    @Volatile private var claimed = false
+
+    /** The first activity start of this process; later re-creations don't re-arm it. */
+    fun begin(now: Long = android.os.SystemClock.elapsedRealtime()) { if (startedAt == 0L) startedAt = now }
+    fun keyPressed() { acted = true }
+    fun waiting(now: Long = android.os.SystemClock.elapsedRealtime()) =
+        startedAt != 0L && !acted && !claimed && now - startedAt in 0 until WINDOW_MS
+    /** Records that the hero took focus. */
+    fun claimed() { claimed = true }
+
+    internal fun resetForTest() { startedAt = 0L; acted = false; claimed = false }
+}
+
+/** Gives [target] focus once, on first load, when nothing has been pressed yet (#100). */
+internal suspend fun claimStartupFocus(target: androidx.compose.ui.focus.FocusRequester): Boolean {
+    for (frame in 0 until 30) {
+        withFrameNanos { }
+        if (!StartupHeroFocus.waiting()) return false
+        if (runCatching { target.requestFocus() }.getOrDefault(false)) { StartupHeroFocus.claimed(); return true }
+    }
+    return false
+}
