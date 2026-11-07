@@ -131,6 +131,7 @@ class TitleState(
     val sourceHealth = app.ember.tv.data.SourceHealth().apply {diagnosticGroup="playback"}
     private var streamInfos: List<AddonInfo> = emptyList()
     private val streamResults = linkedMapOf<String, List<StreamOption>>()
+    private val linkResults = linkedMapOf<String, List<app.ember.tv.streaming.Offer>>()
     private val subtitleResults = linkedMapOf<String, List<SubtitleOption>>()
 
     fun retrySource(url: String) {
@@ -212,7 +213,7 @@ class TitleState(
     private fun openDetails(meta: Meta, fromServer: Boolean) {
         visit.reset()
         sourceHealth.retain(emptySet())
-        streamInfos = emptyList(); streamResults.clear(); subtitleResults.clear()
+        streamInfos = emptyList(); streamResults.clear(); linkResults.clear(); subtitleResults.clear()
         detailsJob?.cancel()
         streamsJob?.cancel()
         serverJob?.cancel()
@@ -388,9 +389,9 @@ class TitleState(
         sourceHealth.cancelLoading()
         sourceHealth.retain(emptySet())
         streamInfos = emptyList()
-        streamResults.clear()
+        streamResults.clear(); linkResults.clear()
         subtitleResults.clear()
-        details = details?.copy(streams = emptyList(), subtitles = emptyList(),
+        details = details?.copy(streams = emptyList(), subtitles = emptyList(), addonLinks = emptyList(),
             serverStreams = emptyList(), loadingStreams = false, loadingServer = false)
     }
 
@@ -439,10 +440,11 @@ class TitleState(
         sourceHealth.cancelLoading()
         val keep = only != null || retainResults
         if (!keep) {
-            streamResults.clear(); subtitleResults.clear(); sourceHealth.retain(emptySet())
+            streamResults.clear(); linkResults.clear(); subtitleResults.clear(); sourceHealth.retain(emptySet())
         }
         details = details?.copy(streams = if (keep) details!!.streams else emptyList(),
-            subtitles = if (keep) details!!.subtitles else emptyList(), loadingStreams = true, note = null)
+            subtitles = if (keep) details!!.subtitles else emptyList(), addonLinks = if (keep) details!!.addonLinks else emptyList(),
+            loadingStreams = true, note = null)
         val forTitle = details?.meta?.id
         val forEpisode = details?.episode?.id
         if (only == null && app.ember.tv.mediaserver.ServerRef.of(details?.meta ?: Meta()) == null) loadServerCopies()
@@ -469,15 +471,18 @@ class TitleState(
             }
             coroutineScope {
                 streamAddons.forEach { addon -> launch {
-                    val result = kotlinx.coroutines.withTimeoutOrNull(limit) { runCatching { client.streams(addon, type, id) } }
+                    val both = kotlinx.coroutines.withTimeoutOrNull(limit) { runCatching { client.sources(addon, type, id) } }
+                    val result = both?.map { it.first }
                     ensureActive()
                     if (details?.meta?.id != forTitle || details?.episode?.id != forEpisode) return@launch
                     noteSlow(addon.name, result == null)
                     result?.onSuccess { streamResults[addon.url] = it }
+                    both?.onSuccess { linkResults[addon.url] = it.second }
                     sourceHealth.finish(addon.url, result?.isSuccess == true,
                         cached = result?.isSuccess != true && streamResults[addon.url]?.isNotEmpty() == true,
                         failure=if(result==null)app.ember.tv.data.SourceFailure.TIMEOUT else result.exceptionOrNull()?.let(app.ember.tv.data.SourceFailure::from))
-                    details = details?.copy(streams = streamResults.values.flatten().sortedWith(StreamParser.order))
+                    details = details?.copy(streams = streamResults.values.flatten().sortedWith(StreamParser.order),
+                        addonLinks = linkResults.values.flatten().distinctBy { it.externalId })
                 } }
             }
             val subs = subsJob.await()

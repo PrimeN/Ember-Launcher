@@ -478,6 +478,8 @@ class MainActivity : ComponentActivity() {
         } else if (store != null) {
             tries += Intent(Intent.ACTION_VIEW, "market://details?id=$store".toUri())
         }
+        // Addon links can be app links (netflix://...) that the app opens without a known package (#73).
+        if(installed==null)o.androidUrl?.takeIf { o.type == "link" }?.let { tries += Intent(Intent.ACTION_VIEW, it.toUri()) }
         if(installed==null)o.webUrl?.let { tries += Intent(Intent.ACTION_VIEW, it.toUri()) }
         for (intent in tries) {
             try {
@@ -770,7 +772,7 @@ private fun RootContent(
                             // Torrent sources can only go to a torrent app, so there is nothing to choose.
                             if (s.isDirect) vm.playing.askPlayer(req) else onPlay(req)
                         },
-                        offers = d.offers.filter { vm.watch.offerEnabled(it) },
+                        offers = d.offers.filter { vm.watch.offerEnabled(it) } + d.addonLinks,
                         offersCredit = vm.watch.offersCredit,
                         onOpenOffer = onOpenOffer,
                         offerInstalled = { vm.watch.offerPackages(it).first != null },

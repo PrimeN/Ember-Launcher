@@ -36,10 +36,54 @@ object StreamParser {
         return host.isNotEmpty() && host.none { it.isWhitespace() || it.isISOControl() }
     }
 
+    /**
+     * A stream that opens elsewhere instead of playing here (#73): `externalUrl` (often a
+     * streaming service's own app or page) or `ytId` (YouTube). Shown with the streaming services.
+     */
+    fun link(addonName: String, j: JsonElement): app.ember.tv.streaming.Offer? {
+        if (!j.str("url").isNullOrBlank() || !j.str("infoHash").isNullOrBlank()) return null
+        val yt = j.str("ytId")?.trim()?.takeIf { ytIdRe.matches(it) }
+        val external = j.str("externalUrl")?.trim()?.takeIf(::safeExternal)
+        if (yt == null && external == null) return null
+        val name = j.str("name").orEmpty()
+        val text = "$name\n${(j.str("title") ?: j.str("description")).orEmpty()}"
+        val web = yt?.let { "https://www.youtube.com/watch?v=$it" } ?: external?.takeIf { it.startsWith("http://", true) || it.startsWith("https://", true) }
+        val app = if (yt == null) external?.takeIf { web == null } else null
+        val key = yt?.let { "yt:$it" } ?: external!!
+        val service = if (yt != null) "YouTube" else serviceName(external!!) ?: name.lineSequence().firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: addonName
+        return app.ember.tv.streaming.Offer(
+            serviceId = -1 - (key.hashCode() and 0x7fffffff) % 1_000_000, name = service, type = "link", price = null,
+            format = when (quality(text)) { "4K" -> "4K"; "FHD", "HD" -> "HD"; "SD" -> "SD"; else -> null },
+            webUrl = web, androidUrl = app, externalId = "addon-link:$key",
+        )
+    }
+
+    private val ytIdRe = Regex("[A-Za-z0-9_-]{11}")
+    /** Web links and app links; never schemes that run code, read files or target components. */
+    internal fun safeExternal(url: String): Boolean {
+        val scheme = url.substringBefore(':', "").lowercase(java.util.Locale.ROOT)
+        if (scheme.isEmpty() || !scheme.all { it.isLetterOrDigit() || it in "+.-" } || !scheme.first().isLetter()) return false
+        if (scheme in setOf("javascript", "data", "file", "content", "intent", "about", "vbscript", "android-app", "jar", "blob")) return false
+        return url.none { it.isWhitespace() || it.isISOControl() } && url.length <= 2048
+    }
+    private val serviceHosts = listOf(
+        "netflix.com" to "Netflix", "disneyplus.com" to "Disney+", "primevideo.com" to "Prime Video", "amazon." to "Prime Video",
+        "max.com" to "Max", "hbomax.com" to "Max", "hulu.com" to "Hulu", "tv.apple.com" to "Apple TV", "paramountplus.com" to "Paramount+",
+        "peacocktv.com" to "Peacock", "crunchyroll.com" to "Crunchyroll", "youtube.com" to "YouTube", "youtu.be" to "YouTube",
+        "crave.ca" to "Crave", "tubitv.com" to "Tubi", "pluto.tv" to "Pluto TV", "plex.tv" to "Plex", "twitch.tv" to "Twitch",
+    )
+    /** The service a link points to, by its host (netflix.com -> Netflix) or app scheme (netflix:// -> Netflix). */
+    internal fun serviceName(url: String): String? {
+        val host = url.substringAfter("://", "").substringBefore('/').substringBefore('?').substringAfterLast('@').lowercase(java.util.Locale.ROOT)
+        serviceHosts.firstOrNull { (h, _) -> host == h || host.endsWith(".$h") || (h.endsWith(".") && host.contains(h)) }?.let { return it.second }
+        val scheme = url.substringBefore(':', "").lowercase(java.util.Locale.ROOT)
+        return serviceHosts.firstOrNull { (h, _) -> h.substringBefore('.') == scheme }?.second
+    }
+
     fun parse(addonName: String, j: JsonElement): StreamOption? {
         val url = j.str("url")?.trim()?.takeIf { it.isNotEmpty() && allowedUrl(it) }
         val hash = j.str("infoHash")?.trim()?.takeIf(String::isNotEmpty)
-        if (url == null && hash == null) return null // ytId and externalUrl streams are not supported yet
+        if (url == null && hash == null) return null // ytId and externalUrl: see link()
 
         val name = j.str("name").orEmpty()
         val title = (j.str("title") ?: j.str("description")).orEmpty()

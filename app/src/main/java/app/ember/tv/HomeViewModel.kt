@@ -172,6 +172,8 @@ data class DetailsUi(
     val note: String? = null,
     /** Where to watch, from Watchmode: every service with the title in your region. */
     val offers: List<Offer> = emptyList(),
+    /** Addon links that open in another app (externalUrl, ytId, #73), shown with the services. */
+    val addonLinks: List<Offer> = emptyList(),
     val loadingOffers: Boolean = false,
 ) {
     val seasons: List<Int> get() = nativeSeasons.ifEmpty { episodes.map { it.season }.distinct() }

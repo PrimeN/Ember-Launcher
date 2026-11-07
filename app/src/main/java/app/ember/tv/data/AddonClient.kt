@@ -164,10 +164,13 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
     }
 
     // ---- streams and subtitles ----
-    suspend fun streams(addon: AddonInfo, type: String, id: String): List<StreamOption> {
+    suspend fun streams(addon: AddonInfo, type: String, id: String): List<StreamOption> = sources(addon, type, id).first
+
+    /** Playable sources, and links that open in another app (externalUrl, ytId, #73). */
+    suspend fun sources(addon: AddonInfo, type: String, id: String): Pair<List<StreamOption>, List<app.ember.tv.streaming.Offer>> {
         AddonAccess.requireAvailable(addon.url)
-        return getJson(endpoint(addon.base, "stream/$type/$id.json"), addon.url).arr("streams").list()
-            .mapNotNull { StreamParser.parse(addon.name, it) }
+        val all = getJson(endpoint(addon.base, "stream/$type/$id.json"), addon.url).arr("streams").list()
+        return all.mapNotNull { StreamParser.parse(addon.name, it) } to all.mapNotNull { StreamParser.link(addon.name, it) }
     }
 
     suspend fun subtitles(addon: AddonInfo, type: String, id: String): List<SubtitleOption> {

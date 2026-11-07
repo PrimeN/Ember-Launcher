@@ -49,6 +49,7 @@ data class Offer(
             "free" -> "Free"
             "tve" -> "With TV provider"
             "addon" -> "Channel add-on"
+            "link" -> "From your addons"
             "rent" -> cost()?.let { "Rent $it" } ?: "Rent"
             "buy" -> cost()?.let { "Buy $it" } ?: "Buy"
             else -> type.replaceFirstChar { it.uppercase() }
