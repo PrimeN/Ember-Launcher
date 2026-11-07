@@ -19,6 +19,8 @@ internal data class LightMedia(
     val id: String, val pkg: String, val title: String, val description: String,
     val artwork: String?, val intent: String?, val progress: Float?, val engaged: Long,
     val continuing: Boolean, val duration: Long = 0, val position: Long = 0, val rank: Long = 0,
+    /** The app's channel it came from ("Recently added"); empty for Continue watching. */
+    val channel: String = "",
 )
 
 /** Ember's Home policy. Platform cursor reading is handled by AndroidTvProgramSource. */
@@ -139,6 +141,30 @@ internal object LightMediaProvider {
         if (!granted(context)) return@withContext emptyList()
         val permitted = visible(raw, request.packages, false, watch, previews)
         select(personalized(permitted, personal), System.currentTimeMillis())
+    }
+
+    /**
+     * One app's own rows for Light's App rows (#62): Continue watching first, then each of its
+     * channels under the channel's name, in the app's order.
+     */
+    suspend fun shelf(context: Context, pkg: String): List<Pair<String, List<LightMedia>>> = withContext(Dispatchers.IO) {
+        if (pkg == context.packageName || !granted(context)) return@withContext emptyList()
+        val request = TvReadRequest(setOf(pkg), watch = true, previews = true, allChannels = true)
+        val raw = cache.get(request) {
+            TvProgramReader(AndroidTvProgramSource(context.contentResolver), context.packageName).read(request, System.currentTimeMillis())
+        }
+        currentCoroutineContext().ensureActive()
+        shelfGroups(raw.filter { it.pkg == pkg })
+    }
+
+    fun shelfGroups(items: List<LightMedia>, continueTitle: String = "Continue watching"): List<Pair<String, List<LightMedia>>> {
+        val watching = items.filter { it.continuing }.sortedByDescending { it.engaged }.distinctBy { normalize(it.title) to it.description }
+        val channels = LinkedHashMap<String, MutableList<LightMedia>>()
+        items.filterNot { it.continuing }.forEach { channels.getOrPut(it.channel.trim().ifBlank { "Recommended" }) { ArrayList() }.add(it) }
+        return buildList {
+            if (watching.isNotEmpty()) add(continueTitle to watching.take(12))
+            channels.forEach { (name, list) -> add(name to list.distinctBy { it.id }.take(12)) }
+        }
     }
 
     /** Discard grants, selectors and foreign explicit destinations before opening a provider link. */

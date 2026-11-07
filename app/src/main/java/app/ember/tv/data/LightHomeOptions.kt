@@ -14,6 +14,8 @@ data class LightHomeOptions(
      * them automatically, as before. Separate from Modern's hero banner choice.
      */
     val heroCatalog: String? = null,
+    /** Show the focused app's own rows above the dock, like a top shelf (#62). */
+    val appRows: Boolean = false,
 ) {
     fun normalized() = copy(idleSeconds = idleSeconds.takeIf { it in setOf(0, 15, 30, 60, 120) } ?: 30)
 }

@@ -6,7 +6,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-internal data class TvReadRequest(val packages: Set<String>, val watch: Boolean, val previews: Boolean)
+/** [allChannels]: every channel of each app, named, for its own rows (#62); otherwise one recommendation channel. */
+internal data class TvReadRequest(val packages: Set<String>, val watch: Boolean, val previews: Boolean, val allChannels: Boolean = false)
 
 /** Joins platform tables by channel ownership, then translates records into Ember media IDs. */
 internal class TvProgramReader(private val source: TvProgramSource, private val ownPackage: String) {
@@ -20,8 +21,11 @@ internal class TvProgramReader(private val source: TvProgramSource, private val 
             val resume = ownerChannels.filter { LightMediaProvider.resumeChannel(it.name) }
             val recommendations = ownerChannels.filterNot { LightMediaProvider.resumeChannel(it.name) }
             for (channel in resume) selected[channel.id] = channel
-            val primary = recommendations.firstOrNull { it.browsable } ?: recommendations.firstOrNull()
-            if (primary != null) selected[primary.id] = primary
+            if (request.allChannels) (recommendations.filter { it.browsable }.ifEmpty { recommendations }).forEach { selected[it.id] = it }
+            else {
+                val primary = recommendations.firstOrNull { it.browsable } ?: recommendations.firstOrNull()
+                if (primary != null) selected[primary.id] = primary
+            }
         }
         val output = ArrayList<LightMedia>()
         if (request.watch) {
@@ -40,13 +44,13 @@ internal class TvProgramReader(private val source: TvProgramSource, private val 
             if (owner !in packages) continue
             val continuing = channel != null && LightMediaProvider.resumeChannel(channel.name)
             if (if (continuing) !request.watch else !request.previews) continue
-            materialize(record, owner, continuing, false, now)?.let(output::add)
+            materialize(record, owner, continuing, false, now, channel?.name.orEmpty())?.let(output::add)
         }
         // Bound the cached pool while retaining independent space for each app and feed type.
-        val buckets = LinkedHashMap<Pair<String, Boolean>, MutableList<LightMedia>>()
-        output.forEach { buckets.getOrPut(it.pkg to it.continuing) { ArrayList() }.add(it) }
+        val buckets = LinkedHashMap<Triple<String, Boolean, String>, MutableList<LightMedia>>()
+        output.forEach { buckets.getOrPut(Triple(it.pkg, it.continuing, if (request.allChannels) it.channel else "")) { ArrayList() }.add(it) }
         val retained = buckets.values.flatMap { bucket ->
-            bucket.sortedByDescending { if (it.continuing) it.engaged else it.rank }.take(8)
+            bucket.sortedByDescending { if (it.continuing) it.engaged else it.rank }.take(if (request.allChannels) 12 else 8)
         }
         return retained.filter { it.continuing }.sortedByDescending { it.engaged }.take(80) +
             retained.filterNot { it.continuing }.take(80)
@@ -61,7 +65,7 @@ internal class TvProgramReader(private val source: TvProgramSource, private val 
         emptyList()
     }
 
-    private fun materialize(row: TvProgramRecord, owner: String, continuing: Boolean, watchRow: Boolean, now: Long): LightMedia? {
+    private fun materialize(row: TvProgramRecord, owner: String, continuing: Boolean, watchRow: Boolean, now: Long, channel: String = ""): LightMedia? {
         if (row.id < 0 || row.title.isBlank() || row.link.isBlank() || row.link.length > 8192) return null
         val duration = row.duration.coerceAtLeast(0)
         val position = row.position.coerceAtLeast(0)
@@ -80,6 +84,7 @@ internal class TvProgramReader(private val source: TvProgramSource, private val 
             intent = row.link, progress = if (continuing && duration > 0 && position > 0)
                 (position.toDouble() / duration).coerceIn(0.0, 1.0).toFloat() else null,
             engaged = engagement, continuing = continuing, duration = duration, position = position, rank = row.weight,
+            channel = channel.take(80),
         )
     }
 }

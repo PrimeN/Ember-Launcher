@@ -87,6 +87,16 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     var heroFocused by remember { mutableStateOf(false) }
     var launching by remember(profile) { mutableStateOf<String?>(null) }
     val current = slides.firstOrNull { it.id == selected } ?: slides.firstOrNull()
+    // App rows (#62): the dock app in focus, and its own rows once it has stayed focused a moment.
+    var shelfPkg by remember(profile) { mutableStateOf<String?>(null) }
+    val shelfFocus = remember { FocusRequester() }
+    val shelfOn = options.appRows && !vm.profiles.profile.kids
+    val shelf by produceState(emptyList<Pair<String, List<app.ember.tv.light.LightMedia>>>(), shelfPkg, shelfOn) {
+        val pkg = shelfPkg
+        if (!shelfOn || pkg == null) { value = emptyList(); return@produceState }
+        delay(250)
+        value = runCatching { LightMediaProvider.shelf(context, pkg) }.getOrDefault(emptyList())
+    }
     val heroInView by remember(state) { derivedStateOf { state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset < 32 } }
     val topFocus = remember { FocusRequester() }
     val heroFocus = remember { FocusRequester() }
@@ -110,7 +120,8 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     fun focusApps() { scope.launch { state.scrollToItem(if (apps.isEmpty() && hasFolders) 1 else 0); withFrameNanos { }; runCatching { appsFocus.requestFocus() } } }
     fun goTop() { runCatching { topFocus.requestFocus() } }
     fun goHero() { if (current != null) scope.launch { state.scrollToItem(0); withFrameNanos { }; runCatching { heroFocus.requestFocus() } } else goTop() }
-    fun headerDown() { if (current != null) goHero() else if (apps.isNotEmpty() || hasFolders) focusApps() }
+    fun dockUp() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) runCatching { shelfFocus.requestFocus() } else goHero() }
+    fun headerDown() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) dockUp() else if (current != null) goHero() else if (apps.isNotEmpty() || hasFolders) focusApps() }
     LaunchedEffect(profile) {
         delay(100)
         val returning = FocusMemory.pending?.let { key -> slides.firstOrNull { it.meta?.mediaKey() == key } }
@@ -210,7 +221,8 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                         Box(Modifier.onSizeChanged { dockHeight = with(densityNow) { it.height.toDp() } }) {
                         Row(Modifier.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
                             apps.take(6).forEachIndexed { i, app -> LightAppTile(app, grid, millis, launching == app.pkg,
-                                Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).lightArrows(onUp = ::goHero), { launch(app) }, { onAppOptions(app) }) }
+                                Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).lightArrows(onUp = ::dockUp)
+                                    .onFocusChanged { if (it.hasFocus) shelfPkg = app.pkg }, { launch(app) }, { onAppOptions(app) }) }
                             if (apps.isEmpty()) Text(stringResource(R.string.ui_no_apps_to_show), color = Color.White, modifier = Modifier.padding(16.dp))
                         }
                         }
@@ -225,13 +237,26 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                                 cell=="more"->LightFolderTile(grid,first){panel="apps"}
                                 cell.startsWith("folder:")->namedFolders.firstOrNull {it.id==cell.removePrefix("folder:")}?.let {f->
                                     LightFolderTile(grid,first,f.name){vm.homeFeatureAction="folder:${f.id}"}}
-                                else->apps.firstOrNull {it.pkg==cell.removePrefix("app:")}?.let {app->LightAppTile(app,grid,millis,launching==app.pkg,first,{launch(app)},{onAppOptions(app)})}
+                                else->apps.firstOrNull {it.pkg==cell.removePrefix("app:")}?.let {app->LightAppTile(app,grid,millis,launching==app.pkg,
+                                    first.onFocusChanged { if (it.hasFocus) shelfPkg = null },{launch(app)},{onAppOptions(app)})}
                             }
                         }
                     }
                 }
             }
-            if (current != null && (idle || heroInView)) Column(Modifier.align(Alignment.TopStart).padding(horizontal = 45.dp).height(heroHeight).fillMaxWidth(), verticalArrangement = Arrangement.Bottom) {
+            val showShelf = shelfOn && shelfPkg != null && shelf.isNotEmpty() && !idle && heroInView
+            if (showShelf) {
+                Box(Modifier.fillMaxWidth().height(heroHeight).background(Brush.verticalGradient(0f to Color(0x99000000), 1f to Color(0xCC000000))))
+                Column(Modifier.align(Alignment.TopStart).height(heroHeight).fillMaxWidth().padding(bottom = 28.dp), verticalArrangement = Arrangement.Bottom) {
+                    LightAppShelf(shelf, shelfFocus) { item ->
+                        val app = vm.appAccess.page(false).firstOrNull { it.pkg == item.pkg }
+                        val intent = LightMediaProvider.episodeIntent(item)
+                        if (app != null && intent != null) launch(app.copy(intent = intent))
+                        else vm.showNotice("This app no longer provides a playable link.")
+                    }
+                }
+            }
+            if (current != null && (idle || heroInView) && !showShelf) Column(Modifier.align(Alignment.TopStart).padding(horizontal = 45.dp).height(heroHeight).fillMaxWidth(), verticalArrangement = Arrangement.Bottom) {
                 Column(Modifier.widthIn(max = 580.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(if (current.continuing) stringResource(R.string.ui_watch_next) + current.subtitle.removePrefix("Continue watching") else current.subtitle,
                         color = Color(0xFFD8DEF3), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -443,6 +468,8 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
         vm.appAccess.page(false).forEach {app->SettingToggle("${app.label} recommendations",null,app.pkg !in home.mutedApps){vm.personalHomes.update {it.copy(mutedApps=if(app.pkg in it.mutedApps)it.mutedApps-app.pkg else it.mutedApps+app.pkg)}}}
         Chip("App folders") {vm.openSettingsPage("HOME_TOOLS")}
         SettingToggle("Recommendations", null, options.recommendations) { vm.look.updateLightHome { it.copy(recommendations = !it.recommendations) } }
+        SettingToggle("App rows", "When an app in the dock is selected, show its own rows above it (Continue watching, Recently added…). Needs apps that publish them and the permission above.",
+            options.appRows) { vm.look.updateLightHome { it.copy(appRows = !it.appRows) } }
         LightCarouselCatalog(vm)
         SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
         Text("Full-screen carousel when idle", fontSize = 15.sp)

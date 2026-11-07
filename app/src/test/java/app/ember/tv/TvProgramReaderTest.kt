@@ -60,6 +60,22 @@ class TvProgramReaderTest {
         assertFalse(media.single { it.id.endsWith(":2") }.continuing)
     }
 
+    @Test fun appRowsReadEveryBrowsableChannelUnderItsName() = runBlocking {
+        // #62: the focused app's own rows, not just its first recommendation channel.
+        val source = Source().apply {
+            channels = listOf(channel(1, name = "Recently Added"), channel(2, name = "Trending"),
+                channel(3, name = "Hidden", shown = false), channel(4, name = "Continue Watching"))
+            watch = listOf(record(10))
+            previews = listOf(record(11).copy(channelId = 1), record(12).copy(channelId = 2), record(13).copy(channelId = 3), record(14).copy(channelId = 4))
+        }
+        val media = TvProgramReader(source, "ember").read(TvReadRequest(setOf("app.a"), watch = true, previews = true, allChannels = true), now)
+        val groups = LightMediaProvider.shelfGroups(media)
+        assertEquals(listOf("Continue watching", "Recently Added", "Trending"), groups.map { it.first })
+        assertEquals(listOf("app.a:preview:11"), groups[1].second.map { it.id })
+        assertTrue(groups.first().second.all { it.continuing })
+        assertFalse("hidden channel stays out", media.any { it.id.endsWith(":13") })
+    }
+
     @Test fun unavailableChannelTableStillAllowsOwnedProgramFallbackAndHealthyTables() = runBlocking {
         val source = Source().apply {
             channelError = SecurityException("denied")
