@@ -67,7 +67,39 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
         }
         fun stage(summary: String, apply: suspend () -> String?): String =
             contentApproval.stage(summary, { access.active && profiles.profileId == owner }, apply)
+        val registry = PhoneSettings(vm)
+        fun adultOnly() = check(!profiles.profile.kids) { "Switch to an adult profile on the TV to change settings from a phone." }
         return object : app.ember.tv.phone.PhoneSetup.Handler {
+            override fun status(): PhoneStatus = onPhoneMain {
+                PhoneStatus("${app.ember.tv.BuildConfig.VERSION_NAME} (build ${app.ember.tv.BuildConfig.VERSION_CODE})", listOf(
+                    "Metadata key (TMDB)" to app.ember.tv.data.ApiKeys.get("TMDB_API_KEY").isNotBlank(),
+                    "Catalogs and playback addons" to addons.isNotEmpty(),
+                    "Personal media servers" to (plexConnected || serverAccounts.isNotEmpty()),
+                    "Watch history accounts" to hub.trackers.any { it.isConnected() },
+                ))
+            }
+            override fun settings(): List<PhoneSettingView> = onPhoneMain { adultOnly(); registry.all() }
+            override fun changeSetting(id: String, value: String): PhoneSettingResult = onPhoneMain {
+                runCatching { adultOnly(); registry.change(id, value) }.fold(
+                    { now ->
+                        val shown = now.options.firstOrNull { it.first == now.value }?.second
+                            ?: when (now.value) { "true" -> "On"; "false" -> "Off"; else -> now.value }
+                        phoneNote("${now.label}: $shown")
+                        PhoneSettingResult(true, "Saved: $shown", now)
+                    },
+                    { PhoneSettingResult(false, it.message ?: "Could not change that setting.") },
+                )
+            }
+            override fun crashLog(): List<String> {
+                access.requireActive()
+                return app.ember.tv.data.CrashLog.entries().map(app.ember.tv.data.CrashLog::redact)
+            }
+            override fun clearCrashLog(): String {
+                access.requireActive()
+                app.ember.tv.data.CrashLog.clear()
+                onPhoneMain { phoneNote("Crash log cleared from your phone") }
+                return "Crash log cleared."
+            }
             override fun importPresentation(name:String,bytes:ByteArray):String = onPhoneMain {
                 check(!profiles.profile.kids){"Switch to an adult profile to add presentation media."}
                 require(bytes.size<=app.ember.tv.home.PresentationMedia.MAX_UPLOAD)

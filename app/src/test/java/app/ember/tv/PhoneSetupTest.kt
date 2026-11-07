@@ -185,13 +185,18 @@ class PhoneSetupTest {
         val setup = server()
         try {
             val uri = URI(setup.start()!!)
-            val response = request(uri)
-            assertTrue(response.startsWith("HTTP/1.1 200"))
-            val actions = Regex("action=\"([^\"]+)\"").findAll(response).map { it.groupValues[1] }.toList()
-            assertEquals(8, actions.size)
-            assertTrue(actions.all { it.endsWith("?${uri.rawQuery}") })
-            assertTrue(response.contains("Referrer-Policy: no-referrer"))
-            assertTrue(response.contains("Cache-Control: no-store"))
+            // Every tab (#49): each form posts with the session code, and together they keep every endpoint.
+            val actions = listOf("setup", "settings", "content", "backup").flatMap { tab ->
+                val response = request(uri, "/?${uri.rawQuery}&tab=$tab")
+                assertTrue(response.startsWith("HTTP/1.1 200"))
+                assertTrue(response.contains("Referrer-Policy: no-referrer"))
+                assertTrue(response.contains("Cache-Control: no-store"))
+                assertTrue(response.contains("aria-current=page"))
+                Regex("action=\"([^\"]+)\"").findAll(response).map { it.groupValues[1] }.toList()
+            }
+            assertTrue(actions.isNotEmpty() && actions.all { it.endsWith("?${uri.rawQuery}") })
+            assertEquals(setOf("/save", "/presentation", "/collections", "/badges", "/backup", "/restore"),
+                actions.map { it.substringBefore('?') }.toSet())
         } finally { setup.stop() }
     }
 
