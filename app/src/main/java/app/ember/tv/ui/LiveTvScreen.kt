@@ -58,21 +58,25 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         restore = { LiveChoice(it[0], it[1].ifEmpty { null }, if (it[4] == "true") null else it[2], it[3].ifEmpty { null }) },
     )
     var choice by rememberSaveable(vm.profiles.profileId, stateSaver = choiceSaver) { mutableStateOf(LiveChoice()) }
-    var expanded by rememberSaveable(vm.profiles.profileId) { mutableStateOf(emptyList<String>()) }
+    var sourceScope by rememberSaveable(vm.profiles.profileId) { mutableStateOf<String?>(null) }
+    var sourceMenu by remember { mutableStateOf(false) }
+    var categoryMenu by remember { mutableStateOf(false) }
+    var listsExpanded by rememberSaveable(vm.profiles.profileId) { mutableStateOf(false) }
+    val sourceFocus = remember { FocusRequester() }
+    val moreFocus = remember { FocusRequester() }
+    val scopeFocus = remember { FocusRequester() }
     var query by rememberSaveable(vm.profiles.profileId) { mutableStateOf("") }
-    var view by rememberSaveable { mutableStateOf(vm.iptvSetup.iptvView) }
+    var view by rememberSaveable(vm.profiles.profileId) { mutableStateOf(LiveViews.normalize(vm.iptvSetup.iptvView)) }
+    val canvas = view == LiveViews.CANVAS
     var focused by remember { mutableStateOf<Channel?>(null) }
     var focusedProgramme by remember {mutableStateOf<Programme?>(null)}
     var focusedTime by remember {mutableLongStateOf(iptv.clock)}
     val bodyFocus=remember {FocusRequester()}
     val emptyFocus=remember {FocusRequester()}
-    var inlineFeaturedAvailable by remember {mutableStateOf(true)}
-    var guideEngaged by rememberSaveable(vm.profiles.profileId) {mutableStateOf(false)}
+    var guideEngaged by rememberSaveable(vm.profiles.profileId) {mutableStateOf(true)}
     var searchOpen by remember {mutableStateOf(false)}
     var programmeSearch by remember(vm.profiles.profileId) {mutableStateOf(false)}
     var guideJump by remember {mutableStateOf<Long?>(null)}
-    val featuredFocus=remember {FocusRequester()}
-    var featureReturn by remember {mutableStateOf(false)}
     var sidebarReturn by remember {mutableStateOf<FocusRequester?>(null)}
     val screenScope=rememberCoroutineScope()
     var options by remember { mutableStateOf<Channel?>(null) }
@@ -81,7 +85,6 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     var editList by remember { mutableStateOf<ChannelList?>(null) }
     var sidebarOpen by rememberSaveable(vm.profiles.profileId) { mutableStateOf(true) }
     var searchAll by rememberSaveable(vm.profiles.profileId) { mutableStateOf(false) }
-    var onNowOpen by remember { mutableStateOf(false) }
     var programmeInfo by remember { mutableStateOf<Pair<Channel, Programme?>?>(null) }
     var entryKey by remember { mutableStateOf<String?>(null) }
     var entryVersion by remember { mutableIntStateOf(0) }
@@ -97,17 +100,20 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     var numberChoices by remember(vm.profiles.profileId) { mutableStateOf<List<Channel>>(emptyList()) }
     val available = iptv.visibleChannels
     val availableByKey=remember(available) {available.associateBy {it.key}}
-    val sourceGroups = remember(iptv.channels) {
-        iptv.channels.groupBy { it.sourceId }.mapValues { (_, channels) -> channels.map { it.group }.distinct() }
-    }
     val searching = query.trim().length >= 2
     val activeChoice=if(choice.kind=="none")LivePresentation.initialChoice(available,iptv.sources,iptv.library,iptv.favourites,vm.liveRows.isNotEmpty()) else choice
     val base = remember(activeChoice, available, iptv.library, iptv.favourites, iptv.recent) {
         activeChoice.channels(available, iptv.library, iptv.favourites, iptv.recent)
     }
-    val selected = remember(activeChoice, base, available, query, searchAll) {
-        if (searching) (if (searchAll || activeChoice.kind == "none") available else base).filter { it.name.contains(query.trim(), true) } else base
+    val effectiveSource = if (activeChoice.kind == "source") activeChoice.source else sourceScope
+    val scopedAvailable = remember(available, effectiveSource) { LiveViews.scoped(available, effectiveSource) }
+    val scopedBase = remember(base, effectiveSource) { LiveViews.scoped(base, effectiveSource) }
+    val selected = remember(scopedBase, available, query, searchAll) {
+        if (searching) (if (searchAll) available else scopedBase).filter { it.name.contains(query.trim(), true) } else scopedBase
     }
+    val sourceName = iptv.sources.firstOrNull { it.id == effectiveSource }?.name ?: "All playlists"
+    val categoryGroups = remember(scopedAvailable) { scopedAvailable.groupingBy { it.group }.eachCount() }
+
     LaunchedEffect(selected,guideEngaged) {
         if(guideEngaged) {
             val next=selected.firstOrNull {it.key==focused?.key} ?: selected.firstOrNull()
@@ -115,16 +121,10 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
             else if(next!=focused)focused=next
         }
     }
-    LaunchedEffect(featureReturn,guideEngaged) {
-        if(featureReturn && !guideEngaged) {withFrameNanos { }
-            if(!runCatching {featuredFocus.requestFocus()}.getOrDefault(false))runCatching {fallbackFocus.requestFocus()}
-            featureReturn=false
-        }
-    }
     LaunchedEffect(iptv.guideReturnKey) {
         iptv.guideReturnKey?.let { key ->
             available.firstOrNull { it.key == key }?.let { channel ->
-                if (base.none { it.key == key }) choice = LiveChoice("source", channel.sourceId)
+                if (scopedBase.none { it.key == key }) choice = LiveChoice("source", channel.sourceId)
                 query = ""; searchAll = false; view = "grid"; vm.iptvSetup.updateIptvView(view)
                 focused = channel; entryKey = key; entryVersion++; guideEngaged=true
             }
@@ -134,7 +134,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     LaunchedEffect(iptv.library, iptv.sources, iptv.channels, choice) {
         val repaired = choice.repaired(iptv.sources, iptv.library, iptv.channels)
         if (repaired != choice) { choice = repaired; repairFocus = true }
-        expanded = expanded.filter { id -> iptv.sources.any { it.id == id && it.enabled } }
+        if (sourceScope != null && iptv.sources.none { it.id == sourceScope && it.enabled }) sourceScope = null
     }
     LaunchedEffect(repairFocus, manage, naming, options) {
         if (repairFocus && !manage && !naming && options == null) {
@@ -146,6 +146,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
 
 
     fun choose(next:LiveChoice,clearSearch:Boolean=true) {
+        sourceScope = LiveViews.sourceAfterChoice(activeChoice, next, sourceScope)
         choice=next;guideEngaged=true
         if(clearSearch)query=""
     }
@@ -156,9 +157,11 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         }
         return true
     }
-    fun returnFeatured():Boolean {
-        if(!liveFeaturedAvailable(inlineFeaturedAvailable,iptv.library.showOnNow,available.isNotEmpty(),searching,activeChoice.kind))return false
-        guideEngaged=false;featureReturn=true;return true
+    fun setView(next: String) {
+        view = LiveViews.normalize(next)
+        vm.iptvSetup.updateIptvView(view)
+        entryKey = focused?.key
+        entryVersion = 0
     }
     fun play(list: List<Channel>, index: Int) {
         // The release that opens channel options must not tune the underlying card.
@@ -169,6 +172,11 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         if (at < 0) return
         iptv.played(authorized[at])
         onPlayChannel(authorized, at)
+    }
+    fun toggleFavourite(channel: Channel) {
+        val removing = channel.key in iptv.favourites
+        iptv.toggleFavourite(channel)
+        if (removing && activeChoice.kind == "favourites" && selected.size <= 1) repairFocus = true
     }
     LaunchedEffect(digits, choice, available, selected, vm.profiles.profileId) {
         if (digits.isEmpty()) return@LaunchedEffect
@@ -185,56 +193,41 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     }
 
     val sourceCounts=remember(available) {available.groupingBy {it.sourceId}.eachCount()}
-    val groupCounts=remember(available) {available.groupingBy {it.sourceId to it.group}.eachCount()}
-    val visibleKeys=remember(available) {available.mapTo(hashSetOf()) {it.key}}
-    val favouriteCount=remember(available,iptv.favourites) {available.count {it.key in iptv.favourites}}
+    val visibleKeys=remember(scopedAvailable) {scopedAvailable.mapTo(hashSetOf()) {it.key}}
+    val favouriteCount=remember(scopedAvailable,iptv.favourites) {scopedAvailable.count {it.key in iptv.favourites}}
     val recentCount=remember(visibleKeys,iptv.recent) {iptv.recent.distinct().count {it in visibleKeys}}
     val listCounts=remember(visibleKeys,iptv.library.lists) {iptv.library.lists.associate {it.id to it.channelKeys.distinct().count {key->key in visibleKeys}}}
+    val customChannelCount = remember(visibleKeys, iptv.library.lists, iptv.library.hiddenSections) {
+        iptv.library.lists.filter { "custom:${it.id}" !in iptv.library.hiddenSections }
+            .flatMap { it.channelKeys }.distinct().count { it in visibleKeys }
+    }
     val scopeName=when(activeChoice.kind) {
+        "all"->"All channels";"group"->activeChoice.group.orEmpty()
         "source"->iptv.sources.firstOrNull {it.id==activeChoice.source}?.name.orEmpty()+(activeChoice.group?.let {" · $it"} ?: "")
         "favourites"->"Favourites";"recent"->"Recently watched"
         "custom"->iptv.library.lists.firstOrNull {it.id==activeChoice.list}?.name.orEmpty()
         "addons"->"Live catalogs";else->"Your channels"
     }
-    var backdrop by remember {mutableStateOf<String?>(null)}
-    LaunchedEffect(focusedProgramme?.image,guideEngaged) {delay(180);backdrop=if(guideEngaged)focusedProgramme?.image else null}
     LivePageTheme {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val sidebarWidth=(maxWidth*.235f).coerceIn(148.dp,226.dp)
         val fontScale=androidx.compose.ui.platform.LocalDensity.current.fontScale
         val viewportHeight=maxHeight
-        val allowInline=viewportHeight>=360.dp && fontScale<=1.25f
-        SideEffect {inlineFeaturedAvailable=allowInline}
         Box(Modifier.fillMaxSize()) {
-            LiveArtworkBackground(backdrop)
+            LiveArtworkBackground(null)
             Column(Modifier.fillMaxSize().padding(start=36.dp,end=24.dp,top=4.dp).onKeyEvent {event ->
                 val digit=LiveRemote.digit(event.nativeKeyEvent.keyCode)
                 if(digit==null)false else {
                     if(event.type==KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount==0 && digits.length<6){digits+=digit;numberMessage=null};true
                 }
             }) {
-                Row(Modifier.fillMaxWidth().padding(bottom=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                        Text("Live TV",color=LiveColors.Text,fontSize=21.sp,fontWeight=FontWeight.Medium)
-                        Text(when {
-                            searching -> "Search · ${selected.size} channels"
-                            iptv.loading -> "Updating channels…"
-                            activeChoice.kind=="addons" -> "$scopeName · ${vm.liveRows.size} catalogs"
-                            else -> "$scopeName · ${selected.size} channels"
-                        },color=LiveColors.Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-                    }
-                    FrostedPill {
-                        Row(Modifier.navigationGlass().padding(4.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                            LiveToolbarAction(if(sidebarOpen)"Hide playlists" else "Show playlists",Icons.Outlined.Menu,selected=sidebarOpen) {sidebarOpen=!sidebarOpen}
-                            LiveToolbarAction("Search channels",Icons.Outlined.Search,Modifier.focusRequester(fallbackFocus),selected=searching) {if(activeChoice.kind=="addons")searchAll=true;searchOpen=true}
-                            if(activeChoice.kind!="addons")LiveToolbarAction(if(view=="grid")"Show channel list" else "Show programme guide",
-                                if(view=="grid")Icons.AutoMirrored.Outlined.ViewList else Icons.Outlined.GridOn) {
-                                view=if(view=="grid")"list" else "grid";vm.iptvSetup.updateIptvView(view);enterGuide()
-                            }
-                            LiveToolbarAction("Live TV options",Icons.Outlined.MoreHoriz) {moreOpen=true}
-                        }
-                    }
-                }
+                LiveViewToolbar(sourceName, scopeName, canvas, searching, sidebarOpen,
+                    sourceFocus, fallbackFocus, scopeFocus, moreFocus, onSource = { sourceMenu = true }, onView = ::setView,
+                    onScope = { categoryMenu = true }, onSidebar = { sidebarOpen = !sidebarOpen },
+                    onSearch = { if (activeChoice.kind == "addons") searchAll = true; searchOpen = true },
+                    onNow = { guideEngaged = true; guideJump = iptv.clock }, onMore = { moreOpen = true },
+                    showViews = activeChoice.kind != "addons" || searching)
+                if (iptv.loading) Text("Updating channels…", color = Mute, fontSize = 12.sp)
                 if(digits.isNotEmpty())Text("Channel $digits",color=LiveColors.Text,fontSize=18.sp)
                 numberMessage?.let {Text(it,color=LiveColors.Muted,fontSize=12.sp)}
                 if(iptv.message!=null && available.isEmpty())Text(iptv.message.orEmpty(),color=LiveColors.Muted,fontSize=13.sp)
@@ -242,11 +235,8 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                     Text("“$query” · "+if(searchAll)"All enabled playlists" else scopeName,color=LiveColors.Muted,fontSize=12.sp,modifier=Modifier.weight(1f))
                     ToolbarIcon("Clear search",Icons.Outlined.Close) {query="";searchAll=false}
                 }
-                if(!guideEngaged && liveFeaturedAvailable(allowInline,iptv.library.showOnNow,available.isNotEmpty(),searching,activeChoice.kind)) {
-                    LiveNowRow(iptv,onOptions={options=it},onFocus={focused=it;focusedProgramme=iptv.nowNext(it).first},firstFocus=featuredFocus) {channels,index->play(channels,index)}
-                }
                 Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(22.dp)) {
-                    if(sidebarOpen)LazyColumn(Modifier.width(sidebarWidth).fillMaxHeight().focusRequester(sidebarFocus).focusGroup(),
+                    if(sidebarOpen && !canvas)LazyColumn(Modifier.width(sidebarWidth).fillMaxHeight().focusRequester(sidebarFocus).focusGroup(),
                         verticalArrangement=Arrangement.spacedBy(4.dp),contentPadding=PaddingValues(bottom=24.dp)) {
                         if("favourites" !in iptv.library.hiddenSections || "recent" !in iptv.library.hiddenSections || iptv.library.lists.isNotEmpty())item("your-channels") {LiveSidebarHeading("Your channels")}
                         if("favourites" !in iptv.library.hiddenSections)item("favourites") {
@@ -257,36 +247,33 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                             LiveSidebarEntry("Recently watched",recentCount,Icons.Outlined.History,selected=activeChoice.kind=="recent",
                                 onFocused={sidebarReturn=it;choose(LiveChoice("recent"),false)},onEnterGuide=::enterGuide,onClick={choose(LiveChoice("recent"));enterGuide()})
                         }
-                        items(iptv.library.lists.filter {"custom:${it.id}" !in iptv.library.hiddenSections},key={"custom:${it.id}"}) {list->
-                            LiveSidebarEntry(list.name,listCounts[list.id]?:0,Icons.Outlined.Folder,selected=activeChoice.kind=="custom" && activeChoice.list==list.id,
-                                onFocused={sidebarReturn=it;choose(LiveChoice("custom",list=list.id),false)},onEnterGuide=::enterGuide,
-                                onClick={choose(LiveChoice("custom",list=list.id));enterGuide()},onLongClick={editList=list;seedChannel=null;naming=true})
+                        if (iptv.library.lists.any { "custom:${it.id}" !in iptv.library.hiddenSections }) {
+                            item("custom-lists") {
+                                LiveSidebarEntry("My lists", customChannelCount, Icons.Outlined.Folder,
+                                    selected = activeChoice.kind == "custom", expanded = listsExpanded, onEnterGuide = { listsExpanded = true },
+                                    onClick = { listsExpanded = !listsExpanded })
+                            }
+                            if (listsExpanded) items(iptv.library.lists.filter { "custom:${it.id}" !in iptv.library.hiddenSections }, key = { "custom:${it.id}" }) { list ->
+                                LiveSidebarEntry(list.name, listCounts[list.id] ?: 0, Icons.Outlined.Folder, nested = true,
+                                    selected = activeChoice.kind == "custom" && activeChoice.list == list.id,
+                                    onFocused = { sidebarReturn = it; choose(LiveChoice("custom", list = list.id), false) },
+                                    onEnterGuide = ::enterGuide, onClick = { choose(LiveChoice("custom", list = list.id)); enterGuide() },
+                                    onLongClick = { editList = list; seedChannel = null; naming = true })
+                            }
                         }
-                        if(iptv.sources.any {it.enabled})item("your-playlists") {LiveSidebarHeading("Your playlists")}
-                        iptv.sources.filter {it.enabled}.forEach {source ->
-                            item("source:${source.id}") {
-                                LiveSidebarEntry(source.name,sourceCounts[source.id]?:0,Icons.Outlined.LiveTv,
-                                    selected=activeChoice.kind=="source" && activeChoice.source==source.id,expanded=source.id in expanded,
-                                    onFocused={sidebarReturn=it;choose(LiveChoice("source",source.id),false)},onEnterGuide=::enterGuide,onClick={
-                                        val closing=source.id in expanded
-                                        expanded=if(closing)expanded-source.id else expanded+source.id
-                                        choose(LiveChoice("source",source.id))
-                                    })
-                            }
-                            if(source.id in expanded) {
-                                item("all:${source.id}") {
-                                    LiveSidebarEntry("All in this playlist",sourceCounts[source.id]?:0,Icons.AutoMirrored.Outlined.List,nested=true,
-                                        selected=activeChoice.source==source.id && activeChoice.group==null,
-                                        onFocused={sidebarReturn=it;choose(LiveChoice("source",source.id),false)},onEnterGuide=::enterGuide,
-                                        onClick={choose(LiveChoice("source",source.id));enterGuide()})
-                                }
-                                items(sourceGroups[source.id].orEmpty().filter {LiveLibrary.groupKey(source.id,it) !in iptv.library.hiddenGroups},key={"group:${source.id}:$it"}) {group ->
-                                    LiveSidebarEntry(group.ifBlank {"Ungrouped"},groupCounts[source.id to group]?:0,Icons.AutoMirrored.Outlined.List,nested=true,
-                                        selected=activeChoice.source==source.id && activeChoice.group==group,
-                                        onFocused={sidebarReturn=it;choose(LiveChoice("source",source.id,group),false)},onEnterGuide=::enterGuide,
-                                        onClick={choose(LiveChoice("source",source.id,group));enterGuide()})
-                                }
-                            }
+                        item("categories") { LiveSidebarHeading("Categories") }
+                        item("all-channels") {
+                            LiveSidebarEntry("All channels", scopedAvailable.size, Icons.Outlined.LiveTv,
+                                selected = activeChoice.kind == "all" || activeChoice.kind == "source" && activeChoice.group == null,
+                                onFocused = { sidebarReturn = it; choose(if (effectiveSource == null) LiveChoice("all") else LiveChoice("source", effectiveSource), false) },
+                                onEnterGuide = ::enterGuide,
+                                onClick = { choose(if (effectiveSource == null) LiveChoice("all") else LiveChoice("source", effectiveSource)); enterGuide() })
+                        }
+                        items(categoryGroups.keys.toList(), key = { "category:$it" }) { group ->
+                            LiveSidebarEntry(group.ifBlank { "Ungrouped" }, categoryGroups[group] ?: 0, Icons.AutoMirrored.Outlined.List,
+                                selected = activeChoice.kind == "group" && activeChoice.group == group,
+                                onFocused = { sidebarReturn = it; choose(LiveChoice("group", group = group), false) },
+                                onEnterGuide = ::enterGuide, onClick = { choose(LiveChoice("group", group = group)); enterGuide() })
                         }
                         if(vm.liveRows.isNotEmpty() && "addons" !in iptv.library.hiddenSections)item("live-catalogs") {
                             LiveSidebarEntry("Live catalogs",vm.liveRows.sumOf {it.items.size},Icons.Outlined.VideoLibrary,selected=activeChoice.kind=="addons",
@@ -295,16 +282,19 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                         if(!iptv.hasSources && vm.liveRows.isEmpty())item("add-source") {Chip("Add a playlist") {vm.openSettingsPage("LIVE")}}
                     }
                     Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                        if(guideEngaged && activeChoice.kind!="addons" && selected.isNotEmpty() && iptv.library.showProgrammePanel && viewportHeight>=320.dp) {
+                        if(!canvas && activeChoice.kind!="addons" && selected.isNotEmpty() && iptv.library.showProgrammePanel && viewportHeight>=320.dp) {
                             val channel=focused?.takeIf {old->selected.any {it.key==old.key}} ?: selected.firstOrNull()
                             val programme=if(channel?.key==focused?.key)focusedProgramme else channel?.let {iptv.nowNext(it).first}
                             LiveProgrammePanel(channel,programme,iptv.clock,
                                 iptv.sources.firstOrNull {it.id==channel?.sourceId}?.name.orEmpty(),channel?.let(iptv::guideMessage).orEmpty(),
-                                compact=iptv.library.compactProgramme || viewportHeight<400.dp || fontScale>1.25f,browsingTime=focusedTime)
+                                compact=iptv.library.compactProgramme || viewportHeight<480.dp || fontScale>1.25f,browsingTime=focusedTime,
+                                favourite=channel?.key in iptv.favourites,
+                                onWatch=channel?.let { c -> { play(selected, selected.indexOfFirst { it.key == c.key }) } },
+                                onFavourite=channel?.let { c -> { toggleFavourite(c) } })
                         }
-                        val scopeKey="${vm.profiles.profileId}:$view:"+if(searching)"search:$searchAll" else "${activeChoice.kind}:${activeChoice.source}:${activeChoice.group}:${activeChoice.list}"
+                        val scopeKey="${vm.profiles.profileId}:$view:$effectiveSource:"+if(searching)"search:$searchAll" else "${activeChoice.kind}:${activeChoice.source}:${activeChoice.group}:${activeChoice.list}"
                         savedViews.SaveableStateProvider(scopeKey) {
-                            if(view=="list" || activeChoice.kind=="addons" || selected.isEmpty())LaunchedEffect(entryVersion) {
+                            if(activeChoice.kind=="addons" || selected.isEmpty())LaunchedEffect(entryVersion) {
                                 if(entryVersion>0) {withFrameNanos { }
                                     runCatching {if(selected.isEmpty() && activeChoice.kind!="addons")emptyFocus.requestFocus() else bodyFocus.requestFocus()}
                                     entryVersion=0;entryKey=null
@@ -332,26 +322,57 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                                         onEntryHandled={entryVersion=0;entryKey=null;if(selected.isEmpty())runCatching {emptyFocus.requestFocus()}},onProgramme={channel,programme->programmeInfo=channel to programme},
                                         desiredRows=iptv.library.guideRows,showLogos=iptv.library.guideLogos,showControls=false,showPanel=false,
                                         onSelection={channel,programme,time->if(channel!=null){focused=channel;focusedProgramme=programme;focusedTime=time}},
-                                        onGuideFocus={guideEngaged=true},onExitSidebar=::returnSidebar,onExitUp=::returnFeatured,
+                                        onGuideFocus={guideEngaged=true},onExitSidebar=::returnSidebar,onExitUp={false},
                                         jumpTime=guideJump,onJumpHandled={guideJump=null})
                                 }
                             } else {
-                                LazyColumn(Modifier.weight(1f).fillMaxWidth().focusRequester(bodyFocus).focusGroup().onFocusChanged {if(it.hasFocus)guideEngaged=true},verticalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=24.dp)) {
-                                    itemsIndexed(selected,key={_,c->c.key}) {index,channel ->
-                                        ChannelRow(channel,iptv.nowNext(channel),channel.key in iptv.favourites,iptv.clock,
-                                            onFocus={focused=channel;focusedProgramme=iptv.nowNext(channel).first},onPlay={play(selected,index)},onFavourite={options=channel})
-                                    }
-                                }
+                                LiveOnNowCanvas(selected, { iptv.nowNext(it).first }, iptv.clock,
+                                    remember(iptv.sources) { iptv.sources.associate { it.id to it.name } },
+                                    onFocus = { focused = it; focusedProgramme = iptv.nowNext(it).first },
+                                    onOptions = { options = it }, onPlay = { play(selected, it) },
+                                    modifier = Modifier.weight(1f).fillMaxWidth().focusRequester(bodyFocus),
+                                    entryKey = entryKey, entryVersion = entryVersion,
+                                    onEntryHandled = { entryKey = null; entryVersion = 0 })
                             }
                         }
 
                     }
                 }
-                if(guideEngaged && activeChoice.kind!="addons" && selected.isNotEmpty())Text("Select a channel to watch · Hold OK for channel options",
+                if(!canvas && activeChoice.kind!="addons" && selected.isNotEmpty())Text("Select a channel to watch · Hold OK for channel options",
                     color=LiveColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(vertical=4.dp))
             }
         }
     }
+    if (sourceMenu) OptionMenu("Choose playlist", listOf(MenuOption("All playlists", selected = effectiveSource == null) {
+        sourceScope = null
+        searchAll = false
+        if (activeChoice.kind !in setOf("favourites", "recent", "custom", "group")) choice = LiveChoice("all")
+    }) + iptv.sources.filter { it.enabled }.map { source ->
+        MenuOption("${source.name} · ${sourceCounts[source.id] ?: 0} channels", selected = effectiveSource == source.id) {
+            sourceScope = source.id
+            searchAll = false
+            if (activeChoice.kind !in setOf("favourites", "recent", "custom", "group")) choice = LiveChoice("source", source.id)
+        }
+    }) { sourceMenu = false }
+    fun pickCategory(next: LiveChoice) { searchAll = false; choose(next, false) }
+    if (categoryMenu) OptionMenu("Choose channels", buildList {
+        add(MenuOption("All channels", selected = activeChoice.kind in setOf("all", "source")) {
+            pickCategory(if (effectiveSource == null) LiveChoice("all") else LiveChoice("source", effectiveSource))
+        })
+        if ("favourites" !in iptv.library.hiddenSections) add(MenuOption("Favourites", activeChoice.kind == "favourites") { pickCategory(LiveChoice("favourites")) })
+        if ("recent" !in iptv.library.hiddenSections) add(MenuOption("Recently watched", activeChoice.kind == "recent") { pickCategory(LiveChoice("recent")) })
+        iptv.library.lists.filter { "custom:${it.id}" !in iptv.library.hiddenSections }.forEach { list ->
+            add(MenuOption(list.name, activeChoice.kind == "custom" && activeChoice.list == list.id) { pickCategory(LiveChoice("custom", list = list.id)) })
+        }
+        categoryGroups.keys.forEach { group -> add(MenuOption(group.ifBlank { "Ungrouped" }, activeChoice.kind == "group" && activeChoice.group == group) {
+            pickCategory(LiveChoice("group", group = group))
+        }) }
+        if (vm.liveRows.isNotEmpty() && "addons" !in iptv.library.hiddenSections) add(MenuOption("Live catalogs", activeChoice.kind == "addons") { pickCategory(LiveChoice("addons")) })
+    }) { categoryMenu = false }
+    RestoreToolbarFocus(sourceMenu, sourceFocus)
+    RestoreToolbarFocus(searchOpen, fallbackFocus)
+    RestoreToolbarFocus(moreOpen, moreFocus)
+    RestoreToolbarFocus(categoryMenu, scopeFocus)
     if(programmeSearch)ProgrammeSearchDialog(available,iptv.guide,iptv.clock,{programmeSearch=false}) {channel,programme->
         programmeSearch=false;programmeInfo=channel to programme
     }
@@ -360,13 +381,6 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         SwitchChip("Search all playlists",searchAll) {searchAll=!searchAll}
         Text("${selected.size} matching channels",color=Mute,fontSize=13.sp)
         ButtonRow {ToolbarIcon("Show results",Icons.Outlined.Check) {searchOpen=false;enterGuide()};ToolbarIcon("Clear search",Icons.Outlined.Clear) {query="";searchAll=false}}
-    }
-    if (onNowOpen) LiveDialog("On now", { onNowOpen = false }) {
-        if (iptv.visibleChannels.isEmpty()) {
-            Text("No visible channels. Enable a playlist or restore channels in Manage.", color = Mute)
-            Chip("Manage channels") { onNowOpen = false; manage = true }
-        }
-        LiveNowRow(iptv, onOptions = { onNowOpen = false; options = it }) { channels, index -> onNowOpen = false; play(channels, index) }
     }
     programmeInfo?.let { (channel, programme) ->
         LiveDialog(programme?.title ?: channel.name, { programmeInfo = null }) {
@@ -397,7 +411,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         val labels=listOf(if(channel.key in iptv.favourites)"Remove favourite" else "Add favourite","Match programme guide","Programme details","Hide channel")+
             iptv.library.lists.map {it.name}+"Create list with this channel"
         CompactActionMenu(channel.name,labels,{options=null}) {first->
-            MenuActionRow(labels[0],modifier=Modifier.focusRequester(first),icon=Icons.Outlined.Star,selected=channel.key in iptv.favourites) { iptv.toggleFavourite(channel) }
+            MenuActionRow(labels[0],modifier=Modifier.focusRequester(first),icon=Icons.Outlined.Star,selected=channel.key in iptv.favourites) { toggleFavourite(channel) }
             MenuActionRow(labels[1],icon=Icons.AutoMirrored.Outlined.EventNote) { options = null; vm.openSettingsGuarded { guideChannel = channel; guideTools = true } }
             MenuActionRow(labels[2],icon=Icons.Outlined.Info) { options = null; programmeInfo = channel to iptv.nowNext(channel).first }
             if(iptv.library.lists.isNotEmpty())Text("Custom lists", color = Mute,fontSize=12.sp)
@@ -407,14 +421,14 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
             MenuActionRow(labels.last(),icon=Icons.AutoMirrored.Outlined.PlaylistAdd) { editList = null; seedChannel = channel.key; options = null; naming = true }
             MenuActionRow(labels[3],icon=Icons.Outlined.VisibilityOff,destructive=true,divider=true) {
                 vm.hideChannelWithUndo(channel); options = null
-                if (view == "grid") { entryKey = null; entryVersion++ } else repairFocus = true
+                entryKey = null; entryVersion++
             }
         }
     }
     if (naming) ChannelListEditor(iptv, editList, seedChannel) { naming = false }
     if (manage) LiveManagement(vm) { manage = false }
     if (moreOpen) OptionMenu("Live TV options",buildList {
-        add(MenuOption("On now",icon=Icons.Outlined.Schedule) {if(!returnFeatured())onNowOpen=true})
+        add(MenuOption("On now",icon=Icons.Outlined.Dashboard) {setView(LiveViews.CANVAS)})
         add(MenuOption("Find a programme",icon=Icons.Outlined.Search) {programmeSearch=true})
         if(selected.isNotEmpty() && activeChoice.kind!="addons") {
             add(MenuOption("Jump to now",icon=Icons.Outlined.Schedule) {view="grid";vm.iptvSetup.updateIptvView(view);guideEngaged=true;guideJump=iptv.clock})
@@ -525,7 +539,6 @@ private fun LiveManagement(vm: HomeViewModel, close: () -> Unit) {
         LaunchedEffect(Unit) { withFrameNanos { }; done.requestFocus() }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (tab == "rows") {
-                item("on-now") { SettingToggle("On now row", null, iptv.library.showOnNow) { iptv.setOnNow(!iptv.library.showOnNow) } }
                 items(listOf("favourites" to "Favourites", "recent" to "Recently watched", "addons" to "Live catalogs"), key = { "section:${it.first}" }) { (id, name) ->
                     val hidden = id in iptv.library.hiddenSections
                     SettingToggle(name, null, !hidden) { iptv.setSectionHidden(id, !hidden) }

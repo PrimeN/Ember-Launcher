@@ -70,7 +70,6 @@ internal fun GuideGrid(
     val rulerFocus=remember {FocusRequester()}
     var viewport by remember { mutableIntStateOf(0) }
     val ppm = with(LocalDensity.current) { 5.dp.toPx() }
-    val ring = LiveColors.Focus
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val channelIndex = remember(channels) { channels.mapIndexed { index, channel -> channel.key to index }.toMap() }
     val slotCache = remember { GuideSlotCache() }
@@ -254,12 +253,7 @@ internal fun GuideGrid(
                                         } }
                                         if (cursor < start + GuideWindow.DURATION) Spacer(Modifier.width(5.dp * ((start + GuideWindow.DURATION - cursor) / 60_000f)))
                                     }
-                                    if (rowFocused && selected != null) Canvas(Modifier.matchParentSize()) {
-                                        val offset = (selected.from - start) / 60_000f * ppm - scroll.value
-                                        val width = maxOf(24.dp.toPx(), (selected.to - selected.from) / 60_000f * ppm)
-                                        val left = if (rtl) size.width - offset - width else offset
-                                        drawRect(ring, Offset(left, 1f), Size(width, size.height - 2f), style = Stroke(2.dp.toPx()))
-                                    }
+
                                 }
                             }
                         }

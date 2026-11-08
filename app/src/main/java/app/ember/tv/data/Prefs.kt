@@ -265,10 +265,10 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.FEATURES_OFF)
         set(v) = sp.edit { putStringSet(PreferenceKeys.FEATURES_OFF.name, v) }
 
-    /** Live TV page layout: "list" or "grid". */
+    /** Live TV page layout: Glass Guide (grid) or On Now Canvas (canvas). */
     var iptvView: String
-        get() = sp.read(PreferenceKeys.IPTV_VIEW)!!
-        set(v) = sp.edit { putString(PreferenceKeys.IPTV_VIEW.name, v) }
+        get() = app.ember.tv.iptv.LiveViews.normalize(sp.read(PreferenceKeys.IPTV_VIEW))
+        set(v) = sp.edit { putString(PreferenceKeys.IPTV_VIEW.name, app.ember.tv.iptv.LiveViews.normalize(v)) }
 
     /** Names the user gave addons, by manifest link. */
     var addonNames: Map<String, String>

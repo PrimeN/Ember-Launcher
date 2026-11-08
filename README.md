@@ -70,7 +70,7 @@ Connect **Plex, Jellyfin or Emby** to browse your own media alongside add-on con
 
 ### Live TV and IPTV
 
-Bring your own **M3U playlists or Xtream Codes sources**, with **XMLTV** programme guides.
+Bring your own **M3U playlists or Xtream Codes sources**, with **XMLTV** programme guides. Glass Guide is the default Live view; switch to On Now Canvas on screen to browse current programmes by artwork. Your selected view is saved.
 
 - Browse channels by playlist, group, favourites or custom channel lists.
 - See current programmes, schedules, progress and remaining time when guide data is available.

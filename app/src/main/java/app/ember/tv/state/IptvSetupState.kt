@@ -18,8 +18,8 @@ class IptvSetupState(
     var iptvView by mutableStateOf(prefs.iptvView); private set
 
     fun updateIptvView(v: String) {
-        iptvView = v
-        prefs.iptvView = v
+        iptvView = app.ember.tv.iptv.LiveViews.normalize(v)
+        prefs.iptvView = iptvView
     }
     var iptvAdding by mutableStateOf(false); private set
 

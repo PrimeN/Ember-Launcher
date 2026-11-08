@@ -68,7 +68,7 @@ internal fun LiveSidebarEntry(
         }.semantics {
             this.selected=selected
             stateDescription=listOfNotNull("$count channels",expanded?.let {if(it)"Expanded" else "Collapsed"}).joinToString(", ")
-        },container=if(selected)LiveColors.Current else Color.Transparent,
+        },container=if(selected)androidx.tv.material3.MaterialTheme.colorScheme.primary.copy(alpha=.26f) else Color.Transparent,
         focusedContainer=LiveColors.Focus,focusedContent=LiveColors.OnFocus,focusedScale=TvTokens.Focus.Inline,radius=TvTokens.Shape.Control,outline=false) {
         val color=if(focused)LiveColors.OnFocus else LiveColors.Text
         Row(Modifier.fillMaxWidth().padding(start=if(nested)22.dp else 12.dp,end=10.dp,top=10.dp,bottom=10.dp),
@@ -77,7 +77,7 @@ internal fun LiveSidebarEntry(
                 Icon(icon,null,tint=color,modifier=Modifier.size(19.dp))
             }
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                Text(title,color=color,fontSize=if(nested)12.sp else 14.sp,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
+                Text(title,color=color,fontSize=if(nested)12.sp else 14.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text("$count "+if(count==1)"channel" else "channels",color=color.copy(alpha=.7f),fontSize=TvTokens.Type.Caption.sp)
             }
             expanded?.let {Icon(if(it)Icons.Outlined.ExpandMore else if(rtl)Icons.Outlined.ChevronLeft else Icons.Outlined.ChevronRight,null,tint=color,modifier=Modifier.size(16.dp))}
@@ -98,7 +98,7 @@ internal fun LiveArtworkBackground(image:String?) {
 /** Live inherits the app palette, including Day; no forced night text on light backgrounds. */
 @Composable
 internal fun LivePageTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(androidx.tv.material3.LocalTextStyle provides
+    CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides Fg, androidx.tv.material3.LocalTextStyle provides
         androidx.tv.material3.MaterialTheme.typography.bodyLarge.copy(lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified), content = content)
 }
 

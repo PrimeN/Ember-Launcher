@@ -1,10 +1,18 @@
 package app.ember.tv.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -15,34 +23,52 @@ import androidx.tv.material3.Text
 import app.ember.tv.iptv.*
 import coil.compose.AsyncImage
 
-/** A borderless metadata hero above the guide; focus never starts a stream. */
+/** The selected programme's static artwork and information; selection never starts a stream. */
 @Composable
-internal fun LiveProgrammePanel(channel:Channel?,programme:Programme?,clock:Long,source:String,
-    guideMessage:String,compact:Boolean=false,browsingTime:Long=clock) {
-    val scale=androidx.compose.ui.platform.LocalDensity.current.fontScale
-    val large=scale>1.25f
-    val height=if(large)(100+(scale-1)*72).dp else if(compact)108.dp else 140.dp
-    Column(Modifier.fillMaxWidth().heightIn(min=height).padding(start=4.dp,end=4.dp,bottom=10.dp),
-        verticalArrangement=Arrangement.spacedBy(if(compact)4.dp else 7.dp)) {
-        if(channel==null) {
-            Text("Your channel guide",color=LiveColors.Text,fontSize=24.sp,modifier=Modifier.semantics {heading()})
-            Text("Choose a channel to see its current programme and schedule.",color=LiveColors.Muted,fontSize=13.sp)
-        } else {
-            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                channel.logo?.let {AsyncImage(it,null,Modifier.size(26.dp))}
-                Text(listOf(source,channel.name).filter(String::isNotBlank).distinct().joinToString("  |  "),color=LiveColors.Muted,fontSize=12.sp,
-                    maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+internal fun LiveProgrammePanel(channel: Channel?, programme: Programme?, clock: Long, source: String,
+    guideMessage: String, compact: Boolean = false, browsingTime: Long = clock,
+    favourite: Boolean = false, onWatch: (() -> Unit)? = null, onFavourite: (() -> Unit)? = null) {
+    val large = LocalDensity.current.fontScale > 1.25f
+    val image = programme?.image
+    var imageFailed by remember(image) { mutableStateOf(false) }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val showArtwork = maxWidth >= 420.dp
+        Row(Modifier.fillMaxWidth().glassSurface(RoundedCornerShape(TvTokens.Shape.Panel.dp), panel = true)
+            .padding(12.dp).testTag("live_programme_panel"), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (channel == null) {
+                    Text("Your channel guide", color = Fg, fontSize = 22.sp, modifier = Modifier.semantics { heading() })
+                } else {
+                    Text(listOf(source, channel.name).filter(String::isNotBlank).distinct().joinToString(" · "),
+                        color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(programme?.title ?: channel.name, color = Fg, fontSize = if (compact || large) 22.sp else 28.sp,
+                        fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.semantics { heading() })
+                    val status = when {
+                        programme == null -> if (browsingTime > clock + 60_000) "No scheduled programme" else "Live channel"
+                        clock in programme.start until programme.stop -> "On now"
+                        programme.start > clock -> "Upcoming"
+                        else -> "Earlier"
+                    }
+                    Text(listOfNotNull(programme?.let { timeOf(it.start) + "–" + timeOf(it.stop) }, programme?.rating,
+                        programme?.season?.let { "S$it" + (programme.episode?.let { e -> " E$e" } ?: "") },
+                        programme?.subtitle, LivePresentation.remainingMinutes(programme, clock)?.let { "$it min left" }, status).joinToString(" · "),
+                        color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (!compact && !large) LivePresentation.summary(programme, guideMessage)?.let {
+                        Text(it, color = Mute, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (onWatch != null || onFavourite != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (onWatch != null) LiveGlassControl("Watch live", Icons.Outlined.PlayArrow,
+                            Modifier.testTag("live_watch"), onClick = onWatch)
+                        if (onFavourite != null) LiveGlassControl(if (favourite) "Remove favourite" else "Add favourite",
+                            if (favourite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                            Modifier.testTag("live_favourite"), selected = favourite, iconOnly = true, onClick = onFavourite)
+                    }
+                }
             }
-            Text(programme?.title ?: channel.name,color=LiveColors.Text,fontSize=if(compact)23.sp else 30.sp,fontWeight=FontWeight.Medium,
-                maxLines=1,lineHeight=if(compact)28.sp else 36.sp,overflow=TextOverflow.Ellipsis,modifier=Modifier.semantics {heading()})
-            val state=when {programme==null->if(browsingTime>clock+60_000)"No scheduled programme" else "Live channel";clock>=programme.start && clock<programme.stop->"On now";programme.start>clock->"Upcoming";else->"Earlier"}
-            Text(listOfNotNull(programme?.let {timeOf(it.start)+"–"+timeOf(it.stop)},programme?.rating,
-                programme?.season?.let {s->"S$s"+(programme.episode?.let {" E$it"} ?: "")},programme?.subtitle,
-                LivePresentation.remainingMinutes(programme,clock)?.let {"$it min left"},state).joinToString(" · "),
-                color=LiveColors.Muted,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-            if(!large)LivePresentation.summary(programme,guideMessage)?.let {description ->
-                Text(description,color=LiveColors.Muted,fontSize=13.sp,lineHeight=18.sp,maxLines=if(compact)1 else 2,overflow=TextOverflow.Ellipsis)
-            }
+            if (showArtwork && !large && image != null && !imageFailed) AsyncImage(image, null,
+                Modifier.width(if (compact) 150.dp else 210.dp).height(if (compact) 94.dp else 120.dp).clip(RoundedCornerShape(TvTokens.Shape.Small.dp)),
+                contentScale = ContentScale.Crop, onError = { imageFailed = true })
         }
     }
 }

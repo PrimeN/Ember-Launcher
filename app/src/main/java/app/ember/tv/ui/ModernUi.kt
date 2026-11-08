@@ -729,10 +729,11 @@ fun LiveNowRow(iptv:IptvController,modifier:Modifier=Modifier,onOptions:(Channel
 }
 
 @Composable
-private fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Programme?,clock:Long,source:String,
+internal fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Programme?,clock:Long,source:String,
     width:androidx.compose.ui.unit.Dp,modifier:Modifier=Modifier,onFocus:()->Unit,onOptions:()->Unit,onPlay:()->Unit) {
     val image=programme?.image
     var failed by remember(image) {mutableStateOf(false)}
+    var logoFailed by remember(channel.logo) {mutableStateOf(false)}
     val progress=app.ember.tv.iptv.LivePresentation.progress(programme,clock)
     val remaining=app.ember.tv.iptv.LivePresentation.remainingMinutes(programme,clock)
     Column(Modifier.width(width),verticalArrangement=Arrangement.spacedBy(5.dp)) {
@@ -740,21 +741,21 @@ private fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Program
             .onFocusChanged {if(it.isFocused)onFocus()}.semantics {
                 contentDescription=listOfNotNull(programme?.title ?: channel.name,channel.name,source.takeIf(String::isNotBlank),remaining?.let {"$it minutes remaining"}).distinct().joinToString(", ")
                 progress?.let {progressBarRangeInfo=androidx.compose.ui.semantics.ProgressBarRangeInfo(it,0f..1f)}
-            },container=LiveColors.Current,radius=TvTokens.Shape.Control,focusedScale=TvTokens.Focus.Inline) {
+            },container=LiveColors.Current,radius=TvTokens.Shape.Control,focusedScale=TvTokens.Focus.Inline,card=true) {
             Box(Modifier.fillMaxSize().clearAndSetSemantics {}) {
                 if(image!=null && !failed)AsyncImage(image,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop,onError={failed=true})
                 else Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(LiveColors.Current,LiveColors.Background))),contentAlignment=Alignment.Center) {
-                    if(channel.logo!=null)AsyncImage(channel.logo,null,Modifier.fillMaxSize().padding(34.dp),contentScale=ContentScale.Fit)
-                    else Text(channel.name,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(18.dp))
+                    if(channel.logo!=null && !logoFailed)AsyncImage(channel.logo,null,Modifier.fillMaxSize().padding(24.dp),contentScale=ContentScale.Fit,onError={logoFailed=true})
+                    else Text(channel.name,color=LiveColors.Text,fontSize=20.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(18.dp))
                 }
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.3f to Color.Transparent,1f to Color(0xC008101C))))
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.5f to Color.Transparent,1f to Color(0x88000000))))
                 Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start=12.dp,end=12.dp,bottom=20.dp),verticalAlignment=Alignment.CenterVertically) {
                     Text("LIVE",color=Color.White,fontSize=TvTokens.Type.Caption.sp,fontWeight=FontWeight.Bold,modifier=Modifier.clip(RoundedCornerShape(3.dp)).background(LiveRed).padding(horizontal=6.dp,vertical=2.dp))
                     Spacer(Modifier.weight(1f))
                     remaining?.let {Text("$it min left",color=Color.White,fontSize=12.sp,fontWeight=FontWeight.Medium)}
                 }
                 progress?.let {fraction ->Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=12.dp,vertical=10.dp).fillMaxWidth().height(3.dp).clip(CircleShape).background(Color.White.copy(alpha=.35f))) {
-                    Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(LiveRed))
+                    Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(MaterialTheme.colorScheme.primary))
                 }}
             }
         }
