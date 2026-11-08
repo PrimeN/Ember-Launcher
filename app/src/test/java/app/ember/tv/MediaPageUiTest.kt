@@ -128,4 +128,18 @@ class MediaPageUiTest {
         val file=java.io.File("build/reports/ui/media-page-ember-x.png").apply {parentFile!!.mkdirs()}
         file.outputStream().use {compose.onNodeWithTag("scene").captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
     }
+    @Test fun previousAndNextKeepFocusUntilTheyRunOut() {
+        layout=MediaPageLayouts.EMBER_X;details=details.copy(episode=episodes[10]);show()
+        click("Sources")
+        val next=compose.onNodeWithTag("episode_next")
+        next.performSemanticsAction(SemanticsActions.RequestFocus)
+        next.performSemanticsAction(SemanticsActions.OnClick){it()}
+        assertEquals("e12",details.episode?.id)
+        compose.onNodeWithTag("episode_next").assertDoesNotExist()
+        compose.onNodeWithTag("episode_previous").assertIsFocused()
+        compose.onNodeWithTag("episode_previous").performSemanticsAction(SemanticsActions.OnClick){it()}
+        assertEquals("e11",details.episode?.id)
+        compose.onNodeWithTag("episode_previous").assertIsFocused()
+        assertEquals(0,played)
+    }
 }

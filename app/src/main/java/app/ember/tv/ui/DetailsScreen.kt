@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 import androidx.compose.runtime.key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 
 import androidx.compose.ui.platform.LocalDensity
@@ -484,6 +485,19 @@ fun DetailsScreen(
             val rightList=if(panelSources || d.episodes.isEmpty() && d.seasons.isEmpty())sourceList else episodeList
             LaunchedEffect(d.season){episodeList.scrollToItem(0)}
             LaunchedEffect(d.episode?.id){sourceList.scrollToItem(0)}
+            // Previous/Next keep focus so they can be pressed again (#122); only when the pressed one
+            // disappears (first or last episode) does focus move, to the other one.
+            val previousFocus=remember {FocusRequester()}
+            val nextFocus=remember {FocusRequester()}
+            var stepped by remember(meta.mediaKey()) {mutableStateOf<Boolean?>(null)}
+            LaunchedEffect(d.episode?.id) {
+                val forward=stepped ?: return@LaunchedEffect
+                stepped=null
+                withFrameNanos { }
+                val (pressed,other)=if(forward)nextFocus to previousFocus else previousFocus to nextFocus
+                if(!runCatching {pressed.requestFocus()}.getOrDefault(false) && !runCatching {other.requestFocus()}.getOrDefault(false))
+                    runCatching {seasonFocus.requestFocus()}
+            }
             LaunchedEffect(panelSources,panelNeedsFocus) {
                 if(panelNeedsFocus) {
                     val selected=inSeason.indexOfFirst {it.id==d.episode?.id}
@@ -512,7 +526,7 @@ fun DetailsScreen(
                 if(panelSources) d.episode?.let {ep ->
                     EmberXEpisodeRow(ep,false,LocalWatchedUi.current.episode(meta,ep),onClick=returnToEpisodes)
                 }
-                if(!panelSources && hasEpisodes)TvTextField(episodeQuery,{episodeQuery=it.take(120)},Modifier.fillMaxWidth(),placeholder="Search episodes")
+                if(!panelSources && hasEpisodes)TvTextField(episodeQuery,{episodeQuery=it.take(120)},Modifier.fillMaxWidth(),placeholder="Search episodes",glass=true)
                 if(!panelSources)AutoLoadMore(episodeList,d.episodes.count {it.season==d.season},autoLoad && d.episodeCursor!=null && !d.loadingEpisodes) {onMoreEpisodes()}
                 LazyColumn(state=rightList,modifier=Modifier.fillMaxWidth().weight(1f).focusRequester(episodePanelFocus),verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(3.dp)) {
                     if(!panelSources && hasEpisodes) {
@@ -531,10 +545,10 @@ fun DetailsScreen(
                     val index=ordered.indexOfFirst {it.id==d.episode.id}
                     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                         ordered.getOrNull(index-1)?.takeIf {index>0}?.let {ep ->
-                            GlassControl("Previous",Icons.AutoMirrored.Outlined.ArrowBack) {onEpisode(ep);panelNeedsFocus=true}
+                            GlassControl("Previous",Icons.AutoMirrored.Outlined.ArrowBack,Modifier.focusRequester(previousFocus).testTag("episode_previous")) {stepped=false;onEpisode(ep)}
                         }
                         ordered.getOrNull(index+1)?.takeIf {index>=0}?.let {ep ->
-                            GlassControl("Next",Icons.AutoMirrored.Outlined.ArrowForward) {onEpisode(ep);panelNeedsFocus=true}
+                            GlassControl("Next",Icons.AutoMirrored.Outlined.ArrowForward,Modifier.focusRequester(nextFocus).testTag("episode_next")) {stepped=true;onEpisode(ep)}
                         }
                     }
                 }
