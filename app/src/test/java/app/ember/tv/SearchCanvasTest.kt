@@ -185,4 +185,25 @@ class SearchCanvasTest {
         val file=java.io.File("build/reports/ui/search-canvas.png").apply {parentFile!!.mkdirs()}
         file.outputStream().use {compose.onNodeWithTag("scene").captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
     }
+    private fun field()=compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText))
+    @Test fun aRecentSearchHandsFocusToTheFieldAsItsChipDisappears() {
+        state=SearchCanvasState(recent=listOf("Ocean"));show(autoFocus=false)
+        val chip=compose.onNode(hasText("Ocean") and hasClickAction() and hasAnyAncestor(hasTestTag("search_grid")))
+        chip.performSemanticsAction(SemanticsActions.RequestFocus)
+        chip.performSemanticsAction(SemanticsActions.OnClick){it()}
+        assertEquals("Ocean",state.query)
+        field().assertIsFocused()
+    }
+    @Test fun showAllAndRetryKeepFocusOnControlsThatStay() {
+        state=state.copy(rows=listOf(CatalogRow("A","Shows",listOf(movie("tt1",type="series")))))
+        show();click("search_filter_MOVIES")
+        val all=compose.onNodeWithText("Show all results")
+        all.performSemanticsAction(SemanticsActions.RequestFocus);all.performSemanticsAction(SemanticsActions.OnClick){it()}
+        compose.onNodeWithTag("search_filters").assertIsFocused()
+        compose.onNodeWithTag("search_count").assertTextEquals("1 result")
+        compose.runOnIdle {state=SearchCanvasState(query="Ocean",unavailable=true,note="No sources available")}
+        val retry=compose.onNodeWithText("Retry search")
+        retry.performSemanticsAction(SemanticsActions.RequestFocus);retry.performSemanticsAction(SemanticsActions.OnClick){it()}
+        assertEquals(1,retries);field().assertIsFocused()
+    }
 }

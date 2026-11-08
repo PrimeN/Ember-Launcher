@@ -104,10 +104,10 @@ internal fun SearchCanvas(state: SearchCanvasState, actions: SearchCanvasActions
                             placeholder = stringResource(R.string.search_placeholder), fontSize = TvTokens.Type.Navigation.sp,
                             imeAction = ImeAction.Search, onSubmit = { actions.submit(state.query) },
                             focusRequester = field, startEditing = false, glass = true)
-                        if (state.query.isNotEmpty()) SearchIcon(stringResource(R.string.ui_clear), Icons.Outlined.Close,
-                            Modifier.testTag("search_clear")) { field.requestFocus(); actions.query("") }
-                        SearchIcon(stringResource(R.string.ui_voice), Icons.Outlined.Mic,
-                            Modifier.testTag("search_voice"), actions.voice)
+                        if (state.query.isNotEmpty()) GlassControl(stringResource(R.string.ui_clear), Icons.Outlined.Close,
+                            Modifier.testTag("search_clear"), iconOnly = true) { field.requestFocus(); actions.query("") }
+                        GlassControl(stringResource(R.string.ui_voice), Icons.Outlined.Mic,
+                            Modifier.testTag("search_voice"), iconOnly = true, onClick = actions.voice)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         LazyRow(Modifier.weight(1f).focusGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -121,8 +121,9 @@ internal fun SearchCanvas(state: SearchCanvasState, actions: SearchCanvasActions
                                 }
                             }
                         }
-                        SearchFiltersButton(combine || filter == SearchFilter.WATCHLIST,
-                            Modifier.focusRequester(filters).testTag("search_filters")) { filtersOpen = true }
+                        GlassControl(stringResource(R.string.search_filters_button), Icons.Outlined.Tune,
+                            Modifier.focusRequester(filters).testTag("search_filters"),
+                            selected = combine || filter == SearchFilter.WATCHLIST) { filtersOpen = true }
                     }
                     if (typed || count > 0) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically) {
@@ -144,11 +145,11 @@ internal fun SearchCanvas(state: SearchCanvasState, actions: SearchCanvasActions
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                             Text(stringResource(R.string.search_recent), fontSize = TvTokens.Type.Label.sp)
-                                            SearchIcon(stringResource(R.string.search_clear_recent), Icons.Outlined.Close) {
+                                            GlassControl(stringResource(R.string.search_clear_recent), Icons.Outlined.Close, iconOnly = true) {
                                                 field.requestFocus(); actions.clearRecent()
                                             }
                                         }
-                                        ButtonRow { state.recent.forEach { recent -> Chip(recent, maxLines = 1) { actions.submit(recent) } } }
+                                        ButtonRow { state.recent.forEach { recent -> Chip(recent, maxLines = 1) { field.requestFocus(); actions.submit(recent) } } }
                                     }
                                 }
                                 if (apps.isNotEmpty()) item(key = "apps", span = { GridItemSpan(maxLineSpan) }) {
@@ -169,11 +170,11 @@ internal fun SearchCanvas(state: SearchCanvasState, actions: SearchCanvasActions
                                     Column(Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                         if (filter != SearchFilter.ALL) {
                                             Text(stringResource(R.string.search_no_filtered_matches, filter.label), color = Mute)
-                                            Chip(stringResource(R.string.search_show_all), maxLines = 1) { filter = SearchFilter.ALL }
+                                            Chip(stringResource(R.string.search_show_all), maxLines = 1) { filters.requestFocus(); filter = SearchFilter.ALL }
                                         } else if (state.unavailable && !anyMatches) {
                                             RecoveryPanel(stringResource(R.string.search_unavailable), state.note.orEmpty(),
                                                 stringResource(R.string.search_sources), actions.sources)
-                                            Chip(stringResource(R.string.search_retry), maxLines = 1, onClick = actions.retry)
+                                            Chip(stringResource(R.string.search_retry), maxLines = 1) { field.requestFocus(); actions.retry() }
                                         } else Text(state.note ?: stringResource(R.string.search_no_matches), color = Mute)
                                     }
                                 }
@@ -218,33 +219,6 @@ private fun SearchApps(apps: List<AppEntry>, actions: SearchCanvasActions) {
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SearchIcon(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
-    modifier: Modifier = Modifier, click: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Focusable(click, modifier.size(44.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
-        radius = TvTokens.Shape.Pill, container = Color.Transparent, focusedContainer = PillColor,
-        focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Control) {
-        Box(Modifier.fillMaxSize().glassSurface(RoundedCornerShape(TvTokens.Shape.Pill.dp), focused = focused), contentAlignment = Alignment.Center) {
-            MaterialGlyph(icon, if (focused) OnPillColor else Fg, 20.dp)
-        }
-    }
-}
-
-@Composable
-private fun SearchFiltersButton(active: Boolean, modifier: Modifier = Modifier, click: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Focusable(click, modifier.onFocusChanged { focused = it.isFocused }.semantics { selected = active },
-        radius = TvTokens.Shape.Pill, container = if (active) MaterialTheme.colorScheme.primary.copy(alpha = .30f) else Color.Transparent,
-        focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
-        Row(Modifier.glassSurface(RoundedCornerShape(TvTokens.Shape.Pill.dp), focused = focused)
-            .padding(horizontal = 14.dp, vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-            MaterialGlyph(Icons.Outlined.Tune, if (focused) OnPillColor else Fg, 18.dp)
-            Text(stringResource(R.string.search_filters_button), fontSize = TvTokens.Type.Label.sp, maxLines = 1)
         }
     }
 }
