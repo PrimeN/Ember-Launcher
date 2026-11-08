@@ -78,6 +78,9 @@ import app.ember.tv.streaming.Offer
 import coil.compose.AsyncImage
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -135,6 +138,7 @@ fun DetailsScreen(
     canRate: Boolean = false,
     myRating: Int? = null,
     onRate: (Int?) -> Unit = {},
+    onAutomaticSources: ((Boolean) -> Unit)? = null,
 ) {
     val meta = d.meta
     var rating by remember(meta.id) { mutableStateOf(false) }
@@ -163,12 +167,20 @@ fun DetailsScreen(
     var headingFocused by remember(meta.mediaKey()) { mutableStateOf(false) }
     val headingFocus = remember { FocusRequester() }
     val flix=isEmberX
+    val immersive=LocalMediaPageLayout.current==app.ember.tv.data.MediaPageLayouts.IMMERSIVE
     var panelSources by remember(meta.mediaKey()){androidx.compose.runtime.mutableStateOf(meta.type=="movie")}
     var panelNeedsFocus by remember(meta.mediaKey()){androidx.compose.runtime.mutableStateOf(false)}
     val episodePanelFocus=remember {FocusRequester()}
+    val episodeTargets=remember(meta.mediaKey()) {mutableMapOf<String,FocusRequester>()}
     val seasonFocus=remember {FocusRequester()}
     var seasonMenu by remember(meta.mediaKey()){androidx.compose.runtime.mutableStateOf(false)}
     var episodeQuery by remember(meta.mediaKey(),d.season){androidx.compose.runtime.mutableStateOf("")}
+    val returnToEpisodes:()->Unit={
+        d.episode?.let {ep ->
+            if(episodeQuery.isNotBlank() && !ep.title.contains(episodeQuery,true) && ep.episode.toString()!=episodeQuery.trim())episodeQuery=""
+        }
+        panelSources=false;panelNeedsFocus=true
+    }
     if(seasonMenu)OptionMenu("Season",d.seasons.map {season->MenuOption("Season $season",selected=season==d.season){onSeason(season);panelSources=false;panelNeedsFocus=true}}) {seasonMenu=false}
 
     LaunchedEffect(meta.mediaKey()) {
@@ -178,7 +190,7 @@ fun DetailsScreen(
     CompositionLocalProvider(LocalBringIntoViewSpec provides DetailsBringIntoView) {
       BoxWithConstraints(Modifier.fillMaxSize()) {
         val largeText = LocalDensity.current.fontScale > 1.25f
-        val split=flix && EmberXLayout.splitDetails(maxWidth.value,LocalDensity.current.fontScale)
+        val split=app.ember.tv.data.MediaPageLayouts.split(LocalMediaPageLayout.current,maxWidth.value,LocalDensity.current.fontScale,maxHeight.value)
         val detailsWidth=maxWidth
     val sourceItems:androidx.compose.foundation.lazy.LazyListScope.()->Unit={
             // ---- sources: streaming services, then your media servers, then addons ----
@@ -210,6 +222,8 @@ fun DetailsScreen(
                             fontSize = 13.sp,
                         )
                     }
+                    if(split && onAutomaticSources!=null) GlassControl("Auto select",Icons.Outlined.AutoAwesome,
+                        selected=playButton) {onAutomaticSources(!playButton)}
                     sources.message?.let { Text(it, color = Mute, fontSize = 14.sp) }
                     if (sources.total == 0 && sources.loading) {if(flix)Text("Finding sources…",color=Mute) else LoadingCards()}
                     if (app.ember.tv.mediaserver.ServerRef.of(meta) != null && d.serverStreams.isEmpty() && !d.loadingServer) {
@@ -254,8 +268,12 @@ fun DetailsScreen(
             }
     }
 
-        val headerHeight = (maxHeight * 0.78f).coerceIn(280.dp,420.dp)
-        val headerFraction = if (split || largeText || maxWidth < 760.dp) 1f else 0.64f
+        val headerHeight = when {
+            split -> (maxHeight-24.dp).coerceAtLeast(280.dp)
+            immersive -> (maxHeight*.72f).coerceIn(280.dp,520.dp)
+            else -> (maxHeight * 0.78f).coerceIn(280.dp,420.dp)
+        }
+        val headerFraction = if (split || largeText || maxWidth < 760.dp) 1f else if(immersive).60f else 0.64f
         val viewportHeight = with(LocalDensity.current) { maxHeight.roundToPx() }
         val topPadding = with(LocalDensity.current) { 8.dp.roundToPx() }
         val tallHeader = headerHeightPx > 0 && headerHeightPx + topPadding > viewportHeight
@@ -333,7 +351,7 @@ fun DetailsScreen(
                             }
                         }
                         detailsSynopsis(d)?.let {
-                            ReadableDescription(it,fontSize=if(flix)14.sp else 15.sp,lineHeight=19.sp,maxLines=if(flix)2 else 3,modifier=Modifier.padding(top=if(flix)6.dp else 0.dp))
+                            ReadableDescription(it,fontSize=if(flix)14.sp else 15.sp,lineHeight=19.sp,maxLines=if(flix || immersive)2 else 3,modifier=Modifier.padding(top=if(flix)6.dp else 0.dp))
                         }
                         DetailsActions(saved,watched,meta.type in setOf("movie","series","anime","tv","show"),playbackAction,d.credits?.trailer!=null,firstButton,
                             onWatched=onMarkWatched,onSaved=onToggleSaved,onMore={more=true},
@@ -350,6 +368,16 @@ fun DetailsScreen(
                                 }
                             }},onTrailer={d.credits?.trailer?.let(onPlayTrailer)},
                             modifier=Modifier.padding(top=8.dp).fillMaxWidth().onFocusChanged {headerActionsFocused=it.hasFocus}.focusGroup())
+
+                        if(immersive && (availability.total>0 || availability.loading)) GlassControl(
+                            if(availability.loading && availability.total==0) "Finding sources…" else "Sources · ${availability.total} "+if(availability.total==1)"option" else "options",
+                            Icons.Outlined.PlayArrow, Modifier.padding(top=4.dp), dropdown=true) {
+                            scope.launch {
+                                listState.animateScrollToItem(detailsSourceHeaderIndex(latestDetails))
+                                withFrameNanos { }
+                                runCatching {sourcesFocus.requestFocus()}
+                            }
+                        }
 
                     }
                 }
@@ -438,7 +466,7 @@ fun DetailsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 contentPadding = PaddingValues(vertical = 10.dp, horizontal = 4.dp),
                             ) {
-                                items(cast, key = { "${it.name}|${it.role}" }) { p -> PersonCard(p) { person = p } }
+                                items(cast, key = { "${it.name}|${it.role}" }) { p -> PersonCard(p,compact=immersive) { person = p } }
                             }
                         }
                     }
@@ -448,42 +476,67 @@ fun DetailsScreen(
             if(!split)sourceItems()
         }
         if(split) {
-            val panelWidth=(detailsWidth*.36f).coerceIn(260.dp,430.dp)
+            val panelWidth=(detailsWidth*.42f).coerceIn(320.dp,520.dp)
             val episodeList=rememberLazyListState()
             val sourceList=rememberLazyListState()
+            val inSeason=remember(d.episodes,d.season,episodeQuery) {d.episodes.filter {it.season==d.season &&
+                (episodeQuery.isBlank() || it.title.contains(episodeQuery,true) || it.episode.toString()==episodeQuery.trim())}.distinctBy {it.id}}
             val rightList=if(panelSources || d.episodes.isEmpty() && d.seasons.isEmpty())sourceList else episodeList
             LaunchedEffect(d.season){episodeList.scrollToItem(0)}
             LaunchedEffect(d.episode?.id){sourceList.scrollToItem(0)}
             LaunchedEffect(panelSources,panelNeedsFocus) {
                 if(panelNeedsFocus) {
-                    requestSettingsFocus({if(panelSources)sourcesFocus.requestFocus() else episodePanelFocus.requestFocus()},{withFrameNanos { }}) {runCatching {seasonFocus.requestFocus()}}
+                    val selected=inSeason.indexOfFirst {it.id==d.episode?.id}
+                    if(!panelSources && selected>=0)episodeList.scrollToItem(selected)
+                    requestSettingsFocus({
+                        if(panelSources)sourcesFocus.requestFocus()
+                        else (d.episode?.id?.let {episodeTargets[it]} ?: episodePanelFocus).requestFocus()
+                    },{withFrameNanos { }}) {runCatching {seasonFocus.requestFocus()}}
                     panelNeedsFocus=false
                 }
             }
-            androidx.activity.compose.BackHandler(enabled=panelSources && meta.type!="movie" && (d.episodes.isNotEmpty() || d.seasons.isNotEmpty())) {panelSources=false;panelNeedsFocus=true}
-            Column(Modifier.width(panelWidth).fillMaxHeight().padding(start=6.dp,end=EmberXLayout.Gutter.dp,top=4.dp,bottom=16.dp)
-                .background(EmberXColors.Raised.copy(alpha=.87f),RoundedCornerShape(8.dp))
-                .border(1.dp,EmberXColors.Line,RoundedCornerShape(8.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            androidx.activity.compose.BackHandler(enabled=panelSources && meta.type!="movie" && (d.episodes.isNotEmpty() || d.seasons.isNotEmpty()),onBack=returnToEpisodes)
+            Column(Modifier.width(panelWidth).fillMaxHeight().padding(start=6.dp,end=24.dp,top=4.dp,bottom=16.dp)
+                .glassSurface(RoundedCornerShape(20.dp)).padding(12.dp)
+                .semantics {contentDescription="Episodes and playback sources"},verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 val hasEpisodes=d.episodes.isNotEmpty() || d.seasons.isNotEmpty()
                 if(hasEpisodes)ButtonRow(spacing=6.dp) {
-                    if(panelSources)Chip("‹ Episodes",modifier=Modifier.focusRequester(seasonFocus)) {panelSources=false;panelNeedsFocus=true}
+                    if(panelSources)GlassControl("Episodes",Icons.AutoMirrored.Outlined.ArrowBack,
+                        Modifier.focusRequester(seasonFocus),onClick=returnToEpisodes)
                     else {
-                        Chip("Season ${d.season} ▾",modifier=Modifier.focusRequester(seasonFocus)) {seasonMenu=true}
-                        if(d.episode!=null)Chip("Sources ›") {panelSources=true;panelNeedsFocus=true}
+                        GlassControl("Season ${d.season ?: d.seasons.firstOrNull() ?: 1}",null,
+                            Modifier.focusRequester(seasonFocus),dropdown=true) {seasonMenu=true}
+                        if(d.episode!=null)GlassControl("Sources",null,dropdown=true) {panelSources=true;panelNeedsFocus=true}
                     }
+                }
+                if(panelSources) d.episode?.let {ep ->
+                    EmberXEpisodeRow(ep,false,LocalWatchedUi.current.episode(meta,ep),onClick=returnToEpisodes)
                 }
                 if(!panelSources && hasEpisodes)TvTextField(episodeQuery,{episodeQuery=it.take(120)},Modifier.fillMaxWidth(),placeholder="Search episodes")
                 if(!panelSources)AutoLoadMore(episodeList,d.episodes.count {it.season==d.season},autoLoad && d.episodeCursor!=null && !d.loadingEpisodes) {onMoreEpisodes()}
                 LazyColumn(state=rightList,modifier=Modifier.fillMaxWidth().weight(1f).focusRequester(episodePanelFocus),verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(3.dp)) {
                     if(!panelSources && hasEpisodes) {
                         if(d.loadingEpisodes && d.episodes.none {it.season==d.season})item {LoadingListRows()}
-                        val inSeason=d.episodes.filter {it.season==d.season && (episodeQuery.isBlank() || it.title.contains(episodeQuery,true) || it.episode.toString()==episodeQuery.trim())}.distinctBy {it.id}
                         items(inSeason,key={it.id}) {episode->
-                            EmberXEpisodeRow(episode,episode.id==d.episode?.id,LocalWatchedUi.current.episode(meta,episode)) {onEpisode(episode);panelSources=true;panelNeedsFocus=true}
+                            val target=remember(meta.mediaKey(),episode.id) {episodeTargets.getOrPut(episode.id){FocusRequester()}}
+                            EmberXEpisodeRow(episode,episode.id==d.episode?.id,LocalWatchedUi.current.episode(meta,episode),
+                                Modifier.focusRequester(target)) {onEpisode(episode);panelSources=true;panelNeedsFocus=true}
                         }
                         if(inSeason.isEmpty() && !d.loadingEpisodes)item {Text("No matching episodes",color=Mute,fontSize=13.sp)}
                         if(d.episodeCursor!=null && (!autoLoad || d.loadingEpisodes))item(key="more") {if(autoLoad)LoadingListRows(2) else Chip(if(d.loadingEpisodes)"Loading…" else "More episodes",onClick=onMoreEpisodes)}
                     } else sourceItems()
+                }
+                if(panelSources && d.episode!=null) {
+                    val ordered=remember(d.episodes,d.season) {d.episodes.filter {it.season==d.season}.distinctBy {it.id}.sortedBy {it.episode}}
+                    val index=ordered.indexOfFirst {it.id==d.episode.id}
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                        ordered.getOrNull(index-1)?.takeIf {index>0}?.let {ep ->
+                            GlassControl("Previous",Icons.AutoMirrored.Outlined.ArrowBack) {onEpisode(ep);panelNeedsFocus=true}
+                        }
+                        ordered.getOrNull(index+1)?.takeIf {index>=0}?.let {ep ->
+                            GlassControl("Next",Icons.AutoMirrored.Outlined.ArrowForward) {onEpisode(ep);panelNeedsFocus=true}
+                        }
+                    }
                 }
             }
         }
@@ -558,16 +611,16 @@ private fun CrewLines(crew: List<Person>, onPerson: (Person) -> Unit) {
 
 /** A cast member: a large round portrait (or initials), the name, and the character in a softer colour. */
 @Composable
-private fun PersonCard(p: Person, onClick: () -> Unit) {
+private fun PersonCard(p: Person, compact:Boolean=false, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by androidx.compose.animation.core.animateFloatAsState(if (focused) 1.06f else 1f, label = "cast portrait")
     // Fixed width and two text lines keep long names from resizing the row.
-    Focusable(onClick = onClick, modifier = Modifier.width(150.dp).onFocusChanged { focused = it.isFocused || it.hasFocus },
+    Focusable(onClick = onClick, modifier = Modifier.width(if(compact)116.dp else 150.dp).onFocusChanged { focused = it.isFocused || it.hasFocus },
         radius = TvTokens.Shape.Card, container = androidx.compose.ui.graphics.Color.Transparent, focusedContainer = androidx.compose.ui.graphics.Color.Transparent,
         focusedContent = Fg, outline = false, focusedScale = TvTokens.Focus.None) {
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
-                modifier = Modifier.size(126.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape).background(PanelHi)
+                modifier = Modifier.size(if(compact)80.dp else 126.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape).background(PanelHi)
                     .then(if (focused) Modifier.border(3.dp, androidx.compose.ui.graphics.Color.White, CircleShape) else Modifier),
                 contentAlignment = Alignment.Center,
             ) {
@@ -725,7 +778,7 @@ private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,images
     val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
     // Playback and information are siblings: a clickable Surface must not own the info button's focus.
     Row(Modifier.fillMaxWidth().height(nameHeight+badgesHeight+26.dp)
-        .background(Panel,RoundedCornerShape(EmberXLayout.Radius.dp)),verticalAlignment=Alignment.CenterVertically) {
+        .background(Panel.copy(alpha=.45f),RoundedCornerShape(14.dp)),verticalAlignment=Alignment.CenterVertically) {
         Focusable(onClick,onLongClick=onLongClick,focusedScale=TvTokens.Focus.None,modifier=Modifier.weight(1f).fillMaxHeight()
             .focusRequester(playFocus).focusProperties {if(rtl)left=infoFocus else right=infoFocus}
             .semantics {contentDescription=listOf(title,description,s.addonName,s.qualityLabel,s.kind.label).filter(String::isNotBlank).joinToString(". ")}) {
@@ -933,13 +986,13 @@ private fun Badge(text: String) {
 
 /** Compact vertical episode rows, with the same spoiler policy as the standard media page. */
 @Composable
-private fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,onClick:()->Unit) {
+private fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,modifier:Modifier=Modifier,onClick:()->Unit) {
     val blurred=SpoilerPolicy.blur(LocalWatchedUi.current.blurEpisodes,watched,LocalWatchedUi.current.ready)
     val context=androidx.compose.ui.platform.LocalContext.current
     val request=remember(context,ep.thumbnail,blurred) {coil.request.ImageRequest.Builder(context).data(ep.thumbnail)
         .size(240,135).allowHardware(false).apply {if(blurred)transformations(SpoilerBlurTransformation)}.build()}
     var ready by remember(request){androidx.compose.runtime.mutableStateOf(false)}
-    Focusable(onClick,Modifier.fillMaxWidth().semantics {
+    Focusable(onClick,modifier.fillMaxWidth().semantics {
         this.selected=selected;contentDescription="Season ${ep.season}, episode ${ep.episode}, ${ep.title}"
         stateDescription=if(watched)"Watched" else if(blurred)"Unwatched artwork blurred" else "Unwatched"
     },radius=TvTokens.Shape.Small,container=if(selected)EmberXColors.Selected.copy(alpha=.75f) else Color.Transparent,
@@ -953,6 +1006,11 @@ private fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,onClick
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Text("${ep.episode}. ${ep.title}",fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis)
                 ep.released?.let {Text(it,color=EmberXColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1)}
+                ep.progress?.takeIf {it.isFinite() && it>0f && it<1f}?.let {progress ->
+                    Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha=.15f))) {
+                        Box(Modifier.fillMaxWidth(progress).height(3.dp).background(MaterialTheme.colorScheme.primary))
+                    }
+                }
             }
         }
     }

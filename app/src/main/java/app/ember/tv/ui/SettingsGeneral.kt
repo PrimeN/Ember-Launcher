@@ -149,7 +149,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
     val active = app.ember.tv.data.InterfaceStyles.normalize(style)
     return when (tab) {
         SettingsTab.APPEARANCE -> buildList {
-            add("interface"); add("theme"); add("accent_colour")
+            add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
             if (active == "modern") add("menu")
             add("tile-labels")
             add("settings_style")
@@ -194,11 +194,15 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         "focus-backgrounds" -> Section("Focused backgrounds", "Tile colors use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.", id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
         "interface" -> Section(
         stringResource(R.string.ui_interface),
-        "Modern uses navigation pills; Light has an apps-first Home; Ember X adds cinema navigation, media, settings and player layouts.", id = "interface",
+        "Modern uses navigation pills; Light has an apps-first Home; Ember X has cinema-style navigation. Media pages and player controls are chosen separately.", id = "interface",
     ) {
         Choice(SettingDefinitions.interfaceStyle.options,vm.look.uiStyle,vm.look::updateUiStyle)
-        if(isEmberX)Note("Ember X uses a dark cinema layout. Colour themes remain independent. Saved menu and day/night preferences return when you change interface. Player interface is configured separately.")
+        if(isEmberX)Note("Ember X uses a dark cinema layout. Colour themes remain independent. Saved menu and day/night preferences return when you change interface. Media pages and player controls are configured separately.")
     }
+        "media-page-layout" -> Section(SettingDefinitions.mediaPageLayout.title,
+            "Choose movie and show details independently of your Home interface and player controls.", id = "media-page-layout") {
+            Choice(SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout, vm.look::updateMediaPageLayout)
+        }
         "theme" -> Section(stringResource(R.string.ui_theme), stringResource(R.string.ui_night_dark_day_light_backgrounds_and), id = "theme") {
             ButtonRow(spacing = 10.dp) {
                 Chip(stringResource(R.string.ui_night), selected = vm.look.theme == "night") { vm.look.updateTheme("night") }

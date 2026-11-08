@@ -575,6 +575,16 @@ class Prefs(context: Context) {
             putBoolean(PreferenceKeys.EMBER_X_INTERFACE_MIGRATED.name, true)
         }
 
+    /** Freeze the previous effective layout once, so later Home changes cannot change media pages. */
+    var mediaPageLayout: String
+        get() {
+            val stored = sp.read(PreferenceKeys.MEDIA_PAGE_LAYOUT)
+            val layout = if (stored == null) MediaPageLayouts.initial(uiStyle) else MediaPageLayouts.normalize(stored)
+            if (stored != layout) sp.edit { putString(PreferenceKeys.MEDIA_PAGE_LAYOUT.name, layout) }
+            return layout
+        }
+        set(v) = sp.edit { putString(PreferenceKeys.MEDIA_PAGE_LAYOUT.name, MediaPageLayouts.normalize(v)) }
+
     /** Modern look: "wide" 16:9 artwork cards (default) or "poster" cards on Home rows. */
     var homeHiddenTitles: Set<String>
         get() = sp.read(PreferenceKeys.HOME_HIDDEN_TITLES)

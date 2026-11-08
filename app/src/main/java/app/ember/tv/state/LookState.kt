@@ -52,6 +52,11 @@ class LookState(
     }
     fun resetDiscoverSections() { discoverSections = emptyMap(); prefs.discoverSections = emptyMap() }
     var uiStyle by mutableStateOf(prefs.uiStyle.also { Ui.light = it == InterfaceStyles.LIGHT; Ui.emberX = it == InterfaceStyles.EMBER_X }); private set
+    var mediaPageLayout by mutableStateOf(prefs.mediaPageLayout); private set
+    fun updateMediaPageLayout(value: String) {
+        mediaPageLayout = app.ember.tv.data.MediaPageLayouts.normalize(value)
+        prefs.mediaPageLayout = mediaPageLayout
+    }
     var accent by mutableIntStateOf(app.ember.tv.data.ColorThemes.normalize(prefs.accent)); private set
     var contentDensity by mutableStateOf(prefs.contentDensity); private set
     var devicePerformance by mutableStateOf(prefs.devicePerformance); private set

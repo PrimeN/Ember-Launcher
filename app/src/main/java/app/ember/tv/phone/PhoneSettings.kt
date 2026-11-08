@@ -82,6 +82,8 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         // ---- Look
         val LOOK = "Look"
         choice("look.interface", LOOK, "Interface", InterfaceStyles.options, read = { look.uiStyle }, write = look::updateUiStyle)
+        choice("look.mediaPageLayout", LOOK, "Media page layout", SettingDefinitions.mediaPageLayout.options,
+            read = { look.mediaPageLayout }, write = look::updateMediaPageLayout)
         choice("look.theme", LOOK, "Theme", SettingDefinitions.theme.options, read = { look.theme }, write = look::updateTheme)
         toggle("look.oled", LOOK, "OLED black at night", read = { look.oled }, write = look::updateOled)
         choice("look.accent", LOOK, "Colour theme", SettingDefinitions.colourTheme.options, read = { look.accent.toString() }, write = { look.updateAccent(it.toInt()) })

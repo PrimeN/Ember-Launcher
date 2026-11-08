@@ -83,17 +83,17 @@ internal fun DetailsActionButton(
     val compactHeight=maxOf(minHeight,with(androidx.compose.ui.platform.LocalDensity.current){32.sp.toDp()}+10.dp)
     val inlineHeight=maxOf(minHeight,with(androidx.compose.ui.platform.LocalDensity.current){18.sp.toDp()}+12.dp)
     val hasDetail=!detail.isNullOrBlank()
-    val primary=isEmberX && text!=null && icon==Icons.Outlined.PlayArrow
-    val foreground=if(!enabled)Fg.copy(alpha=.45f) else if(focused || primary)OnPillColor else Fg
+    val primary=(isEmberX || LocalMediaPageLayout.current==app.ember.tv.data.MediaPageLayouts.IMMERSIVE) && text!=null && icon==Icons.Outlined.PlayArrow
+    val foreground=if(!enabled)Fg.copy(alpha=.45f) else if(primary)Color.Black else if(focused)OnPillColor else Fg
     // Primary stays light, but focus must still read without the zoom (reduced motion or low power).
     val fill=if(primary && enabled)(if(focused)Color.White else Color.White.copy(alpha=.74f)) else detailsActionFill(enabled,focused,selected,PillColor,WashHi)
-    val shape=if(isEmberX)androidx.compose.foundation.shape.RoundedCornerShape(EmberXLayout.Radius.dp) else CircleShape
+    val shape=if(isEmberX)androidx.compose.foundation.shape.RoundedCornerShape(14.dp) else CircleShape
     Focusable(onClick={if(enabled)onClick()},enabled=enabled,modifier=modifier.width(width).then(when {inline->Modifier.height(inlineHeight);compact->Modifier.height(compactHeight);else->Modifier.heightIn(min=minHeight)})
         .onFocusChanged {focused=it.isFocused}.selectionCue(selected,Fg).semantics {
             contentDescription=label
             if(selected)this.selected=true
             if(!enabled)disabled()
-        },radius=if(isEmberX)EmberXLayout.Radius else TvTokens.Shape.Pill,container=Color.Transparent,focusedContainer=Color.Transparent,
+        },radius=if(isEmberX)14 else TvTokens.Shape.Pill,container=Color.Transparent,focusedContainer=Color.Transparent,
         focusedContent=foreground,outline=false,focusedScale=TvTokens.Focus.Control) {
         FrostedPill(Modifier.fillMaxWidth()) {
             if(inline) {
@@ -154,23 +154,6 @@ internal fun DetailsActions(
 ) {
     var trailerFocused by remember {mutableStateOf(false)}
     LaunchedEffect(trailer) {if(!trailer && trailerFocused)runCatching {first.requestFocus()}}
-    if(isEmberX) {
-        // Equal widths retain the complete resume timestamp, including estimated progress.
-        val actionWidth=maxOf(144.dp,with(androidx.compose.ui.platform.LocalDensity.current){144.sp.toDp()})
-        ButtonRow(modifier,spacing=8.dp) {
-            DetailsActionButton(listOfNotNull(playback.label,playback.detail).joinToString(" · "),Icons.Outlined.PlayArrow,
-                text=playback.label,detail=playback.detail,enabled=playback.enabled,width=actionWidth,minHeight=42.dp,compact=true,
-                modifier=if(playback.enabled)Modifier.focusRequester(first) else Modifier,onClick=onPlay)
-            if(trailer)DetailsActionButton("Play trailer",text="Trailer",width=actionWidth,minHeight=42.dp,compact=true,
-                modifier=Modifier.onFocusChanged {trailerFocused=it.isFocused},onClick=onTrailer)
-            DetailsActionButton(if(!canMarkWatched)"Select an episode before marking watched" else if(watched)"Mark as unwatched" else "Mark as watched",Icons.Outlined.Visibility,
-                selected=watched,enabled=canMarkWatched,width=42.dp,onClick=onWatched)
-            DetailsActionButton(if(saved)"Remove from watchlist" else "Add to watchlist",if(saved)Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                selected=saved,width=42.dp,modifier=if(playback.enabled)Modifier else Modifier.focusRequester(first),onClick=onSaved)
-            DetailsActionButton("About and more",Icons.Outlined.MoreHoriz,width=42.dp,onClick=onMore)
-        }
-        return
-    }
     val actionHeight=maxOf(42.dp,with(androidx.compose.ui.platform.LocalDensity.current){18.sp.toDp()}+12.dp)
     Row(modifier.horizontalScroll(rememberScrollState()).focusGroup(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically) {
         val playWidth=measuredDetailsActionWidth(playback.label,playback.detail,true)

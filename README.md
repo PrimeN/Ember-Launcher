@@ -22,6 +22,7 @@ Use it as your everyday launcher, connect the sources you want, and choose how y
 ### A Home screen that fits you
 
 - **Three interfaces:** choose Modern, Light or Ember X, with shared access to your media and settings.
+- **Independent media pages:** choose the current Modern layout, Immersive Glass or Ember X with its episode/source side panel, regardless of your Home interface or player controls.
 - **Customizable navigation and rows:** choose visible tabs, arrange your Home content, and enable the sections you use.
 - **Personal app layouts:** reorder or hide apps, create folders, customize artwork and protect app launches with a PIN.
 - **Unified App Library:** browse installed apps in a responsive artwork grid, search by name, and switch between custom or alphabetical order without changing your saved layout.

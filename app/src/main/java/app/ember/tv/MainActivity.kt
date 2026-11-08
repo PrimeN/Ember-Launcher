@@ -717,25 +717,27 @@ private fun RootContent(
         val navigation = app.ember.tv.ui.LocalNavigationFocus.current!!
         val detailsFocus = navigation.page("details")
         val backFocus = remember {androidx.compose.ui.focus.FocusRequester()}
-        val detailsListState = remember(d.meta.mediaKey()) { androidx.compose.foundation.lazy.LazyListState() }
+        val mediaLayout = vm.look.mediaPageLayout
+        val detailsListState = remember(d.meta.mediaKey(), mediaLayout) { androidx.compose.foundation.lazy.LazyListState() }
         val detailsDim by remember(detailsListState) { derivedStateOf {
             if (detailsListState.firstVisibleItemIndex > 0) 1f
             else (detailsListState.firstVisibleItemScrollOffset / 240f).coerceIn(0f, 1f)
         } }
-        val detailsBackground=if(app.ember.tv.ui.Ui.emberX)app.ember.tv.ui.EmberXColors.Background else if(app.ember.tv.ui.LocalAccentIndex.current==app.ember.tv.data.ColorThemes.MODERN_EMBER)
+        val detailsBackground=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.EMBER_X)app.ember.tv.ui.EmberXColors.Background else if(app.ember.tv.ui.LocalAccentIndex.current==app.ember.tv.data.ColorThemes.MODERN_EMBER)
             if(app.ember.tv.ui.Ui.isOled)androidx.compose.ui.graphics.Color.Black else app.ember.tv.ui.ModernEmberColors.Background
             else androidx.compose.ui.graphics.Color(0xFF111215)
-        androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalNight provides true) {
+        app.ember.tv.ui.MediaPageLayoutScope(mediaLayout) {
         MaterialTheme(colorScheme=app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).copy(background=detailsBackground,
             surface=detailsBackground,onSurface=androidx.compose.ui.graphics.Color.White,onBackground=androidx.compose.ui.graphics.Color.White)) {
         Box(Modifier.fillMaxSize().background(detailsBackground)) {
-            app.ember.tv.ui.ModernBackdrop(d.meta,dim=detailsDim,backgroundColor=detailsBackground,heightFraction=if(app.ember.tv.ui.Ui.emberX)1f else .78f)
+            app.ember.tv.ui.ModernBackdrop(d.meta,dim=detailsDim,backgroundColor=detailsBackground,heightFraction=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.MODERN).78f else 1f,
+                shade=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.IMMERSIVE).86f else 1f)
             Column(Modifier.fillMaxSize().sceneEnter("details:${d.meta.mediaKey()}")) {
                 Box(Modifier.fillMaxWidth().padding(start=TvTokens.Space.Page.dp,end=TvTokens.Space.Page.dp,top=12.dp,bottom=4.dp)) {
                     app.ember.tv.ui.DetailsBackButton(Modifier.focusRequester(backFocus)
                         .focusProperties {down=navigation.content("details")},vm::closeDetails)
-                    if(app.ember.tv.ui.Ui.emberX)app.ember.tv.ui.ProfileMenuButton(vm.profiles.profile,
-                        Modifier.align(androidx.compose.ui.Alignment.CenterEnd),size=32.dp,onFallback={vm.profiles.showProfilePicker=true})
+                    if(mediaLayout != app.ember.tv.data.MediaPageLayouts.MODERN)app.ember.tv.ui.EmberLogo(28.dp,
+                        androidx.compose.ui.graphics.Color.White, Modifier.align(androidx.compose.ui.Alignment.CenterEnd))
                 }
                 Box(Modifier.fillMaxWidth().weight(1f).detailsFocusGroup(detailsFocus,
                     restore={runCatching {navigation.preferred("details")?.requestFocus()==true}.getOrDefault(false)},
@@ -766,6 +768,7 @@ private fun RootContent(
                         ratingSources = if (vm.metadata.ratingsOn) vm.metadata.ratingSources.filter { it.id !in vm.metadata.ratingsOff } else emptyList(),
                         onPlay = { s -> vm.playRequest(s)?.let(onPlay) },
                         playButton = vm.playerSettings.playRules.enabled,
+                        onAutomaticSources = if(vm.profiles.profile.kids)null else { enabled -> vm.playerSettings.updatePlayRules { it.copy(enabled = enabled) } },
                         playbackLabel = vm.primaryPlaybackLabel,
                         watched = vm.detailsWatched,
                         onMarkWatched = vm::markWatched,

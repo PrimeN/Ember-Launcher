@@ -125,6 +125,7 @@ internal object PreferenceKeys {
     /** Interface size on the current scale (ui/UiSizes.kt, #38). */
     val UI_SCALE = PreferenceKey<String?>("uiScale", PreferenceType.STRING, null)
     val UI_STYLE = PreferenceKey<String?>("uiStyle", PreferenceType.STRING, InterfaceStyles.MODERN)
+    val MEDIA_PAGE_LAYOUT = PreferenceKey<String?>("mediaPageLayout", PreferenceType.STRING, null)
     val UPDATE_AUTO_CHECK = PreferenceKey<Boolean>("updateAutoCheck", PreferenceType.BOOLEAN, true)
     val UPDATE_BETA = PreferenceKey<Boolean>("updateBeta", PreferenceType.BOOLEAN, false)
     val UPDATE_BETA_SOURCE = PreferenceKey<String?>("updateBetaSource", PreferenceType.STRING, "releases")
@@ -154,7 +155,7 @@ internal object PreferenceKeys {
         SEEDED_TEST_ADDONS, SERVER_HERO_ON, SERVER_HERO_SOURCE, SERVER_SECTIONS_OFF, SERVICES_FETCHED_AT, SERVICES_JSON,
         SERVICES_OFF, SERVICES_ON, SERVICES_SOURCE, SETTINGS_STYLE, SETUP_CHECKLIST_HIDDEN, SHOW_WATCHED_BADGES,
         SMART_ROWS_OFF, SOURCES_COMBINED, STREAM_DESC_TEMPLATE, STREAM_FORMAT_ON, STREAM_NAME_TEMPLATE, SUBTITLE_CONFIG,
-        SUBTITLES_ON, TEXT_SIZE, THEME, TRACKERS_OFF, TRACKERS_QUIET, TRACKER_SYNC, UI_SIZE, UI_SCALE, UI_STYLE,
+        SUBTITLES_ON, TEXT_SIZE, THEME, TRACKERS_OFF, TRACKERS_QUIET, TRACKER_SYNC, UI_SIZE, UI_SCALE, UI_STYLE, MEDIA_PAGE_LAYOUT,
         UPDATE_AUTO_CHECK, UPDATE_BETA, UPDATE_BETA_SOURCE, UPDATE_CHANNEL, UPDATE_CHECKED_AT, WATCH_PROVIDER, WATCH_REGION,
         WEATHER_PLACE, WEATHER_PROVIDER, WEATHER_FALLBACK, WEATHER_CACHE, WL,
     )

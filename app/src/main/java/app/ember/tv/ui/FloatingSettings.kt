@@ -112,6 +112,7 @@ internal fun FloatingSettings(vm: HomeViewModel, onClose: () -> Unit, onOpenFull
 
                             Heading(stringResource(R.string.ui_look), accent)
                             Pick(stringResource(R.string.ui_interface), SettingDefinitions.interfaceStyle.options, vm.look.uiStyle) { vm.look.updateUiStyle(it) }
+                            Pick(SettingDefinitions.mediaPageLayout.title, SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout) { vm.look.updateMediaPageLayout(it) }
                             Pick(stringResource(R.string.ui_theme), SettingDefinitions.theme.options, vm.look.theme) { vm.look.updateTheme(it) }
                             Line(Modifier, onClick = { colourPicker = true }) { focused ->
                                 Text(SettingDefinitions.colourTheme.title, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
