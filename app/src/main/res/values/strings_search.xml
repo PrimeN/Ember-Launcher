@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_placeholder">Search titles and apps</string>
+    <string name="search_filters">Search filters</string>
+    <string name="search_filters_button">Filters</string>
+    <string name="search_combine">Combine duplicates</string>
+    <string name="search_results">Search results</string>
+    <string name="search_searching">Searching…</string>
+    <plurals name="search_result_count">
+        <item quantity="one">%d result</item>
+        <item quantity="other">%d results</item>
+    </plurals>
+    <string name="search_recent">Recent searches</string>
+    <string name="search_clear_recent">Clear recent searches</string>
+    <string name="search_no_filtered_matches">No %1$s matches. Try another filter.</string>
+    <string name="search_show_all">Show all results</string>
+    <string name="search_unavailable">Search unavailable</string>
+    <string name="search_sources">Source settings</string>
+    <string name="search_retry">Retry search</string>
+    <string name="search_no_matches">No matches. Try another title or app.</string>
+</resources>

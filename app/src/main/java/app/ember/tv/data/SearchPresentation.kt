@@ -2,7 +2,38 @@ package app.ember.tv.data
 
 enum class SearchFilter(val label: String) { ALL("All"), MOVIES("Movies"), SHOWS("Shows"), APPS("Apps"), WATCHLIST("Watchlist") }
 
+/** One cell in Search; its origin stays available when providers return the same title. */
+data class SearchResult(val key: String, val meta: Meta, val sources: List<String>, val saved: Boolean)
+
 object SearchPresentation {
+    fun results(rows: List<CatalogRow>, saved: List<Meta>, filter: SearchFilter, combine: Boolean): List<SearchResult> {
+        if (filter == SearchFilter.APPS) return emptyList()
+        val results = linkedMapOf<String, SearchResult>()
+        fun add(key: String, meta: Meta, source: String, isSaved: Boolean) {
+            val identity = if (combine) identity(meta) else null
+            val resultKey = identity?.let { "title:$it" } ?: key
+            val previous = results[resultKey]
+            results[resultKey] = if (previous == null) SearchResult(resultKey, meta, listOf(source), isSaved)
+                else previous.copy(sources = (previous.sources + source).distinct(), saved = previous.saved || isSaved)
+        }
+        saved.filter { accepts(it, filter) }.distinctBy { it.mediaKey() }.forEach {
+            add("saved:${it.mediaKey()}", it, "Watchlist", true)
+        }
+        val occurrences = mutableMapOf<String, Int>()
+        if (filter != SearchFilter.WATCHLIST) rows.forEach { row ->
+            // Include the catalog occurrence as well as title identity: repeated catalog keys must
+            // not crash a lazy grid, and distinct provider-only titles must not be merged by name.
+            val catalog = row.catalogKey ?: "${row.addonName}:${row.title}"
+            val occurrence = occurrences.getOrDefault(catalog, 0)
+            occurrences[catalog] = occurrence + 1
+            val origin = "$catalog:$occurrence"
+            row.items.filter { accepts(it, filter) }.distinctBy { it.mediaKey() }.forEach {
+                add("catalog:$origin:${it.mediaKey()}", it, row.addonName.ifBlank { row.displayTitle }, false)
+            }
+        }
+        return results.values.toList()
+    }
+
     fun rank(name: String, query: String): Int = when {
         name.equals(query.trim(), true) -> 0
         name.startsWith(query.trim(), true) -> 1
@@ -23,24 +54,7 @@ object SearchPresentation {
             meta.id.substringAfter(':') else "${meta.season}:${meta.episode}"
         return "$kind:$id:$episode"
     }
-    fun groups(rows: List<CatalogRow>, filter: SearchFilter, combine: Boolean): List<CatalogRow> {
-        if (filter == SearchFilter.APPS || filter == SearchFilter.WATCHLIST) return emptyList()
-        val sources = mutableMapOf<String, LinkedHashSet<String>>()
-        rows.forEach { row -> row.items.filter { accepts(it, filter) }.forEach { meta ->
-            identity(meta)?.let { sources.getOrPut(it) { linkedSetOf() }.add(row.addonName) }
-        } }
-        val seen = mutableSetOf<String>()
-        return rows.mapNotNull { row ->
-            val items = row.items.filter { accepts(it, filter) }.mapNotNull { meta ->
-                val key = identity(meta)
-                if (combine && key != null && !seen.add(key)) null
-                else if (combine && key != null && sources[key].orEmpty().size > 1)
-                    meta.copy(badge = "Sources: " + sources.getValue(key).joinToString())
-                else meta
-            }
-            row.copy(items = items).takeIf { items.isNotEmpty() }
-        }
-    }
+
 }
 
 object RecentSearches {

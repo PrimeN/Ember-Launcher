@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -67,6 +68,8 @@ fun TvTextField(
     focusRequester: FocusRequester? = null,
     /** Open the keyboard as soon as the field gets focus (e.g. the Search page). */
     startEditing: Boolean = false,
+    /** Search uses the shared glass surface; other forms keep their established field style. */
+    glass: Boolean = false,
 ) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -98,8 +101,9 @@ fun TvTextField(
     Box(
         modifier = modifier
             .bringIntoViewRequester(bring)
-            .background(PanelHi, RoundedCornerShape(10.dp))
-            .focusCue(focused,10,ControlStateCue.edge(PanelHi))
+            .then(if (glass) Modifier.glassSurface(RoundedCornerShape(TvTokens.Shape.Pill.dp))
+                else Modifier.background(PanelHi, RoundedCornerShape(10.dp)))
+            .focusCue(focused,if (glass) TvTokens.Shape.Pill else 10,ControlStateCue.edge(PanelHi))
             .padding(14.dp),
     ) {
         BasicTextField(
@@ -171,14 +175,22 @@ fun TvTextField(
                     }
                 },
             decorationBox = { inner ->
-                if (value.isEmpty()) {
-                    Text(
-                        if (focused && !editing && placeholder.isNotEmpty()) "$placeholder  (OK to type)" else placeholder,
-                        color = Mute,
-                        fontSize = fontSize,
-                    )
+                androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                    if (glass) MaterialGlyph(androidx.compose.material.icons.Icons.Outlined.Search, Mute, 20.dp)
+                    Box(Modifier.weight(1f)) {
+                        if (value.isEmpty()) {
+                            Text(
+                                if (focused && !editing && placeholder.isNotEmpty()) "$placeholder  (OK to type)" else placeholder,
+                                color = Mute,
+                                fontSize = fontSize,
+                                maxLines = if (glass) 1 else Int.MAX_VALUE,
+                                overflow = if (glass) androidx.compose.ui.text.style.TextOverflow.Ellipsis else androidx.compose.ui.text.style.TextOverflow.Clip,
+                            )
+                        }
+                        inner()
+                    }
                 }
-                inner()
             },
         )
     }

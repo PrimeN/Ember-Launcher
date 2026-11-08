@@ -41,7 +41,7 @@ Light can also show participating apps' Android TV Watch Next entries and recomm
 - **Awards and sorting:** explore Oscar winners or nominees, including Best Picture filters, and sort by popularity, rating or release date.
 - **Ranked selections:** explore up to 100 matching titles and save Discover searches as collection sources.
 - **Configurable sections:** show or hide Explore, Collections and Catalogs in Discover.
-- **Search:** find media through your configured sources using text or voice input. Light also provides quick search for apps, settings and available TV inputs.
+- **Search:** find media through your configured sources using text or voice input, with a responsive results grid, compact filters, source labels and optional duplicate combining. Light also provides quick search for apps, settings and available TV inputs.
 - **Optional AI assistance:** describe what you want to watch and review suggested filters using your own Mistral configuration.
 
 ### Add-ons and catalogs

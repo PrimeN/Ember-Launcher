@@ -26,11 +26,15 @@ internal fun LightSearchScreen(vm: HomeViewModel, onLaunch: (AppEntry) -> Unit, 
         it.label.contains(query, ignoreCase = true) || connector.contains(query, true) || query.equals("inputs", true)
     }.take(6) }
     val apps = if (query.length == 1) vm.appAccess.page(false).filter { it.label.contains(query, true) }.take(12) else emptyList()
-    // A title opens its details page straight away, like search everywhere else.
+    val shortcuts = settings.map { setting ->
+        SearchShortcut("setting:${setting.tab.name}:${setting.id}", setting.title, "Settings") {
+            vm.openSettingsPage(setting.tab.name)
+        }
+    } + matchedInputs.map { input ->
+        SearchShortcut("input:${input.id}", input.label, "Inputs") {
+            vm.openSettingsGuarded { DeviceInputs.open(context, input.id, includeTuners = true) }
+        }
+    }
     SearchScreen(vm, onOpen = vm::openDetails, onLaunch, onAppOptions,
-        localMatches = apps.size + settings.size + matchedInputs.size, localResults = {
-            if (apps.isNotEmpty()) Section("Apps") { ButtonRow { apps.forEach { app -> Chip(app.label) { onLaunch(app) } } } }
-            if (settings.isNotEmpty()) Section("Settings") { ButtonRow { settings.forEach { setting -> Chip(setting.title) { vm.openSettingsPage(setting.tab.name) } } } }
-            if (matchedInputs.isNotEmpty()) Section("Inputs") { ButtonRow { matchedInputs.forEach { input -> Chip(input.label) { vm.openSettingsGuarded { DeviceInputs.open(context, input.id, includeTuners = true) } } } } }
-        })
+        localApps = apps, localShortcuts = shortcuts)
 }

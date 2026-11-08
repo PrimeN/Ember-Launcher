@@ -42,19 +42,19 @@ class SettingsSearchEnhancementsTest {
         assertFalse(SearchPresentation.accepts(Meta(type = "movie"), SearchFilter.SHOWS))
         assertTrue(SearchPresentation.accepts(Meta(type = "movie"), SearchFilter.MOVIES))
         val rows = listOf(CatalogRow("A", "Movies", listOf(Meta(type = "movie"))))
-        assertTrue(SearchPresentation.groups(rows, SearchFilter.APPS, false).isEmpty())
-        assertTrue(SearchPresentation.groups(rows, SearchFilter.WATCHLIST, false).isEmpty())
+        assertTrue(SearchPresentation.results(rows, emptyList(), SearchFilter.APPS, false).isEmpty())
+        assertTrue(SearchPresentation.results(rows, emptyList(), SearchFilter.WATCHLIST, false).isEmpty())
     }
     @Test fun combiningKnownCopiesRetainsProviderNamesAndDoesNotMergeNamesAlone() {
         val movie = Meta(id = "tt123", type = "movie", name = "Same name")
         val unknown = Meta(id = "opaque", type = "movie", name = "Same name")
         val rows = listOf(CatalogRow("A", "A", listOf(movie, unknown), catalogKey = "a"),
             CatalogRow("B", "B", listOf(movie.copy(id = "other", imdbId = "tt123"), unknown.copy(id = "different")), catalogKey = "b"))
-        assertEquals(4, SearchPresentation.groups(rows, SearchFilter.ALL, false).sumOf { it.items.size })
-        val combined = SearchPresentation.groups(rows, SearchFilter.ALL, true)
-        assertEquals(3, combined.sumOf { it.items.size })
-        assertEquals("Sources: A, B", combined.first().items.first().badge)
-        assertEquals(listOf("a", "b"), combined.map { it.catalogKey })
+        assertEquals(4, SearchPresentation.results(rows, emptyList(), SearchFilter.ALL, false).size)
+        val combined = SearchPresentation.results(rows, emptyList(), SearchFilter.ALL, true)
+        assertEquals(3, combined.size)
+        assertEquals(listOf("A", "B"), combined.first().sources)
+        assertEquals(setOf("opaque", "different"), combined.drop(1).map { it.meta.id }.toSet())
     }
     @Test fun duplicateIdentitySeparatesMoviesShowsAndEpisodesIncludingIdOnlyEpisodes() {
         val show = Meta(id = "tt123", type = "series")
