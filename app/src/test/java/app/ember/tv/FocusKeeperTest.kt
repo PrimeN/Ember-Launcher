@@ -30,7 +30,7 @@ class FocusKeeperTest {
     private val presence=FocusPresence()
     private var items by mutableStateOf((1..6).map {Meta("tt$it","movie","Title $it")})
     private fun card(n:Int)=compose.onNode(hasContentDescription("Title $n",substring=true) and hasClickAction())
-    private fun scene(content:@Composable ()->Unit) {
+    private fun scene(content:@Composable ColumnScope.()->Unit) {
         compose.setContent {
             CompositionLocalProvider(LocalNight provides true,LocalReduceMotion provides true,LocalRenderOptions provides RenderOptions(device="low"),
                 LocalFocusPresence provides presence) {
