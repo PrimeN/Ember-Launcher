@@ -43,21 +43,9 @@ internal fun AppLibraryCanvas(permitted: List<AppEntry>, hidden: Set<String>, pr
         val visible = remember(permitted, hidden, showHidden) { permitted.filter { showHidden || it.pkg !in hidden } }
         val apps = remember(visible, query, sort) { AppLibraryPresentation.items(visible, query, sort) }
         val hiddenCount = remember(permitted, hidden) { permitted.distinctBy { it.pkg }.count { it.pkg in hidden } }
-        // #121: an app that leaves the grid while focused (hidden, uninstalled) hands focus to the app
-        // that takes its place, instead of leaving nothing focused.
-        val tiles = remember { mutableMapOf<String, FocusRequester>() }
-        var focusedPkg by remember { mutableStateOf<String?>(null) }
-        var focusedIndex by remember { mutableIntStateOf(0) }
-        val latestApps by rememberUpdatedState(apps)
-        LaunchedEffect(apps) {
-            val pkg = focusedPkg ?: return@LaunchedEffect
-            if (apps.any { it.pkg == pkg }) return@LaunchedEffect
-            focusedPkg = null
-            withFrameNanos { }
-            val next = apps.getOrNull(focusedIndex.coerceAtMost(apps.lastIndex))
-            if (next == null || !runCatching { tiles[next.pkg]?.requestFocus() == true }.getOrDefault(false))
-                runCatching { field.requestFocus() }
-        }
+        // #121/#130: an app that leaves the grid while focused (hidden, uninstalled) hands focus to
+        // the app that takes its place; with no apps left, the search field takes it.
+        val keeper = rememberFocusKeeper(remember(apps) { apps.map { it.pkg } }) { field.requestFocus() }
         CompositionLocalProvider(LocalContentColor provides Fg) {
             BoxWithConstraints(modifier.fillMaxSize().testTag("app_library")) {
                 val pageInset = if (maxWidth < 620.dp) 24.dp else TvTokens.Space.Page.dp
@@ -86,26 +74,15 @@ internal fun AppLibraryCanvas(permitted: List<AppEntry>, hidden: Set<String>, pr
                         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                             val columns = LocalRenderOptions.current.columns(maxWidth.value, LocalDensity.current.fontScale)
                             LazyVerticalGrid(GridCells.Fixed(columns), modifier = Modifier.fillMaxSize().testTag("app_library_grid")
-                                .onFocusChanged { state ->
-                                    // Leaving the grid on purpose (the toolbar, a page) forgets the tile.
-                                    if (!state.hasFocus && latestApps.any { it.pkg == focusedPkg }) focusedPkg = null
-                                },
+                                .focusKeeperList(keeper),
                                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                                 itemsIndexed(apps, key = { _, app -> app.pkg }, contentType = { _, _ -> "app" }) { index, app ->
-                                    val tile = remember(app.pkg) { FocusRequester() }
-                                    DisposableEffect(app.pkg) {
-                                        tiles[app.pkg] = tile
-                                        onDispose { if (tiles[app.pkg] === tile) tiles.remove(app.pkg) }
-                                    }
-                                    BoxWithConstraints(Modifier.testTag("app_library_${app.pkg}")) {
+                                    BoxWithConstraints(Modifier.testTag("app_library_${app.pkg}").focusKeeperItem(keeper, app.pkg, index)) {
                                         val width = maxWidth
                                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                             AppTile(app, dim = app.pkg in hidden, width = width,
-                                                onClick = { onLaunch(app) }, onLongClick = { onOptions(app) },
-                                                modifier = Modifier.focusRequester(tile).onFocusChanged {
-                                                    if (it.isFocused) { focusedPkg = app.pkg; focusedIndex = index }
-                                                })
+                                                onClick = { onLaunch(app) }, onLongClick = { onOptions(app) })
                                             if (tileLabelShown(TileLabels.APPS)) Text(app.label, fontSize = TvTokens.Type.Compact.sp,
                                                 maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
                                                 modifier = Modifier.fillMaxWidth())

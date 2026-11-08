@@ -634,12 +634,16 @@ private fun Root(
             },
         ),
     ) {
-        Box(Modifier.fillMaxSize().then(if(!startup.ready)Modifier.clearAndSetSemantics {} else Modifier)) {
+        val focusPresence = remember { app.ember.tv.ui.FocusPresence() }
+        Box(Modifier.fillMaxSize().onFocusChanged { focusPresence.any = it.hasFocus }
+            .then(if(!startup.ready)Modifier.clearAndSetSemantics {} else Modifier)) {
+        androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalFocusPresence provides focusPresence) {
         app.ember.tv.ui.FocusBackdropHost(vm,
             scope = listOf(vm.profiles.profile, tab, vm.collections.open?.first?.id, vm.collections.open?.second?.id, vm.serverBrowser.library?.ref),
             // Search paints its own theme-coloured background (#120), not the focused title's artwork.
             enabled = vm.details == null && tab != NavTabs.SEARCH) {
             RootContent(vm, tab, onTab, onLaunch, onPlay, onPlayWith, onOpenOffer, onPlayTrailer, onPlayChannel)
+        }
         }
         }
         app.ember.tv.ui.StartupCurtain(startup)
@@ -852,15 +856,24 @@ private fun RootContent(
         val windowFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
         val rootView = androidx.compose.ui.platform.LocalView.current
         val focusPage by androidx.compose.runtime.rememberUpdatedState(current)
-        LaunchedEffect(windowFocused) {
-            if (!windowFocused) return@LaunchedEffect
+        // #130: the same recovery when the focused item disappeared (removed, cleared) and nothing
+        // nearer took focus back: rows, grids and settings sections try first, within two frames.
+        val presence = app.ember.tv.ui.LocalFocusPresence.current
+        val anythingFocused = presence?.any ?: contentHasFocus
+        LaunchedEffect(windowFocused, anythingFocused) {
+            if (!windowFocused || anythingFocused) return@LaunchedEffect
             repeat(3) { androidx.compose.runtime.withFrameNanos { } }
-            if (contentHasFocus) return@LaunchedEffect
+            if (contentHasFocus || presence?.any == true) return@LaunchedEffect
             if (!rootView.hasFocus()) rootView.requestFocus()
             val page = focusPage
-            val target = (if (page == NavTabs.HOME) navigation.preferred(NavTabs.HOME) else null)
-                ?: navigation.tab(app.ember.tv.ui.navigationTabForPage(page, tabs)).takeIf { !light }
-            target?.let { runCatching { it.requestFocus() } }
+            // In order: Home's last card, the page's tab, the page's last target, the page itself
+            // (Settings has no tab). A target that was removed fails and the next one is tried.
+            val targets = listOfNotNull(
+                if (page == NavTabs.HOME) navigation.preferred(NavTabs.HOME) else null,
+                navigation.tab(app.ember.tv.ui.navigationTabForPage(page, tabs)).takeIf { !light },
+                navigation.preferred(page).takeIf { !light && page != NavTabs.HOME },
+                navigation.page(page).takeIf { !light })
+            targets.firstOrNull { runCatching { it.requestFocus() }.getOrDefault(false) }
         }
         val pageBackdrop = remember(current, vm.profiles.profileId) { app.ember.tv.ui.PageBackdropState() }
         Box(Modifier.fillMaxSize().onFocusChanged { contentHasFocus = it.hasFocus }.initialNavigationFocus(navigation,

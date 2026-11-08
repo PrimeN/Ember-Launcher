@@ -565,16 +565,21 @@ fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFoc
         val w = CardSizes.width(maxWidth, if(isEmberX && !wide)EmberXLayout.posterCount(maxWidth.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else LocalRenderOptions.current.count(wide), gap, 4.dp)
         val rowState=androidx.compose.foundation.lazy.rememberLazyListState()
         PrefetchRowArtwork(items,rowState,wide,w)
+        // Remove from Continue Watching (or marking it watched) hands focus to the next card (#130).
+        val keeper = rememberFocusKeeper(remember(uniqueItems) { uniqueItems.map { it.mediaKey() } })
         LazyRow(
             state=rowState,
+            modifier = Modifier.focusKeeperList(keeper),
             horizontalArrangement = Arrangement.spacedBy(gap),
             contentPadding = PaddingValues(vertical = 12.dp, horizontal = 4.dp),
         ) {
-            items(uniqueItems, key = { it.mediaKey() }) { m ->
-                if (wide) {
-                    WideCard(m, isSaved(m), width = w, onFocus = { onFocus(m) }) { onOpen(m) }
-                } else {
-                    Box(Modifier.onFocusChanged { if (it.hasFocus) onFocus(m) }) { TitleCard(m, isSaved(m), width = w) { onOpen(m) } }
+            itemsIndexed(uniqueItems, key = { _, m -> m.mediaKey() }) { index, m ->
+                Box(Modifier.focusKeeperItem(keeper, m.mediaKey(), index)) {
+                    if (wide) {
+                        WideCard(m, isSaved(m), width = w, onFocus = { onFocus(m) }) { onOpen(m) }
+                    } else {
+                        Box(Modifier.onFocusChanged { if (it.hasFocus) onFocus(m) }) { TitleCard(m, isSaved(m), width = w) { onOpen(m) } }
+                    }
                 }
             }
             if (onSeeAll != null) item(key = "seeall") { SeeAllCard(w, if (wide) w * 9f / 16f else w * 1.5f, onSeeAll) }

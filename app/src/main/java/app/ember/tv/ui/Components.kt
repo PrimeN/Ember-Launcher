@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -147,7 +148,8 @@ fun Focusable(
 
 @Composable
 fun Section(title: String, subtitle: String? = null, id: String? = null, content: @Composable () -> Unit) {
-    Column(Modifier.settingsAnchor(id), verticalArrangement = Arrangement.spacedBy(TvTokens.Space.Row.dp)) {
+    // A control that removes itself (Remove, Clear…) hands focus to the section's first control (#130).
+    Column(Modifier.settingsAnchor(id).rescueFocusInside(), verticalArrangement = Arrangement.spacedBy(TvTokens.Space.Row.dp)) {
         // The explanation sits under the title, so long notes never squeeze it.
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(title, fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.SemiBold)
@@ -357,13 +359,16 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
 fun TitleRow(items: List<Meta>, isSaved: (Meta) -> Boolean, onSeeAll: (() -> Unit)? = null, onFocused: ((Meta)->Unit)? = null, onOpen: (Meta) -> Unit) {
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
     val w = CardSizes.width(maxWidth, CardSizes.POSTER, 14.dp, 6.dp)
+    // Catalogs sometimes list the same title twice; duplicate keys would crash the row.
+    val unique = remember(items) { items.distinctBy { it.mediaKey() } }
+    val keeper = rememberFocusKeeper(remember(unique) { unique.map { it.mediaKey() } })
     LazyRow(
+        modifier = Modifier.focusKeeperList(keeper),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(vertical = 10.dp, horizontal = 6.dp),
     ) {
-        // Catalogs sometimes list the same title twice; duplicate keys would crash the row.
-        items(items.distinctBy { it.mediaKey() }, key = { it.mediaKey() }) { m ->
-            Box(Modifier.onFocusChanged {if(it.hasFocus)onFocused?.invoke(m)}) {TitleCard(m, isSaved(m), width = w) { onOpen(m) }}
+        itemsIndexed(unique, key = { _, m -> m.mediaKey() }) { index, m ->
+            Box(Modifier.focusKeeperItem(keeper, m.mediaKey(), index).onFocusChanged {if(it.hasFocus)onFocused?.invoke(m)}) {TitleCard(m, isSaved(m), width = w) { onOpen(m) }}
         }
         if (onSeeAll != null) item(key = "seeall") { SeeAllCard(w, w * 1.5f, onSeeAll) }
     }
@@ -412,17 +417,20 @@ fun TitleGrid(
 ) {
     androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
     val columns = (LocalRenderOptions.current.columns(maxWidth.value, androidx.compose.ui.platform.LocalDensity.current.fontScale) + densityDelta).coerceIn(3, 12)
+    val unique = remember(items) { items.distinctBy { it.mediaKey() } }
+    // A title removed from the grid (hold OK › Remove) hands focus to the one in its place (#130).
+    val keeper = rememberFocusKeeper(remember(unique) { unique.map { it.mediaKey() } })
     LazyVerticalGrid(
         // Eight posters across, like the rows.
         columns = GridCells.Fixed(columns),
         state = state,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().focusKeeperList(keeper),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(vertical = 10.dp, horizontal = 6.dp),
     ) {
-        gridItems(items.distinctBy { it.mediaKey() }, key = { it.mediaKey() }) { m ->
-            androidx.compose.foundation.layout.BoxWithConstraints { TitleCard(m, isSaved(m), width = maxWidth, onLongClick = onLongPress?.let { f -> { f(m) } }) { onOpen(m) } }
+        androidx.compose.foundation.lazy.grid.itemsIndexed(unique, key = { _, m -> m.mediaKey() }) { index, m ->
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.focusKeeperItem(keeper, m.mediaKey(), index)) { TitleCard(m, isSaved(m), width = maxWidth, onLongClick = onLongPress?.let { f -> { f(m) } }) { onOpen(m) } }
         }
         if (footer != null) {
             item(key = "footer", span = { GridItemSpan(maxLineSpan) }) { footer() }
