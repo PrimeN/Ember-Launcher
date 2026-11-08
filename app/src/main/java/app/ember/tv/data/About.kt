@@ -14,6 +14,25 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "0.9.8", "Trackers in sync and a cleaner Home",
+            listOf(
+                "Fixed freezes when addons refresh or a catalog is renamed.",
+                "Keep Trakt, Simkl and WeTrakr in sync: watched history, watchlist and ratings.",
+                "WeTrakr rebuilt, and Simkl syncs far more efficiently.",
+                "Rate titles, and mark watched or unwatched, on your trackers.",
+                "Watched marks from your full tracker history; offline changes are sent later.",
+                "Jellyfin Quick Connect and Next up, ready for Jellyfin 10.12.",
+                "Light interface: app rows, a carousel catalog and matching glass.",
+                "Any catalog can feed the hero or the carousel.",
+                "Addon details in Settings: logo, version, catalogs and setup links.",
+                "New cast & crew popup.",
+                "Home opens on the hero, and the first remote press works after the TV wakes.",
+                "Updates install more reliably, without downloading twice.",
+                "Lists load more as you scroll, with more consistent switches, dialogs and menus.",
+                "Phone setup with tabs and every setting.",
+            ),
+        ),
+        Release(
             "0.9.7", "Faster and more polished",
             listOf(
                 "Faster startup, scrolling and artwork loading, especially on Chromecast with Google TV and similar devices.",
