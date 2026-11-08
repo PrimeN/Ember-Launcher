@@ -50,6 +50,7 @@ internal fun PlayerActivity.loadFileChapters(p: ExoPlayer) {
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.closeMenu() {
     controls.closeMenuSession()
+    showControls()
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])

@@ -87,7 +87,7 @@ Ember includes **Standard playback through AndroidX Media3** and an internal **C
 - **Audio and video:** hardware-first decoding, optional software fallback, supported HDMI audio passthrough, frame-rate matching and playback information.
 - **Subtitles:** embedded tracks, online providers and local subtitle files, with language selection, timing adjustment and appearance controls.
 - **Intro skipping:** supported server markers and an optional IntroDB fallback for available intro, recap and credits timings.
-- **Player appearance:** select a control layout independently of the Home interface.
+- **Player appearance:** select a control layout independently of the Home interface. Modern uses a floating Ember Glass dock; Basic/Simple uses the minimal Cinema overlay. Both share track selection, playback settings and remote controls.
 - **Local and network media:** open files through Android's picker or configured SMB, WebDAV, SFTP, FTP and FTPS connections.
 - **External-player choice:** hand playback to a compatible installed player when preferred.
 

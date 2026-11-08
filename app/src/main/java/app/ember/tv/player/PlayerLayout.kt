@@ -29,7 +29,11 @@ internal fun PlayerActivity.buildLayout(): View {
         root.addView(
             androidx.compose.ui.platform.ComposeView(this).apply {
                 setContent {
-                    androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalNight provides true) {
+                    val render=app.ember.tv.ui.rememberDeviceRenderOptions(prefs.contentDensity,prefs.navigationGlass,prefs.artworkQuality,prefs.devicePerformance,prefs.customPerformance)
+                        .copy(glassMethod=prefs.navigationGlassMethod)
+                    val reduced=app.ember.tv.ui.rememberReduceMotion()
+                    androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalNight provides true,
+                        app.ember.tv.ui.LocalRenderOptions provides render,app.ember.tv.ui.LocalReduceMotion provides reduced) {
                         app.ember.tv.ui.EmberTheme(prefs.accent,playerLayoutStyle) {AdvancedControls(controls, controlActions)}
                     }
                 }

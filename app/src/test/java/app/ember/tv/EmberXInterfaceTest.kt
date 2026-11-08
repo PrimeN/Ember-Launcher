@@ -89,7 +89,7 @@ class EmberXInterfaceTest {
         assertTrue(custom(InterfaceStyles.EMBER_X,"simple",false,false))
         assertFalse(custom(InterfaceStyles.EMBER_X,"simple",true,false))
         assertFalse(custom(InterfaceStyles.EMBER_X,"simple",false,true))
-        assertFalse(custom(InterfaceStyles.MODERN,"simple",false,false))
+        assertTrue(custom(InterfaceStyles.MODERN,"simple",false,false))
         assertTrue(custom(InterfaceStyles.MODERN,"advanced",false,false))
     }
     @Test fun settingsSearchFindsTheInterfaceAtItsActualSection() {

@@ -408,6 +408,7 @@ class PlayerActivity : ComponentActivity() {
         val p = player ?: return
         controls.playing = p.isPlaying || (p.playWhenReady && p.playbackState == Player.STATE_BUFFERING)
         controls.buffering = p.playbackState == Player.STATE_BUFFERING
+        controls.playbackSpeed = p.playbackParameters.speed
         controls.position = p.currentPosition
         controls.duration = p.duration.takeIf { it != C.TIME_UNSET } ?: 0L
         controls.buffered = p.bufferedPosition

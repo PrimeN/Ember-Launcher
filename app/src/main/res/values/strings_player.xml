@@ -102,4 +102,19 @@
     <string name="pl_next_episode_title">"Next: S%1$d · E%2$d  %3$s"</string>
     <string name="pl_reset">Reset</string>
     <string name="pl_panel_help">★ = made for this exact file. Timing moves downloaded subtitles; + shows them later. Back closes.</string>
+    <string name="player_back">Back</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_back_ten">Back 10 seconds</string>
+    <string name="player_forward_thirty">Forward 30 seconds</string>
+    <string name="player_audio">Audio</string>
+    <string name="player_episodes">Episodes</string>
+    <string name="player_queue">Queue</string>
+    <string name="player_next_file">Next file</string>
+    <string name="player_settings">Player settings</string>
+    <string name="player_details">Details</string>
+    <string name="player_ends_at">Ends at %1$s</string>
+    <string name="player_more_audio">Audio settings…</string>
+    <string name="player_more_subtitles">Subtitle settings…</string>
+    <string name="player_position">Playback position</string>
 </resources>

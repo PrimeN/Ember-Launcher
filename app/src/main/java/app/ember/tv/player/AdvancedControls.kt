@@ -98,6 +98,10 @@ class ControlsState {
     var visible by mutableStateOf(false)
     var playing by mutableStateOf(false)
     var buffering by mutableStateOf(false)
+    var playbackSpeed by mutableFloatStateOf(1f)
+    /** Control to restore after closing a modal player menu. */
+    var returnControl by mutableStateOf<String?>(null)
+    var overlayHeightDp by mutableFloatStateOf(140f)
     var position by mutableLongStateOf(0L)
     var duration by mutableLongStateOf(0L)
     var buffered by mutableLongStateOf(0L)
@@ -174,8 +178,8 @@ fun AdvancedControls(s: ControlsState, a: ControlsActions) {
     Box(Modifier.fillMaxSize()) {
         StatsHud(s)
         // Hidden under a menu, which sits in the same corner.
-        if (s.menu == null) SkipPill(s, a)
-        if(isEmberX)EmberXControls(s,a) else if(s.design==PlayerInterfaces.STREAMING)StreamingControls(s,a) else Controls(s, a)
+        if (s.menu == null && s.sheet == null) SkipPill(s, a)
+        if(isEmberX)EmberXControls(s,a) else if(s.design==PlayerInterfaces.STREAMING)StreamingControls(s,a) else PlaybackOverlay(s,a)
         when (s.menu) {
             "quick" -> QuickMenu(s, a)
             "options" -> OptionsPage(s, a)
@@ -192,7 +196,7 @@ internal val LocalPlayerAccent = androidx.compose.runtime.staticCompositionLocal
 private fun SkipPill(s: ControlsState, a: ControlsActions) {
     val label = s.skipLabel ?: return
     var focused by remember { mutableStateOf(false) }
-    val bottom = if (s.visible) 190.dp else 56.dp
+    val bottom = if (!s.visible)56.dp else if(s.design in listOf(PlayerInterfaces.MODERN,PlayerInterfaces.BASIC))s.overlayHeightDp.dp+30.dp else 190.dp
     Box(Modifier.fillMaxSize().padding(end = 56.dp, bottom = bottom), contentAlignment = Alignment.BottomEnd) {
         Box(
             Modifier.clip(RoundedCornerShape(50))
@@ -212,90 +216,6 @@ private fun SkipPill(s: ControlsState, a: ControlsActions) {
     }
 }
 
-@Composable
-private fun Controls(s: ControlsState, a: ControlsActions) {
-    AnimatedVisibility(visible = s.visible, enter = fadeIn(), exit = fadeOut()) {
-        val playFocus = remember { FocusRequester() }
-        LaunchedEffect(s.shownAt) { runCatching { playFocus.requestFocus() } }
-        Box(
-            Modifier.fillMaxSize()
-                .background(Brush.verticalGradient(0f to Color(0x99000000), 0.35f to Color.Transparent, 0.55f to Color.Transparent, 1f to Color(0xE6000000)))
-                .onKeyEvent { a.touched(); false },
-        ) {
-            // Top left: subtitles, sound, next episode, info.
-            Row(Modifier.padding(start = 56.dp, top = 40.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TrackButtons(s)
-                IconButton(Icons.Outlined.Tune, "Options") { a.openMenu("quick", null) }
-                if(s.fileQueueLabel!=null)IconButton(Icons.AutoMirrored.Outlined.FormatListBulleted,"Queue"){a.queue()}
-                IconButton(Icons.Outlined.Info, "Details") { s.sheet = if (s.sheet == "info") null else "info" }
-            }
-
-            // Synopsis and cast: open with Info, and while paused.
-            val d = s.details
-            val showInfo = d != null && (s.sheet == "info" || (!s.playing && s.sheet == null))
-            if (showInfo && d != null) InfoPanel(d)
-            if (s.sheet == "episodes") SideSheet("Episodes") {
-                itemsIndexed(s.nextEpisodes) { i, e -> SheetRow("S${e.season} · E${e.episode}  ${e.title}", first = i == 0) { s.sheet = null; a.playEpisode(i) } }
-            }
-            TrackSheet(s, a)
-
-            // Bottom: title line, progress, transport buttons.
-            Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 56.dp, end = 56.dp, bottom = 36.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val logo = d?.logo
-                    var logoOk by remember(logo) { mutableStateOf(logo != null) }
-                    if (logo != null && logoOk) {
-                        AsyncImage(
-                            model = logo,
-                            contentDescription = d.name,
-                            contentScale = ContentScale.Fit,
-                            alignment = Alignment.CenterStart,
-                            modifier = Modifier.height(44.dp).width(220.dp),
-                            onError = { logoOk = false },
-                        )
-                    } else {
-                        Text(d?.name ?: s.title, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-                    }
-                    val bits = listOfNotNull(d?.year, d?.rating, s.seasonEpisode, d?.episodeTitle)
-                    if (bits.isNotEmpty()) Text(bits.joinToString("  ·  "), fontSize = 16.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.height(14.dp))
-                val tp = s.trickplay
-                if (tp != null && s.seekPreview >= 0f && s.duration > 0) {
-                    BoxWithConstraints(Modifier.fillMaxWidth().height(150.dp)) {
-                        val x = (maxWidth * s.seekPreview - 120.dp).coerceIn(0.dp, (maxWidth - 240.dp).coerceAtLeast(0.dp))
-                        Box(Modifier.offset(x = x).align(Alignment.BottomStart).padding(bottom = 8.dp)) {
-                            Thumbnail(tp, (s.seekPreview * s.duration).toLong())
-                        }
-                    }
-                }
-                if(s.trickplay==null && s.localUri!=null && s.seekPreview>=0f && s.duration>0)LocalSeekPreview(s.localUri!!,(s.seekPreview*s.duration).toLong())
-                SeekBar(s, a)
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    Text(time(if (s.seekPreview >= 0f) (s.seekPreview * s.duration).toLong() else s.position), fontSize = 13.sp, color = Soft)
-                    Spacer(Modifier.weight(1f))
-                    Text(if (s.duration > 0) "-" + time(s.duration - s.position) + "   " + time(s.duration) else "", fontSize = 13.sp, color = Soft)
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(Icons.Outlined.Replay10, "Back 10 seconds") { a.seekBy(-10_000) }
-                    IconButton(
-                        if (s.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                        if (s.playing) "Pause" else "Play",
-                        big = true,
-                        modifier = Modifier.focusRequester(playFocus),
-                    ) { a.playPause() }
-                    IconButton(Icons.Outlined.Forward30, "Forward 30 seconds") { a.seekBy(30_000) }
-                    if (s.nextEpisodes.isNotEmpty()||s.fileQueueNext) IconButton(Icons.Outlined.SkipNext,if(s.fileQueueLabel!=null)"Next file" else "Next episode") {a.next()}
-                    if(s.nextEpisodes.isNotEmpty())IconButton(Icons.AutoMirrored.Outlined.FormatListBulleted,"Episodes"){s.sheet=if(s.sheet=="episodes")null else "episodes"}
-                }
-            }
-        }
-    }
-}
 
 internal fun time(ms: Long): String {
     val t = (ms / 1000).coerceAtLeast(0)
@@ -322,17 +242,18 @@ private fun IconButton(icon: ImageVector, label: String, big: Boolean = false, m
 
 /** The progress bar. Focused, Left and Right move a preview point; OK jumps there. */
 @Composable
-internal fun SeekBar(s: ControlsState, a: ControlsActions) {
+internal fun SeekBar(s: ControlsState, a: ControlsActions, modifier:Modifier=Modifier, cinematic:Boolean=false) {
     var focused by remember { mutableStateOf(false) }
     val dur = s.duration.coerceAtLeast(1)
     val played = if (s.seekPreview >= 0f) s.seekPreview else s.position.toFloat() / dur
     Box(
-        Modifier.fillMaxWidth().height(18.dp)
+        modifier.fillMaxWidth().height(if(cinematic)24.dp else 18.dp)
             .onFocusChanged {
                 focused = it.isFocused
                 if (!it.isFocused) s.seekPreview = -1f
             }
             .onKeyEvent { e ->
+                if(cinematic && s.duration<=0)return@onKeyEvent false
                 if (e.type != KeyEventType.KeyDown) {
                     if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter) && !e.nativeKeyEvent.isCanceled && s.seekPreview >= 0f) {
                         a.seekBy((s.seekPreview * dur).toLong() - s.position)
@@ -356,9 +277,13 @@ internal fun SeekBar(s: ControlsState, a: ControlsActions) {
                     else -> false
                 }
             }
-            .focusable(),
+            .focusable(enabled=!cinematic || s.duration>0),
         contentAlignment = Alignment.CenterStart,
     ) {
+        if(cinematic) {
+            CinematicTimeline(played,(s.buffered.toFloat()/dur).coerceIn(0f,1f),focused,s.accent)
+            return@Box
+        }
         val h = if (focused) 6.dp else 4.dp
         Box(Modifier.fillMaxWidth().height(h).clip(RoundedCornerShape(50)).background(Color(0x40FFFFFF)))
         Box(Modifier.fillMaxWidth((s.buffered.toFloat() / dur).coerceIn(0f, 1f)).height(h).clip(RoundedCornerShape(50)).background(Color(0x66FFFFFF)))

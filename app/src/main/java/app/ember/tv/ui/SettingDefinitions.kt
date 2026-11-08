@@ -15,7 +15,7 @@ internal object SettingDefinitions {
         listOf("night" to "Night", "day" to "Day", "auto" to "Auto"))
     val colourTheme = SettingDefinition("accent_colour", SettingsTab.APPEARANCE, "Colour theme", "color palette accent charcoal dark grey dark gray blue violet teal Modern Ember Cinema red app icon",
         Accents.mapIndexed { index, (label, _) -> index.toString() to label })
-    val playerInterface = SettingDefinition("player_look", SettingsTab.PLAYER, "Player interface", "player look GUI controls basic simple advanced Ember Modern Ember X cinema streaming layout independent",
+    val playerInterface = SettingDefinition("player_look", SettingsTab.PLAYER, "Player interface", "player look GUI controls basic simple advanced Ember Modern Ember Glass Ember X cinema streaming layout independent",
         app.ember.tv.player.PlayerInterfaces.options)
     val interfaceSize = SettingDefinition("interface-size", SettingsTab.SIZE, "Interface size", "screen scale", UiSizes.LABELS)
     val textSize = SettingDefinition("text-size", SettingsTab.SIZE, "Text size", "font accessibility", UiSizes.LABELS)

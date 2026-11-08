@@ -18,7 +18,7 @@ class PlayerInterfaceChoiceTest {
         for ((style, _) in PlayerInterfaces.options) for ((launcher, _) in InterfaceStyles.options) {
             val config = PlaybackConfig(playerInterface = style, playerLook = "simple")
             assertEquals(style, PlayerInterfaces.resolve(config, launcher))
-            assertEquals(style != PlayerInterfaces.BASIC, PlayerInterfaces.customControls(style, false, false))
+            assertTrue(PlayerInterfaces.customControls(style, false, false))
             assertEquals(if (style == PlayerInterfaces.EMBER_X) InterfaceStyles.EMBER_X else InterfaceStyles.MODERN,
                 PlayerInterfaces.layoutStyle(style))
             assertFalse(PlayerInterfaces.customControls(style, true, false))
