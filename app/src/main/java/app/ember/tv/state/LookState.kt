@@ -51,7 +51,7 @@ class LookState(
         prefs.discoverSections = discoverSections
     }
     fun resetDiscoverSections() { discoverSections = emptyMap(); prefs.discoverSections = emptyMap() }
-    var uiStyle by mutableStateOf(prefs.uiStyle.also { Ui.light = it == InterfaceStyles.LIGHT; Ui.emberX = it == InterfaceStyles.EMBER_X }); private set
+    var uiStyle by mutableStateOf(prefs.uiStyle.also { Ui.light = it == InterfaceStyles.LIGHT; Ui.emberX = false }); private set
     var mediaPageLayout by mutableStateOf(prefs.mediaPageLayout); private set
     var navbarStyle by mutableStateOf(prefs.navbarStyle); private set
     fun updateNavbarStyle(value:String) {
@@ -85,11 +85,11 @@ class LookState(
     var modernCards by mutableStateOf(prefs.modernCards); private set
 
     fun updateUiStyle(style: String) {
-        val supported = InterfaceStyles.normalize(style)
+        val supported = InterfaceStyles.home(style)
         uiStyle = supported
         prefs.uiStyle = supported
         Ui.light = supported == InterfaceStyles.LIGHT
-        Ui.emberX = supported == InterfaceStyles.EMBER_X
+        Ui.emberX = false
     }
 
     var lightWallpaper by mutableStateOf(prefs.lightWallpaper); private set

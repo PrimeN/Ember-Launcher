@@ -168,7 +168,6 @@ fun DetailsScreen(
     var headingFocused by remember(meta.mediaKey()) { mutableStateOf(false) }
     val headingFocus = remember { FocusRequester() }
     val flix=isEmberX
-    val immersive=LocalMediaPageLayout.current==app.ember.tv.data.MediaPageLayouts.IMMERSIVE
     var panelSources by remember(meta.mediaKey()){androidx.compose.runtime.mutableStateOf(meta.type=="movie")}
     var panelNeedsFocus by remember(meta.mediaKey()){androidx.compose.runtime.mutableStateOf(false)}
     val episodePanelFocus=remember {FocusRequester()}
@@ -271,10 +270,9 @@ fun DetailsScreen(
 
         val headerHeight = when {
             split -> (maxHeight-24.dp).coerceAtLeast(280.dp)
-            immersive -> (maxHeight*.72f).coerceIn(280.dp,520.dp)
             else -> (maxHeight * 0.78f).coerceIn(280.dp,420.dp)
         }
-        val headerFraction = if (split || largeText || maxWidth < 760.dp) 1f else if(immersive).60f else 0.64f
+        val headerFraction = if (split || largeText || maxWidth < 760.dp) 1f else 0.64f
         val viewportHeight = with(LocalDensity.current) { maxHeight.roundToPx() }
         val topPadding = with(LocalDensity.current) { 8.dp.roundToPx() }
         val tallHeader = headerHeightPx > 0 && headerHeightPx + topPadding > viewportHeight
@@ -352,7 +350,7 @@ fun DetailsScreen(
                             }
                         }
                         detailsSynopsis(d)?.let {
-                            ReadableDescription(it,fontSize=if(flix)14.sp else 15.sp,lineHeight=19.sp,maxLines=if(flix || immersive)2 else 3,modifier=Modifier.padding(top=if(flix)6.dp else 0.dp))
+                            ReadableDescription(it,fontSize=if(flix)14.sp else 15.sp,lineHeight=19.sp,maxLines=if(flix)2 else 3,modifier=Modifier.padding(top=if(flix)6.dp else 0.dp))
                         }
                         DetailsActions(saved,watched,meta.type in setOf("movie","series","anime","tv","show"),playbackAction,d.credits?.trailer!=null,firstButton,
                             onWatched=onMarkWatched,onSaved=onToggleSaved,onMore={more=true},
@@ -369,16 +367,6 @@ fun DetailsScreen(
                                 }
                             }},onTrailer={d.credits?.trailer?.let(onPlayTrailer)},
                             modifier=Modifier.padding(top=8.dp).fillMaxWidth().onFocusChanged {headerActionsFocused=it.hasFocus}.focusGroup())
-
-                        if(immersive && (availability.total>0 || availability.loading)) GlassControl(
-                            if(availability.loading && availability.total==0) "Finding sources…" else "Sources · ${availability.total} "+if(availability.total==1)"option" else "options",
-                            Icons.Outlined.PlayArrow, Modifier.padding(top=4.dp), dropdown=true) {
-                            scope.launch {
-                                listState.animateScrollToItem(detailsSourceHeaderIndex(latestDetails))
-                                withFrameNanos { }
-                                runCatching {sourcesFocus.requestFocus()}
-                            }
-                        }
 
                     }
                 }
@@ -467,7 +455,7 @@ fun DetailsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 contentPadding = PaddingValues(vertical = 10.dp, horizontal = 4.dp),
                             ) {
-                                items(cast, key = { "${it.name}|${it.role}" }) { p -> PersonCard(p,compact=immersive) { person = p } }
+                                items(cast, key = { "${it.name}|${it.role}" }) { p -> PersonCard(p) { person = p } }
                             }
                         }
                     }
@@ -625,16 +613,16 @@ private fun CrewLines(crew: List<Person>, onPerson: (Person) -> Unit) {
 
 /** A cast member: a large round portrait (or initials), the name, and the character in a softer colour. */
 @Composable
-private fun PersonCard(p: Person, compact:Boolean=false, onClick: () -> Unit) {
+private fun PersonCard(p: Person, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by androidx.compose.animation.core.animateFloatAsState(if (focused) 1.06f else 1f, label = "cast portrait")
     // Fixed width and two text lines keep long names from resizing the row.
-    Focusable(onClick = onClick, modifier = Modifier.width(if(compact)116.dp else 150.dp).onFocusChanged { focused = it.isFocused || it.hasFocus },
+    Focusable(onClick = onClick, modifier = Modifier.width(150.dp).onFocusChanged { focused = it.isFocused || it.hasFocus },
         radius = TvTokens.Shape.Card, container = androidx.compose.ui.graphics.Color.Transparent, focusedContainer = androidx.compose.ui.graphics.Color.Transparent,
         focusedContent = Fg, outline = false, focusedScale = TvTokens.Focus.None) {
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
-                modifier = Modifier.size(if(compact)80.dp else 126.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape).background(PanelHi)
+                modifier = Modifier.size(126.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape).background(PanelHi)
                     .then(if (focused) Modifier.border(3.dp, androidx.compose.ui.graphics.Color.White, CircleShape) else Modifier),
                 contentAlignment = Alignment.Center,
             ) {

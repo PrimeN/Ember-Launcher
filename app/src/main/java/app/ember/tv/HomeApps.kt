@@ -74,6 +74,7 @@ internal fun HomeViewModel.toggleHidden(pkg: String) {
 }
 
 internal fun HomeViewModel.setAppOrder(order: List<String>) {
+    if(look.uiStyle==app.ember.tv.data.InterfaceStyles.LIGHT){setLightAppOrder(order);return}
     // Recheck the allowlist at save time, including profile/app changes during Move mode.
     val permitted = order.filter { appAccess.canLaunch(it) }
     val merged = app.ember.tv.data.AppOrder.merge(apps.map { it.pkg }, permitted)
@@ -82,6 +83,11 @@ internal fun HomeViewModel.setAppOrder(order: List<String>) {
 }
 
 internal fun HomeViewModel.moveApp(pkg: String, delta: Int) {
+    if(look.uiStyle==app.ember.tv.data.InterfaceStyles.LIGHT) {
+        val items=lightAppItems().map {it.pkg};val from=items.indexOf(pkg);val to=from+delta
+        if(from>=0 && to in items.indices)setLightAppOrder(app.ember.tv.data.AppOrder.move(items,from,to))
+        return
+    }
     val order = apps.map { it.pkg }.toMutableList()
     val i = order.indexOf(pkg)
     if (i < 0) return

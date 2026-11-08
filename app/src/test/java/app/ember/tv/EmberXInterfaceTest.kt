@@ -54,11 +54,11 @@ class EmberXInterfaceTest {
         try {
             val look=LookState(prefs,scope)
             look.updateUiStyle(InterfaceStyles.EMBER_X)
-            assertTrue(Ui.emberX);assertFalse(Ui.light);assertFalse(Ui.isDay)
-            assertEquals(InterfaceStyles.EMBER_X,prefs.uiStyle);assertEquals("side",prefs.menuPosition);assertEquals("day",prefs.theme)
+            assertFalse(Ui.emberX);assertFalse(Ui.light);assertTrue(Ui.isDay)
+            assertEquals(InterfaceStyles.MODERN,prefs.uiStyle);assertEquals("side",prefs.menuPosition);assertEquals("day",prefs.theme)
             assertEquals("simple",prefs.playbackConfig.playerLook)
             look.updateAccent(ColorThemes.CINEMA_RED)
-            assertTrue(Ui.emberX)
+            assertFalse(Ui.emberX)
             look.updateUiStyle(InterfaceStyles.LIGHT)
             assertFalse(Ui.emberX);assertTrue(Ui.light);assertTrue(Ui.isDay)
         } finally {scope.cancel()}
@@ -68,9 +68,9 @@ class EmberXInterfaceTest {
         val payload=BackupPersistence(source,FixtureSecrets()).snapshot()
         val target=PersistenceContext(temp.newFolder());BackupPersistence(target,FixtureSecrets()).restore(payload)
         assertEquals(2,Prefs(target).accent)
-        assertEquals(InterfaceStyles.EMBER_X,Prefs(target).uiStyle)
+        assertEquals(InterfaceStyles.MODERN,Prefs(target).uiStyle)
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
-        try {LookState(Prefs(target),scope);assertTrue(Ui.emberX)} finally {scope.cancel()}
+        try {LookState(Prefs(target),scope);assertFalse(Ui.emberX)} finally {scope.cancel()}
     }
     @Test fun mediaUsesASingleColumnWhenTwoPanesWouldBeTooTight() {
         assertTrue(EmberXLayout.splitDetails(960f,1f))
@@ -93,11 +93,11 @@ class EmberXInterfaceTest {
         assertTrue(custom(InterfaceStyles.MODERN,"advanced",false,false))
     }
     @Test fun settingsSearchFindsTheInterfaceAtItsActualSection() {
-        val hit=SettingDefinitions.matching("Ember X").single {it.id=="interface"}
-        assertEquals(SettingsTab.APPEARANCE,hit.tab);assertEquals("interface",hit.id)
+        val hit=SettingDefinitions.matching("Ember X").single {it.id=="media-page-layout"}
+        assertEquals(SettingsTab.APPEARANCE,hit.tab);assertEquals("media-page-layout",hit.id)
         assertEquals(InterfaceStyles.EMBER_X,hit.options.single {it.second=="Ember X"}.first)
         assertEquals("accent_colour",SettingDefinitions.matching("Modern Ember").single().id)
-        assertEquals("interface",SettingDefinitions.matching("EmberFlix").single().id)
+        assertEquals(listOf("Ember","Ember Light"),SettingDefinitions.interfaceStyle.options.map {it.second})
         assertTrue("app_icons" in lookKeys(SettingsTab.HOME_ROWS, InterfaceStyles.EMBER_X))
     }
 }

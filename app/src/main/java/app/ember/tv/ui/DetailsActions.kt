@@ -83,7 +83,7 @@ internal fun DetailsActionButton(
     val compactHeight=maxOf(minHeight,with(androidx.compose.ui.platform.LocalDensity.current){32.sp.toDp()}+10.dp)
     val inlineHeight=maxOf(minHeight,with(androidx.compose.ui.platform.LocalDensity.current){18.sp.toDp()}+12.dp)
     val hasDetail=!detail.isNullOrBlank()
-    val primary=(isEmberX || LocalMediaPageLayout.current==app.ember.tv.data.MediaPageLayouts.IMMERSIVE) && text!=null && icon==Icons.Outlined.PlayArrow
+    val primary=isEmberX && text!=null && icon==Icons.Outlined.PlayArrow
     val foreground=if(!enabled)Fg.copy(alpha=.45f) else if(primary)Color.Black else if(focused)OnPillColor else Fg
     // Primary stays light, but focus must still read without the zoom (reduced motion or low power).
     val fill=if(primary && enabled)(if(focused)Color.White else Color.White.copy(alpha=.74f)) else detailsActionFill(enabled,focused,selected,PillColor,WashHi)

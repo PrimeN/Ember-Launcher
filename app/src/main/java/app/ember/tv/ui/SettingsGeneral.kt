@@ -146,7 +146,7 @@ internal fun ToggleRow(label: String, note: String?, on: Boolean, onToggle: () -
 
 /** The sections of one Look & feel page (or the Home pages that reuse these controls) for an interface. */
 internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
-    val active = app.ember.tv.data.InterfaceStyles.normalize(style)
+    val active = app.ember.tv.data.InterfaceStyles.home(style)
     return when (tab) {
         SettingsTab.APPEARANCE -> buildList {
             add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
@@ -194,7 +194,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         "focus-backgrounds" -> Section("Focused backgrounds", "Tile colors use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.", id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
         "interface" -> Section(
         stringResource(R.string.ui_interface),
-        "Choose your Home layout. Modern and Ember X can use any navbar style. Light keeps its own navigation. Media pages and player controls are chosen separately.", id = "interface",
+        "Ember is the default media-focused Home. Ember Light uses an app grid with movable navigation icons. Navbar, media-page and player layouts are chosen separately.", id = "interface",
     ) {
         Choice(SettingDefinitions.interfaceStyle.options,vm.look.uiStyle,vm.look::updateUiStyle)
         if(isEmberX)Note("Ember X uses a dark cinema Home layout. Navbar, media-page and player styles are configured separately. Colour themes remain independent.")
@@ -204,7 +204,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             Choice(SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout, vm.look::updateMediaPageLayout)
         }
         "navbar-style" -> Section(SettingDefinitions.navbarStyle.title,
-            "Choose navigation independently of Home. Light keeps its own fixed navigation.",id="navbar-style") {
+            "Choose navigation for Ember. Ember Light uses navigation icons in its app grid.",id="navbar-style") {
             if(app.ember.tv.data.NavbarStyles.available(vm.look.uiStyle))
                 Choice(SettingDefinitions.navbarStyle.options,vm.look.navbarStyle,vm.look::updateNavbarStyle)
             else Note("Light uses its own navigation.")

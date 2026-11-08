@@ -1,6 +1,9 @@
 package app.ember.tv.ui
 
 import app.ember.tv.setAppOrder
+import app.ember.tv.lightAppItems
+import app.ember.tv.data.LightNavigation
+import app.ember.tv.data.InterfaceStyles
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -50,7 +53,8 @@ internal class AppMoveDraft(initial: List<String>, private val pkg: String) {
 /** App move mode: a stable grid focus, selected app follows arrows, OK places it. */
 @Composable
 fun AppMoveDialog(app: AppEntry, vm: HomeViewModel, close: () -> Unit) {
-    val permitted = vm.appAccess.page(showHidden = true)
+    val light=vm.look.uiStyle==InterfaceStyles.LIGHT
+    val permitted = if(light)vm.lightAppItems(true) else vm.appAccess.page(showHidden = true)
     val draft = remember(app.pkg, vm.profiles.profileId) { AppMoveDraft(permitted.map { it.pkg }, app.pkg) }
     val entries = permitted.associateBy { it.pkg }
     // Package/profile changes must not reintroduce uninstalled or forbidden apps while moving.
@@ -61,7 +65,7 @@ fun AppMoveDialog(app: AppEntry, vm: HomeViewModel, close: () -> Unit) {
     val grid = rememberLazyGridState()
     val horizontal = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1 else 1
     val focus = remember { FocusRequester() }
-    val columns = 4
+    val columns = if(light)6 else 4
     fun save() { vm.setAppOrder(draft.order.filter { it in entries }); vm.showNotice("App order saved."); close() }
     LaunchedEffect(index, order.size) {
         if (index < 0) close() else grid.scrollToItem(index)
@@ -106,14 +110,16 @@ fun AppMoveDialog(app: AppEntry, vm: HomeViewModel, close: () -> Unit) {
                 contentPadding = PaddingValues(8.dp)) {
                 items(order, key = { it }) { pkg ->
                     val item = entries.getValue(pkg)
-                    val bitmap = rememberAppArtwork(item)
+                    val destination=LightNavigation.destination(item.pkg)
+                    val bitmap = if(destination==null)rememberAppArtwork(item) else null
                     val selected = pkg == app.pkg
                     Column(Modifier.alpha(if (selected) 1f else .6f)
                         .background(if (selected) WashHi else Panel, RoundedCornerShape(10.dp))
                         .then(if (selected) Modifier.border(2.dp, Ring, RoundedCornerShape(10.dp)) else Modifier)
                         .padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentAlignment = Alignment.Center) {
-                            if (bitmap != null) Image(bitmap.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                            if(destination!=null)NavGlyph(destination,Fg)
+                            else if (bitmap != null) Image(bitmap.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             else ArtworkPlaceholder(item.label, Modifier.fillMaxSize())
                         }
                         Text(item.label, fontSize = 12.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)

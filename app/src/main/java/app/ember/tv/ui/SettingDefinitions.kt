@@ -9,12 +9,12 @@ internal data class SettingDefinition(
 }
 
 internal object SettingDefinitions {
-    val interfaceStyle = SettingDefinition("interface", SettingsTab.APPEARANCE, "Interface", "look launcher style Ember X EmberFlix cinema home navigation settings media player",
+    val interfaceStyle = SettingDefinition("interface", SettingsTab.APPEARANCE, "Interface", "look launcher style Ember Ember Light home navigation apps grid",
         app.ember.tv.data.InterfaceStyles.options)
     val theme = SettingDefinition("theme", SettingsTab.APPEARANCE, "Theme", "OLED black day night automatic",
         listOf("night" to "Night", "day" to "Day", "auto" to "Auto"))
     val mediaPageLayout = SettingDefinition("media-page-layout", SettingsTab.APPEARANCE, "Media page layout",
-        "movie show details episodes sources independent Modern Immersive Glass Ember X right panel",
+        "movie show details episodes sources independent Modern Ember X right panel",
         app.ember.tv.data.MediaPageLayouts.options)
     val navbarStyle=SettingDefinition("navbar-style",SettingsTab.APPEARANCE,"Navbar style",
         "navigation header collapsed cinema bar black independent menu",app.ember.tv.data.NavbarStyles.options)

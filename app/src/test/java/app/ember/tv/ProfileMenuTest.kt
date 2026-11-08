@@ -98,7 +98,7 @@ class ProfileMenuTest {
         assertEquals("modern", values["uiStyle"])
         assertEquals("legacy", prefs.badgeMode)
         assertEquals(appearanceKeys("modern"), appearanceKeys("legacy"))
-        assertEquals(listOf("modern", "light", "ember_x"), SettingDefinitions.interfaceStyle.options.map { it.first })
+        assertEquals(listOf("modern", "light"), SettingDefinitions.interfaceStyle.options.map { it.first })
         prefs.uiStyle = "light"
         assertEquals("light", prefs.uiStyle)
         prefs.uiStyle = "unknown-restored-value"

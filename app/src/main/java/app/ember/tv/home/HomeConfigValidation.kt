@@ -12,6 +12,8 @@ internal object HomeConfigValidation {
             require(p.folders.size<=24 && p.folders.map {it.id}.distinct().size==p.folders.size)
             require(p.folders.all {it.id.isNotBlank() && it.id.length<=100 && it.name.isNotBlank() && it.name.length<=40 && it.packages.size<=200})
             require(p.artwork.size<=100 && p.dismissed.size<=300 && p.mutedApps.size<=500)
+            require(p.lightOrder.size<=1000 && p.lightOrder.all {it.length<=256} && p.lightNavHidden.size<=20)
+            require(p.lightNavHidden.all {app.ember.tv.data.LightNavigation.destination(it)!=null})
             p.artwork.values.forEach {art->
                 require(art.data.length<=AppArtImport.MAX_ENCODED && art.id.matches(Regex("[0-9a-f]{64}")))
                 val bytes=Base64.getDecoder().decode(art.data)

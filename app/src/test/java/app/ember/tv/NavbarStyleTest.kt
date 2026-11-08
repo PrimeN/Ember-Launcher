@@ -19,14 +19,14 @@ class NavbarStyleTest {
     @Test fun everyStyleSurvivesBackupWithoutChangingHomeMediaOrPlayer() {
         for((style,_) in NavbarStyles.options)for(launcher in listOf(InterfaceStyles.MODERN,InterfaceStyles.EMBER_X)) {
             val source=PersistenceContext(temp.newFolder());val prefs=Prefs(source).apply {
-                uiStyle=launcher;navbarStyle=style;mediaPageLayout=MediaPageLayouts.IMMERSIVE
+                uiStyle=launcher;navbarStyle=style;mediaPageLayout=MediaPageLayouts.EMBER_X
                 playbackConfig=playbackConfig.copy(playerInterface="basic")
             }
             val target=PersistenceContext(temp.newFolder())
             BackupPersistence(target,FixtureSecrets()).restore(BackupPersistence(source,FixtureSecrets()).snapshot())
             val restored=Prefs(target)
-            assertEquals(style,restored.navbarStyle);assertEquals(launcher,restored.uiStyle)
-            assertEquals(MediaPageLayouts.IMMERSIVE,restored.mediaPageLayout);assertEquals(prefs.playbackConfig,restored.playbackConfig)
+            assertEquals(style,restored.navbarStyle);assertEquals(InterfaceStyles.home(launcher),restored.uiStyle)
+            assertEquals(MediaPageLayouts.EMBER_X,restored.mediaPageLayout);assertEquals(prefs.playbackConfig,restored.playbackConfig)
         }
     }
     @Test fun lightBlocksChangesAndReturningToAnotherInterfaceRestoresTheSavedChoice() {

@@ -39,11 +39,11 @@ class HomeHeroScrollTest {
     @get:Rule val compose=createComposeRule()
 
     @Test fun movingToContentHidesWholeHeroAndUpRestoresIt() = checkScrolling()
-    @Test fun emberXHeroAlsoClearsWhenMovingIntoRows() = checkScrolling(emberX=true)
+    @Test fun shortHeroAlsoClearsWhenMovingIntoRows() = checkScrolling(height=300)
     @Test fun reorderedHeroStillClearsAndRestores() = checkScrolling(leading=true)
     @Test fun oversizedHeroKeepsItsInternalScroll() = checkScrolling(height=600)
     @Test fun tvWatchlistFocusSettlesAndReturnsToTheHero() = checkScrolling(tv=true)
-    @Test fun tvEmberXWatchlistFocusSettlesAndReturnsToTheHero() = checkScrolling(emberX=true,tv=true)
+    @Test fun tvShortHeroWatchlistFocusSettlesAndReturnsToTheHero() = checkScrolling(height=300,tv=true)
     @Test fun tvReorderedHeroStillSettles() = checkScrolling(leading=true,tv=true)
     @Test fun tvOversizedHeroStillScrolls() = checkScrolling(height=600,tv=true)
 
@@ -89,7 +89,7 @@ class HomeHeroScrollTest {
         }
     }
 
-    private fun checkScrolling(emberX: Boolean=false, leading: Boolean=false, height: Int=400, tv: Boolean=false) {
+    private fun checkScrolling(leading: Boolean=false, height: Int=400, tv: Boolean=false) {
         val app: Application = RuntimeEnvironment.getApplication()
         shadowOf(app.packageManager).setSystemFeature(PackageManager.FEATURE_LEANBACK,tv)
         lateinit var state: LazyListState
@@ -110,8 +110,7 @@ class HomeHeroScrollTest {
                         item(key="hero") {
                             CompositionLocalProvider(LocalBringIntoViewSpec provides normal) {
                                 val titles=listOf(Meta(id="featured",type="movie",name="Featured title"))
-                                if(emberX)EmberXHero(titles,0,{},height.dp,{false},{},{},entered,false,null,{focused=it})
-                                else ModernHero(titles,0,{},height.dp,{false},{},{},entered,false,onFocusState={focused=it})
+                                ModernHero(titles,0,{},height.dp,{false},{},{},entered,false,onFocusState={focused=it})
                             }
                         }
                         item(key="cards") {

@@ -15,7 +15,7 @@ internal fun LightSearchScreen(vm: HomeViewModel, onLaunch: (AppEntry) -> Unit, 
     val query = vm.search.searchQuery.trim()
     val inputs = rememberLightInputs(0)
     val settings = remember(query) {
-        val light = SettingDefinition("wallpaper", SettingsTab.APPEARANCE, "Light Home", "Light wallpaper carousel dock six columns more apps idle motion background aurora ocean", app.ember.tv.data.LightLayout.backgrounds)
+        val light = SettingDefinition("wallpaper", SettingsTab.APPEARANCE, "Ember Light Home", "Light wallpaper carousel dock six columns more apps idle motion background aurora ocean", app.ember.tv.data.LightLayout.backgrounds)
         val words = query.lowercase(java.util.Locale.ROOT).split(Regex("\\s+")).filter { it.length >= 2 }
         (SettingDefinitions.matching(query) + if (words.isNotEmpty() && words.all { it in light.searchText }) listOf(light) else emptyList())
             .plus(if(words.isNotEmpty())SETTINGS_INDEX.filter {(_,text)->words.all {it in text.lowercase(java.util.Locale.ROOT)}}.map {(tab,_)->SettingDefinition("page",tab,tab.label,"")} else emptyList())

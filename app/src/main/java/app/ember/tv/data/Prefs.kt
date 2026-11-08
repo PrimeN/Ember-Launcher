@@ -566,12 +566,17 @@ class Prefs(context: Context) {
         get() {
             migrateEmberXInterface()
             val stored = sp.read(PreferenceKeys.UI_STYLE)
-            return InterfaceStyles.normalize(stored).also { normalized ->
+            if(stored==InterfaceStyles.EMBER_X) {
+                if(sp.read(PreferenceKeys.MEDIA_PAGE_LAYOUT)==null)mediaPageLayout=MediaPageLayouts.EMBER_X
+                val player=playbackConfig
+                if(player.playerInterface==null)playbackConfig=player.copy(playerInterface=app.ember.tv.player.PlayerInterfaces.EMBER_X)
+            }
+            return InterfaceStyles.home(stored).also { normalized ->
                 if (stored != normalized) sp.edit { putString(PreferenceKeys.UI_STYLE.name, normalized) }
             }
         }
         set(v) = sp.edit {
-            putString(PreferenceKeys.UI_STYLE.name, InterfaceStyles.normalize(v))
+            putString(PreferenceKeys.UI_STYLE.name, InterfaceStyles.home(v))
             putBoolean(PreferenceKeys.EMBER_X_INTERFACE_MIGRATED.name, true)
         }
 

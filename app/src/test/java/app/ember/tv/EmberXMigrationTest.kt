@@ -14,7 +14,9 @@ class EmberXMigrationTest {
         raw.edit().putInt("accent3",6).putString("uiStyle","light").putString("menuPosition","side").putString("theme","day").commit()
         val prefs=Prefs(context)
         assertEquals(6,prefs.accent) // Even an early palette read performs migration.
-        assertEquals(InterfaceStyles.EMBER_X,prefs.uiStyle)
+        assertEquals(InterfaceStyles.MODERN,prefs.uiStyle)
+        assertEquals(MediaPageLayouts.EMBER_X,prefs.mediaPageLayout)
+        assertEquals("ember_x",prefs.playbackConfig.playerInterface)
         assertEquals("side",prefs.menuPosition);assertEquals("day",prefs.theme)
         prefs.uiStyle=InterfaceStyles.MODERN
         assertEquals(InterfaceStyles.MODERN,Prefs(context).uiStyle)
@@ -33,7 +35,9 @@ class EmberXMigrationTest {
         Prefs(target).uiStyle=InterfaceStyles.MODERN // Restore replaces the old marker as well.
         BackupPersistence(target,FixtureSecrets()).restore(BackupPersistence(old,FixtureSecrets()).snapshot())
         val prefs=Prefs(target)
-        assertEquals(InterfaceStyles.EMBER_X,prefs.uiStyle)
+        assertEquals(InterfaceStyles.MODERN,prefs.uiStyle)
+        assertEquals(MediaPageLayouts.EMBER_X,prefs.mediaPageLayout)
+        assertEquals("ember_x",prefs.playbackConfig.playerInterface)
         prefs.uiStyle=InterfaceStyles.LIGHT
         val next=PersistenceContext(temp.newFolder())
         BackupPersistence(next,FixtureSecrets()).restore(BackupPersistence(target,FixtureSecrets()).snapshot())

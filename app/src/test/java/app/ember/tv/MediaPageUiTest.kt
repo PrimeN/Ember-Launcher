@@ -73,14 +73,13 @@ class MediaPageUiTest {
         click("Add to watchlist");assertEquals(1,saved)
         click("Mark as watched");assertEquals(1,watched)
     }
-    @Test fun immersiveUsesCompactEqualHeightActionsAndSourceShortcutUnderLightHome() {
-        launcher=InterfaceStyles.LIGHT;layout=MediaPageLayouts.IMMERSIVE;show()
+    @Test fun modernKeepsEqualHeightActionsAndSourceChoiceUnderLightHome() {
+        launcher=InterfaceStyles.LIGHT;layout=MediaPageLayouts.MODERN;automatic=false;show()
         val play=action("Resume 24:18",true).fetchSemanticsNode().boundsInRoot
         val trailer=action("Play trailer").fetchSemanticsNode().boundsInRoot
         assertEquals(play.height,trailer.height,.5f)
-        action("Sources · 1 option").assertExists()
         action("Episodes and playback sources").assertDoesNotExist()
-        click("Sources · 1 option")
+        click("Resume 24:18",true)
         compose.onNodeWithText("Sources · 1 found").assertIsFocused()
     }
     @Test fun emberXEpisodeSourceAndBackRestoreTheSelectedEpisode() {
@@ -101,7 +100,7 @@ class MediaPageUiTest {
         action("Season 1, episode 2, Episode 2").assertIsFocused()
     }
     @Test fun noSourcesKeepPlayDisabledAndWatchlistAccessible() {
-        layout=MediaPageLayouts.IMMERSIVE;details=details.copy(streams=emptyList());show()
+        layout=MediaPageLayouts.MODERN;details=details.copy(streams=emptyList());show()
         action("No source available").assertIsNotEnabled()
         action("Add to watchlist").assertIsFocused()
         click("Add to watchlist");assertEquals(1,saved)

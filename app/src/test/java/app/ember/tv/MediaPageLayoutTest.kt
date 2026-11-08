@@ -37,11 +37,11 @@ class MediaPageLayoutTest {
         val prefs=Prefs(PersistenceContext(temp.newFolder()));val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
         try {
             val look=LookState(prefs,scope)
-            look.updateMediaPageLayout(MediaPageLayouts.IMMERSIVE)
+            look.updateMediaPageLayout(MediaPageLayouts.EMBER_X)
             for((launcher,_) in InterfaceStyles.options) {
                 look.updateUiStyle(launcher)
-                assertEquals(MediaPageLayouts.IMMERSIVE,look.mediaPageLayout)
-                assertEquals(MediaPageLayouts.IMMERSIVE,prefs.mediaPageLayout)
+                assertEquals(MediaPageLayouts.EMBER_X,look.mediaPageLayout)
+                assertEquals(MediaPageLayouts.EMBER_X,prefs.mediaPageLayout)
             }
         } finally {scope.cancel();Ui.emberX=false;Ui.light=false}
     }
@@ -53,13 +53,13 @@ class MediaPageLayoutTest {
         assertFalse(MediaPageLayouts.split(MediaPageLayouts.EMBER_X,960f,1f,280f))
         assertFalse(MediaPageLayouts.split(MediaPageLayouts.EMBER_X,Float.NaN,1f))
         assertFalse(MediaPageLayouts.split(MediaPageLayouts.MODERN,960f,1f))
-        assertFalse(MediaPageLayouts.split(MediaPageLayouts.IMMERSIVE,960f,1f))
+        assertEquals(MediaPageLayouts.MODERN,MediaPageLayouts.normalize("immersive_glass"))
     }
     @Test fun settingIsAvailableAndSearchableForEveryInterface() {
         for((launcher,_) in InterfaceStyles.options) assertTrue("media-page-layout" in lookKeys(SettingsTab.APPEARANCE,launcher))
         val setting=SettingDefinitions.matching("Media page layout").single()
         assertEquals(SettingsTab.APPEARANCE,setting.tab)
-        assertEquals(listOf("Modern","Immersive Glass","Ember X"),setting.options.map {it.second})
-        assertTrue(SettingDefinitions.matching("Immersive Glass").any {it.id==setting.id})
+        assertEquals(listOf("Modern","Ember X"),setting.options.map {it.second})
+        assertTrue(SettingDefinitions.matching("Ember X").any {it.id==setting.id})
     }
 }

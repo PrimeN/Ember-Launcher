@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.currentStateAsState
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
+import app.ember.tv.lightAppItems
 import app.ember.tv.R
 import app.ember.tv.data.*
 import app.ember.tv.device.DeviceInputs
@@ -67,12 +68,13 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     val millis = render.animationMillis(180, reduced)
     val profile = vm.profiles.profileId
     val desktop=vm.personalHomes.current
-    val apps = vm.homeApps
+    val apps = vm.lightAppItems()
     val namedFolders=desktop.folders.filter {f->f.packages.any(vm.appAccess::canLaunch)}
     val titleActions=LocalTitleActions.current
     val folder = vm.appAccess.page(false).filter { a -> vm.visibleApps.none { it.pkg == a.pkg } && vm.personalHomes.folderFor(a.pkg)==null }
     // Hidden apps are on neither Home nor More Apps; More Apps can show them so they can be unhidden.
-    val hiddenApps = vm.appAccess.page(true).filter { it.pkg in vm.appsPageOff }
+    val hiddenApps = vm.appAccess.page(true).filter { it.pkg in vm.appsPageOff } +
+        vm.lightAppItems(true).filter { LightNavigation.destination(it.pkg)!=null && it.pkg in desktop.lightNavHidden }
     val hasMore = folder.isNotEmpty() || hiddenApps.isNotEmpty()
     val hasFolders=hasMore || namedFolders.isNotEmpty()
     var panel by remember(profile) { mutableStateOf<String?>(null) }
@@ -161,6 +163,10 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
         }
     }
     fun launch(app: AppEntry) {
+        LightNavigation.destination(app.pkg)?.let {destination->
+            if(destination in vm.visibleTabs)onTab(destination)
+            return
+        }
         if (launching != null) return
         launching = app.pkg
         scope.launch {
@@ -252,7 +258,7 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                         Row(Modifier.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
                             apps.take(6).forEachIndexed { i, app -> LightAppTile(app, grid, millis, launching == app.pkg,
                                 Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).lightArrows(onUp = ::dockUp)
-                                    .onFocusChanged { if (it.hasFocus) shelfPkg = app.pkg }, { launch(app) }, { onAppOptions(app) }) }
+                                    .onFocusChanged { if (it.hasFocus) shelfPkg = app.pkg.takeIf {LightNavigation.destination(it)==null} }, { launch(app) }, { onAppOptions(app) }) }
                             if (apps.isEmpty()) Text(stringResource(R.string.ui_no_apps_to_show), color = Color.White, modifier = Modifier.padding(16.dp))
                         }
                         }
@@ -321,7 +327,6 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                 Row(Modifier.lightGlass(30).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(if (online) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, if (online) "Internet connected" else "No internet", Modifier.size(18.dp), tint = Color.White.copy(alpha = .8f))
                     Text(rememberLauncherTime(), fontSize = 18.sp, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp))
-                    if (NavTabs.SEARCH in tabs) LightIcon("Search", Icons.Outlined.Search, Modifier.lightArrows(onDown = ::headerDown)) { onTab(NavTabs.SEARCH) }
                     LightIcon("Control Center", Icons.Outlined.Tune, Modifier.lightArrows(onDown = ::headerDown)) { onTab(NavTabs.QUICK) }
                     ProfileMenuButton(vm.profiles.profile, Modifier.lightArrows(onDown = ::headerDown), size = 34.dp)
                 }
@@ -445,15 +450,17 @@ private fun LightButton(label: String, icon: ImageVector, modifier: Modifier = M
 }
 
 @Composable
-private fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, launching: Boolean, modifier: Modifier, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val bitmap = rememberAppArtwork(app, circle = false)
+internal fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, launching: Boolean, modifier: Modifier, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val destination=LightNavigation.destination(app.pkg)
+    val bitmap = if(destination==null)rememberAppArtwork(app, circle = false) else null
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (millis == 0) 1f else if (launching) 1.4f else if (focused) (if (LocalRenderOptions.current.lowPower) 1.02f else 1.2f) else 1f, tween(millis), label = "Light app lift")
     Column(modifier.width(grid.width.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Focusable(onClick, Modifier.fillMaxWidth().height(grid.height.dp).onFocusChanged { focused = it.isFocused }.graphicsLayer {
             scaleX = scale; scaleY = scale; translationY = if (focused && millis > 0) -3.dp.toPx() else 0f
         }, onLongClick = onLongClick, radius = grid.radius.toInt().coerceAtLeast(2), container = Color(0xFF262C3C), focusedScale = TvTokens.Focus.None) {
-            if (bitmap != null) Image(bitmap.asImageBitmap(), app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            if(destination!=null)Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF493D66),Color(0xFF183F4C)))).semantics {contentDescription=app.label},contentAlignment=Alignment.Center) {NavGlyph(destination,Color.White,minOf(56.dp,(grid.height*.5f).dp))}
+            else if (bitmap != null) Image(bitmap.asImageBitmap(), app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Apps, app.label, Modifier.size(30.dp)) }
         }
         if (tileLabelShown(TileLabels.APPS)) Text(app.label, color = Color.White.copy(alpha = if (focused) 1f else .75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

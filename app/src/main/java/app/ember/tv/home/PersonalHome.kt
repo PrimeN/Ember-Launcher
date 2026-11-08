@@ -23,6 +23,7 @@ import kotlinx.serialization.encodeToString
     val mutedApps: Set<String> = emptySet(),
     val dismissed: Map<String,Long> = emptyMap(), val hideShortClips: Boolean = false, val hideCredits: Boolean = true,
     val wallpaperColours: Boolean = true,
+    val lightOrder: List<String> = emptyList(), val lightNavHidden: Set<String> = emptySet(),
 )
 
 /** Existing preferences remain the active desktop; inactive desktops are retained separately for backward-compatible restores. */

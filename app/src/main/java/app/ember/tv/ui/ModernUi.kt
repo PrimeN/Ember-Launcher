@@ -359,7 +359,7 @@ fun ModernHome(
     presentedHero: Meta? = null,
 ) {
     val hero = vm.heroItems
-    val wide = !isEmberX && vm.look.modernCards != "poster"
+    val wide = vm.look.modernCards != "poster"
     val row: @Composable (List<Meta>, Boolean) -> Unit = { items, saved ->
         MediaRow(items, wide, isSaved = { saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle)
     }
@@ -377,7 +377,7 @@ fun ModernHome(
     val defaultBring=androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
     val bring=remember(state,defaultBring,heroPosition) {HomeBringIntoViewSpec(state,defaultBring,{heroHasFocus},{heroFits.value},heroPosition)}
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val heroHeight = (if(isEmberX)EmberXLayout.heroHeight(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else HeroLayout.height(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale)).dp
+        val heroHeight = HeroLayout.height(maxHeight.value,androidx.compose.ui.platform.LocalDensity.current.fontScale).dp
         androidx.compose.runtime.SideEffect {heroFits.value=heroHeight<=maxHeight}
         CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bring) {
         LazyColumn(
@@ -461,10 +461,6 @@ internal fun ModernHero(
     onFocusState:(Boolean)->Unit={},
 ) {
     if (items.isEmpty()) return
-    if(isEmberX) {
-        EmberXHero(items,index,onIndex,height,isSaved,onToggleSaved,onOpen,onFocus,rotating,presented,onFocusState)
-        return
-    }
     androidx.compose.runtime.DisposableEffect(Unit){onDispose {onFocusState(false)}}
     val reduceMotion = LocalReduceMotion.current
     val render = LocalRenderOptions.current
@@ -845,7 +841,7 @@ private fun RailItem(id: String, contentId: String, selected: Boolean, expanded:
 
 /** Small drawn icons for the menu entries. */
 @Composable
-fun NavGlyph(id: String, color: Color) {
+fun NavGlyph(id: String, color: Color, size: Dp = 20.dp) {
     MaterialGlyph(
         when (id) {
             NavTabs.HOME -> Icons.Outlined.IcHome
@@ -859,7 +855,7 @@ fun NavGlyph(id: String, color: Color) {
             NavTabs.QUICK -> Icons.Outlined.IcTune
             else -> Icons.Outlined.IcCircle
         },
-        color,
+        color, size,
     )
 }
 

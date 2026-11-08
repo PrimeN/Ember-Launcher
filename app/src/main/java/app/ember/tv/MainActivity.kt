@@ -73,6 +73,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.tv.material3.Text
+import app.ember.tv.data.LightNavigation
 import app.ember.tv.data.AppEntry
 import app.ember.tv.data.LocalLibrary
 import app.ember.tv.data.Meta
@@ -687,9 +688,9 @@ private fun RootContent(
     val navigationContext = androidx.compose.ui.platform.LocalContext.current
     var options by remember { mutableStateOf<AppEntry?>(null) }
     var moving by remember { mutableStateOf<AppEntry?>(null) }
-    LaunchedEffect(vm.apps, vm.profiles.profile, options?.pkg, moving?.pkg) {
-        if (options?.let { !vm.appAccess.canLaunch(it.pkg) } == true) options = null
-        if (moving?.let { !vm.appAccess.canLaunch(it.pkg) } == true) moving = null
+    LaunchedEffect(vm.apps, vm.profiles.profile, vm.look.uiStyle, vm.visibleTabs, options?.pkg, moving?.pkg) {
+        if (options?.let { !vm.canManageHomeItem(it.pkg) } == true) options = null
+        if (moving?.let { !vm.canManageHomeItem(it.pkg) } == true) moving = null
     }
     val launchApp:(AppEntry)->Unit={app->if(options==null && moving==null)onLaunch(app)}
     app.ember.tv.ui.HomeFeatureDialogs(vm,onLaunch)
@@ -731,8 +732,8 @@ private fun RootContent(
         MaterialTheme(colorScheme=app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).copy(background=detailsBackground,
             surface=detailsBackground,onSurface=androidx.compose.ui.graphics.Color.White,onBackground=androidx.compose.ui.graphics.Color.White)) {
         Box(Modifier.fillMaxSize().background(detailsBackground)) {
-            app.ember.tv.ui.ModernBackdrop(d.meta,dim=detailsDim,backgroundColor=detailsBackground,heightFraction=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.MODERN).78f else 1f,
-                shade=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.IMMERSIVE).86f else 1f)
+            app.ember.tv.ui.ModernBackdrop(d.meta,dim=detailsDim,backgroundColor=detailsBackground,heightFraction=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.MODERN).78f else 1f)
+            app.ember.tv.ui.MediaPageRightFade(detailsBackground)
             Column(Modifier.fillMaxSize().sceneEnter("details:${d.meta.mediaKey()}")) {
                 Box(Modifier.fillMaxWidth().padding(start=TvTokens.Space.Page.dp,end=TvTokens.Space.Page.dp,top=12.dp,bottom=4.dp)) {
                     app.ember.tv.ui.DetailsBackButton(Modifier.focusRequester(backFocus)
@@ -1007,8 +1008,8 @@ private fun RootContent(
             }
         }
     }
-    options?.takeIf { vm.appAccess.canLaunch(it.pkg) }?.let { app -> AppOptionsDialog(app, app.pkg in vm.hidden, vm, onMove = { options = null; moving = app }) { options = null } }
-    moving?.takeIf { vm.appAccess.canLaunch(it.pkg) }?.let { movedApp -> app.ember.tv.ui.AppMoveDialog(movedApp, vm) { moving = null } }
+    options?.takeIf { vm.canManageHomeItem(it.pkg) }?.let { app -> AppOptionsDialog(app, app.pkg in vm.hidden, vm, onMove = { options = null; moving = app }) { options = null } }
+    moving?.takeIf { vm.canManageHomeItem(it.pkg) }?.let { movedApp -> app.ember.tv.ui.AppMoveDialog(movedApp, vm) { moving = null } }
 }
 
 /** Resume or Start over, for a title with a resume point. */
@@ -1071,6 +1072,17 @@ private fun LinkDialog(link: LinkUi, onCancel: () -> Unit) {
 
 @Composable
 private fun AppOptionsDialog(app: AppEntry, hidden: Boolean, vm: HomeViewModel, onMove: () -> Unit, onClose: () -> Unit) {
+    if(LightNavigation.destination(app.pkg)!=null) {
+        val hidden=app.pkg in vm.personalHomes.current.lightNavHidden
+        val actions=listOf("Move with D-pad","Move earlier","Move later",if(hidden)"Show on Home" else "Hide")
+        CompactActionMenu(app.label,actions,onClose) {first->
+            MenuActionRow(actions[0],modifier=Modifier.focusRequester(first),icon=Icons.Outlined.OpenWith,onClick=onMove)
+            MenuActionRow(actions[1]){vm.moveApp(app.pkg,-1)}
+            MenuActionRow(actions[2]){vm.moveApp(app.pkg,1)}
+            MenuActionRow(actions[3]){vm.toggleLightNavigation(app.pkg);onClose()}
+        }
+        return
+    }
     val context=androidx.compose.ui.platform.LocalContext.current
     val labels=listOf("Move with D-pad",stringResource(R.string.ui_move_earlier),stringResource(R.string.ui_move_later),
         if(hidden)"Show on Home" else "Remove from Home",if(app.pkg in vm.appsPageOff)"Unhide" else "Hide",

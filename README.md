@@ -21,9 +21,9 @@ Use it as your everyday launcher, connect the sources you want, and choose how y
 
 ### A Home screen that fits you
 
-- **Three interfaces:** choose Modern, Light or Ember X, with shared access to your media and settings.
-- **Independent media pages:** choose the current Modern layout, Immersive Glass or Ember X with its episode/source side panel, regardless of your Home interface or player controls.
-- **Independent navigation:** Modern and Ember X can use Ember, Ember Collapsed or Cinema Bar navigation. Light retains its own navigation.
+- **Two interfaces:** choose Ember (default) or Ember Light, with shared access to your media and settings.
+- **Independent media pages:** choose Modern or Ember X with its episode/source side panel, regardless of your Home interface or player controls.
+- **Independent navigation:** Ember uses the Ember navbar by default, with Ember Collapsed and Cinema Bar alternatives. Ember Light puts navigation destinations in its app grid, with the same move and hide controls as apps.
 - **Customizable navigation and rows:** choose visible tabs, arrange your Home content, and enable the sections you use.
 - **Personal app layouts:** reorder or hide apps, create folders, customize artwork and protect app launches with a PIN.
 - **Unified App Library:** browse installed apps in a responsive artwork grid, search by name, and switch between custom or alphabetical order without changing your saved layout.
@@ -32,11 +32,10 @@ Use it as your everyday launcher, connect the sources you want, and choose how y
 
 | Interface | Experience |
 |---|---|
-| **Modern** | A media-focused Home screen with featured artwork, configurable content rows and compact navigation. |
-| **Light** | An app-focused layout with a six-column grid, dock, background choices and a carousel that can expand when idle. |
-| **Ember X** | A cinema-style layout with prominent artwork, detailed media pages and structured playback-source information. |
+| **Ember** | A media-focused Home screen with featured artwork, configurable content rows and compact navigation. |
+| **Ember Light** | An app-focused layout with a six-column grid, dock, background choices and a carousel that can expand when idle. |
 
-Light can also show participating apps' Android TV Watch Next entries and recommendations when the required access is available.
+Ember Light can also show participating apps' Android TV Watch Next entries and recommendations when the required access is available.
 
 ### Discover movies, shows and collections
 
@@ -44,7 +43,7 @@ Light can also show participating apps' Android TV Watch Next entries and recomm
 - **Awards and sorting:** explore Oscar winners or nominees, including Best Picture filters, and sort by popularity, rating or release date.
 - **Ranked selections:** explore up to 100 matching titles and save Discover searches as collection sources.
 - **Configurable sections:** show or hide Explore, Collections and Catalogs in Discover.
-- **Search:** find media through your configured sources using text or voice input, with a responsive results grid, compact filters, source labels and optional duplicate combining. Light also provides quick search for apps, settings and available TV inputs.
+- **Search:** find media through your configured sources using text or voice input, with a responsive results grid, compact filters, source labels and optional duplicate combining. Ember Light also provides quick search for apps, settings and available TV inputs.
 - **Optional AI assistance:** describe what you want to watch and review suggested filters using your own Mistral configuration.
 
 ### Add-ons and catalogs
@@ -138,7 +137,7 @@ The integrations below are built into Ember. Enable the ones you want; the launc
 | **OMDb** | Additional IMDb, Metacritic and Rotten Tomatoes ratings. | Your personal API key. [Get a key](https://www.omdbapi.com/apikey.aspx). |
 | **RPDB** | Posters with rating badges. | A built-in free key supports the default style. Use your own key and appropriate provider plan for additional styles. [RPDB plans and access](https://ratingposterdb.com/). |
 | **BetterPosters** | Alternative poster artwork. | No personal API key for the public poster integration. |
-| **Cinemeta** | Public movie/show results in Light search. | No account or API key. |
+| **Cinemeta** | Public movie/show results in Ember Light search. | No account or API key. |
 
 ### Media servers and watch tracking
 

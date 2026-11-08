@@ -34,7 +34,7 @@ class LightHomeTest {
     }
     @Test fun keepsLightIdentityAndNormalizesInvalidIdleChoices() {
         assertEquals("light", InterfaceStyles.normalize("light"))
-        assertTrue(InterfaceStyles.options.contains("light" to "Light"))
+        assertTrue(InterfaceStyles.options.contains("light" to "Ember Light"))
         assertEquals(30, LightHomeOptions(idleSeconds = -1).normalized().idleSeconds)
         assertEquals(0, LightHomeOptions(idleSeconds = 0).normalized().idleSeconds)
         assertEquals(120, LightHomeOptions(idleSeconds = 120).normalized().idleSeconds)
