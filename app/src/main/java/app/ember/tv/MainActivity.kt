@@ -636,7 +636,8 @@ private fun Root(
         Box(Modifier.fillMaxSize().then(if(!startup.ready)Modifier.clearAndSetSemantics {} else Modifier)) {
         app.ember.tv.ui.FocusBackdropHost(vm,
             scope = listOf(vm.profiles.profile, tab, vm.collections.open?.first?.id, vm.collections.open?.second?.id, vm.serverBrowser.library?.ref),
-            enabled = vm.details == null) {
+            // Search paints its own theme-coloured background (#120), not the focused title's artwork.
+            enabled = vm.details == null && tab != NavTabs.SEARCH) {
             RootContent(vm, tab, onTab, onLaunch, onPlay, onPlayWith, onOpenOffer, onPlayTrailer, onPlayChannel)
         }
         }
@@ -882,6 +883,7 @@ private fun RootContent(
                     app.ember.tv.data.FocusBackground.idleArtwork(atTop && vm.heroOn, vm.look.mediaFocusBackground))
                     app.ember.tv.ui.ModernBackdrop(shown, dim = if (atTop && vm.heroOn) 0f else 0.55f, heightFraction = if(app.ember.tv.ui.Ui.emberX)1f else app.ember.tv.data.HeroBanner.BACKDROP_FRACTION, shade = if (atTop && vm.heroOn) .82f else 1f, onPresented = { presentedHero = it })
             }
+            if (current == NavTabs.SEARCH) app.ember.tv.ui.SearchBackdrop()
         Column(Modifier.fillMaxSize().padding(start = if (side) 84.dp else 0.dp)) {
             // Light has no menu: Settings and Search are buttons on its Home, and Back returns there.
             if (!light && !side && current != NavTabs.SETTINGS) {
