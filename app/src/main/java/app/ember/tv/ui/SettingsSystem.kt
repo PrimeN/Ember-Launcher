@@ -383,7 +383,11 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                     // #94: fills in the form below with this server, ready for the password or Quick Connect.
                     if (a.key in signedOut) Chip("Sign in again") { kind = a.kind; url = a.url; user = a.userName; password = "" }
                     Chip("Switch user") { userAccount = a; choosingUser = true }
-                    Chip(stringResource(R.string.ui_remove)) { vm.removeServer(a.key) }
+                    var removing by remember(a.key) { mutableStateOf(false) }
+                    Chip(stringResource(R.string.ui_remove)) { removing = true }
+                    if (removing) ConfirmDestructive("Remove ${a.name}?",
+                        "Ember signs out of this server and stops showing its libraries. Nothing is deleted on the server.",
+                        { removing = false }, stringResource(R.string.ui_remove)) { vm.removeServer(a.key) }
                 }
             }
 

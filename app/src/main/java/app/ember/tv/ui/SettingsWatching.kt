@@ -424,7 +424,12 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
             }
             if (!renaming) Chip(stringResource(R.string.ui_rename)) { renaming = true }
             Chip("Refresh") { vm.refreshAddon(url) }
-            Chip(stringResource(R.string.ui_remove)) { vm.removeAddon(url) }
+            // #131: removing loses the addon's configured link, so it asks first.
+            var removing by remember(url) { mutableStateOf(false) }
+            Chip(stringResource(R.string.ui_remove)) { removing = true }
+            if (removing) ConfirmDestructive("Remove ${info?.name ?: "this addon"}?",
+                "Its catalogs, streams and subtitles stop appearing. To add it back you'll need its link again.",
+                { removing = false }, stringResource(R.string.ui_remove)) { vm.removeAddon(url) }
         }
         if (renaming) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -570,7 +575,11 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
                             )
                         }
                         SwitchChip("", s.enabled) { iptv.setEnabled(s.id, !s.enabled) }
-                        Chip(stringResource(R.string.ui_remove)) { iptv.remove(s.id) }
+                        var removing by remember(s.id) { mutableStateOf(false) }
+                        Chip(stringResource(R.string.ui_remove)) { removing = true }
+                        if (removing) ConfirmDestructive("Remove ${s.name}?",
+                            "Its channels, sign-in and guide link are removed from this TV.",
+                            { removing = false }, stringResource(R.string.ui_remove)) { iptv.remove(s.id) }
                     }
                 }
                 if (iptv.sources.isNotEmpty()) {

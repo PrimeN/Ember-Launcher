@@ -62,13 +62,13 @@ fun SynopsisDialog(title: String, description: String, close: () -> Unit) = Medi
 
 /** Cancel owns initial focus: holding Select cannot confirm a newly opened destructive prompt. */
 @Composable
-internal fun ConfirmDestructive(title:String,message:String,close:()->Unit,confirm:()->Unit) {
+internal fun ConfirmDestructive(title:String,message:String,close:()->Unit,action:String?=null,confirm:()->Unit) {
     val cancel=remember {FocusRequester()}
     MediaDialog(title,close,initialFocus=cancel) {
         Text(message,color=Mute,fontSize=TvTokens.Type.CompactBody.sp)
         ButtonRow {
             Chip(androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_cancel),modifier=Modifier.focusRequester(cancel),onClick=close)
-            Chip(androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_delete)) {confirm();close()}
+            Chip(action ?: androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_delete)) {confirm();close()}
         }
     }
 }

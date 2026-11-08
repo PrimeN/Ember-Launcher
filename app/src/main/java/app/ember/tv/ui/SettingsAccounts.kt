@@ -144,7 +144,11 @@ internal fun KeyField(vm: HomeViewModel, f: ApiKeys.Field) {
                     value = ""
                 }
             }
-            if (entered) Chip(stringResource(R.string.ui_remove)) { vm.saveApiKey(f.id, "") }
+            var removing by remember(f.id) { mutableStateOf(false) }
+            if (entered) Chip(stringResource(R.string.ui_remove)) { removing = true }
+            if (removing) ConfirmDestructive("Remove your ${f.label}?",
+                "Ember goes back to the key built into the app if it has one. Otherwise, features that need it stop working until you enter it again.",
+                { removing = false }, stringResource(R.string.ui_remove)) { vm.saveApiKey(f.id, "") }
         }
     }
 }
