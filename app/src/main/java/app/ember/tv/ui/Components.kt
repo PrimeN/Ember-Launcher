@@ -39,7 +39,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.state.ToggleableState
@@ -429,7 +429,7 @@ fun TitleGrid(
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(vertical = 10.dp, horizontal = 6.dp),
     ) {
-        androidx.compose.foundation.lazy.grid.itemsIndexed(unique, key = { _, m -> m.mediaKey() }) { index, m ->
+        gridItemsIndexed(unique, key = { _, m -> m.mediaKey() }) { index, m ->
             androidx.compose.foundation.layout.BoxWithConstraints(Modifier.focusKeeperItem(keeper, m.mediaKey(), index)) { TitleCard(m, isSaved(m), width = maxWidth, onLongClick = onLongPress?.let { f -> { f(m) } }) { onOpen(m) } }
         }
         if (footer != null) {
