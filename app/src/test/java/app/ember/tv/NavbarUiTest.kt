@@ -48,15 +48,15 @@ class NavbarUiTest {
         val file=java.io.File("build/reports/ui/navbar-$name.png").apply {parentFile!!.mkdirs()}
         file.outputStream().use {compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
     }
-    private fun show(width:Int=960,scale:Float=1f) {
+    private fun show(width:Int=960,scale:Float=1f,night:Boolean=true,page:Color=Color(0xFF101012)) {
         compose.setContent {
             back=LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
-            CompositionLocalProvider(LocalNavigationFocus provides navigation,LocalNight provides true,LocalReduceMotion provides true,
+            CompositionLocalProvider(LocalNavigationFocus provides navigation,LocalNight provides night,LocalReduceMotion provides true,
                 LocalRenderOptions provides RenderOptions(device="low"),LocalDensity provides Density(1f,scale)) {
                 EmberTheme(0,launcher) {
                     LauncherNavbarFrame(style,launcher,"top",tabs,current,"18°",Profile(id="main",name="Alex"),
                         onTab={if(it in setOf(NavTabs.QUICK,NavTabs.SCREENSAVER))actions.add(it) else current=it},onProfile={profiles++},
-                        modifier=Modifier.size(width.dp,540.dp).background(Color(0xFF101012))) {side->
+                        modifier=Modifier.size(width.dp,540.dp).background(page)) {side->
                         Box(Modifier.fillMaxSize().sceneContent(current,navigationTabForPage(current,tabs),side)) {
                             Chip("Page action",modifier=Modifier.testTag("page_action")) {}
                         }
@@ -140,5 +140,31 @@ class NavbarUiTest {
         val menu=compose.onNodeWithTag("navbar_expanded").fetchSemanticsNode().boundsInRoot
         assertTrue(menu.right<=640);assertTrue(menu.bottom<=540)
         compose.runOnIdle {back.onBackPressed()};compose.onNodeWithTag("page_action").assertIsFocused()
+    }
+    @After fun resetDay() {Ui.day=false}
+    @Test fun focusPlacedByTheAppLandsOnTheHandleWithoutOpeningTheMenu() {
+        // Start-up and TV wake focus the current page's tab (#127).
+        current=NavTabs.LIBRARY;show()
+        compose.runOnIdle {navigation.tab(NavTabs.LIBRARY).requestFocus()}
+        compose.onNodeWithTag("navbar_handle").assertIsFocused()
+        compose.onNodeWithTag("navbar_expanded").assertDoesNotExist()
+        key(Key.DirectionDown);compose.onNodeWithTag("page_action").assertIsFocused()
+        compose.runOnIdle {navigation.tab(NavTabs.LIBRARY).requestFocus()}
+        click("navbar_handle");compose.onNodeWithTag("navbar_tab_library").assertIsFocused()
+    }
+    @Test fun dayPagesKeepTheCollapsedStatusAndCinemaTabsReadable() {
+        Ui.day=true;current=NavTabs.DISCOVER;show(night=false,page=Color(0xFFF1F3F4))
+        for(chosen in listOf(NavbarStyles.COLLAPSED,NavbarStyles.CINEMA)) {
+            compose.runOnIdle {style=chosen}
+            val image=compose.onRoot().captureToImage().asAndroidBitmap()
+            // The clock and logo at the top right must be drawn in a dark colour on the light page.
+            var darkest=1f
+            for(x in 780 until 940 step 2)for(y in 8 until 64 step 2) {
+                val c=image.getPixel(x,y)
+                darkest=minOf(darkest,(.2126f*android.graphics.Color.red(c)+.7152f*android.graphics.Color.green(c)+.0722f*android.graphics.Color.blue(c))/255f)
+            }
+            assertTrue("$chosen status is unreadable on a Day page ($darkest)",darkest<.35f)
+            snapshot("day-$chosen")
+        }
     }
 }

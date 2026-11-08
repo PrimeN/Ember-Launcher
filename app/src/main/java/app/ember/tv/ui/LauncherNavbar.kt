@@ -19,6 +19,9 @@ import androidx.compose.ui.focus.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -50,6 +53,10 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
     val duration=PolishMotion.duration(TvTokens.Motion.Rail,LocalRenderOptions.current,LocalReduceMotion.current)
     val reveal=remember(chosen) {Animatable(0f)}
     val latestPage by rememberUpdatedState(current)
+    // Start-up and TV wake (#103) put focus on the page's tab, which for Collapsed is the handle.
+    // Only focus that follows a remote press opens the menu (#127).
+    var lastKey by remember {mutableLongStateOf(-1L)}
+    fun pressedJustNow()=lastKey>=0 && android.os.SystemClock.uptimeMillis()-lastKey<NavbarStyles.HANDLE_PRESS_MS
     fun close(page:String=latestPage) {
         expanded=false;menuHadFocus=false
         scope.launch {
@@ -65,7 +72,10 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
         } else reveal.snapTo(0f)
     }
     BackHandler(enabled=expanded){close()}
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize().onPreviewKeyEvent {
+        if(it.type==KeyEventType.KeyDown)lastKey=android.os.SystemClock.uptimeMillis()
+        false
+    }) {
         val panelHeight=(maxHeight-76.dp).coerceAtLeast(100.dp)
         val panelWidth=minOf(220.dp*LocalDensity.current.fontScale.coerceIn(1f,1.5f),maxWidth-32.dp)
         Column(Modifier.fillMaxSize().padding(start=if(side)84.dp else 0.dp)) {
@@ -79,7 +89,7 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
                         GlassControl(tabTitle(active),null,Modifier.testTag("navbar_handle")
                             .then(if(!expanded && owner!=null)Modifier.navigationTabTarget(owner,active) else Modifier)
                             .focusProperties {canFocus=!expanded;if(owner!=null)down=owner.content(current)}
-                            .onFocusChanged {if(it.isFocused)expanded=true}
+                            .onFocusChanged {if(it.isFocused && pressedJustNow())expanded=true}
                             .pointerInput(Unit){awaitPointerEventScope {while(true)if(awaitPointerEvent().type==PointerEventType.Enter)expanded=true}},
                             selected=true,dropdown=true) {expanded=true}
                         Spacer(Modifier.weight(1f))
@@ -128,9 +138,12 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
 
 @Composable
 private fun NavbarScope(style:String,content:@Composable ()->Unit) {
-    val cinema=style!=NavbarStyles.EMBER
+    // Day pages are light: Collapsed and Cinema Bar keep night colours only over the dark theme (#128).
+    val night=NavbarStyles.forcesNight(style,Ui.isDay)
     CompositionLocalProvider(LocalInterfaceStyle provides InterfaceStyles.MODERN,
-        LocalNight provides (cinema || LocalNight.current),LocalContentColor provides if(cinema)Color.White else Fg,content=content)
+        LocalNight provides (night || LocalNight.current)) {
+        CompositionLocalProvider(LocalContentColor provides if(night)Color.White else Fg,content=content)
+    }
 }
 
 @Composable
@@ -152,7 +165,8 @@ private fun CinemaNavbar(tabs:List<String>,current:String,onTab:(String)->Unit,w
     val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val compact=maxWidth<1000.dp
-    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha=.42f),Color.Transparent)))
+    val fade=if(Ui.isDay && !LocalNight.current)Ink.copy(alpha=.72f) else Color.Black.copy(alpha=.42f)
+    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(fade,Color.Transparent)))
         .padding(horizontal=24.dp,vertical=12.dp)
         .navigationFocusGroup {runCatching {owner?.tab(active)?.requestFocus()==true}.getOrDefault(false)},
         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -180,7 +194,7 @@ private fun CinemaNavbar(tabs:List<String>,current:String,onTab:(String)->Unit,w
 private fun NavbarTab(id:String,selected:Boolean,modifier:Modifier=Modifier,compact:Boolean=false,onClick:()->Unit) {
     val title=tabTitle(id)
     Focusable(onClick,modifier.testTag("navbar_tab_$id").semantics {this.selected=selected;role=Role.Tab;contentDescription=title},
-        radius=TvTokens.Shape.Card,container=if(selected)Color.White.copy(alpha=.14f) else Color.Transparent,
+        radius=TvTokens.Shape.Card,container=if(selected)Fg.copy(alpha=.14f) else Color.Transparent,
         focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
         Row(Modifier.padding(horizontal=if(compact)8.dp else 12.dp).heightIn(min=42.dp),verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(if(compact)6.dp else 9.dp)) {

@@ -54,4 +54,11 @@ class NavbarStyleTest {
     @Test fun sourceDependentTabsStayHiddenAndSearchLeadsTheNewMenus() {
         assertEquals(listOf(NavTabs.SEARCH,NavTabs.HOME,NavTabs.APPS),NavbarStyles.entries(listOf(NavTabs.HOME,NavTabs.SETTINGS,NavTabs.APPS,NavTabs.SEARCH,NavTabs.APPS)))
     }
+    @Test fun onlyTheDarkThemeForcesNightColoursOnTheAlternativeBars() {
+        assertTrue(NavbarStyles.forcesNight(NavbarStyles.COLLAPSED,day=false))
+        assertTrue(NavbarStyles.forcesNight(NavbarStyles.CINEMA,day=false))
+        assertFalse(NavbarStyles.forcesNight(NavbarStyles.CINEMA,day=true))
+        assertFalse(NavbarStyles.forcesNight(NavbarStyles.COLLAPSED,day=true))
+        assertFalse(NavbarStyles.forcesNight(NavbarStyles.EMBER,day=false))
+    }
 }
