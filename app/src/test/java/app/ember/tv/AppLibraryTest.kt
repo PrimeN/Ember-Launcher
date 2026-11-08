@@ -157,4 +157,16 @@ class AppLibraryTest {
         show();compose.onNodeWithTag("app_library_grid").performScrollToIndex(23)
         compose.onNodeWithTag("app_library_app.24").assertExists()
     }
+    @Test fun anAppThatLeavesWhileFocusedHandsFocusToTheAppInItsPlace() {
+        show()
+        compose.onNodeWithContentDescription("App 3").performSemanticsAction(SemanticsActions.RequestFocus)
+        compose.runOnIdle {hidden=setOf("app.3")}
+        compose.onNodeWithContentDescription("App 4").assertIsFocused()
+        compose.runOnIdle {apps=apps.filter {it.pkg!="app.4"}}
+        compose.onNodeWithContentDescription("App 5").assertIsFocused()
+        // Leaving for the toolbar forgets the tile: a later change must not pull focus back.
+        compose.onNodeWithTag("app_library_more").performSemanticsAction(SemanticsActions.RequestFocus)
+        compose.runOnIdle {apps=apps.filter {it.pkg!="app.5"}}
+        compose.onNodeWithTag("app_library_more").assertIsFocused()
+    }
 }

@@ -287,11 +287,12 @@ fun Chip(label: String, selected: Boolean = false, modifier: Modifier = Modifier
 }
 
 @Composable
-fun AppTile(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit, width: androidx.compose.ui.unit.Dp = 150.dp) {
+fun AppTile(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit, width: androidx.compose.ui.unit.Dp = 150.dp,
+    modifier: Modifier = Modifier) {
     val bitmap=rememberAppArtwork(app)
     val backdrop = rememberAppFocus(app, bitmap)
     Focusable(onClick = onClick, onLongClick = onLongClick,
-        modifier = Modifier.width(width).height(width * 0.5625f).focusBackdrop(backdrop),card=true) {
+        modifier = modifier.width(width).height(width * 0.5625f).focusBackdrop(backdrop),card=true) {
         if(bitmap!=null)Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = app.label + if (dim) " (hidden)" else "",
