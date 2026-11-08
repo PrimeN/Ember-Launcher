@@ -24,6 +24,7 @@ Use it as your everyday launcher, connect the sources you want, and choose how y
 - **Three interfaces:** choose Modern, Light or Ember X, with shared access to your media and settings.
 - **Customizable navigation and rows:** choose visible tabs, arrange your Home content, and enable the sections you use.
 - **Personal app layouts:** reorder or hide apps, create folders, customize artwork and protect app launches with a PIN.
+- **Unified App Library:** browse installed apps in a responsive artwork grid, search by name, and switch between custom or alphabetical order without changing your saved layout.
 - **Featured media:** artwork, title logos and configurable hero carousels, with watchlist shortcuts and selectable content sources.
 - **Appearance controls:** colour themes, day/night modes, text and interface sizing, focus effects and glass-style controls.
 

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="apps_find">Find an app</string>
+    <string name="apps_options">App library options</string>
+    <string name="apps_sort">Sort apps</string>
+    <string name="apps_none">No apps available for this profile.</string>
+    <string name="apps_no_matches">No matching apps. Try another name.</string>
+    <string name="apps_clear_search">Clear search</string>
+    <string name="apps_hide_hidden">Hide hidden apps</string>
+    <plurals name="apps_show_hidden">
+        <item quantity="one">Show %d hidden app</item>
+        <item quantity="other">Show %d hidden apps</item>
+    </plurals>
+    <string name="apps_reset_view">Reset view</string>
+    <string name="apps_refresh">Refresh apps</string>
+    <plurals name="apps_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+</resources>

@@ -58,9 +58,9 @@ internal fun LiveProgrammePanel(channel: Channel?, programme: Programme?, clock:
                         Text(it, color = Mute, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     if (onWatch != null || onFavourite != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (onWatch != null) LiveGlassControl("Watch live", Icons.Outlined.PlayArrow,
+                        if (onWatch != null) GlassControl("Watch live", Icons.Outlined.PlayArrow,
                             Modifier.testTag("live_watch"), onClick = onWatch)
-                        if (onFavourite != null) LiveGlassControl(if (favourite) "Remove favourite" else "Add favourite",
+                        if (onFavourite != null) GlassControl(if (favourite) "Remove favourite" else "Add favourite",
                             if (favourite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
                             Modifier.testTag("live_favourite"), selected = favourite, iconOnly = true, onClick = onFavourite)
                     }
