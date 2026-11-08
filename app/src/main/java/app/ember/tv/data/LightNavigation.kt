@@ -8,7 +8,8 @@ object LightNavigation {
     private val destinations=NavTabs.ALL.map {it.id}.toSet()
     fun id(tab:String)=PREFIX+tab
     fun destination(id:String):String?=id.takeIf {it.startsWith(PREFIX)}?.removePrefix(PREFIX)?.takeIf {it in destinations}
-    fun entries(tabs:List<String>):List<AppEntry> = tabs.distinct().filter {it in destinations}.map {
+    /** Home is where the tiles live, so it never gets a tile of its own (#129). */
+    fun entries(tabs:List<String>):List<AppEntry> = tabs.distinct().filter {it in destinations && it!=NavTabs.HOME}.map {
         AppEntry(id(it),NavTabs.label(it),Intent())
     }
     fun ordered(apps:List<AppEntry>,tabs:List<String>,order:List<String>,hidden:Set<String>,showHidden:Boolean):List<AppEntry> {

@@ -36,7 +36,7 @@ class HomeInterfaceChoiceTest {
     @Test fun shortcutsRespectAllowedTabsEvenWhenHiddenItemsAreRequested() {
         val tabs=listOf(NavTabs.HOME,NavTabs.DISCOVER,NavTabs.SEARCH,NavTabs.SETTINGS)
         val entries=LightNavigation.ordered(listOf(app("player")),tabs,emptyList(),emptySet(),true)
-        assertEquals(tabs,entries.mapNotNull {LightNavigation.destination(it.pkg)})
+        assertEquals(tabs-NavTabs.HOME,entries.mapNotNull {LightNavigation.destination(it.pkg)})
         assertFalse(entries.any {it.pkg==LightNavigation.id(NavTabs.LIVE) || it.pkg==LightNavigation.id(NavTabs.LIBRARY)})
         assertNull(LightNavigation.destination("player"));assertNull(LightNavigation.destination("ember:nav:uninstall"))
     }
@@ -63,5 +63,9 @@ class HomeInterfaceChoiceTest {
         val restored=PersonalHomes(Prefs(target)).current
         assertEquals(listOf(id,"player"),restored.lightOrder);assertEquals(setOf(id),restored.lightNavHidden)
         assertEquals(InterfaceStyles.LIGHT,Prefs(target).uiStyle)
+    }
+    @Test fun emberLightNeverOffersAHomeTileOnHome() {
+        val entries=LightNavigation.entries(listOf(NavTabs.HOME,NavTabs.DISCOVER,NavTabs.SEARCH))
+        assertEquals(listOf(NavTabs.DISCOVER,NavTabs.SEARCH),entries.mapNotNull {LightNavigation.destination(it.pkg)})
     }
 }
