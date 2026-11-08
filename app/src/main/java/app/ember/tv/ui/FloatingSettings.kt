@@ -112,6 +112,8 @@ internal fun FloatingSettings(vm: HomeViewModel, onClose: () -> Unit, onOpenFull
 
                             Heading(stringResource(R.string.ui_look), accent)
                             Pick(stringResource(R.string.ui_interface), SettingDefinitions.interfaceStyle.options, vm.look.uiStyle) { vm.look.updateUiStyle(it) }
+                            if(app.ember.tv.data.NavbarStyles.available(vm.look.uiStyle))Pick(SettingDefinitions.navbarStyle.title,
+                                SettingDefinitions.navbarStyle.options,vm.look.navbarStyle) {vm.look.updateNavbarStyle(it)}
                             Pick(SettingDefinitions.mediaPageLayout.title, SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout) { vm.look.updateMediaPageLayout(it) }
                             Pick(stringResource(R.string.ui_theme), SettingDefinitions.theme.options, vm.look.theme) { vm.look.updateTheme(it) }
                             Line(Modifier, onClick = { colourPicker = true }) { focused ->

@@ -16,6 +16,8 @@ internal object SettingDefinitions {
     val mediaPageLayout = SettingDefinition("media-page-layout", SettingsTab.APPEARANCE, "Media page layout",
         "movie show details episodes sources independent Modern Immersive Glass Ember X right panel",
         app.ember.tv.data.MediaPageLayouts.options)
+    val navbarStyle=SettingDefinition("navbar-style",SettingsTab.APPEARANCE,"Navbar style",
+        "navigation header collapsed cinema bar black independent menu",app.ember.tv.data.NavbarStyles.options)
     val colourTheme = SettingDefinition("accent_colour", SettingsTab.APPEARANCE, "Colour theme", "color palette accent charcoal dark grey dark gray blue violet teal Modern Ember Cinema red app icon",
         Accents.mapIndexed { index, (label, _) -> index.toString() to label })
     val playerInterface = SettingDefinition("player_look", SettingsTab.PLAYER, "Player interface", "player look GUI controls basic simple advanced Ember Modern Ember Glass Ember X cinema streaming layout independent",
@@ -63,7 +65,7 @@ internal object SettingDefinitions {
     val providerDiagnostics=SettingDefinition("provider-diagnostics",SettingsTab.DEBUG,"Provider diagnostics","source request timing latency timeout auth quota offline redacted export")
     val remoteSounds = SettingDefinition("remote-sounds", SettingsTab.REMOTE, "Remote sounds", "click navigation sound effects arrows OK beep")
     val autoLoad = SettingDefinition("auto-load", SettingsTab.REMOTE, "Load more as I scroll", "load more pages next page automatically paging infinite scroll Discover collections libraries episodes")
-    val all = listOf(cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
+    val all = listOf(cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout,navbarStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
     fun matching(query: String): List<SettingDefinition> {
         val normalized = query.trim().lowercase(java.util.Locale.ROOT)
         val exact = all.filter { it.title.lowercase(java.util.Locale.ROOT)==normalized || it.options.any { (_,label)->label.lowercase(java.util.Locale.ROOT)==normalized } }

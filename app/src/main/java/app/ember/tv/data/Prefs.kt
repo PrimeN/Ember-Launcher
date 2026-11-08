@@ -575,6 +575,10 @@ class Prefs(context: Context) {
             putBoolean(PreferenceKeys.EMBER_X_INTERFACE_MIGRATED.name, true)
         }
 
+    var navbarStyle: String
+        get() = NavbarStyles.normalize(sp.read(PreferenceKeys.NAVBAR_STYLE))
+        set(v) = sp.edit { putString(PreferenceKeys.NAVBAR_STYLE.name, NavbarStyles.normalize(v)) }
+
     /** Freeze the previous effective layout once, so later Home changes cannot change media pages. */
     var mediaPageLayout: String
         get() {

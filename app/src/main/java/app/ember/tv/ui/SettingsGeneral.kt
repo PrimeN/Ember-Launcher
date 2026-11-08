@@ -150,7 +150,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
     return when (tab) {
         SettingsTab.APPEARANCE -> buildList {
             add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
-            if (active == "modern") add("menu")
+            if (active != "light") {add("navbar-style");add("menu")}
             add("tile-labels")
             add("settings_style")
         }
@@ -194,14 +194,20 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         "focus-backgrounds" -> Section("Focused backgrounds", "Tile colors use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.", id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
         "interface" -> Section(
         stringResource(R.string.ui_interface),
-        "Modern uses navigation pills; Light has an apps-first Home; Ember X has cinema-style navigation. Media pages and player controls are chosen separately.", id = "interface",
+        "Choose your Home layout. Modern and Ember X can use any navbar style. Light keeps its own navigation. Media pages and player controls are chosen separately.", id = "interface",
     ) {
         Choice(SettingDefinitions.interfaceStyle.options,vm.look.uiStyle,vm.look::updateUiStyle)
-        if(isEmberX)Note("Ember X uses a dark cinema layout. Colour themes remain independent. Saved menu and day/night preferences return when you change interface. Media pages and player controls are configured separately.")
+        if(isEmberX)Note("Ember X uses a dark cinema Home layout. Navbar, media-page and player styles are configured separately. Colour themes remain independent.")
     }
         "media-page-layout" -> Section(SettingDefinitions.mediaPageLayout.title,
             "Choose movie and show details independently of your Home interface and player controls.", id = "media-page-layout") {
             Choice(SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout, vm.look::updateMediaPageLayout)
+        }
+        "navbar-style" -> Section(SettingDefinitions.navbarStyle.title,
+            "Choose navigation independently of Home. Light keeps its own fixed navigation.",id="navbar-style") {
+            if(app.ember.tv.data.NavbarStyles.available(vm.look.uiStyle))
+                Choice(SettingDefinitions.navbarStyle.options,vm.look.navbarStyle,vm.look::updateNavbarStyle)
+            else Note("Light uses its own navigation.")
         }
         "theme" -> Section(stringResource(R.string.ui_theme), stringResource(R.string.ui_night_dark_day_light_backgrounds_and), id = "theme") {
             ButtonRow(spacing = 10.dp) {
@@ -246,7 +252,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             Chip(stringResource(R.string.ui_floating), selected = vm.look.settingsStyle == "floating") { vm.look.updateSettingsStyle("floating") }
         }
     }
-        "menu" -> Section(stringResource(R.string.ui_menu), stringResource(R.string.ui_along_the_top_or_down_the)) {
+        "menu" -> if(vm.look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)Section(stringResource(R.string.ui_menu), stringResource(R.string.ui_along_the_top_or_down_the)) {
             ButtonRow(spacing = 10.dp) {
                 Chip(stringResource(R.string.ui_top), selected = vm.look.menuPosition != "side") { vm.look.updateMenuPosition("top") }
                 Chip(stringResource(R.string.ui_side), selected = vm.look.menuPosition == "side") { vm.look.updateMenuPosition("side") }

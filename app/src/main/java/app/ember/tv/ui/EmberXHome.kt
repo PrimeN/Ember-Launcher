@@ -24,53 +24,6 @@ import androidx.tv.material3.Text
 import app.ember.tv.data.*
 import kotlinx.coroutines.delay
 
-/** Flat wordmark/header with bold selected tab, and Ember's complete launcher navigation. */
-@Composable
-internal fun EmberXTopBar(tabs:List<String>,current:String,onTab:(String)->Unit,profile:Profile,onProfile:()->Unit) {
-    val navigation=LocalNavigationFocus.current
-    val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
-    val activeTab=navigationTabForPage(current,tabs)
-    val entries=tabs.filter {it !in setOf(NavTabs.SEARCH,NavTabs.SCREENSAVER,NavTabs.QUICK)}
-    Row(Modifier.fillMaxWidth().height(EmberXLayout.NavHeight.dp)
-        .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha=.88f),EmberXColors.Background.copy(alpha=.84f))))
-        .padding(horizontal=EmberXLayout.Gutter.dp)
-        .navigationFocusGroup {runCatching {navigation?.tab(activeTab)?.requestFocus()==true}.getOrDefault(false)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(18.dp)) {
-        Text("EMBER X",color=EmberXColors.Accent,fontSize=23.sp,fontWeight=FontWeight.Black,letterSpacing=1.sp,
-            maxLines=1,modifier=Modifier.widthIn(max=144.dp))
-        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically) {
-            entries.forEachIndexed {index,id->key(id) {
-                val selected=activeTab==id
-                Focusable(onClick={onTab(id)},modifier=Modifier.height(42.dp)
-                    .let {m->navigation?.let {m.navigationTabTarget(it,id)} ?: m}
-                    .focusProperties {
-                        if(navigation!=null) {
-                            fun neighbor(rightward:Boolean):FocusRequester {
-                                val position=index+choiceStep(rightward,rtl)
-                                return entries.getOrNull(position)?.let(navigation::tab)
-                                    ?: if(position>=entries.size && NavTabs.SEARCH in tabs)navigation.tab(NavTabs.SEARCH) else FocusRequester.Default
-                            }
-                            left=neighbor(false);right=neighbor(true)
-                            down=navigation.content(current)
-                        }
-                    }.semantics {this.selected=selected;role=Role.Tab}
-                    .openNavigationTab(id,selected,enabled=id!=NavTabs.SETTINGS){onTab(id)},radius=TvTokens.Shape.Tight,container=Color.Transparent,
-                    focusedContainer=EmberXColors.Selected,focusedContent=Color.White,outline=false,focusedScale=TvTokens.Focus.None) {
-                    Column(Modifier.height(42.dp).padding(horizontal=9.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally) {
-                        Text(tabTitle(id),fontSize=14.sp,fontWeight=if(selected)FontWeight.Bold else FontWeight.Medium,
-                            color=if(selected)Color.White else EmberXColors.Secondary,maxLines=1)
-                    }
-                }
-            }}
-        }
-        if(NavTabs.SEARCH in tabs)ToolbarIcon("Search",Icons.Outlined.Search,Modifier.let {m->navigation?.let {m.navigationTabTarget(it,NavTabs.SEARCH)} ?: m}
-            .focusProperties {if(navigation!=null){down=navigation.content(current);if(rtl)right=entries.lastOrNull()?.let(navigation::tab) ?: FocusRequester.Default else left=entries.lastOrNull()?.let(navigation::tab) ?: FocusRequester.Default}}
-            .openNavigationTab(NavTabs.SEARCH,current==NavTabs.SEARCH){onTab(NavTabs.SEARCH)},selected=current==NavTabs.SEARCH) {onTab(NavTabs.SEARCH)}
-        ProfileMenuButton(profile,size=32.dp,onFallback=onProfile)
-        ToolbarIcon("Screensaver",Icons.Outlined.Image) {onTab(NavTabs.SCREENSAVER)}
-        ToolbarIcon("Quick settings",Icons.Outlined.Settings) {onTab(NavTabs.QUICK)}
-    }
-}
-
 /** Billboard actions retain the same data, watchlist and focus ownership as the other looks. */
 @Composable
 internal fun EmberXHero(items:List<Meta>,index:Int,onIndex:(Int)->Unit,height:androidx.compose.ui.unit.Dp,

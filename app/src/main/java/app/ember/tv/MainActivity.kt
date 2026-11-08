@@ -842,7 +842,6 @@ private fun RootContent(
                 else -> onTab(id)
             }
         }
-        val side = !app.ember.tv.ui.Ui.emberX && !light && vm.look.menuPosition == "side" && current != NavTabs.SETTINGS
         val navigation = app.ember.tv.ui.LocalNavigationFocus.current!!
         val searchTabFocus = navigation.tab(NavTabs.SEARCH)
         // Start-up and TV wake (#103): the window can come back with nothing focused. Android then
@@ -884,14 +883,9 @@ private fun RootContent(
                     app.ember.tv.ui.ModernBackdrop(shown, dim = if (atTop && vm.heroOn) 0f else 0.55f, heightFraction = if(app.ember.tv.ui.Ui.emberX)1f else app.ember.tv.data.HeroBanner.BACKDROP_FRACTION, shade = if (atTop && vm.heroOn) .82f else 1f, onPresented = { presentedHero = it })
             }
             if (current == NavTabs.SEARCH) app.ember.tv.ui.SearchBackdrop()
-        Column(Modifier.fillMaxSize().padding(start = if (side) 84.dp else 0.dp)) {
-            // Light has no menu: Settings and Search are buttons on its Home, and Back returns there.
-            if (!light && !side && current != NavTabs.SETTINGS) {
-                if(app.ember.tv.ui.Ui.emberX)app.ember.tv.ui.EmberXTopBar(tabs,current,tabClick,vm.profiles.profile){vm.profiles.showProfilePicker=true}
-                else app.ember.tv.ui.ModernTopBar(tabs, current, tabClick, vm.weather.weatherText,
-                    vm.profiles.profile, searchFocus = searchTabFocus) { vm.profiles.showProfilePicker = true }
-            }
-            Box(Modifier.fillMaxWidth().weight(1f).sceneEnter(current).sceneContent(current, app.ember.tv.ui.navigationTabForPage(current, tabs), side, enabled = !light)) {
+        app.ember.tv.ui.LauncherNavbarFrame(vm.look.navbarStyle,vm.look.uiStyle,vm.look.menuPosition,tabs,current,
+            vm.weather.weatherText,vm.profiles.profile,tabClick,{vm.profiles.showProfilePicker=true}) { side ->
+            Box(Modifier.fillMaxSize().sceneEnter(current).sceneContent(current, app.ember.tv.ui.navigationTabForPage(current, tabs), side, enabled = !light)) {
                 app.ember.tv.ui.ArtworkPageContent {
                 key(current) { pageState.SaveableStateProvider("page:$current") {
                 androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalFocusScene provides current) {
@@ -920,7 +914,6 @@ private fun RootContent(
                 }
             }
         }
-            if (side) app.ember.tv.ui.ModernSideRail(tabs, current, tabClick, vm.weather.weatherText, profile = vm.profiles.profile) { vm.profiles.showProfilePicker = true }
             }
           }
         }

@@ -23,6 +23,7 @@ Use it as your everyday launcher, connect the sources you want, and choose how y
 
 - **Three interfaces:** choose Modern, Light or Ember X, with shared access to your media and settings.
 - **Independent media pages:** choose the current Modern layout, Immersive Glass or Ember X with its episode/source side panel, regardless of your Home interface or player controls.
+- **Independent navigation:** Modern and Ember X can use Ember, Ember Collapsed or Cinema Bar navigation. Light retains its own navigation.
 - **Customizable navigation and rows:** choose visible tabs, arrange your Home content, and enable the sections you use.
 - **Personal app layouts:** reorder or hide apps, create folders, customize artwork and protect app launches with a PIN.
 - **Unified App Library:** browse installed apps in a responsive artwork grid, search by name, and switch between custom or alphabetical order without changing your saved layout.

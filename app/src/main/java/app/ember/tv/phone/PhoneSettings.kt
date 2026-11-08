@@ -82,6 +82,8 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         // ---- Look
         val LOOK = "Look"
         choice("look.interface", LOOK, "Interface", InterfaceStyles.options, read = { look.uiStyle }, write = look::updateUiStyle)
+        if(app.ember.tv.data.NavbarStyles.available(look.uiStyle))choice("look.navbar",LOOK,"Navbar style",SettingDefinitions.navbarStyle.options,
+            read={look.navbarStyle},write=look::updateNavbarStyle)
         choice("look.mediaPageLayout", LOOK, "Media page layout", SettingDefinitions.mediaPageLayout.options,
             read = { look.mediaPageLayout }, write = look::updateMediaPageLayout)
         choice("look.theme", LOOK, "Theme", SettingDefinitions.theme.options, read = { look.theme }, write = look::updateTheme)
@@ -91,7 +93,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         choice("look.text", LOOK, "Text size", UiSizes.LABELS, read = { look.textSize }, write = look::updateTextSize)
         choice("look.margins", LOOK, "Screen margins", listOf("0" to "None", "2.5" to "2.5%", "5" to "5%"), read = { look.screenMargin }, write = look::updateScreenMargin)
         choice("look.density", LOOK, "Media card density", SettingDefinitions.density.options, read = { look.contentDensity }, write = look::updateContentDensity)
-        choice("look.menu", LOOK, "Menu position (Modern)", listOf("top" to "Top", "side" to "Side"), read = { look.menuPosition }, write = look::updateMenuPosition)
+        if(app.ember.tv.data.NavbarStyles.available(look.uiStyle) && look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)choice("look.menu", LOOK, "Menu position (Ember)", listOf("top" to "Top", "side" to "Side"), read = { look.menuPosition }, write = look::updateMenuPosition)
         choice("look.settingsStyle", LOOK, "Settings style", listOf("standard" to "Standard", "floating" to "Floating"), read = { look.settingsStyle }, write = look::updateSettingsStyle)
         choice("look.appIcons", LOOK, "App icons", listOf("banner" to "Banners", "circle" to "Circles"), read = { look.appIcons }, write = look::updateAppIcons)
         choice("look.cards", LOOK, "Home cards (Modern)", listOf("wide" to "Wide", "poster" to "Poster"), read = { look.modernCards }, write = look::updateModernCards)
