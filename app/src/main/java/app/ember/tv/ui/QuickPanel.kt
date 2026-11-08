@@ -60,6 +60,10 @@ import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SettingsRemote
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Speaker
 import androidx.compose.material.icons.outlined.Settings as IcSettingsIcon
 import androidx.compose.material.icons.outlined.PlayArrow as IcPlayIconVector
 import androidx.compose.material.icons.outlined.Wifi as IcWifiIcon
@@ -150,7 +154,7 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                                     if (menu == null) tv(Settings.ACTION_DISPLAY_SETTINGS)
                                     else { onClose(); vm.openSettingsGuarded { app.ember.tv.device.DeviceMenus.open(context, menu) } }
                                 },
-                                Tile(stringResource(R.string.ui_sound), info.soundShort, IcSound) {
+                                Tile(stringResource(R.string.ui_sound), info.soundShort, IcSpeaker) {
                                     vm.openSettingsGuarded {
                                         if (AudioOutputShortcut.openSystemPicker(context)) onClose() else audioPicker = true
                                     }
@@ -158,11 +162,11 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                                 Tile("Volume", "Adjust device volume", IcSound) { tv(Settings.Panel.ACTION_VOLUME) },
                                 Tile(stringResource(R.string.ui_qs_remotes), "Bluetooth and accessories", IcBluetooth) { tv(Settings.ACTION_BLUETOOTH_SETTINGS) },
                                 Tile(stringResource(R.string.ui_qs_apps), "Storage, permissions, updates", IcApps) { tv(Settings.ACTION_APPLICATION_SETTINGS) },
-                                Tile(stringResource(R.string.settings_device_tools), stringResource(R.string.settings_summary_device_tools), IcTv) { onClose(); vm.openSettingsPage(SettingsTab.DEVICE_TOOLS.name) },
-                                Tile("Open media", "Files, USB and network folders", IcApps) { onClose(); vm.openSettingsGuarded { context.startActivity(android.content.Intent(context, app.ember.tv.player.MediaFilesActivity::class.java)) } },
+                                Tile(stringResource(R.string.settings_device_tools), stringResource(R.string.settings_summary_device_tools), IcTools) { onClose(); vm.openSettingsPage(SettingsTab.DEVICE_TOOLS.name) },
+                                Tile("Open media", "Files, USB and network folders", IcFolder) { onClose(); vm.openSettingsGuarded { context.startActivity(android.content.Intent(context, app.ember.tv.player.MediaFilesActivity::class.java)) } },
                                 Tile(stringResource(R.string.ui_screensaver_now), "Start it now", IcScreensaver) { QuickActions.screensaver(context); onClose() },
                             ) + firmwareMenus.filter { it.kind == app.ember.tv.device.DeviceMenuKind.DEVICE }.take(1).map { menu ->
-                                Tile("Device controls", menu.title, IcTv) {
+                                Tile("Device controls", menu.title, IcRemote) {
                                     onClose(); vm.openSettingsGuarded { app.ember.tv.device.DeviceMenus.open(context, menu) }
                                 }
                             },
@@ -312,6 +316,11 @@ private val IcBluetooth get() = Icons.Outlined.IcBluetoothIcon
 private val IcApps get() = Icons.Outlined.IcAppsIcon
 private val IcScreensaver get() = Icons.Outlined.IcScreensaverIcon
 private val IcInput get() = Icons.AutoMirrored.Outlined.IcInputIcon
+// Each tile its own picture (#132): Sound vs Volume, Picture vs the device tools, Apps vs media.
+private val IcSpeaker get() = Icons.Outlined.Speaker
+private val IcTools get() = Icons.Outlined.Build
+private val IcFolder get() = Icons.Outlined.FolderOpen
+private val IcRemote get() = Icons.Outlined.SettingsRemote
 
 /** What the quick settings do on the TV. */
 object QuickActions {
