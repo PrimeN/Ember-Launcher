@@ -178,4 +178,19 @@ class LiveGlassUiTest {
         val file=java.io.File("build/reports/ui/$name.png").apply {parentFile!!.mkdirs()}
         file.outputStream().use {compose.onNodeWithTag("scene").captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
     }
+    @Test fun programmePanelKeepsOneHeightWithOrWithoutASummary() {
+        var programme by mutableStateOf<Programme?>(Programme(clock-900_000,clock+900_000,"Described",
+            description="Explore remarkable places and wildlife across two full lines of guide text, and then a little more."))
+        compose.setContent {
+            CompositionLocalProvider(LocalNight provides true,LocalReduceMotion provides true,LocalRenderOptions provides RenderOptions(device="low")) {
+                EmberTheme(0) {LivePageTheme {Box(Modifier.size(960.dp,540.dp)) {
+                    LiveProgrammePanel(channels.first(),programme,clock,"Home playlist","",compact=false,onWatch={},onFavourite={})
+                }}}
+            }
+        }
+        val described=compose.onNodeWithTag("live_programme_panel").fetchSemanticsNode().boundsInRoot.height
+        compose.runOnIdle {programme=Programme(clock-900_000,clock+900_000,"Plain")}
+        val plain=compose.onNodeWithTag("live_programme_panel").fetchSemanticsNode().boundsInRoot.height
+        assertEquals(described,plain,.5f)
+    }
 }

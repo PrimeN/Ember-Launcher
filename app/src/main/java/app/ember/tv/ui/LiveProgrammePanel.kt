@@ -54,9 +54,11 @@ internal fun LiveProgrammePanel(channel: Channel?, programme: Programme?, clock:
                         programme?.season?.let { "S$it" + (programme.episode?.let { e -> " E$e" } ?: "") },
                         programme?.subtitle, LivePresentation.remainingMinutes(programme, clock)?.let { "$it min left" }, status).joinToString(" · "),
                         color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (!compact && !large) LivePresentation.summary(programme, guideMessage)?.let {
-                        Text(it, color = Mute, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
+                    // Two lines are kept even without a summary, so the panel (and the guide below it)
+                    // doesn't jump while moving between channels (#123).
+                    if (!compact && !large) Text(LivePresentation.summary(programme, guideMessage).orEmpty(), color = Mute,
+                        fontSize = 13.sp, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("live_programme_summary"))
                     if (onWatch != null || onFavourite != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (onWatch != null) GlassControl("Watch live", Icons.Outlined.PlayArrow,
                             Modifier.testTag("live_watch"), onClick = onWatch)
