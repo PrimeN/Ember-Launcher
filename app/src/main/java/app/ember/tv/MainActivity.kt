@@ -775,7 +775,11 @@ private fun RootContent(
                         ratingSources = if (vm.metadata.ratingsOn) vm.metadata.ratingSources.filter { it.id !in vm.metadata.ratingsOff } else emptyList(),
                         onPlay = { s -> vm.playRequest(s)?.let(onPlay) },
                         playButton = vm.playerSettings.playRules.enabled,
-                        onAutomaticSources = if(vm.profiles.profile.kids)null else { enabled -> vm.playerSettings.updatePlayRules { it.copy(enabled = enabled) } },
+                        onPlayBest = {
+                            val pick = app.ember.tv.data.PlayPicker.pick(d.streams, d.serverStreams, vm.playerSettings.playRules)
+                            if (pick != null) vm.playRequest(pick)?.let(onPlay)
+                            else vm.showNotice("No source meets your Play button rules yet. Pick one from the list, or change the rules in Settings › Play button.")
+                        },
                         playbackLabel = vm.primaryPlaybackLabel,
                         watched = vm.detailsWatched,
                         onMarkWatched = vm::markWatched,

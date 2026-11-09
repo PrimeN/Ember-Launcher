@@ -40,6 +40,7 @@ class MediaPageUiTest {
     private var layout by mutableStateOf(MediaPageLayouts.MODERN)
     private var launcher by mutableStateOf(InterfaceStyles.MODERN)
     private var automatic by mutableStateOf(true)
+    private var playedBest=0
     private var details by mutableStateOf(DetailsUi(Meta(id="show",type="series",name="The Last Light",description="Explorers follow a signal through the mountains."),
         episodes=episodes,season=1,episode=episodes[0],streams=listOf(stream),addonCredits=Credits(emptyList(),"trailer")))
     private var played=0;private var trailered=0;private var saved=0;private var watched=0
@@ -58,7 +59,7 @@ class MediaPageUiTest {
                                 onToggleSaved={saved++},onRemoveContinue={},onSeason={details=details.copy(season=it)},
                                 onEpisode={details=details.copy(episode=it)},onMoreEpisodes={},onPlay={played++},onPlayWith={},
                                 onPlayTrailer={trailered++},playButton=automatic,best=details.streams.firstOrNull(),
-                                playbackLabel="Resume 24:18",onMarkWatched={watched++},onAutomaticSources={automatic=it})
+                                playbackLabel="Resume 24:18",onMarkWatched={watched++},onPlayBest={playedBest++})
                         }
                     }
                 }}
@@ -87,7 +88,8 @@ class MediaPageUiTest {
         action("Episodes and playback sources").assertExists()
         click("Season 1, episode 2, Episode 2")
         compose.onNodeWithText("Sources · 1 found").assertExists()
-        click("Auto select");assertFalse(automatic)
+        // Play best plays and leaves the Play button setting alone (#140).
+        click("Play best");assertEquals(1,playedBest);assertTrue(automatic)
         compose.runOnIdle {back.onBackPressed()}
         action("Season 1, episode 2, Episode 2").assertIsFocused()
         assertEquals("e2",details.episode?.id)

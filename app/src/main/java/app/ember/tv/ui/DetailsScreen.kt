@@ -139,7 +139,8 @@ fun DetailsScreen(
     canRate: Boolean = false,
     myRating: Int? = null,
     onRate: (Int?) -> Unit = {},
-    onAutomaticSources: ((Boolean) -> Unit)? = null,
+    /** Plays the source the Play button rules pick, whatever the Play button setting (#140). */
+    onPlayBest: (() -> Unit)? = null,
 ) {
     val meta = d.meta
     var rating by remember(meta.id) { mutableStateOf(false) }
@@ -222,8 +223,9 @@ fun DetailsScreen(
                             fontSize = 13.sp,
                         )
                     }
-                    if(split && onAutomaticSources!=null) GlassControl("Auto select",Icons.Outlined.AutoAwesome,
-                        selected=playButton) {onAutomaticSources(!playButton)}
+                    // An action, not a switch (#140): it never turns the Play button setting off.
+                    if(split && onPlayBest!=null && (d.streams.isNotEmpty() || d.serverStreams.isNotEmpty()))
+                        GlassControl("Play best",Icons.Outlined.AutoAwesome,Modifier.testTag("play_best"),onClick=onPlayBest)
                     sources.message?.let { Text(it, color = Mute, fontSize = 14.sp) }
                     if (sources.total == 0 && sources.loading) {if(flix)Text("Finding sources…",color=Mute) else LoadingCards()}
                     if (app.ember.tv.mediaserver.ServerRef.of(meta) != null && d.serverStreams.isEmpty() && !d.loadingServer) {
