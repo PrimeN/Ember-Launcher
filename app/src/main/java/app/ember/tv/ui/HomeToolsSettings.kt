@@ -4,11 +4,17 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
+import app.ember.tv.toggleAppsPage
+import app.ember.tv.toggleHidden
+import app.ember.tv.toggleLightNavigation
 import app.ember.tv.home.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,6 +36,7 @@ internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
             Text("Hold OK on an app to choose artwork, move it to a folder or set a PIN lock.",color=Mute,fontSize=14.sp)
             if(vm.launcherExtras.options.lockedApps.isNotEmpty())Chip("Remove all app PIN locks") {vm.pin.withPin("Enter the administrator PIN"){vm.launcherExtras.update {it.copy(lockedApps=emptySet())}}}
         }
+        if(part==HomeToolsPart.FOLDERS)HiddenAppsSection(vm)
         if(part==HomeToolsPart.STARTUP)Section("Start with the TV", "Choose Home, an app, an input or a presentation. Child profiles stay on Home.") {
             val name=when(opts.destination){"app"->vm.apps.firstOrNull {it.pkg==opts.target}?.label ?: "App";"input"->"TV input";"presentation"->"Presentation";else->"Home"}
             SettingValueRow("Destination",name){chooseStartup=true}
@@ -87,5 +94,33 @@ internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
             if(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT!=0L)Chip("Next"){control {current.controller.transportControls.skipToNext()}}
             Chip("Open app"){vm.appAccess.page(false).firstOrNull {it.pkg==current.pkg}?.let {vm.pendingAppLaunch=it}}
         }
+    }
+}
+
+/**
+ * Hidden apps (#134): apps removed from Home or hidden, and Ember Light page tiles that were hidden,
+ * come back from here now that Light has no More Apps folder.
+ */
+@Composable private fun HiddenAppsSection(vm:HomeViewModel) {
+    val offHome=vm.hidden;val hiddenApps=vm.appsPageOff
+    val apps=vm.appAccess.page(true).filter {it.pkg in offHome || it.pkg in hiddenApps}
+    val pages=app.ember.tv.data.LightNavigation.entries(vm.visibleTabs).filter {it.pkg in vm.personalHomes.current.lightNavHidden}
+    Section("Hidden apps","Apps taken off Home or hidden, and Ember Light page tiles you hid. Show one to put it back.",id="hidden-apps") {
+        if(apps.isEmpty() && pages.isEmpty())Text("Nothing is hidden.",color=Mute,fontSize=14.sp)
+        apps.forEach {a->HiddenAppRow(a.label,if(a.pkg in hiddenApps)"Hidden" else "Not on Home") {
+            if(a.pkg in hiddenApps)vm.toggleAppsPage(a.pkg)
+            if(a.pkg in vm.hidden)vm.toggleHidden(a.pkg)
+        }}
+        pages.forEach {p->HiddenAppRow(p.label,"Ember Light page tile") {vm.toggleLightNavigation(p.pkg)}}
+    }
+}
+
+@Composable private fun HiddenAppRow(name:String,state:String,show:()->Unit) {
+    Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(name,fontSize=16.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(state,color=Mute,fontSize=13.sp,maxLines=1)
+        }
+        Chip("Show",maxLines=1,modifier=Modifier.semantics {contentDescription="Show $name"},onClick=show)
     }
 }

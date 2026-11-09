@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -37,13 +38,14 @@ import app.ember.tv.light.ShelfCard
 @Composable
 internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: FocusRequester, modifier: Modifier = Modifier, onOpen: (ShelfCard) -> Unit) {
     val cards = groups.flatMap { (name, items) -> items.mapIndexed { i, item -> (if (i == 0) name else null) to item } }
-    LazyRow(modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 45.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    // Coming back up from the dock lands on the card last focused here (#135).
+    LazyRow(modifier.fillMaxWidth().focusRequester(first).focusRestorer(), contentPadding = PaddingValues(horizontal = 45.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(cards, key = { it.second.id }) { (header, item) ->
             Column(Modifier.width(232.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(header.orEmpty(), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.height(26.dp))
                 Focusable(onClick = { onOpen(item) },
-                    modifier = Modifier.fillMaxWidth().height(131.dp).then(if (item === cards.first().second) Modifier.focusRequester(first) else Modifier),
+                    modifier = Modifier.fillMaxWidth().height(131.dp),
                     radius = TvTokens.Shape.Card, focusedScale = TvTokens.Focus.Card) {
                     Box(Modifier.fillMaxSize().clip(RoundedCornerShape(TvTokens.Shape.Card.dp)).background(Color(0x33FFFFFF))) {
                         if (item.artwork != null) coil.compose.AsyncImage(item.artwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())

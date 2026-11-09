@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -71,12 +72,8 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     val apps = vm.lightAppItems()
     val namedFolders=desktop.folders.filter {f->f.packages.any(vm.appAccess::canLaunch)}
     val titleActions=LocalTitleActions.current
-    val folder = vm.appAccess.page(false).filter { a -> vm.visibleApps.none { it.pkg == a.pkg } && vm.personalHomes.folderFor(a.pkg)==null }
-    // Hidden apps are on neither Home nor More Apps; More Apps can show them so they can be unhidden.
-    val hiddenApps = vm.appAccess.page(true).filter { it.pkg in vm.appsPageOff } +
-        vm.lightAppItems(true).filter { LightNavigation.destination(it.pkg)!=null && it.pkg in desktop.lightNavHidden }
-    val hasMore = folder.isNotEmpty() || hiddenApps.isNotEmpty()
-    val hasFolders=hasMore || namedFolders.isNotEmpty()
+    // Apps off Home, hidden apps and hidden page tiles come back from Settings › Apps & folders (#134).
+    val hasFolders=namedFolders.isNotEmpty()
     var panel by remember(profile) { mutableStateOf<String?>(null) }
     val slides = rememberLightSlides(vm, 0)
     val inputs = rememberLightInputs(0)
@@ -93,6 +90,18 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     // App rows (#62): the dock app in focus, and its own rows once it has stayed focused a moment.
     var shelfPkg by remember(profile) { mutableStateOf<String?>(null) }
     val shelfFocus = remember { FocusRequester() }
+    // #135: the rows belong to the dock. They show only while focus is on the dock or the rows,
+    // Down from the rows returns to the app they came from, and Up goes to the header.
+    val dockFocus = remember { List(6) { FocusRequester() } }
+    var shelfIndex by remember(profile) { mutableIntStateOf(0) }
+    var dockHasFocus by remember { mutableStateOf(false) }
+    var shelfHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(dockHasFocus, shelfHasFocus) {
+        if (dockHasFocus || shelfHasFocus || shelfPkg == null) return@LaunchedEffect
+        // Moving between the dock and the rows passes through "neither" for a moment.
+        repeat(2) { withFrameNanos { } }
+        shelfPkg = null
+    }
     val shelfOn = options.appRows && !vm.profiles.profile.kids
     // Plex, Jellyfin and Emby come from Ember's own server connection (Google TV hides their rows
     // from other launchers, #63); other apps from what they share with Android TV.
@@ -129,7 +138,11 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     fun focusApps() { scope.launch { state.scrollToItem(if (apps.isEmpty() && hasFolders) 1 else 0); withFrameNanos { }; runCatching { appsFocus.requestFocus() } } }
     fun goTop() { runCatching { topFocus.requestFocus() } }
     fun goHero() { if (current != null) scope.launch { state.scrollToItem(0); withFrameNanos { }; runCatching { heroFocus.requestFocus() } } else goTop() }
-    fun dockUp() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) runCatching { shelfFocus.requestFocus() } else goHero() }
+    fun dockUp() {
+        val toRows = shelfOn && shelf.isNotEmpty() && shelfPkg != null && runCatching { shelfFocus.requestFocus() }.getOrDefault(false)
+        if (!toRows) goHero()
+    }
+    fun rowsDown() { if (!runCatching { dockFocus[shelfIndex.coerceIn(0, 5)].requestFocus() }.getOrDefault(false)) focusApps() }
     fun headerDown() { if (shelfOn && shelf.isNotEmpty() && shelfPkg != null) dockUp() else if (current != null) goHero() else if (apps.isNotEmpty() || hasFolders) focusApps() }
     // The target Ember falls back to when the window returns with nothing focused (#103).
     val navigation = LocalNavigationFocus.current
@@ -255,22 +268,21 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                     Column {
                         Spacer(Modifier.height(dockTop))
                         Box(Modifier.onSizeChanged { dockHeight = with(densityNow) { it.height.toDp() } }) {
-                        Row(Modifier.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
+                        Row(Modifier.onFocusChanged { dockHasFocus = it.hasFocus }.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
                             apps.take(6).forEachIndexed { i, app -> LightAppTile(app, grid, millis, launching == app.pkg,
-                                Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).lightArrows(onUp = ::dockUp)
-                                    .onFocusChanged { if (it.hasFocus) shelfPkg = app.pkg.takeIf {LightNavigation.destination(it)==null} }, { launch(app) }, { onAppOptions(app) }) }
+                                Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).focusRequester(dockFocus[i]).lightArrows(onUp = ::dockUp)
+                                    .onFocusChanged { if (it.hasFocus) { shelfIndex = i; shelfPkg = app.pkg.takeIf {LightNavigation.destination(it)==null} } }, { launch(app) }, { onAppOptions(app) }) }
                             if (apps.isEmpty()) Text(stringResource(R.string.ui_no_apps_to_show), color = Color.White, modifier = Modifier.padding(16.dp))
                         }
                         }
                     }
                 }
-                val cells = namedFolders.map {"folder:${it.id}"} + apps.drop(6).map {"app:${it.pkg}"} + if (hasMore) listOf("more") else emptyList()
+                val cells = namedFolders.map {"folder:${it.id}"} + apps.drop(6).map {"app:${it.pkg}"}
                 items((cells.size + 5) / 6, key = { "grid:$it" }) { row ->
                     Row(Modifier.padding(horizontal = grid.inset.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
                         cells.drop(row * 6).take(6).forEachIndexed {index,cell ->
                             val first=if(apps.isEmpty() && row==0 && index==0)Modifier.focusRequester(appsFocus).lightArrows(onUp=::goHero) else Modifier
                             when {
-                                cell=="more"->LightFolderTile(grid,first){panel="apps"}
                                 cell.startsWith("folder:")->namedFolders.firstOrNull {it.id==cell.removePrefix("folder:")}?.let {f->
                                     LightFolderTile(grid,first,f.name){vm.homeFeatureAction="folder:${f.id}"}}
                                 else->apps.firstOrNull {it.pkg==cell.removePrefix("app:")}?.let {app->LightAppTile(app,grid,millis,launching==app.pkg,
@@ -283,8 +295,9 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             val showShelf = shelfOn && shelfPkg != null && shelf.isNotEmpty() && !idle && heroInView
             if (showShelf) {
                 Box(Modifier.fillMaxWidth().height(heroHeight).background(Brush.verticalGradient(0f to Color(0x99000000), 1f to Color(0xCC000000))))
-                Column(Modifier.align(Alignment.TopStart).height(heroHeight).fillMaxWidth().padding(bottom = 28.dp), verticalArrangement = Arrangement.Bottom) {
-                    LightAppShelf(shelf, shelfFocus) { card ->
+                Column(Modifier.align(Alignment.TopStart).height(heroHeight).fillMaxWidth().padding(bottom = 28.dp)
+                    .onFocusChanged { shelfHasFocus = it.hasFocus }, verticalArrangement = Arrangement.Bottom) {
+                    LightAppShelf(shelf, shelfFocus, Modifier.testTag("light_rows").lightArrows(onUp = ::goTop, onDown = ::rowsDown)) { card ->
                         card.meta?.let { onOpenTitle(it); return@LightAppShelf }
                         val item = card.media ?: return@LightAppShelf
                         val app = vm.appAccess.page(false).firstOrNull { it.pkg == item.pkg }
@@ -327,6 +340,7 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                 Row(Modifier.lightGlass(30).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(if (online) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, if (online) "Internet connected" else "No internet", Modifier.size(18.dp), tint = Color.White.copy(alpha = .8f))
                     Text(rememberLauncherTime(), fontSize = 18.sp, color = Color.White, modifier = Modifier.padding(horizontal = 6.dp))
+                    if (NavTabs.SEARCH in tabs) LightIcon("Search", Icons.Outlined.Search, Modifier.testTag("light_search").lightArrows(onDown = ::headerDown)) { onTab(NavTabs.SEARCH) }
                     LightIcon("Control Center", Icons.Outlined.Tune, Modifier.lightArrows(onDown = ::headerDown)) { onTab(NavTabs.QUICK) }
                     ProfileMenuButton(vm.profiles.profile, Modifier.lightArrows(onDown = ::headerDown), size = 34.dp)
                 }
@@ -360,23 +374,6 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                     }) {
                     panel = null; vm.openSettingsGuarded { DeviceInputs.open(context, input.id, includeTuners = true) }
                 } }
-            }
-            "apps" -> MediaDialog("More Apps", { panel = null }) {
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val g = LightLayout.grid(maxWidth.value).let { it.copy(width = ((maxWidth.value - 5 * it.gap) / 6).coerceAtLeast(1f)) }
-                    var showHidden by remember { mutableStateOf(false) }
-                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        folder.chunked(6).forEach { row -> Row(horizontalArrangement = Arrangement.spacedBy(g.gap.dp)) { row.forEach { app ->
-                            LightAppTile(app, g, millis, launching == app.pkg, Modifier, { panel = null; launch(app) }, { panel = null; onAppOptions(app) })
-                        } } }
-                        if (hiddenApps.isNotEmpty()) {
-                            Chip(if (showHidden) "Done showing hidden apps" else "Show ${hiddenApps.size} hidden app(s)", maxLines = 1) { showHidden = !showHidden }
-                            if (showHidden) hiddenApps.chunked(6).forEach { row -> Row(horizontalArrangement = Arrangement.spacedBy(g.gap.dp)) { row.forEach { app ->
-                                LightAppTile(app, g, millis, launching == app.pkg, Modifier, { panel = null; launch(app) }, { panel = null; onAppOptions(app) })
-                            } } }
-                        }
-                    }
-                }
             }
         }
     }
@@ -459,11 +456,55 @@ internal fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, la
         Focusable(onClick, Modifier.fillMaxWidth().height(grid.height.dp).onFocusChanged { focused = it.isFocused }.graphicsLayer {
             scaleX = scale; scaleY = scale; translationY = if (focused && millis > 0) -3.dp.toPx() else 0f
         }, onLongClick = onLongClick, radius = grid.radius.toInt().coerceAtLeast(2), container = Color(0xFF262C3C), focusedScale = TvTokens.Focus.None) {
-            if(destination!=null)Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF493D66),Color(0xFF183F4C)))).semantics {contentDescription=app.label},contentAlignment=Alignment.Center) {NavGlyph(destination,Color.White,minOf(56.dp,(grid.height*.5f).dp))}
+            if(destination!=null)LightPageTileFace(destination,app.label,grid)
             else if (bitmap != null) Image(bitmap.asImageBitmap(), app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Apps, app.label, Modifier.size(30.dp)) }
         }
-        if (tileLabelShown(TileLabels.APPS)) Text(app.label, color = Color.White.copy(alpha = if (focused) 1f else .75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // A page tile carries its own name (#138); the empty line keeps the grid's rows aligned.
+        if (tileLabelShown(TileLabels.APPS)) Text(if (destination != null) "" else app.label, color = Color.White.copy(alpha = if (focused) 1f else .75f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Each page's colours and the short line under its name (#138). */
+internal data class LightPageLook(val from: Color, val to: Color, val line: String)
+
+internal fun lightPageLook(page: String): LightPageLook = when (page) {
+    NavTabs.DISCOVER -> LightPageLook(Color(0xFFE07A3F), Color(0xFF6A2452), "Movies & shows to explore")
+    NavTabs.LIVE -> LightPageLook(Color(0xFFCF3B4B), Color(0xFF341446), "Guide & channels")
+    NavTabs.LIBRARY -> LightPageLook(Color(0xFF2B8E9B), Color(0xFF1B2C5E), "Your collection")
+    NavTabs.WATCHLIST -> LightPageLook(Color(0xFF7160D8), Color(0xFF1E2A5C), "Saved for later")
+    else -> LightPageLook(Color(0xFF4B4F6E), Color(0xFF1C2033), "")
+}
+
+/**
+ * Discover, Live TV, Library and Watchlist as tiles of their own (#138): the page's colour, a large
+ * faint icon as the backdrop, and the name with a short line written on the tile. Gradients and
+ * vectors only, so the tiles cost nothing to draw.
+ */
+@Composable
+private fun LightPageTileFace(page: String, name: String, grid: LightLayout.Grid) {
+    val look = lightPageLook(page)
+    val height = grid.height.dp
+    Box(Modifier.fillMaxSize().testTag("light_page_$page").semantics { contentDescription = name }
+        .background(Brush.linearGradient(listOf(look.from, look.to)))) {
+        // Light falling from the top left, like the glass around it.
+        Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color.White.copy(alpha = .22f), Color.Transparent),
+            center = androidx.compose.ui.geometry.Offset(0f, 0f), radius = grid.width * 2.2f)))
+        Box(Modifier.align(Alignment.CenterEnd).offset(x = height * .22f, y = height * .08f)) {
+            NavGlyph(page, Color.White.copy(alpha = .16f), height * 1.15f)
+        }
+        Row(Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (page == NavTabs.LIVE) Row(Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFE5243B)).padding(horizontal = 6.dp, vertical = 1.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(Modifier.size(6.dp).clip(CircleShape).background(Color.White))
+                Text("LIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            } else NavGlyph(page, Color.White.copy(alpha = .92f), 18.dp)
+        }
+        Column(Modifier.align(Alignment.BottomStart).padding(start = 10.dp, end = 10.dp, bottom = 8.dp)) {
+            Text(if (page == NavTabs.LIVE) "Live TV" else name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (grid.height >= 70f && look.line.isNotEmpty()) Text(look.line, color = Color.White.copy(alpha = .8f), fontSize = 12.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
