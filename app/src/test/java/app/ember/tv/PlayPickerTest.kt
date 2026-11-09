@@ -61,4 +61,30 @@ class PlayPickerTest {
         assertEquals("plex", PlayPicker.pick(addon, server, PlayRules())?.name)
         assertEquals("addon", PlayPicker.pick(addon, server, PlayRules(serverFirst = false))?.name)
     }
+
+    @Test fun theButtonSaysWhichRuleStoppedIt() {
+        // #145: uncached debrid results with "ready to play only" on.
+        val uncached = listOf(s("a", "4K", cached = false), s("b", "FHD", cached = false))
+        assertNull(PlayPicker.pick(uncached, emptyList(), PlayRules()))
+        assertEquals("none ready to play at once", PlayPicker.reason(uncached, emptyList(), PlayRules()))
+        assertEquals("all over 5 GB", PlayPicker.reason(listOf(s("big", "4K", size = 40.0)), emptyList(), PlayRules(maxSizeGb = 5)))
+        assertEquals("all use codecs you skip", PlayPicker.reason(listOf(s("av1", "4K", codec = "AV1")), emptyList(), PlayRules(avoidCodecs = setOf("AV1"))))
+        assertNull("nothing to explain when one qualifies", PlayPicker.reason(listOf(s("ok", "4K")), emptyList(), PlayRules()))
+        assertNull("nothing to explain without sources", PlayPicker.reason(emptyList(), emptyList(), PlayRules()))
+        val shown = app.ember.tv.ui.detailsPlaybackPresentation("Play", app.ember.tv.ui.DetailsPlaybackTarget.CHOOSE, null,
+            app.ember.tv.ui.MediaSourcePresentation(total = 2, loading = false), null, "none ready to play at once")
+        assertEquals("Play button: none ready to play at once · choose from 2", shown.detail)
+    }
+
+    @Test fun thePlayButtonIsSwitchedBackOnOnce() {
+        val folder = java.nio.file.Files.createTempDirectory("play-button").toFile()
+        try {
+            val prefs = app.ember.tv.data.Prefs(PersistenceContext(folder))
+            prefs.playRules = PlayRules(enabled = false)
+            org.junit.Assert.assertTrue(app.ember.tv.state.PlayerSettingsState(prefs).playRules.enabled)
+            // Turned off again in Settings, it stays off.
+            prefs.playRules = PlayRules(enabled = false)
+            org.junit.Assert.assertFalse(app.ember.tv.state.PlayerSettingsState(prefs).playRules.enabled)
+        } finally { folder.deleteRecursively() }
+    }
 }

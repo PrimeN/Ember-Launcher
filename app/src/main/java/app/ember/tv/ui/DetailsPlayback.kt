@@ -19,7 +19,7 @@ internal data class DetailsPlaybackPresentation(
 
 internal fun detailsPlaybackPresentation(
     playbackLabel:String, target:DetailsPlaybackTarget, best:StreamOption?,
-    availability:MediaSourcePresentation, serviceName:String?,
+    availability:MediaSourcePresentation, serviceName:String?, reason:String?=null,
 ):DetailsPlaybackPresentation {
     if(best==null && availability.total==0) return DetailsPlaybackPresentation(
         if(availability.loading)"Finding sources…" else "No source available",null,false)
@@ -28,7 +28,9 @@ internal fun detailsPlaybackPresentation(
             listOf(it.addonName,it.quality,it.hdr,it.audio).filter(String::isNotBlank).distinct().joinToString(" · ")
         }
         DetailsPlaybackTarget.SERVICE -> serviceName
-        DetailsPlaybackTarget.CHOOSE -> "Choose a source · ${availability.total} option"+if(availability.total==1)"" else "s"
+        // #145: say why the Play button couldn't pick, so the rule can be changed.
+        DetailsPlaybackTarget.CHOOSE -> reason?.let {"Play button: $it · choose from ${availability.total}"}
+            ?: ("Choose a source · ${availability.total} option"+if(availability.total==1)"" else "s")
     }
     return DetailsPlaybackPresentation(playbackLabel,detail,true)
 }

@@ -17,6 +17,8 @@ internal object PreferenceKeys {
     val APP_ICONS = PreferenceKey<String?>("appIcons", PreferenceType.STRING, "circle")
     /** The addon's name after each catalog row's title (#144). */
     val ROW_ADDON_LABELS = PreferenceKey<Boolean>("rowAddonLabels", PreferenceType.BOOLEAN, true)
+    /** One-time: the Play button switched back on after the beta "Auto select" toggle (#145). */
+    val PLAY_BUTTON_RESTORED = PreferenceKey<Boolean>("playButtonRestored", PreferenceType.BOOLEAN, false)
     val APPS_PAGE_OFF = PreferenceKey<Set<String>>("appsPageOff", PreferenceType.SET, emptySet())
     val ARTWORK_QUALITY = PreferenceKey<String?>("artworkQuality", PreferenceType.STRING, "balanced")
     val ASK_PROFILE = PreferenceKey<Boolean>("askProfile", PreferenceType.BOOLEAN, false)
@@ -143,7 +145,7 @@ internal object PreferenceKeys {
     val WL = PreferenceKey<String?>("wl", PreferenceType.STRING, "[]")
     val all = listOf(
         ACCENT, ACCENT2, ACCENT3, ADDON_NAMES, ADDON_TIMEOUT, ADDONS,
-        AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, APP_ICONS, ROW_ADDON_LABELS, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
+        AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, APP_ICONS, ROW_ADDON_LABELS, PLAY_BUTTON_RESTORED, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
         AUTOPLAY, BACKGROUND_REFRESH, BADGE_MODE, BLUR_UNWATCHED_EPISODES, CACHE_CONFIG, CARD_FOCUS_STYLE, TILE_LABELS_OFF, CATALOG_DISCOVER_OFF,
         CATALOG_HOME, CATALOG_HOME_DEFAULTS_OFF, CATALOG_LIVE, CATALOG_NAMES, CATALOG_ORDER, CATALOGS_ON_HOME_FIXED,
         COLLECTION_AUTO_PAGE, COLLECTION_FOCUS_BACKGROUND, COLLECTION_FOLDERS_OFF, COLLECTION_HERO_PREVIEWS, COLLECTIONS_DISCOVER, COLLECTIONS_OFF,

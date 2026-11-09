@@ -73,6 +73,29 @@ object PlayPicker {
         return (serverSources.asSequence()+addonSources.asSequence()).filter(::ok).minWithOrNull(order)
     }
 
+    /**
+     * Why [pick] found nothing (#145), for the Play button: the rule that turned away the most
+     * sources, in a few words. Null when there are no sources or one qualifies.
+     */
+    fun reason(addonSources: List<StreamOption>, serverSources: List<StreamOption>, r: PlayRules): String? {
+        val all = serverSources + addonSources
+        if (all.isEmpty() || pick(addonSources, serverSources, r) != null) return null
+        val maxRank = Quality.rank(r.maxQuality).takeIf { it > 0 } ?: 4
+        fun codecKey(value: String) = StreamParser.codec(value).ifBlank { value.trim().uppercase(java.util.Locale.ROOT) }
+        val excludedCodecs = r.avoidCodecs.mapTo(hashSetOf(), ::codecKey)
+        val counts = all.groupingBy { s ->
+            when {
+                s.url.isNullOrBlank() && s.infoHash.isNullOrBlank() && s.serverRef.isNullOrBlank() && s.serverPlayback == null -> "none can play here"
+                s.qualityRank > maxRank -> "none at ${r.maxQuality} or lower"
+                excludedCodecs.isNotEmpty() && s.codec.isNotBlank() && codecKey(s.codec) in excludedCodecs -> "all use codecs you skip"
+                r.maxSizeGb > 0 && (s.sizeGb ?: 0.0) > r.maxSizeGb -> "all over ${r.maxSizeGb} GB"
+                r.readyOnly && s.kind == SourceKind.UNCACHED -> "none ready to play at once"
+                else -> "none matches your rules"
+            }
+        }.eachCount()
+        return counts.maxByOrNull { it.value }?.key
+    }
+
     /** "4K · DV · Atmos · Plex" for the button. */
     fun describe(s: StreamOption): String =
         listOf(s.qualityLabel, s.hdr, s.audio, if (s.serverRef != null) s.addonName else "").filter { it.isNotBlank() }.joinToString(" · ")

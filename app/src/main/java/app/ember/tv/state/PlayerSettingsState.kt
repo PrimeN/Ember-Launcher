@@ -22,6 +22,15 @@ class PlayerSettingsState(private val prefs: Prefs) {
 
     var playRules by mutableStateOf(prefs.playRules); private set
 
+    init {
+        // #145: the beta "Auto select" button could switch the Play button off by accident; turn it
+        // back on once. Turning it off in Settings afterwards sticks.
+        if (!prefs.playButtonRestored) {
+            if (!playRules.enabled) { playRules = playRules.copy(enabled = true); prefs.playRules = playRules }
+            prefs.playButtonRestored = true
+        }
+    }
+
     fun updatePlayRules(change: (app.ember.tv.data.PlayRules) -> app.ember.tv.data.PlayRules) {
         playRules = change(playRules)
         prefs.playRules = playRules

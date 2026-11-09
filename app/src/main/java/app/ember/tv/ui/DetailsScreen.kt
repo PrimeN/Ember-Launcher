@@ -124,6 +124,8 @@ fun DetailsScreen(
     /** One-press play: show the Play button, and the source it plays (null while looking or when none fits). */
     playButton: Boolean = false,
     best: StreamOption? = null,
+    /** Why the Play button couldn't pick a source, when it couldn't (#145). */
+    bestReason: String? = null,
     playbackLabel: String = "Play",
     watched: Boolean = false,
     /** Marks the movie, or the chosen episode, as watched. */
@@ -163,7 +165,8 @@ fun DetailsScreen(
     val latestDetails by androidx.compose.runtime.rememberUpdatedState(d)
     val availability = mediaSourcePresentation(d,offers.size)
     val primaryTarget = detailsPlaybackTarget(playButton,best!=null,offers.size,availability.loading,offers.singleOrNull()?.let(offerInstalled)==true)
-    val playbackAction = detailsPlaybackPresentation(playbackLabel,primaryTarget,best,availability,offers.singleOrNull()?.name)
+    val playbackAction = detailsPlaybackPresentation(playbackLabel,primaryTarget,best,availability,offers.singleOrNull()?.name,
+        if(!playButton)null else bestReason)
     var headerHeightPx by remember(meta.mediaKey()) { mutableIntStateOf(0) }
     var headerActionsFocused by remember(meta.mediaKey()) { mutableStateOf(false) }
     var headingFocused by remember(meta.mediaKey()) { mutableStateOf(false) }

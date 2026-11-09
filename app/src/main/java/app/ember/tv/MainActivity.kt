@@ -786,6 +786,9 @@ private fun RootContent(
                         hasAddons = vm.addons.isNotEmpty(),
                         onRetrySources = vm.title::retrySources,
                         best = remember(d.streams,d.serverStreams,vm.playerSettings.playRules) {vm.playerSettings.bestSource(d)},
+                        bestReason = remember(d.streams,d.serverStreams,d.loadingStreams,vm.playerSettings.playRules) {
+                            if (d.loadingStreams) null else app.ember.tv.data.PlayPicker.reason(d.streams, d.serverStreams, vm.playerSettings.playRules)
+                        },
                         onPlayWith = { s ->
                             val req = vm.playRequest(s) ?: return@DetailsScreen
                             // Torrent sources can only go to a torrent app, so there is nothing to choose.
