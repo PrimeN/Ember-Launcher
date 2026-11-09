@@ -61,7 +61,29 @@ class SearchBackdropTest {
 
     @Test fun searchNoLongerUsesTheFocusedTitlesArtwork() {
         val main=java.io.File("src/main/java/app/ember/tv/MainActivity.kt").readText()
-        assertTrue(main.contains("enabled = vm.details == null && tab != NavTabs.SEARCH"))
-        assertTrue(main.contains("if (current == NavTabs.SEARCH) app.ember.tv.ui.SearchBackdrop()"))
+        assertTrue(main.contains("enabled = vm.details == null && tab != NavTabs.SEARCH && tab != NavTabs.LIVE"))
+        assertTrue("Live TV shares Search's background (#137)",main.contains("if (current == NavTabs.SEARCH || current == NavTabs.LIVE) app.ember.tv.ui.SearchBackdrop()"))
+    }
+
+    @Test fun themeGlowIsAChoiceAndStaysBehindHomeDiscoverAndApps() {
+        assertTrue(app.ember.tv.data.FocusBackground.choices.any {it.first==app.ember.tv.data.FocusBackground.GLOW})
+        assertEquals(app.ember.tv.data.FocusBackground.GLOW,app.ember.tv.data.FocusBackground.normalize("glow"))
+        val glow=app.ember.tv.data.FocusBackground.GLOW
+        for(page in listOf(app.ember.tv.data.NavTabs.HOME,app.ember.tv.data.NavTabs.DISCOVER,app.ember.tv.data.NavTabs.APPS))
+            assertTrue(page,app.ember.tv.data.FocusBackground.glowPage(glow,page,light=false))
+        assertFalse("Light Home has its own wallpaper",app.ember.tv.data.FocusBackground.glowPage(glow,app.ember.tv.data.NavTabs.HOME,light=true))
+        assertFalse(app.ember.tv.data.FocusBackground.glowPage(glow,app.ember.tv.data.NavTabs.LIBRARY,light=false))
+        assertFalse(app.ember.tv.data.FocusBackground.glowPage(app.ember.tv.data.FocusBackground.COLORS,app.ember.tv.data.NavTabs.HOME,light=false))
+    }
+
+    @Test fun aGlowPageShowsTheGlowBeforeAnythingIsFocused() {
+        compose.setContent {
+            CompositionLocalProvider(LocalNight provides true,LocalReduceMotion provides true,LocalRenderOptions provides RenderOptions(device="low")) {
+                EmberTheme(0) {Box(Modifier.size(960.dp,540.dp)) {
+                    FocusBackdropLayer(FocusBackdropState(),false,app.ember.tv.data.FocusBackground.GLOW,app.ember.tv.data.FocusBackground.OFF,glow=true)
+                }}
+            }
+        }
+        compose.onNodeWithTag("search_backdrop").assertExists()
     }
 }

@@ -5,8 +5,13 @@ object FocusBackground {
     const val COLORS = "colors"
     const val ARTWORK = "artwork"
     const val OFF = "off"
-    val choices = listOf(COLORS to "Tile colors", ARTWORK to "Artwork backdrop", OFF to "Theme only")
-    fun normalize(value: String?) = value?.takeIf { it in setOf(COLORS, ARTWORK, OFF) } ?: COLORS
+    /** Search's theme-coloured background (#120, #136), kept behind Home, Discover and Apps. */
+    const val GLOW = "glow"
+    val choices = listOf(COLORS to "Tile colors", ARTWORK to "Artwork backdrop", GLOW to "Theme glow", OFF to "Theme only")
+    fun normalize(value: String?) = value?.takeIf { it in setOf(COLORS, ARTWORK, GLOW, OFF) } ?: COLORS
+    /** The pages that keep the glow behind them when media rows use it. */
+    fun glowPage(mode: String, page: String, light: Boolean) =
+        mode == GLOW && page in setOf(NavTabs.HOME, NavTabs.DISCOVER, NavTabs.APPS) && !(light && page == NavTabs.HOME)
     /** Opening a row-based page must not fetch a large backdrop before any tile has focus. */
     fun idleArtwork(heroVisible: Boolean, mode: String) = heroVisible || mode == ARTWORK
 }

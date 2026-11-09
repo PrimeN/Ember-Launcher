@@ -143,19 +143,19 @@ private object FocusColors {
 }
 
 /** Scope resets on page/profile/folder changes; canceled work cannot tint a different page. */
-@Composable internal fun FocusBackdropHost(vm: HomeViewModel, scope: Any, enabled: Boolean, content: @Composable () -> Unit) {
+@Composable internal fun FocusBackdropHost(vm: HomeViewModel, scope: Any, enabled: Boolean, glow: Boolean = false, content: @Composable () -> Unit) {
     val state = remember(scope, enabled) { FocusBackdropState() }
     CompositionLocalProvider(LocalFocusBackdrop provides state.takeIf { enabled },
         LocalFocusImageModes provides (vm.look.mediaFocusBackground to vm.look.collectionFocusBackground),
         LocalPhotoBackground provides (enabled && focusUsesArtwork(state.tile,vm.look.mediaFocusBackground,vm.look.collectionFocusBackground))) {
         Box(Modifier.fillMaxSize()) {
-            if (enabled) FocusBackdropLayer(state, vm.look.appFocusColors, vm.look.mediaFocusBackground, vm.look.collectionFocusBackground)
+            if (enabled) FocusBackdropLayer(state, vm.look.appFocusColors, vm.look.mediaFocusBackground, vm.look.collectionFocusBackground, glow)
             content()
         }
     }
 }
 
-@Composable internal fun FocusBackdropLayer(state: FocusBackdropState, apps: Boolean, media: String, collections: String) {
+@Composable internal fun FocusBackdropLayer(state: FocusBackdropState, apps: Boolean, media: String, collections: String, glow: Boolean = false) {
     val tile = state.tile
     val image = state.image
     val requestedMode = when (tile?.kind) {
@@ -166,6 +166,8 @@ private object FocusColors {
     }
     val analysis=LocalRenderOptions.current.colorAnalysis
     val mode=if(requestedMode==FocusBackground.COLORS && !analysis)FocusBackground.OFF else requestedMode
+    // #136: a glow page keeps Search's background behind it; tile colours and artwork still draw on top.
+    if (glow) SearchBackdrop()
     val base = if(mode==FocusBackground.ARTWORK)Color(0xFF111215) else Ink
     var color by remember(state) { mutableStateOf<Int?>(null) }
     var artwork by remember(state) { mutableStateOf<FocusTile?>(null) }
@@ -188,6 +190,7 @@ private object FocusColors {
         settled = selection
     }
     if (tile == null) return
+    if (mode == FocusBackground.GLOW || (glow && mode == FocusBackground.OFF)) { if (!glow) SearchBackdrop(); return }
     val render = LocalRenderOptions.current
     val tint by animateColorAsState(color?.let(::Color) ?: base,
         tween(render.animationMillis(if (render.lowPower) 0 else 240, LocalReduceMotion.current)), label = "tileColor")

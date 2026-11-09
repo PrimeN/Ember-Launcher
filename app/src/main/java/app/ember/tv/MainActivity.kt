@@ -640,8 +640,9 @@ private fun Root(
         androidx.compose.runtime.CompositionLocalProvider(app.ember.tv.ui.LocalFocusPresence provides focusPresence) {
         app.ember.tv.ui.FocusBackdropHost(vm,
             scope = listOf(vm.profiles.profile, tab, vm.collections.open?.first?.id, vm.collections.open?.second?.id, vm.serverBrowser.library?.ref),
-            // Search paints its own theme-coloured background (#120), not the focused title's artwork.
-            enabled = vm.details == null && tab != NavTabs.SEARCH) {
+            // Search and Live TV paint their own theme-coloured background (#120, #137), not the focused tile's.
+            enabled = vm.details == null && tab != NavTabs.SEARCH && tab != NavTabs.LIVE,
+            glow = app.ember.tv.data.FocusBackground.glowPage(vm.look.mediaFocusBackground, tab, vm.look.uiStyle == app.ember.tv.data.InterfaceStyles.LIGHT)) {
             RootContent(vm, tab, onTab, onLaunch, onPlay, onPlayWith, onOpenOffer, onPlayTrailer, onPlayChannel)
         }
         }
@@ -896,7 +897,7 @@ private fun RootContent(
                     app.ember.tv.data.FocusBackground.idleArtwork(atTop && vm.heroOn, vm.look.mediaFocusBackground))
                     app.ember.tv.ui.ModernBackdrop(shown, dim = if (atTop && vm.heroOn) 0f else 0.55f, heightFraction = if(app.ember.tv.ui.Ui.emberX)1f else app.ember.tv.data.HeroBanner.BACKDROP_FRACTION, shade = if (atTop && vm.heroOn) .82f else 1f, onPresented = { presentedHero = it })
             }
-            if (current == NavTabs.SEARCH) app.ember.tv.ui.SearchBackdrop()
+            if (current == NavTabs.SEARCH || current == NavTabs.LIVE) app.ember.tv.ui.SearchBackdrop()
         app.ember.tv.ui.LauncherNavbarFrame(vm.look.navbarStyle,vm.look.uiStyle,vm.look.menuPosition,tabs,current,
             vm.weather.weatherText,vm.profiles.profile,tabClick,{vm.profiles.showProfilePicker=true}) { side ->
             Box(Modifier.fillMaxSize().sceneEnter(current).sceneContent(current, app.ember.tv.ui.navigationTabForPage(current, tabs), side, enabled = !light)) {
