@@ -52,7 +52,9 @@ object StreamParser {
         val web = yt?.let { "https://www.youtube.com/watch?v=$it" } ?: external?.takeIf { it.startsWith("http://", true) || it.startsWith("https://", true) }
         val deepLink = if (yt == null) external?.takeIf { web == null } else null
         val key = yt?.let { "yt:$it" } ?: external!!
-        val service = if (yt != null) "YouTube" else serviceName(external!!) ?: name.lineSequence().firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: addonName
+        // #143: only streaming services (and YouTube). Addons also link to their setup pages,
+        // sign-in and error pages; those are not services and showed as "app not installed".
+        val service = if (yt != null) "YouTube" else serviceName(external!!) ?: return null
         return app.ember.tv.streaming.Offer(
             serviceId = -1 - (key.hashCode() and 0x7fffffff) % 1_000_000, name = service, type = "link", price = null,
             format = when (quality(text)) { "4K" -> "4K"; "FHD", "HD" -> "HD"; "SD" -> "SD"; else -> null },

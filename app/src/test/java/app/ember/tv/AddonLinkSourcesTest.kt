@@ -19,7 +19,10 @@ class AddonLinkSourcesTest {
         assertNull(netflix.androidUrl); assertEquals("4K", netflix.quality); assertEquals("From your addons", netflix.label)
         val deepLink = link("""{"name":"Watch","externalUrl":"disneyplus://video/123"}""")!!
         assertEquals("Disney+", deepLink.name); assertEquals("disneyplus://video/123", deepLink.androidUrl); assertNull(deepLink.webUrl)
-        assertEquals("Watch", link("""{"name":"Watch\nmore","externalUrl":"https://example.org/x"}""")!!.name)
+        // Links that aren't a streaming service (setup, sign-in, error pages) are not offers (#143).
+        assertNull(link("""{"name":"Watch\nmore","externalUrl":"https://example.org/x"}"""))
+        assertNull(link("""{"name":"[RD] Error","title":"Configure the addon","externalUrl":"https://torrentio.strem.fun/configure"}"""))
+        assertNull(link("""{"name":"Open","externalUrl":"someapp://open/1"}"""))
     }
 
     @Test fun youtubeIdsOpenInYouTube() {
