@@ -155,7 +155,8 @@ val Wash: Color
 val WashHi: Color
     @Composable @ReadOnlyComposable
     get() = if(isEmberX)EmberXColors.Selected else
-        (if(isModernEmber && !dayHere)ModernEmberColors.Violet else MaterialTheme.colorScheme.primary)
+        // Modern Ember marks what's chosen in Google TV's cyan (#146).
+        (if(isModernEmber && !dayHere)ModernEmberColors.Cyan else MaterialTheme.colorScheme.primary)
             .copy(alpha = if (dayHere) 0.24f else 0.34f)
 
 /** A focused pill: white with dark text at night, dark with white text by day. */

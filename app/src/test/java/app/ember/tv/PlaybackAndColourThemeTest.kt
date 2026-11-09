@@ -145,4 +145,27 @@ class PlaybackAndColourThemeTest {
             assertEquals(androidx.compose.ui.graphics.Color.Transparent,detailsActionFill(false,true,true,focus,selection))
         }
     }
+
+    @Test fun modernEmberFollowsGoogleTvsSystemPanels() {
+        // #146: indigo-navy panels, rows a step lighter, a near-white focus pill, cyan for what's chosen.
+        val c=emberColorScheme(ColorThemes.MODERN_EMBER,day=false,oled=false)
+        fun hsv(color:Color):FloatArray {
+            val r=color.red;val g=color.green;val b=color.blue
+            val max=maxOf(r,g,b);val d=max-minOf(r,g,b)
+            val h=when {d==0f->0f;max==r->60f*(((g-b)/d)%6f);max==g->60f*((b-r)/d+2f);else->60f*((r-g)/d+4f)}
+            return floatArrayOf((h+360f)%360f,if(max==0f)0f else d/max,max)
+        }
+        for(panel in listOf(c.background,c.surface,c.surfaceVariant)) {
+            val h=hsv(panel)
+            assertTrue("indigo-navy, not grey or purple: ${h[0]}",h[0] in 225f..245f)
+            assertTrue("dark",h[2]<.40f)
+        }
+        assertTrue(c.surface.luminance()>c.background.luminance())
+        assertTrue(c.surfaceVariant.luminance()>c.surface.luminance())
+        assertTrue("focus pill is near white",ModernEmberColors.Focus.luminance()>.75f)
+        assertTrue(contrast(ModernEmberColors.OnFocus,ModernEmberColors.Focus)>=7.0)
+        val cyan=hsv(ModernEmberColors.Cyan)
+        assertTrue("selection is light cyan-blue: ${cyan[0]}",cyan[0] in 190f..205f)
+        assertEquals(ModernEmberColors.Cyan,c.tertiary)
+    }
 }

@@ -8,15 +8,22 @@ import androidx.tv.material3.lightColorScheme
 import app.ember.tv.data.ColorThemes
 
 /** Tonal surfaces with blue focus, violet containers and teal accents. */
+/**
+ * Google TV's own system look (#146): deep indigo-navy panels with rows a step lighter, a
+ * near-white focus pill with navy text, a light cyan accent for what's selected, and soft
+ * lavender-grey secondary text.
+ */
 internal object ModernEmberColors {
-    val Background=Color(0xFF101329)
-    val Surface=Color(0xFF222B49)
-    val SurfaceHi=Color(0xFF35436A)
-    val Focus=Color(0xFFD3E3FD)
-    val OnFocus=Color(0xFF10213C)
-    val Violet=Color(0xFFCEC0FF)
-    val Teal=Color(0xFFA4E2D0)
-    val Muted=Color(0xFFC0CCE4)
+    val Background=Color(0xFF15172B)
+    val Surface=Color(0xFF262946)
+    val SurfaceHi=Color(0xFF353959)
+    val Focus=Color(0xFFE4E9F4)
+    val OnFocus=Color(0xFF1B1E33)
+    /** Google TV's selection colour: radio buttons, switches, slider fills. */
+    val Cyan=Color(0xFF7CC4E4)
+    val Violet=Color(0xFFC6CAF2)
+    val Teal=Cyan
+    val Muted=Color(0xFFC3C6DC)
     val DayBackground=Color(0xFFF2F3FF)
     val DaySurface=Color(0xFFE5E9FC)
     val DaySurfaceHi=Color(0xFFD5DDF6)
@@ -92,13 +99,13 @@ internal fun emberColorScheme(accentIndex:Int,day:Boolean,oled:Boolean):androidx
         surfaceVariant=ModernEmberColors.DaySurfaceHi,onSurfaceVariant=Color(0xFF465675),
     ) else darkColorScheme(
         primary=ModernEmberColors.Focus,onPrimary=ModernEmberColors.OnFocus,
-        primaryContainer=Color(0xFF29477E),onPrimaryContainer=ModernEmberColors.Focus,
-        secondary=ModernEmberColors.Violet,onSecondary=Color(0xFF30244F),
-        secondaryContainer=Color(0xFF49376E),onSecondaryContainer=Color(0xFFECDDFF),
-        tertiary=ModernEmberColors.Teal,onTertiary=Color(0xFF123B32),
-        tertiaryContainer=Color(0xFF205747),onTertiaryContainer=Color(0xFFBDF3E1),
-        background=if(oled)Color.Black else ModernEmberColors.Background,onBackground=Color(0xFFE9EFFF),
-        surface=if(oled)Color(0xFF141A2B) else ModernEmberColors.Surface,onSurface=Color(0xFFE9EFFF),
+        primaryContainer=Color(0xFF3A3F66),onPrimaryContainer=Color(0xFFEDF0FA),
+        secondary=ModernEmberColors.Violet,onSecondary=Color(0xFF262A4A),
+        secondaryContainer=Color(0xFF3C4070),onSecondaryContainer=Color(0xFFE3E5FB),
+        tertiary=ModernEmberColors.Cyan,onTertiary=Color(0xFF0D2B3A),
+        tertiaryContainer=Color(0xFF1F4A60),onTertiaryContainer=Color(0xFFCDEBF8),
+        background=if(oled)Color.Black else ModernEmberColors.Background,onBackground=Color(0xFFEEF0F8),
+        surface=if(oled)Color(0xFF15172A) else ModernEmberColors.Surface,onSurface=Color(0xFFEEF0F8),
         surfaceVariant=ModernEmberColors.SurfaceHi,onSurfaceVariant=ModernEmberColors.Muted,
     )
     return if(day) lightColorScheme(
