@@ -45,6 +45,7 @@ internal object AccentTones {
     private val OledRowHi=Color(0xFF1B1B1E)
     private val tinted=setOf(0,2,3,4)
 
+    fun toned(index:Int):Boolean = ColorThemes.normalize(index) in tinted
     private fun touch(index:Int):Color? = ColorThemes.normalize(index).takeIf { it in tinted }?.let { Accents[it].second }
     private fun tone(base:Color,index:Int,amount:Float):Color = touch(index)?.let { lerp(base,it,amount) } ?: base
 
@@ -164,6 +165,8 @@ internal fun emberColorScheme(accentIndex:Int,day:Boolean,oled:Boolean):androidx
     )
     // Ember, Blue, Green and Rose (#150).
     val turn=AccentTones.turned(accent,38f)
+    // Red keeps neutral page colours, like Charcoal; only the touch of colour is skipped.
+    val touch=if(AccentTones.toned(accentIndex))1f else 0f
     if(day) {
         val deep=AccentTones.deepen(accent)
         val third=AccentTones.deepen(turn,.30f)
@@ -174,9 +177,9 @@ internal fun emberColorScheme(accentIndex:Int,day:Boolean,oled:Boolean):androidx
             secondaryContainer=lerp(Color(0xFFF3F3F3),accent,.12f),onSecondaryContainer=lerp(accent,Color.Black,.74f),
             tertiary=third,onTertiary=Color.White,
             tertiaryContainer=lerp(Color.White,turn,.18f),onTertiaryContainer=lerp(turn,Color.Black,.74f),
-            background=lerp(Color(0xFFEEF0F3),accent,.025f),onBackground=Color(0xFF1F1F1F),
+            background=lerp(Color(0xFFEEF0F3),accent,.025f*touch),onBackground=Color(0xFF1F1F1F),
             surface=Color.White,onSurface=Color(0xFF1F1F1F),
-            surfaceVariant=lerp(Color(0xFFE2E5EA),accent,.05f),onSurfaceVariant=Color(0xFF45484E),
+            surfaceVariant=lerp(Color(0xFFE2E5EA),accent,.05f*touch),onSurfaceVariant=Color(0xFF45484E),
             border=lerp(Color(0xFF8A8E95),accent,.10f),borderVariant=lerp(Color(0xFFC9CCD1),accent,.08f),
         )
     }
