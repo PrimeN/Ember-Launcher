@@ -107,6 +107,7 @@ internal object PreferenceKeys {
     val SERVICES_OFF = PreferenceKey<Set<String>>("servicesOff", PreferenceType.SET, emptySet())
     val SERVICES_ON = PreferenceKey<Set<String>>("servicesOn", PreferenceType.SET, emptySet())
     val SERVICES_SOURCE = PreferenceKey<String?>("servicesSource", PreferenceType.STRING, "")
+    /** Retired (#149): Settings always opens as the full page. Kept so old backups still read. */
     val SETTINGS_STYLE = PreferenceKey<String?>("settingsStyle", PreferenceType.STRING, "standard")
     val SETUP_CHECKLIST_HIDDEN = PreferenceKey<Boolean>("setupChecklistHidden", PreferenceType.BOOLEAN, false)
     val SHOW_WATCHED_BADGES = PreferenceKey<Boolean>("showWatchedBadges", PreferenceType.BOOLEAN, true)

@@ -32,8 +32,8 @@ import androidx.tv.material3.MaterialTheme
 /** Floating surfaces stay readable over artwork and share the launcher's focus palette. */
 internal object FloatingPanelStyle {
     val scrim=Color.Black.copy(alpha=.38f)
-    val background:Color @Composable get()=if(isEmberX)EmberXColors.Surface else if(isShadowEmber)ShadowEmberColors.Surface else if(isModernEmber)ModernEmberColors.Surface else Color(0xFF1D1E22)
-    val header:Color @Composable get()=if(isEmberX)EmberXColors.Raised else if(isShadowEmber)ShadowEmberColors.Background else if(isModernEmber)ModernEmberColors.Background else Color(0xFF232428)
+    val background:Color @Composable get()=if(isEmberX)EmberXColors.Surface else if(isShadowEmber)ShadowEmberColors.Surface else if(isModernEmber)ModernEmberColors.Surface else AccentTones.floating(LocalAccentIndex.current)
+    val header:Color @Composable get()=if(isEmberX)EmberXColors.Raised else if(isShadowEmber)ShadowEmberColors.Background else if(isModernEmber)ModernEmberColors.Background else AccentTones.floatingHeader(LocalAccentIndex.current)
     val accent:Color @Composable get()=if(isEmberX)EmberXColors.Accent else if(isShadowEmber)ShadowEmberColors.Focus else if(isModernEmber)ModernEmberColors.Focus else MaterialTheme.colorScheme.primary
 }
 

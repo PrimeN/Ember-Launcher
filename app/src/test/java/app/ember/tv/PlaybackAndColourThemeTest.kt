@@ -65,11 +65,13 @@ class PlaybackAndColourThemeTest {
     }
 
     @Test fun modernPaletteIsAppendedWithoutChangingSavedColoursOrBrandAliases() {
-        assertEquals(listOf("Ember","Shadow Ember","Blue ember","Green flame","Rose ember"),Accents.take(5).map{it.first})
-        assertEquals("Modern Ember",Accents[ColorThemes.MODERN_EMBER].first)
+        assertEquals(listOf("Ember","Charcoal","Blue","Green","Rose"),Accents.take(5).map{it.first})
+        assertEquals("Android TV",Accents[ColorThemes.MODERN_EMBER].first)
         for(i in 0..4)assertEquals(i,ColorThemes.artworkIndex(i))
         assertEquals(2,ColorThemes.artworkIndex(ColorThemes.MODERN_EMBER))
-        assertEquals(Color(0xFF111215),emberColorScheme(0,false,false).background)
+        // #150: the page keeps Ember's near-black with only a faint touch of its orange.
+        val page=emberColorScheme(0,false,false).background
+        assertTrue(page.red>=page.blue && page.luminance()<.012f)
         assertEquals(Color(0xFFFF7A2F),emberColorScheme(0,false,false).primary)
     }
 
@@ -95,10 +97,11 @@ class PlaybackAndColourThemeTest {
     @Test fun shadowEmberReusesTheSavedGreySlotAndSearchFindsItsNewName() {
         assertEquals(1,ColorThemes.SHADOW_EMBER)
         assertEquals(1,ColorThemes.artworkIndex(ColorThemes.SHADOW_EMBER))
-        assertEquals("Shadow Ember",Accents[ColorThemes.SHADOW_EMBER].first)
+        assertEquals("Charcoal",Accents[ColorThemes.SHADOW_EMBER].first)
+        assertEquals("accent_colour",SettingDefinitions.matching("Charcoal").single().id)
         assertEquals("accent_colour",SettingDefinitions.matching("Shadow Ember").single().id)
         assertEquals("accent_colour",SettingDefinitions.matching("dark grey").single().id)
-        assertEquals("1",SettingDefinitions.colourTheme.options.single {it.second=="Shadow Ember"}.first)
+        assertEquals("1",SettingDefinitions.colourTheme.options.single {it.second=="Charcoal"}.first)
         assertTrue(ShadowEmberColors.Accent.luminance()<Color(0xFFB0A49C).luminance())
     }
 
@@ -129,11 +132,14 @@ class PlaybackAndColourThemeTest {
     }
 
     @Test fun colourSearchAndBothSettingsMenusShareTheSavedThemeChoice() {
-        val hit=SettingDefinitions.matching("Modern Ember").single()
+        val hit=SettingDefinitions.matching("Android TV").single()
         assertEquals("accent_colour",hit.id)
+        // #148: every old theme name still finds the setting.
+        for(old in listOf("Shadow Ember","Blue ember","Green flame","Rose ember","Modern Ember","Cinema red"))
+            assertEquals(old,"accent_colour",SettingDefinitions.matching(old).single().id)
         assertTrue(hit.id in appearanceKeys("modern"))
         assertTrue(hit.id in appearanceKeys("light"))
-        assertEquals(ColorThemes.MODERN_EMBER.toString(),hit.options.single{it.second=="Modern Ember"}.first)
+        assertEquals(ColorThemes.MODERN_EMBER.toString(),hit.options.single{it.second=="Android TV"}.first)
     }
 
     @Test fun mediaButtonsUseNavigationFocusAndSelectionWithoutFillingDisabledActions() {
@@ -146,26 +152,56 @@ class PlaybackAndColourThemeTest {
         }
     }
 
-    @Test fun modernEmberFollowsGoogleTvsSystemPanels() {
-        // #146: indigo-navy panels, rows a step lighter, a near-white focus pill, cyan for what's chosen.
+    private fun hsv(color:Color):FloatArray {
+        val r=color.red;val g=color.green;val b=color.blue
+        val max=maxOf(r,g,b);val d=max-minOf(r,g,b)
+        val h=when {d==0f->0f;max==r->60f*(((g-b)/d)%6f);max==g->60f*((b-r)/d+2f);else->60f*((r-g)/d+4f)}
+        return floatArrayOf((h+360f)%360f,if(max==0f)0f else d/max,max)
+    }
+
+    @Test fun androidTvFollowsGoogleTvsSystemColours() {
+        // #150: Google TV's slate navy (1F232C page, 273041 rows), not violet; near-white focus; Google blue for what's chosen.
         val c=emberColorScheme(ColorThemes.MODERN_EMBER,day=false,oled=false)
-        fun hsv(color:Color):FloatArray {
-            val r=color.red;val g=color.green;val b=color.blue
-            val max=maxOf(r,g,b);val d=max-minOf(r,g,b)
-            val h=when {d==0f->0f;max==r->60f*(((g-b)/d)%6f);max==g->60f*((b-r)/d+2f);else->60f*((r-g)/d+4f)}
-            return floatArrayOf((h+360f)%360f,if(max==0f)0f else d/max,max)
-        }
-        for(panel in listOf(c.background,c.surface,c.surfaceVariant)) {
+        assertEquals(Color(0xFF1F232C),c.background)
+        for(panel in listOf(c.background,c.surface,c.surfaceVariant,c.primaryContainer,c.secondaryContainer)) {
             val h=hsv(panel)
-            assertTrue("indigo-navy, not grey or purple: ${h[0]}",h[0] in 225f..245f)
-            assertTrue("dark",h[2]<.40f)
+            assertTrue("navy, not purple: ${h[0]}",h[0] in 212f..228f)
+            assertTrue("dark",h[2]<.36f)
         }
         assertTrue(c.surface.luminance()>c.background.luminance())
         assertTrue(c.surfaceVariant.luminance()>c.surface.luminance())
         assertTrue("focus pill is near white",ModernEmberColors.Focus.luminance()>.75f)
         assertTrue(contrast(ModernEmberColors.OnFocus,ModernEmberColors.Focus)>=7.0)
-        val cyan=hsv(ModernEmberColors.Cyan)
-        assertTrue("selection is light cyan-blue: ${cyan[0]}",cyan[0] in 190f..205f)
-        assertEquals(ModernEmberColors.Cyan,c.tertiary)
+        val blue=hsv(ModernEmberColors.Blue)
+        assertTrue("selection is Google blue: ${blue[0]}",blue[0] in 212f..228f)
+        assertEquals(ModernEmberColors.Blue,c.tertiary)
+        assertTrue("search glow stays navy",hsv(SearchGlow.GoogleNavy)[0] in 212f..228f)
+        for(day in listOf(false,true))for(role in emberColorScheme(ColorThemes.MODERN_EMBER,day,false).let {listOf(it.secondary,it.secondaryContainer,it.tertiaryContainer)})
+            assertTrue("no violet left: ${hsv(role)[0]}",hsv(role)[0] !in 245f..300f)
+    }
+
+    @Test fun accentThemesDeriveEveryRoleFromTheirOwnColour() {
+        // #150: Ember, Blue, Green and Rose no longer fall back to the library's purple secondary and containers.
+        for(index in listOf(0,2,3,4))for(day in listOf(false,true))for(oled in listOf(false,true)) {
+            val c=emberColorScheme(index,day,oled)
+            listOf(c.onBackground to c.background,c.onSurface to c.surface,c.onSurfaceVariant to c.surfaceVariant,
+                c.onPrimary to c.primary,c.onSecondary to c.secondary,c.onTertiary to c.tertiary,
+                c.onPrimaryContainer to c.primaryContainer,c.onSecondaryContainer to c.secondaryContainer,
+                c.onTertiaryContainer to c.tertiaryContainer).forEach {(text,background)->
+                assertTrue("${Accents[index].first} day=$day oled=$oled contrast ${contrast(text,background)}",contrast(text,background)>=4.5)
+            }
+            val accent=hsv(Accents[index].second)[0]
+            for(role in listOf(c.secondary,c.primaryContainer,c.secondaryContainer)) {
+                val turn=kotlin.math.abs(hsv(role)[0]-accent).let {minOf(it,360f-it)}
+                assertTrue("${Accents[index].first}: ${hsv(role)[0]} follows the accent $accent",turn<20f)
+            }
+            if(!day && !oled) {
+                assertTrue(c.surface.luminance()<.025f)
+                assertTrue(c.surfaceVariant.luminance()>c.surface.luminance())
+            }
+        }
+        // Charcoal stays neutral.
+        val charcoal=emberColorScheme(ColorThemes.SHADOW_EMBER,false,false)
+        assertTrue(hsv(charcoal.surface)[1]<.18f)
     }
 }

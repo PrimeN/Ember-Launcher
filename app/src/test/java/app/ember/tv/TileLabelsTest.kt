@@ -37,4 +37,13 @@ class TileLabelsTest {
         for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertTrue(style, "tile-labels" in lookKeys(SettingsTab.APPEARANCE, style))
         assertEquals("tile-labels", SettingDefinitions.matching("labels under tiles").single().id)
     }
+
+    @Test fun settingsAlwaysOpenAsTheFullPage() {
+        // #149: the floating Settings panel and its Settings style choice are gone.
+        for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertFalse(style, "settings_style" in lookKeys(SettingsTab.APPEARANCE, style))
+        assertFalse(java.io.File("src/main/java/app/ember/tv/ui/FloatingSettings.kt").exists())
+        val root = java.io.File("src/main/java/app/ember/tv/MainActivity.kt").readText()
+        assertFalse(root.contains("settingsPanel"))
+        assertFalse(java.io.File("src/main/java/app/ember/tv/phone/PhoneSettings.kt").readText().contains("settingsStyle"))
+    }
 }

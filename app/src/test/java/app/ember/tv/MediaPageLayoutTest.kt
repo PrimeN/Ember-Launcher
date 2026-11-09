@@ -59,7 +59,10 @@ class MediaPageLayoutTest {
         for((launcher,_) in InterfaceStyles.options) assertTrue("media-page-layout" in lookKeys(SettingsTab.APPEARANCE,launcher))
         val setting=SettingDefinitions.matching("Media page layout").single()
         assertEquals(SettingsTab.APPEARANCE,setting.tab)
-        assertEquals(listOf("Modern","Ember X"),setting.options.map {it.second})
+        assertEquals(listOf("Ember","Ember X"),setting.options.map {it.second})
+        // #148: "Modern" is now called Ember; the old name still finds it, and the saved value is unchanged.
+        assertEquals(MediaPageLayouts.MODERN,setting.options.first().first)
+        assertTrue(SettingDefinitions.matching("Modern").any {it.id==setting.id})
         assertTrue(SettingDefinitions.matching("Ember X").any {it.id==setting.id})
     }
 }

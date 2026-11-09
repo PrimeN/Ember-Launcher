@@ -22,13 +22,13 @@ import androidx.tv.material3.MaterialTheme
 @Composable
 internal fun SearchBackdrop(modifier: Modifier = Modifier) {
     val base = Ink
-    // Shadow Ember (#139): neutral charcoal and grey, darker, and no hue turned round the wheel.
+    // Charcoal (#139): neutral charcoal and grey, darker, and no hue turned round the wheel.
     val shadow = isShadowEmber
-    // Modern Ember (#146): Google TV's indigo and cyan, not its near-white focus colour.
+    // Android TV (#146, #150): Google TV's slate navy and blue, not its near-white focus colour.
     val google = isModernEmber && !Ui.isDay
-    val accent = when { shadow -> SearchGlow.shadowMain(Ui.isDay); google -> SearchGlow.GoogleIndigo; else -> MaterialTheme.colorScheme.primary }
+    val accent = when { shadow -> SearchGlow.shadowMain(Ui.isDay); google -> SearchGlow.GoogleNavy; else -> MaterialTheme.colorScheme.primary }
     val glow = if (shadow) SearchGlow.shadowStrength(Ui.isDay, Ui.isOled) else SearchGlow.strength(Ui.isDay, Ui.isOled)
-    val neighbour = remember(accent, shadow, google) { when { shadow -> SearchGlow.shadowFar(Ui.isDay); google -> SearchGlow.GoogleCyan; else -> SearchGlow.neighbour(accent) } }
+    val neighbour = remember(accent, shadow, google) { when { shadow -> SearchGlow.shadowFar(Ui.isDay); google -> SearchGlow.GoogleBlue; else -> SearchGlow.neighbour(accent) } }
     Box(modifier.fillMaxSize().testTag("search_backdrop").background(base).drawWithCache {
         val reach = maxOf(size.width, size.height)
         val main = Brush.radialGradient(listOf(accent.copy(alpha = glow), Color.Transparent),
@@ -49,11 +49,11 @@ internal object SearchGlow {
     /** Day keeps the tint light; OLED stays close to black; Night carries the most colour. */
     fun strength(day: Boolean, oled: Boolean): Float = when { day -> .16f; oled -> .20f; else -> .30f }
 
-    /** Modern Ember's glows, after Google TV's panels (#146). */
-    val GoogleIndigo = Color(0xFF4A4F9C)
-    val GoogleCyan = Color(0xFF2F7FA6)
+    /** Android TV's glows, after Google TV's panels (#146, #150): navy, not violet. */
+    val GoogleNavy = Color(0xFF3A5488)
+    val GoogleBlue = Color(0xFF2F62C8)
 
-    /** Shadow Ember's glows: charcoal greys, a little lighter than the page at night, darker by day. */
+    /** Charcoal's glows: charcoal greys, a little lighter than the page at night, darker by day. */
     fun shadowMain(day: Boolean) = if (day) Color(0xFF8A9099) else Color(0xFF5B5F66)
     fun shadowFar(day: Boolean) = if (day) Color(0xFFA7ACB3) else Color(0xFF3F4247)
     fun shadowStrength(day: Boolean, oled: Boolean): Float = when { day -> .14f; oled -> .16f; else -> .24f }

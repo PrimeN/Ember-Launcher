@@ -4,6 +4,8 @@ package app.ember.tv.ui
 internal data class SettingDefinition(
     val id: String, val tab: SettingsTab, val title: String, val keywords: String,
     val options: List<Pair<String, String>> = emptyList(),
+    /** Earlier names of the setting's choices, so searching an old name still lands here (#148). */
+    val formerly: List<String> = emptyList(),
 ) {
     val searchText get() = "$title $keywords ${options.joinToString(" ") { it.second }}".lowercase(java.util.Locale.ROOT)
 }
@@ -15,11 +17,12 @@ internal object SettingDefinitions {
         listOf("night" to "Night", "day" to "Day", "auto" to "Auto"))
     val mediaPageLayout = SettingDefinition("media-page-layout", SettingsTab.APPEARANCE, "Media page layout",
         "movie show details episodes sources independent Modern Ember X right panel",
-        app.ember.tv.data.MediaPageLayouts.options)
+        app.ember.tv.data.MediaPageLayouts.options, formerly = listOf("Modern"))
     val navbarStyle=SettingDefinition("navbar-style",SettingsTab.APPEARANCE,"Navbar style",
         "navigation header collapsed cinema bar black independent menu",app.ember.tv.data.NavbarStyles.options)
-    val colourTheme = SettingDefinition("accent_colour", SettingsTab.APPEARANCE, "Colour theme", "color palette accent charcoal dark grey dark gray blue violet teal Modern Ember Cinema red app icon",
-        Accents.mapIndexed { index, (label, _) -> index.toString() to label })
+    val colourTheme = SettingDefinition("accent_colour", SettingsTab.APPEARANCE, "Colour theme", "color palette accent charcoal dark grey dark gray blue navy green rose pink red google tv app icon",
+        Accents.mapIndexed { index, (label, _) -> index.toString() to label },
+        formerly = listOf("Shadow Ember", "Blue ember", "Green flame", "Rose ember", "Modern Ember", "Cinema red"))
     val playerInterface = SettingDefinition("player_look", SettingsTab.PLAYER, "Player interface", "player look GUI controls basic simple advanced Ember Modern Ember Glass Ember X cinema streaming layout independent",
         app.ember.tv.player.PlayerInterfaces.options)
     val interfaceSize = SettingDefinition("interface-size", SettingsTab.SIZE, "Interface size", "screen scale", UiSizes.LABELS)
@@ -69,7 +72,8 @@ internal object SettingDefinitions {
     val all = listOf(hiddenApps,cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout,navbarStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
     fun matching(query: String): List<SettingDefinition> {
         val normalized = query.trim().lowercase(java.util.Locale.ROOT)
-        val exact = all.filter { it.title.lowercase(java.util.Locale.ROOT)==normalized || it.options.any { (_,label)->label.lowercase(java.util.Locale.ROOT)==normalized } }
+        val exact = all.filter { it.title.lowercase(java.util.Locale.ROOT)==normalized || it.options.any { (_,label)->label.lowercase(java.util.Locale.ROOT)==normalized } ||
+            it.formerly.any { name -> name.lowercase(java.util.Locale.ROOT)==normalized } }
         if(exact.isNotEmpty())return exact
         val words = normalized.split(Regex("\\s+")).filter { it.length >= 2 }
         return if (words.isEmpty()) emptyList() else all.filter { d -> words.all { it in d.searchText } }

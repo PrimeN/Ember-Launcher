@@ -208,7 +208,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun backTwice(event: KeyEvent): Boolean {
         if (event.keyCode != KeyEvent.KEYCODE_BACK || event.action != KeyEvent.ACTION_UP || event.isCanceled) return false
-        val atRest = tab == NavTabs.HOME && vm.details == null && !vm.quickPanel && !vm.look.settingsPanel && vm.pin.pinPrompt == null
+        val atRest = tab == NavTabs.HOME && vm.details == null && !vm.quickPanel && vm.pin.pinPrompt == null
         if (!atRest || !vm.returnReady || app.ember.tv.player.QuickReturn.key(vm.playerSettings.playbackConfig) != "back") { lastBack = 0L; return false }
         val now = android.os.SystemClock.uptimeMillis()
         if (lastBack != 0L && now - lastBack <= app.ember.tv.player.QuickReturn.DOUBLE_PRESS_MS) {
@@ -233,7 +233,6 @@ class MainActivity : ComponentActivity() {
         vm.closeDetails() // Home from a title screen goes all the way back to Home
         // ...and from a collection folder or any panel over the page.
         vm.collections.closeFolder()
-        vm.look.settingsPanel = false
         vm.quickPanel = false
         vm.homeFeatureAction=null;vm.pendingAppLaunch=null
     }
@@ -251,9 +250,7 @@ class MainActivity : ComponentActivity() {
         if ((keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_SETTINGS) &&
             vm.look.remoteSettingsKey == "ember" && vm.details == null
         ) {
-            vm.openSettingsGuarded {
-                if (vm.look.settingsStyle == "floating") vm.look.settingsPanel = true else tab = NavTabs.SETTINGS
-            }
+            vm.openSettingsGuarded { tab = NavTabs.SETTINGS }
             return true
         }
         // The remote's Play key on Home goes back to the video you left (when Back to … is offered).
@@ -580,11 +577,11 @@ private fun Root(
         }
     }
     val interactive = windowFocused && lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
-        !vm.quickPanel && !vm.look.settingsPanel && !vm.profiles.showProfilePicker && !vm.profiles.showProfileMenu && vm.profiles.setupRequested==null &&
+        !vm.quickPanel && !vm.profiles.showProfilePicker && !vm.profiles.showProfileMenu && vm.profiles.setupRequested==null &&
         vm.link == null && vm.pin.pinPrompt == null && vm.resumeAsk == null && vm.playing.chooser == null
     val startup=vm.startupPresentation
     val startupDialog=vm.profiles.showProfilePicker || vm.profiles.showProfileMenu || vm.profiles.setupRequested!=null ||
-        vm.link!=null || vm.pin.pinPrompt!=null || vm.resumeAsk!=null || vm.playing.chooser!=null || vm.quickPanel || vm.look.settingsPanel
+        vm.link!=null || vm.pin.pinPrompt!=null || vm.resumeAsk!=null || vm.playing.chooser!=null || vm.quickPanel
     LaunchedEffect(startup.stage,navigation.startup.established,windowFocused,lifecycle,startupDialog,tab,vm.details!=null) {
         if(windowFocused && lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
             (navigation.startup.established || app.ember.tv.ui.Ui.light || tab==NavTabs.SETTINGS || vm.details!=null || startupDialog))
@@ -665,11 +662,11 @@ private fun RootContent(
     onPlayChannel: (List<app.ember.tv.iptv.Channel>, Int) -> Unit,
 ) {
     val settingsLifecycle by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val settingsVisible=tab==NavTabs.SETTINGS || vm.look.settingsPanel || vm.quickPanel || vm.look.settingsDestination!=null || vm.homeFeatureAction?.startsWith("edit:")==true
+    val settingsVisible=tab==NavTabs.SETTINGS || vm.quickPanel || vm.look.settingsDestination!=null || vm.homeFeatureAction?.startsWith("edit:")==true
     LaunchedEffect(vm.profiles.profile,settingsVisible,settingsLifecycle,vm.settingsAllowed) {
         if(!settingsVisible || !settingsLifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))vm.revokeSettingsAccess()
         if(settingsVisible && !vm.settingsAllowed) {
-            vm.look.settingsPanel=false;vm.quickPanel=false;vm.look.settingsDestination=null
+            vm.quickPanel=false;vm.look.settingsDestination=null
             if(vm.homeFeatureAction?.startsWith("edit:")==true)vm.homeFeatureAction=null
             if(tab==NavTabs.SETTINGS)onTab(NavTabs.HOME)
         }
@@ -678,7 +675,6 @@ private fun RootContent(
         vm.look.settingsDestination?.let { page ->
             vm.look.settingsDestination = null
             vm.look.settingsJump = page
-            vm.look.settingsPanel = false
             vm.quickPanel = false
             vm.closeDetails()
             vm.collections.closeFolder()
@@ -699,7 +695,7 @@ private fun RootContent(
     }
     val launchApp:(AppEntry)->Unit={app->if(options==null && moving==null)onLaunch(app)}
     app.ember.tv.ui.HomeFeatureDialogs(vm,onLaunch)
-    LaunchedEffect(vm.pendingAppLaunch) {vm.pendingAppLaunch?.let {vm.pendingAppLaunch=null;vm.quickPanel=false;vm.look.settingsPanel=false;onLaunch(it)}}
+    LaunchedEffect(vm.pendingAppLaunch) {vm.pendingAppLaunch?.let {vm.pendingAppLaunch=null;vm.quickPanel=false;onLaunch(it)}}
     var pageProfile by remember { mutableStateOf(vm.profiles.profileId) }
     LaunchedEffect(vm.profiles.profileId) {
         if (pageProfile != vm.profiles.profileId) {
@@ -707,7 +703,6 @@ private fun RootContent(
             options = null
             moving = null
             vm.quickPanel = false
-            vm.look.settingsPanel = false
             onTab(NavTabs.HOME)
         }
     }
@@ -730,9 +725,9 @@ private fun RootContent(
             if (detailsListState.firstVisibleItemIndex > 0) 1f
             else (detailsListState.firstVisibleItemScrollOffset / 240f).coerceIn(0f, 1f)
         } }
-        val detailsBackground=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.EMBER_X)app.ember.tv.ui.EmberXColors.Background else if(app.ember.tv.ui.LocalAccentIndex.current==app.ember.tv.data.ColorThemes.MODERN_EMBER)
-            if(app.ember.tv.ui.Ui.isOled)androidx.compose.ui.graphics.Color.Black else app.ember.tv.ui.ModernEmberColors.Background
-            else androidx.compose.ui.graphics.Color(0xFF111215)
+        // #150: the theme's own night page colour, so the media page matches Home.
+        val detailsBackground=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.EMBER_X)app.ember.tv.ui.EmberXColors.Background
+            else app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).background
         app.ember.tv.ui.MediaPageLayoutScope(mediaLayout) {
         MaterialTheme(colorScheme=app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).copy(background=detailsBackground,
             surface=detailsBackground,onSurface=androidx.compose.ui.graphics.Color.White,onBackground=androidx.compose.ui.graphics.Color.White)) {
@@ -849,9 +844,7 @@ private fun RootContent(
             when {
                 id == NavTabs.SCREENSAVER -> app.ember.tv.ui.QuickActions.screensaver(navigationContext)
                 id == NavTabs.QUICK -> vm.openSettingsGuarded {vm.quickPanel = true}
-                id == NavTabs.SETTINGS -> vm.openSettingsGuarded {
-                    if (!app.ember.tv.ui.Ui.emberX && vm.look.settingsStyle == "floating") vm.look.settingsPanel = true else onTab(id)
-                }
+                id == NavTabs.SETTINGS -> vm.openSettingsGuarded { onTab(id) }
                 else -> onTab(id)
             }
         }
@@ -947,22 +940,10 @@ private fun RootContent(
         }
     }
 
-    if (vm.look.settingsPanel) {
-        SettingsScreen(
-            vm,
-            onClose = { vm.look.settingsPanel = false },
-            onOpenFull = { page ->
-                vm.openSettingsPage(page)
-            },
-        )
-    }
     val returnTo = vm.lastPlay?.takeIf { vm.returnReady && vm.playerSettings.playbackConfig.quickReturn }
     if (vm.quickPanel) app.ember.tv.ui.QuickPanel(vm, onClose = { vm.quickPanel = false },
         onReturn = returnTo?.let { last -> last.request.title to { vm.returnHint = false; onPlayWith(app.ember.tv.player.QuickReturn.request(last), last.target) } },
-        onSettings = { vm.openSettingsGuarded {
-        if (vm.look.settingsStyle == "floating") vm.look.settingsPanel = true
-        else { vm.closeDetails(); vm.collections.closeFolder(); onTab(NavTabs.SETTINGS) }
-    } })
+        onSettings = { vm.openSettingsGuarded { vm.closeDetails(); vm.collections.closeFolder(); onTab(NavTabs.SETTINGS) } })
     if (vm.profiles.showProfilePicker) app.ember.tv.ui.ProfilePicker(vm) {
         // "Profile settings" opens the full Settings straight at Profiles.
         vm.profiles.showProfilePicker = false

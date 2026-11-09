@@ -4,7 +4,8 @@ package app.ember.tv.data
 object MediaPageLayouts {
     const val MODERN = "modern"
     const val EMBER_X = "ember_x"
-    val options = listOf(MODERN to "Modern", EMBER_X to "Ember X")
+    /** "Ember" was called "Modern" before #148; the saved value stays "modern". */
+    val options = listOf(MODERN to "Ember", EMBER_X to "Ember X")
     fun normalize(value: String?): String = value?.takeIf { it == EMBER_X } ?: MODERN
     fun initial(launcher: String): String = if (InterfaceStyles.normalize(launcher) == InterfaceStyles.EMBER_X) EMBER_X else MODERN
     fun interfaceStyle(layout: String): String = if (normalize(layout) == EMBER_X) InterfaceStyles.EMBER_X else InterfaceStyles.MODERN

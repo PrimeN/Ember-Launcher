@@ -155,7 +155,6 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
             add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
             if (active != "light") {add("navbar-style");add("menu")}
             add("tile-labels")
-            add("settings_style")
         }
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
@@ -249,12 +248,6 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             vm.look.updateRemoteSounds(!vm.look.remoteSounds); RemoteSounds.warm(soundContext)
         }
     }
-        "settings_style" -> Section(stringResource(R.string.ui_settings_style), stringResource(R.string.ui_standard_the_full_settings_page_floating)) {
-        ButtonRow(spacing = 10.dp) {
-            Chip(stringResource(R.string.ui_standard), selected = vm.look.settingsStyle != "floating") { vm.look.updateSettingsStyle("standard") }
-            Chip(stringResource(R.string.ui_floating), selected = vm.look.settingsStyle == "floating") { vm.look.updateSettingsStyle("floating") }
-        }
-    }
         "menu" -> if(vm.look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)Section(stringResource(R.string.ui_menu), stringResource(R.string.ui_along_the_top_or_down_the)) {
             ButtonRow(spacing = 10.dp) {
                 Chip(stringResource(R.string.ui_top), selected = vm.look.menuPosition != "side") { vm.look.updateMenuPosition("top") }
@@ -324,7 +317,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             Note("Now: "+glassModeLabel(LocalRenderOptions.current)+". Prepared backgrounds are shared and reused until the image changes.")
         }
     }
-        "accent_colour" -> Section(SettingDefinitions.colourTheme.title, "Choose colours independently of the interface. Modern Ember adds blue, violet and teal surfaces; Cinema red adds a dark red palette.", id="accent_colour") {
+        "accent_colour" -> Section(SettingDefinitions.colourTheme.title, "Choose colours independently of the interface. Charcoal is neutral grey; Android TV uses Google TV's own navy and blue; Red adds a dark red palette.", id="accent_colour") {
         ThemeColorPicker(vm.look.accent, vm.look::updateAccent)
 
     }

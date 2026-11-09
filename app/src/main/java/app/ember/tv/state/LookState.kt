@@ -152,8 +152,6 @@ class LookState(
         prefs.textSize = v
     }
 
-    var settingsStyle by mutableStateOf(prefs.settingsStyle); private set
-
     /** "ember" or "tv": who gets the remote's Settings and Menu buttons. */
     var remoteSettingsKey by mutableStateOf(prefs.remoteSettingsKey); private set
 
@@ -170,17 +168,10 @@ class LookState(
     }
     var menuPosition by mutableStateOf(prefs.menuPosition); private set
 
-    /** The floating Settings panel is open (not saved). */
-    var settingsPanel by mutableStateOf(false)
-    /** A Settings page to open the full Settings at (SettingsTab name), e.g. from the floating panel. */
+    /** A Settings page to open the full Settings at (SettingsTab name), e.g. from Quick settings. */
     var settingsJump by mutableStateOf<String?>(null)
     /** Guarded full-page request, consumed by the root rather than the compact panel. */
     var settingsDestination by mutableStateOf<String?>(null)
-
-    fun updateSettingsStyle(v: String) {
-        settingsStyle = v
-        prefs.settingsStyle = v
-    }
 
     fun updateMenuPosition(v: String) {
         menuPosition = v

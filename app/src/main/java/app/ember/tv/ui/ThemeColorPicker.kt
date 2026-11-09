@@ -25,7 +25,7 @@ internal fun themeChoiceColors(index: Int, selected: Boolean, focused: Boolean, 
 }
 
 internal fun themePreviewSwatches(index: Int): List<Color> = when (ColorThemes.normalize(index)) {
-    ColorThemes.MODERN_EMBER -> listOf(ModernEmberColors.Focus, ModernEmberColors.Violet, ModernEmberColors.Teal)
+    ColorThemes.MODERN_EMBER -> listOf(ModernEmberColors.Focus, ModernEmberColors.Blue, ModernEmberColors.SurfaceHi)
     ColorThemes.SHADOW_EMBER -> listOf(ShadowEmberColors.Accent, ShadowEmberColors.SurfaceHi, ShadowEmberColors.Focus)
     else -> listOf(Accents[ColorThemes.normalize(index)].second)
 }

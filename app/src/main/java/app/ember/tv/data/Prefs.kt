@@ -530,11 +530,6 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.UPDATE_CHECKED_AT)
         set(v) = sp.edit { putLong(PreferenceKeys.UPDATE_CHECKED_AT.name, v) }
 
-    /** "standard" (a full page, default) or "floating" (a panel over the screen, opened from the menu or the remote's Menu key). */
-    var settingsStyle: String
-        get() = sp.read(PreferenceKeys.SETTINGS_STYLE) ?: "standard"
-        set(v) = sp.edit { putString(PreferenceKeys.SETTINGS_STYLE.name, v) }
-
     /** Modern look: menu along the "top" (default) or down the "side". */
     var menuPosition: String
         get() = sp.read(PreferenceKeys.MENU_POSITION) ?: "top"
@@ -634,8 +629,8 @@ class Prefs(context: Context) {
         set(v) = sp.edit { putString(PreferenceKeys.MODERN_CARDS.name, v) }
 
     var accent: Int
-        // Accents are Ember, Shadow Ember, Blue ember, Green flame, Rose ember, Modern Ember. Older choices map to the
-        // nearest: Sky -> Blue ember, Mint -> Green flame, Rose -> Rose ember, Amber -> Ember.
+        // Themes are Ember, Charcoal, Blue, Green, Rose, Android TV, Red (renamed in #148). Older choices map to the
+        // nearest: Sky -> Blue, Mint -> Green, Rose -> Rose, Amber -> Ember.
         get() {
             migrateEmberXInterface()
             return when {

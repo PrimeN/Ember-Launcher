@@ -12,27 +12,32 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 
 /**
- * Accent colours (Settings > Appearance). Ember is the logo's orange (the default); Shadow Ember
- * uses neutral charcoal and cool grey surfaces. Modern Ember adds a full tonal palette
- * and reuses blue branding. Stored by position, so new ones go at the end.
+ * Colour themes (Settings > Appearance). Ember is the logo's orange (the default); Charcoal uses
+ * neutral charcoal and cool grey surfaces; Android TV follows Google TV's own system colours and
+ * reuses the blue branding. Stored by position, so new ones go at the end. Renamed in #148 (were
+ * Shadow Ember, Blue ember, Green flame, Rose ember, Modern Ember and Cinema red).
  */
 val Accents = listOf(
     "Ember" to Color(0xFFFF7A2F),
-    "Shadow Ember" to ShadowEmberColors.Accent,
+    "Charcoal" to ShadowEmberColors.Accent,
     // Sulphur burns blue.
-    "Blue ember" to Color(0xFF4F94FF),
+    "Blue" to Color(0xFF4F94FF),
     // Copper burns green.
-    "Green flame" to Color(0xFF34D399),
+    "Green" to Color(0xFF34D399),
     // Strontium burns crimson.
-    "Rose ember" to Color(0xFFFF5C8A),
-    "Modern Ember" to ModernEmberColors.Focus,
-    "Cinema red" to Color(0xFFE50914),
+    "Rose" to Color(0xFFFF5C8A),
+    "Android TV" to ModernEmberColors.Focus,
+    "Red" to Color(0xFFE50914),
 )
 
 /** The accent's position in [Accents], for drawings that come in each colourway (the logo). */
 val LocalInterfaceStyle = androidx.compose.runtime.staticCompositionLocalOf { app.ember.tv.data.InterfaceStyles.MODERN }
 
 val LocalAccentIndex = androidx.compose.runtime.staticCompositionLocalOf { 0 }
+
+/** Ember, Blue, Green and Rose: the themes whose panels take a touch of their colour (#150). */
+internal val isAccentToned: Boolean
+    @Composable @ReadOnlyComposable get() = app.ember.tv.data.ColorThemes.normalize(LocalAccentIndex.current) in setOf(0, 2, 3, 4)
 
 /**
  * Which look is in use. Modern (the default) uses soft surfaces with full-bleed
@@ -58,7 +63,7 @@ object Ui {
 /** True inside modern Settings, which sits on a page tinted with the accent colour. */
 val LocalSlate = androidx.compose.runtime.staticCompositionLocalOf { false }
 
-/** True inside the floating Settings panel (dark panel on the right, accent headings). It stays dark in the day theme. */
+/** True inside floating panels (Quick settings, filters). They stay dark in the day theme. */
 val LocalFloating = androidx.compose.runtime.staticCompositionLocalOf { false }
 
 /** Keeps night colours inside, whatever the theme (Light Home sits on a dark wallpaper). */
@@ -82,14 +87,14 @@ val Panel: Color
         isShadowEmber && (LocalFloating.current || LocalNight.current) -> ShadowEmberColors.Surface
         isShadowEmber -> MaterialTheme.colorScheme.surface
         isModernEmber && LocalSlate.current -> Tint.of(0.24f)
-        isModernEmber && (LocalFloating.current || LocalNight.current) -> if(Ui.isOled)Color(0xFF141A2B) else ModernEmberColors.Surface
+        isModernEmber && (LocalFloating.current || LocalNight.current) -> if(Ui.isOled)ModernEmberColors.OledSurface else ModernEmberColors.Surface
         isModernEmber -> MaterialTheme.colorScheme.surface
-        LocalFloating.current -> Color(0xFF2A2B30)
+        LocalFloating.current -> lerp(Color(0xFF2A2B30),MaterialTheme.colorScheme.primary,if(isAccentToned).035f else 0f)
         LocalSlate.current -> Tint.of(0.24f)
-        LocalNight.current -> if(Ui.isOled)Color(0xFF0E0E10) else Color(0xFF1F2024)
+        // #150: Ember, Blue, Green and Rose panels carry a faint touch of their colour.
+        LocalNight.current -> AccentTones.panel(LocalAccentIndex.current,Ui.isOled)
         Ui.isDay -> Color.White
-        Ui.isOled -> Color(0xFF0E0E10)
-        else -> Color(0xFF1F2024)
+        else -> AccentTones.panel(LocalAccentIndex.current,Ui.isOled)
     }
 val PanelHi: Color
     @Composable @ReadOnlyComposable
@@ -101,12 +106,11 @@ val PanelHi: Color
         isModernEmber && LocalSlate.current -> Tint.of(0.34f)
         isModernEmber && (LocalFloating.current || LocalNight.current) -> ModernEmberColors.SurfaceHi
         isModernEmber -> MaterialTheme.colorScheme.surfaceVariant
-        LocalFloating.current -> Color(0xFF38393F)
+        LocalFloating.current -> lerp(Color(0xFF38393F),MaterialTheme.colorScheme.primary,if(isAccentToned).045f else 0f)
         LocalSlate.current -> Tint.of(0.34f)
-        LocalNight.current -> if(Ui.isOled)Color(0xFF1B1B1E) else Color(0xFF303136)
+        LocalNight.current -> AccentTones.panelHi(LocalAccentIndex.current,Ui.isOled)
         Ui.isDay -> Color(0xFFE2E5EA)
-        Ui.isOled -> Color(0xFF1B1B1E)
-        else -> Color(0xFF303136)
+        else -> AccentTones.panelHi(LocalAccentIndex.current,Ui.isOled)
     }
 /**
  * The glass material's own tint (#42), for the dock and unsampled glass: Day, Night and OLED
@@ -120,6 +124,8 @@ internal fun glassTint(day: Boolean): Color = when {
     isEmberX -> EmberXColors.Surface
     // Shadow Ember (#139): charcoal glass, not the default navy grey.
     isShadowEmber -> if (day) Color(0xFFE3E5E8) else if (Ui.isOled) Color(0xFF0B0B0C) else Color(0xFF1A1B1E)
+    // Android TV (#150): Google TV's slate navy.
+    isModernEmber -> if (day) ModernEmberColors.DaySurface else if (Ui.isOled) ModernEmberColors.OledSurface else Color(0xFF232937)
     day -> GlassTintDay
     Ui.isOled -> GlassTintOled
     else -> GlassTintNight
@@ -149,14 +155,14 @@ val Fg: Color
 val Wash: Color
     @Composable @ReadOnlyComposable
     get() = if(isEmberX)Color.White.copy(alpha=.07f) else if(isModernEmber) {
-        if(dayHere)ModernEmberColors.DayPrimary.copy(alpha=.10f) else ModernEmberColors.Violet.copy(alpha=.16f)
+        if(dayHere)ModernEmberColors.DayPrimary.copy(alpha=.10f) else ModernEmberColors.PaleBlue.copy(alpha=.11f)
     } else if (dayHere) Color(0x14000000) else Color(0x1AFFFFFF)
 /** A chosen pill (selected tab, chip or button): tinted with the accent colour, so every look shows it. */
 val WashHi: Color
     @Composable @ReadOnlyComposable
     get() = if(isEmberX)EmberXColors.Selected else
-        // Modern Ember marks what's chosen in Google TV's cyan (#146).
-        (if(isModernEmber && !dayHere)ModernEmberColors.Cyan else MaterialTheme.colorScheme.primary)
+        // Android TV marks what's chosen in Google blue (#146, #150).
+        (if(isModernEmber && !dayHere)ModernEmberColors.Blue else MaterialTheme.colorScheme.primary)
             .copy(alpha = if (dayHere) 0.24f else 0.34f)
 
 /** A focused pill: white with dark text at night, dark with white text by day. */
@@ -215,8 +221,9 @@ object Tint {
     fun of(amount: Float): Color = when {
         isEmberX -> EmberXColors.Surface
         isShadowEmber -> shadowSurfaceTint(amount,dayHere,Ui.isOled)
-        isModernEmber && dayHere -> lerp(ModernEmberColors.DayBackground,Color(0xFF8D83C7),amount*.6f)
-        isModernEmber -> lerp(if(Ui.isOled)Color.Black else ModernEmberColors.Background,Color(0xFF7566B9),amount)
+        // Android TV (#150): slate navy, not violet.
+        isModernEmber && dayHere -> lerp(ModernEmberColors.DayBackground,Color(0xFF8FA3C8),amount*.6f)
+        isModernEmber -> lerp(if(Ui.isOled)Color.Black else ModernEmberColors.Background,Color(0xFF4A5E86),amount)
         dayHere -> lerp(Color(0xFFF4F5F7), MaterialTheme.colorScheme.primary, amount * 0.8f)
         Ui.isOled -> lerp(Color.Black, MaterialTheme.colorScheme.primary, amount * 0.55f)
         else -> lerp(Color(0xFF15161A), MaterialTheme.colorScheme.primary, amount)

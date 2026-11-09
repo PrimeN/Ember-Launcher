@@ -148,7 +148,7 @@ internal enum class SettingsTab(val label: String, val group: String) {
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun SettingsScreen(vm: HomeViewModel, onClose: (() -> Unit)? = null, onOpenFull: (String) -> Unit = {}) {
+fun SettingsScreen(vm: HomeViewModel) {
     if(!vm.settingsAllowed)return // Never compose editable controls behind an unapproved/restored route.
     // Settings opens on its first category every time; Back inside Settings still returns to where you were.
     var location by remember {mutableStateOf(SettingsLocation())}
@@ -161,8 +161,8 @@ fun SettingsScreen(vm: HomeViewModel, onClose: (() -> Unit)? = null, onOpenFull:
     var focusContent by remember {mutableStateOf(true)}
     fun openPage(page:SettingsTab) {location=SettingsLocation.open(page);lastTopic=page;focusContent=true}
     val openKeys = {searchTarget=null;returnToSearch=false;openPage(SettingsTab.KEYS)}
-    LaunchedEffect(vm.look.settingsJump, onClose == null) {
-        vm.look.settingsJump?.takeIf {onClose==null}?.let {name->
+    LaunchedEffect(vm.look.settingsJump) {
+        vm.look.settingsJump?.let {name->
             SettingsLocation.jump(name)?.let {location=it;lastTopic=it.page;focusContent=true;searchTarget=null;returnToSearch=false}
             vm.look.settingsJump=null
         }
@@ -271,10 +271,6 @@ fun SettingsScreen(vm: HomeViewModel, onClose: (() -> Unit)? = null, onOpenFull:
         }
     }
 
-    if (onClose != null) {
-        FloatingSettings(vm, onClose = onClose, onOpenFull = onOpenFull)
-        return
-    }
     // Page-only search results need the same guarded focus handoff as exact section hits.
     val searchRequest = remember(searchTarget, tab, returnToSearch) {
         if (location.page!=null && returnToSearch && tab != SettingsTab.SEARCH) SettingsTarget(searchTarget) else null

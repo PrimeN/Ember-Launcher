@@ -130,12 +130,10 @@ class ProfileMenuTest {
             state.updateTheme("day")
             state.updateUiStyle("light")
             state.updateUiStyle("modern")
-            state.updateSettingsStyle("floating")
             assertEquals("side",state.menuPosition)
             val restored=LookState(memoryPrefs(values),scope)
             assertEquals("side",restored.menuPosition)
             assertEquals("modern",restored.uiStyle)
-            assertEquals("floating",restored.settingsStyle)
         } finally {scope.cancel();Ui.light=oldLight;Ui.day=oldDay;Ui.oled=oldOled}
     }
 
@@ -148,7 +146,7 @@ class ProfileMenuTest {
                 val prefs=memoryPrefs(values)
                 val state=LookState(prefs,scope)
                 assertEquals(ColorThemes.SHADOW_EMBER,state.accent)
-                assertEquals("Shadow Ember",Accents[state.accent].first)
+                assertEquals("Charcoal",Accents[state.accent].first)
                 assertEquals("side",state.menuPosition)
                 assertEquals(1,values[key])
             }

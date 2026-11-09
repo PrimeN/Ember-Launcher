@@ -14,8 +14,8 @@ class EmberXInterfaceTest {
     @get:Rule val temp=TemporaryFolder()
     @After fun resetUi(){Ui.emberX=false;Ui.light=false;Ui.day=false;Ui.oled=false}
     @Test fun newThemeIsAppendOnlyAndUsesAnExistingBrandAlias() {
-        assertEquals(listOf("Ember","Shadow Ember","Blue ember","Green flame","Rose ember","Modern Ember"),Accents.take(6).map {it.first})
-        assertEquals("Cinema red",Accents[ColorThemes.CINEMA_RED].first)
+        assertEquals(listOf("Ember","Charcoal","Blue","Green","Rose","Android TV"),Accents.take(6).map {it.first})
+        assertEquals("Red",Accents[ColorThemes.CINEMA_RED].first)
         assertEquals(6,ColorThemes.normalize(6));assertEquals(0,ColorThemes.artworkIndex(6))
         assertEquals(0,ColorThemes.normalize(7));assertEquals(2,ColorThemes.artworkIndex(5))
     }
@@ -96,7 +96,7 @@ class EmberXInterfaceTest {
         val hit=SettingDefinitions.matching("Ember X").single {it.id=="media-page-layout"}
         assertEquals(SettingsTab.APPEARANCE,hit.tab);assertEquals("media-page-layout",hit.id)
         assertEquals(InterfaceStyles.EMBER_X,hit.options.single {it.second=="Ember X"}.first)
-        assertEquals("accent_colour",SettingDefinitions.matching("Modern Ember").single().id)
+        assertEquals("accent_colour",SettingDefinitions.matching("Android TV").single().id)
         assertEquals(listOf("Ember","Ember Light"),SettingDefinitions.interfaceStyle.options.map {it.second})
         assertTrue("app_icons" in lookKeys(SettingsTab.HOME_ROWS, InterfaceStyles.EMBER_X))
     }
