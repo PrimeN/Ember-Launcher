@@ -118,6 +118,8 @@ internal val GlassTintOled = Color(0xFF0B0C10)
 @Composable @ReadOnlyComposable
 internal fun glassTint(day: Boolean): Color = when {
     isEmberX -> EmberXColors.Surface
+    // Shadow Ember (#139): charcoal glass, not the default navy grey.
+    isShadowEmber -> if (day) Color(0xFFE3E5E8) else if (Ui.isOled) Color(0xFF0B0B0C) else Color(0xFF1A1B1E)
     day -> GlassTintDay
     Ui.isOled -> GlassTintOled
     else -> GlassTintNight

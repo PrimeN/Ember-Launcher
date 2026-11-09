@@ -119,6 +119,9 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
                         MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
                     }
                 }
+                ToggleRow("Show addon names on rows", "The addon's name after each catalog's title, such as Popular · Cinemeta.", vm.look.rowAddonLabels) {
+                    vm.look.updateRowAddonLabels(!vm.look.rowAddonLabels)
+                }
                 Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
             }
         }

@@ -22,9 +22,11 @@ import androidx.tv.material3.MaterialTheme
 @Composable
 internal fun SearchBackdrop(modifier: Modifier = Modifier) {
     val base = Ink
-    val accent = MaterialTheme.colorScheme.primary
-    val glow = SearchGlow.strength(Ui.isDay, Ui.isOled)
-    val neighbour = remember(accent) { SearchGlow.neighbour(accent) }
+    // Shadow Ember (#139): neutral charcoal and grey, darker, and no hue turned round the wheel.
+    val shadow = isShadowEmber
+    val accent = if (shadow) SearchGlow.shadowMain(Ui.isDay) else MaterialTheme.colorScheme.primary
+    val glow = if (shadow) SearchGlow.shadowStrength(Ui.isDay, Ui.isOled) else SearchGlow.strength(Ui.isDay, Ui.isOled)
+    val neighbour = remember(accent, shadow) { if (shadow) SearchGlow.shadowFar(Ui.isDay) else SearchGlow.neighbour(accent) }
     Box(modifier.fillMaxSize().testTag("search_backdrop").background(base).drawWithCache {
         val reach = maxOf(size.width, size.height)
         val main = Brush.radialGradient(listOf(accent.copy(alpha = glow), Color.Transparent),
@@ -44,6 +46,11 @@ internal fun SearchBackdrop(modifier: Modifier = Modifier) {
 internal object SearchGlow {
     /** Day keeps the tint light; OLED stays close to black; Night carries the most colour. */
     fun strength(day: Boolean, oled: Boolean): Float = when { day -> .16f; oled -> .20f; else -> .30f }
+
+    /** Shadow Ember's glows: charcoal greys, a little lighter than the page at night, darker by day. */
+    fun shadowMain(day: Boolean) = if (day) Color(0xFF8A9099) else Color(0xFF5B5F66)
+    fun shadowFar(day: Boolean) = if (day) Color(0xFFA7ACB3) else Color(0xFF3F4247)
+    fun shadowStrength(day: Boolean, oled: Boolean): Float = when { day -> .14f; oled -> .16f; else -> .24f }
 
     /** The accent turned a little round the colour wheel, so the two glows read as one gentle wash. */
     fun neighbour(accent: Color, degrees: Float = 38f): Color {

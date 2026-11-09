@@ -31,8 +31,9 @@ import coil.compose.AsyncImage
 /** Live TV follows the app's colour theme (accent, Day/Night, OLED), like every other page. */
 internal object LiveColors {
     val Background: Color @Composable @ReadOnlyComposable get() = Ink
-    val Cell: Color @Composable @ReadOnlyComposable get() = Panel
-    val Current: Color @Composable @ReadOnlyComposable get() = PanelHi
+    // Slightly see-through, so guide cells and channels sit on the theme glow (#141).
+    val Cell: Color @Composable @ReadOnlyComposable get() = Panel.copy(alpha = .80f)
+    val Current: Color @Composable @ReadOnlyComposable get() = PanelHi.copy(alpha = .90f)
     val Focus: Color @Composable @ReadOnlyComposable get() = PillColor
     val OnFocus: Color @Composable @ReadOnlyComposable get() = OnPillColor
     val Muted: Color @Composable @ReadOnlyComposable get() = Mute
@@ -84,16 +85,6 @@ internal fun LiveSidebarEntry(
         }
     }
 }
-
-@Composable
-internal fun LiveArtworkBackground(image:String?) {
-    Box(Modifier.fillMaxSize().background(LiveColors.Background)) {
-        if(image!=null)AsyncImage(image,null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop,alpha=.24f)
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(LiveColors.Background,LiveColors.Background.copy(alpha=.88f),LiveColors.Background.copy(alpha=.54f)))))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,LiveColors.Background))))
-    }
-}
-
 
 /** Live inherits the app palette, including Day; no forced night text on light backgrounds. */
 @Composable

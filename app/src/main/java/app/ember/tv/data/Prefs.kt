@@ -51,6 +51,10 @@ class Prefs(context: Context) {
     var heroArtworkMode: String
         get() = runCatching { HeroArtworkMode.normalize(sp.read(PreferenceKeys.HERO_ARTWORK_MODE).orEmpty()) }.getOrDefault(HeroArtworkMode.STANDARD)
         set(value) = sp.edit { putString(PreferenceKeys.HERO_ARTWORK_MODE.name, HeroArtworkMode.normalize(value)) }
+    var rowAddonLabels: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.ROW_ADDON_LABELS) }.getOrDefault(true)
+        set(value) = sp.edit { putBoolean(PreferenceKeys.ROW_ADDON_LABELS.name, value) }
+
     var appFocusColors: Boolean
         get() = runCatching { sp.read(PreferenceKeys.APP_FOCUS_COLORS) }.getOrDefault(true)
         set(value) = sp.edit { putBoolean(PreferenceKeys.APP_FOCUS_COLORS.name, value) }

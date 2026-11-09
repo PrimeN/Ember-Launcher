@@ -319,7 +319,17 @@ fun ModernBackdrop(meta: Meta?, dim: Float, backgroundColor: Color = Ink, height
     // Low replaces the full-screen picture directly rather than blending two large layers.
     val duration = PolishMotion.duration(TvTokens.Motion.Hero,LocalRenderOptions.current,LocalReduceMotion.current)
     val a by animateFloatAsState(1f - 0.75f * dim, tween(duration), label = "backdrop")
-    Box(Modifier.fillMaxWidth().fillMaxHeight(heightFraction.coerceIn(.5f,1f)).alpha(a).onGloballyPositioned {coordinates->
+    // #142: the picture and its shading fade out to transparent at the bottom, so they blend into
+    // whatever lies below (the page colour, theme glow or tile colours) instead of ending in a line.
+    val fadeFrom = HeroFade.start(Ui.isDay && !LocalNight.current)
+    Box(Modifier.fillMaxWidth().fillMaxHeight(heightFraction.coerceIn(.5f,1f)).alpha(a)
+        .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            drawRect(Brush.verticalGradient(0f to Color.Black, fadeFrom to Color.Black, 1f to Color.Transparent),
+                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+        }
+        .onGloballyPositioned {coordinates->
         val position=coordinates.positionInRoot()
         viewport=HeroViewport(position.x,position.y,coordinates.size.width.toFloat(),coordinates.size.height.toFloat())
     }) {
@@ -331,8 +341,13 @@ fun ModernBackdrop(meta: Meta?, dim: Float, backgroundColor: Color = Ink, height
                 FramedHeroImage(ReadyArtwork(null,layer.first,layer.second),Modifier.fillMaxSize())
             }
         }
-        HeroArtworkShade(backgroundColor,shade)
+        HeroArtworkShade(backgroundColor,shade,joinPage=false)
     }
+}
+
+/** Where the Home hero starts fading out (#142), as a fraction of its height. */
+internal object HeroFade {
+    fun start(day: Boolean) = if (day) .78f else .58f
 }
 
 // ---------------------------------------------------------------- Home
@@ -401,7 +416,7 @@ fun ModernHome(
                         HomeFolderLinks(vm)
                         AppsGrid(vm, circles = vm.look.appIcons == "circle", onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
                     }
-                    is HomeViewModel.HomeBlock.Row -> ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() }) {
+                    is HomeViewModel.HomeBlock.Row -> ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
                         MediaRow(
                             b.row.items, wide, isSaved = { b.saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle,
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,

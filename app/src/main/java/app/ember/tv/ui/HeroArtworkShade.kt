@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 
 /** Readable text on artwork without spreading the light page colour over the image. */
 @Composable
-internal fun HeroArtworkShade(background: Color, shade: Float) {
+internal fun HeroArtworkShade(background: Color, shade: Float, joinPage: Boolean = true) {
     val day=Ui.isDay && !LocalNight.current && !LocalFloating.current
     val scrim=if(day)Color(0xFF111215) else background
     val opacity=shade.coerceIn(0f,1f)
@@ -22,5 +22,5 @@ internal fun HeroArtworkShade(background: Color, shade: Float) {
     // Only the very bottom joins the Day page; the image itself remains full colour.
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
         0f to scrim.copy(alpha=.18f*opacity), .16f to Color.Transparent,
-        (if(day).90f else .70f) to Color.Transparent, 1f to background)))
+        (if(day).90f else .70f) to Color.Transparent, 1f to if(joinPage)background else Color.Transparent)))
 }

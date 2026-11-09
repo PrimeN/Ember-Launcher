@@ -18,6 +18,9 @@ class LookState(
 ) {
     var heroArtworkMode by mutableStateOf(prefs.heroArtworkMode); private set
     var appFocusColors by mutableStateOf(prefs.appFocusColors); private set
+    /** Show the addon's name after catalog row titles (#144). */
+    var rowAddonLabels by mutableStateOf(prefs.rowAddonLabels); private set
+    fun updateRowAddonLabels(value: Boolean) { rowAddonLabels = value; prefs.rowAddonLabels = value }
     var showWatchedBadges by mutableStateOf(prefs.showWatchedBadges);private set
     var blurUnwatchedEpisodes by mutableStateOf(prefs.blurUnwatchedEpisodes);private set
     var cardFocusStyle by mutableStateOf(prefs.cardFocusStyle);private set

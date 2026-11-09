@@ -213,8 +213,8 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         val sidebarWidth=(maxWidth*.235f).coerceIn(148.dp,226.dp)
         val fontScale=androidx.compose.ui.platform.LocalDensity.current.fontScale
         val viewportHeight=maxHeight
+        // No page fill of its own: the theme glow behind Live TV shows through (#137, #141).
         Box(Modifier.fillMaxSize()) {
-            LiveArtworkBackground(null)
             Column(Modifier.fillMaxSize().padding(start=36.dp,end=24.dp,top=4.dp).onKeyEvent {event ->
                 val digit=LiveRemote.digit(event.nativeKeyEvent.keyCode)
                 if(digit==null)false else {
@@ -313,7 +313,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                                 }
                             } else if(activeChoice.kind=="addons" && !searching) {
                                 LazyColumn(Modifier.fillMaxWidth().weight(1f).focusRequester(bodyFocus).focusGroup(),verticalArrangement=Arrangement.spacedBy(18.dp)) {
-                                    items(vm.liveRows,key={it.catalogKey ?: it.addonName+it.title}) {row->Section(row.displayTitle,row.addonName) {TitleRow(row.items,vm::isSaved,onOpen=onOpen)}}
+                                    items(vm.liveRows,key={it.catalogKey ?: it.addonName+it.title}) {row->Section(row.displayTitle,row.addonName.takeIf {vm.look.rowAddonLabels}) {TitleRow(row.items,vm::isSaved,onOpen=onOpen)}}
                                 }
                             } else if(view=="grid") {
                                 Box(Modifier.weight(1f).fillMaxWidth().onFocusChanged {if(it.hasFocus)guideEngaged=true}) {
