@@ -453,7 +453,8 @@ internal fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, la
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (millis == 0) 1f else if (launching) 1.4f else if (focused) (if (LocalRenderOptions.current.lowPower) 1.02f else 1.2f) else 1f, tween(millis), label = "Light app lift")
     Column(modifier.width(grid.width.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Focusable(onClick, Modifier.fillMaxWidth().height(grid.height.dp).onFocusChanged { focused = it.isFocused }.graphicsLayer {
+        Focusable(onClick, Modifier.fillMaxWidth().height(grid.height.dp).then(if (destination != null) Modifier.testTag("light_page_$destination") else Modifier)
+            .onFocusChanged { focused = it.isFocused }.graphicsLayer {
             scaleX = scale; scaleY = scale; translationY = if (focused && millis > 0) -3.dp.toPx() else 0f
         }, onLongClick = onLongClick, radius = grid.radius.toInt().coerceAtLeast(2), container = Color(0xFF262C3C), focusedScale = TvTokens.Focus.None) {
             if(destination!=null)LightPageTileFace(destination,app.label,grid)
@@ -485,7 +486,7 @@ internal fun lightPageLook(page: String): LightPageLook = when (page) {
 private fun LightPageTileFace(page: String, name: String, grid: LightLayout.Grid) {
     val look = lightPageLook(page)
     val height = grid.height.dp
-    Box(Modifier.fillMaxSize().testTag("light_page_$page").semantics { contentDescription = name }
+    Box(Modifier.fillMaxSize().semantics { contentDescription = name }
         .background(Brush.linearGradient(listOf(look.from, look.to)))) {
         // Light falling from the top left, like the glass around it.
         Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color.White.copy(alpha = .22f), Color.Transparent),

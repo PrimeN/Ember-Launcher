@@ -44,10 +44,9 @@ class LightNavigationTileTest {
                 items.forEach {item->LightAppTile(item,LightLayout.grid(960f),0,false,Modifier,{},{})}
             }
         }}}
-        compose.onNodeWithTag("light_page_live").assertExists()
-        compose.onNodeWithText("LIVE",useUnmergedTree=true).assertExists()
-        compose.onNodeWithText("Live TV",useUnmergedTree=true).assertExists()
-        compose.onNodeWithText("Discover",useUnmergedTree=true).assertExists()
+        // The tile reads as its page; the name and LIVE badge are drawn on it (see the snapshot).
+        compose.onNodeWithTag("light_page_live").assertContentDescriptionEquals(items[1].label)
+        compose.onNodeWithTag("light_page_discover").assertContentDescriptionEquals("Discover")
         // Each page has its own colours.
         assertEquals(4,listOf(NavTabs.DISCOVER,NavTabs.LIVE,NavTabs.LIBRARY,NavTabs.WATCHLIST).map {lightPageLook(it).from}.distinct().size)
         val image=compose.onNodeWithTag("tiles").captureToImage().asAndroidBitmap()
