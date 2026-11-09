@@ -100,6 +100,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         TileLabels.choices.forEach { (kind, label) ->
             toggle("look.labels.$kind", LOOK, "Labels under tiles: $label", read = { kind !in look.tileLabelsOff }, write = { on -> if (on == (kind in look.tileLabelsOff)) look.toggleTileLabel(kind) })
         }
+        toggle("look.rowAddonLabels", LOOK, "Addon names on rows", read = { look.rowAddonLabels }, write = look::updateRowAddonLabels)
         choice("look.performance", LOOK, "Performance profile",
             DevicePerformance.choices(app.ember.tv.ui.Art.display4K || look.devicePerformance == "ultra"), read = { look.devicePerformance }, write = look::updateDevicePerformance)
         choice("look.quality", LOOK, "Image quality (Custom profile)", listOf("economy" to "Economy", "balanced" to "Balanced", "high" to "High"), read = { look.artworkQuality }, write = look::updateArtworkQuality)

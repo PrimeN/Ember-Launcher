@@ -119,9 +119,6 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
                         MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
                     }
                 }
-                ToggleRow("Show addon names on rows", "The addon's name after each catalog's title, such as Popular · Cinemeta.", vm.look.rowAddonLabels) {
-                    vm.look.updateRowAddonLabels(!vm.look.rowAddonLabels)
-                }
                 Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
             }
         }
@@ -154,7 +151,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         SettingsTab.APPEARANCE -> buildList {
             add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
             if (active != "light") {add("navbar-style");add("menu")}
-            add("tile-labels")
+            add("tile-labels"); add("row-addon-labels")
         }
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
@@ -179,6 +176,12 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.appearancePage(vm: H
 @Composable
 private fun AppearancePart(vm: HomeViewModel, key: String) {
     when (key) {
+        // #151: on Appearance, beside the other labels, instead of at the bottom of Home layout.
+        "row-addon-labels" -> Section(SettingDefinitions.rowAddonLabels.title, "The addon's name after each catalog's title, such as Popular · Cinemeta, on Home and Live TV.", id = "row-addon-labels") {
+            ToggleRow("Show addon names", if (vm.look.rowAddonLabels) "Shown after each row's title" else "Hidden: rows show only the catalog's title", vm.look.rowAddonLabels) {
+                vm.look.updateRowAddonLabels(!vm.look.rowAddonLabels)
+            }
+        }
         "tile-labels" -> Section("Labels under tiles", "Turn off a kind to remove its text under the tiles. Names are still read out by accessibility services.", id = "tile-labels") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 app.ember.tv.data.TileLabels.choices.forEach { (kind, label) ->

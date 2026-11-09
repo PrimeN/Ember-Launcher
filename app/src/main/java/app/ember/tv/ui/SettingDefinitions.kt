@@ -33,6 +33,7 @@ internal object SettingDefinitions {
         app.ember.tv.data.DevicePerformance.options)
     val artwork = SettingDefinition("artwork", SettingsTab.PERFORMANCE, "Modern glass", "frosted navigation glass blur popups dock live prepared liquid refraction tint vibrancy highlights google tv android tv stock solid opaque plain")
     val focusBackgrounds = SettingDefinition("focus-backgrounds", SettingsTab.PERFORMANCE, "Focused backgrounds", "app colors media rows collections tile colors artwork backdrop theme only focus hover background palette", app.ember.tv.data.FocusBackground.choices)
+    val rowAddonLabels=SettingDefinition("row-addon-labels",SettingsTab.APPEARANCE,"Addon names on rows","show hide addon add-on names catalog source label after row title home live")
     val tileLabels=SettingDefinition("tile-labels",SettingsTab.APPEARANCE,"Labels under tiles","hide remove text names titles under below tiles cards apps collections folders captions",app.ember.tv.data.TileLabels.choices)
     val cardFocus=SettingDefinition("card-focus",SettingsTab.PERFORMANCE,"Card focus effects","selected apps media glow pulse lift scale animation effects blinking",app.ember.tv.data.CardFocusStyle.choices)
     val watched=SettingDefinition("watch-status",SettingsTab.WATCH_STATUS,"Watched indicators","watched unwatched mark check badge movie show episode")
@@ -69,7 +70,7 @@ internal object SettingDefinitions {
     val remoteSounds = SettingDefinition("remote-sounds", SettingsTab.REMOTE, "Remote sounds", "click navigation sound effects arrows OK beep")
     val autoLoad = SettingDefinition("auto-load", SettingsTab.REMOTE, "Load more as I scroll", "load more pages next page automatically paging infinite scroll Discover collections libraries episodes")
     val hiddenApps = SettingDefinition("hidden-apps", SettingsTab.HOME_TOOLS, "Hidden apps", "unhide show restore apps removed from Home Ember Light page tiles More Apps")
-    val all = listOf(hiddenApps,cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout,navbarStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
+    val all = listOf(hiddenApps,cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout,navbarStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,rowAddonLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
     fun matching(query: String): List<SettingDefinition> {
         val normalized = query.trim().lowercase(java.util.Locale.ROOT)
         val exact = all.filter { it.title.lowercase(java.util.Locale.ROOT)==normalized || it.options.any { (_,label)->label.lowercase(java.util.Locale.ROOT)==normalized } ||
