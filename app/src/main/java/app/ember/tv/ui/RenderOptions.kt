@@ -18,13 +18,15 @@ data class RenderOptions(val density: String = "standard", val glass: Boolean = 
      * An explicit glass style is independent of image quality. Low and disabled glass stay tint-only.
      */
     val glassTier: String get() = when {
-        !glass || lowPower || glassMethod == "tint" -> GLASS_STATIC
+        !glass || lowPower || glassMethod == "tint" || glassMethod == app.ember.tv.data.GlassStyle.SOLID -> GLASS_STATIC
         glassMethod == "cached" -> GLASS_CACHED
         glassMethod == "liquid" -> GLASS_LIVE
         quality == "economy" -> GLASS_STATIC
         quality == "high" -> GLASS_LIVE
         else -> GLASS_CACHED
     }
+    /** Surfaces drawn solid, like stock Google TV (#147). */
+    val solidSurfaces get() = glassMethod == app.ember.tv.data.GlassStyle.SOLID
     val expandHeroOnFocus get() = !lowPower
     val progressiveHero get() = custom?.progressiveArtwork ?: (!lowPower && quality != "economy")
     val heroAnalysis get() = custom?.heroAnalysis ?: (!lowPower && quality != "economy")

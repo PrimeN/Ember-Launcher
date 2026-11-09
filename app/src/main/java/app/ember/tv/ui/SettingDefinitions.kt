@@ -28,7 +28,7 @@ internal object SettingDefinitions {
         listOf("comfortable" to "Comfortable", "standard" to "Standard", "dense" to "Dense"))
     val performance=SettingDefinition("device-performance",SettingsTab.PERFORMANCE,"Performance profile","device performance speed memory RAM low medium high ultra 4K auto custom image quality economy balanced prefetch resolution animation refresh analysis progressive collection motion",
         app.ember.tv.data.DevicePerformance.options)
-    val artwork = SettingDefinition("artwork", SettingsTab.PERFORMANCE, "Modern glass", "frosted navigation glass blur popups dock live prepared liquid refraction tint vibrancy highlights")
+    val artwork = SettingDefinition("artwork", SettingsTab.PERFORMANCE, "Modern glass", "frosted navigation glass blur popups dock live prepared liquid refraction tint vibrancy highlights google tv android tv stock solid opaque plain")
     val focusBackgrounds = SettingDefinition("focus-backgrounds", SettingsTab.PERFORMANCE, "Focused backgrounds", "app colors media rows collections tile colors artwork backdrop theme only focus hover background palette", app.ember.tv.data.FocusBackground.choices)
     val tileLabels=SettingDefinition("tile-labels",SettingsTab.APPEARANCE,"Labels under tiles","hide remove text names titles under below tiles cards apps collections folders captions",app.ember.tv.data.TileLabels.choices)
     val cardFocus=SettingDefinition("card-focus",SettingsTab.PERFORMANCE,"Card focus effects","selected apps media glow pulse lift scale animation effects blinking",app.ember.tv.data.CardFocusStyle.choices)

@@ -6,6 +6,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -37,8 +38,15 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 internal fun Modifier.glassSurface(shape: Shape, panel: Boolean = false, dock: Boolean = false, focused: Boolean = false): Modifier {
-    if (focused) return clip(shape).border(1.dp, Color.White.copy(alpha = .30f), shape)
     val options = LocalRenderOptions.current
+    // Google TV (#147): solid surfaces in the theme's panel colour, no edge, highlight or sample.
+    if (options.solidSurfaces) {
+        if (focused) return clip(shape)
+        val dayHere = Ui.isDay && !LocalFloating.current && !LocalNight.current
+        val fill = if (panel && !dayHere) FloatingPanelStyle.background else Panel
+        return clip(shape).background(fill.copy(alpha = 1f), shape)
+    }
+    if (focused) return clip(shape).border(1.dp, Color.White.copy(alpha = .30f), shape)
     val mode = GlassPolicy.mode(options, Build.VERSION.SDK_INT, pressured = RuntimeBudgets.pressured)
     val image = LocalGlassBitmap.current.takeIf { mode != GlassMode.TINT }
     val art = LocalBackdropArtwork.current

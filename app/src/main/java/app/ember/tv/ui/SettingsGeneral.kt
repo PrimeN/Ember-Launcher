@@ -311,10 +311,15 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
     }
         "artwork" -> Section(SettingDefinitions.artwork.title, "Navigation, dock, menus and media buttons share one glass material. Labels and focus indicators stay sharp.", id = "artwork") {
         ToggleRow("Modern glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
-        if(vm.look.navigationGlass) {
-            ButtonRow { app.ember.tv.data.GlassStyle.choices.forEach {(value,label)->
-                Chip(label,selected=vm.look.navigationGlassMethod==value,maxLines=1){vm.look.updateNavigationGlassMethod(value)}
-            } }
+        // Google TV works with Modern glass on or off; the see-through styles turn it on (#147).
+        ButtonRow { app.ember.tv.data.GlassStyle.choices.forEach {(value,label)->
+            Chip(label,selected=vm.look.navigationGlassMethod==value,maxLines=1){
+                vm.look.updateNavigationGlassMethod(value)
+                if(value!=app.ember.tv.data.GlassStyle.SOLID && !vm.look.navigationGlass)vm.look.updateNavigationGlass(true)
+            }
+        } }
+        if(vm.look.navigationGlass || vm.look.navigationGlassMethod==app.ember.tv.data.GlassStyle.SOLID) {
+            Note("Google TV draws solid panels and buttons, like stock Android TV: no blur, highlight or edge, and the lightest on the TV.")
             Note("Auto follows the performance profile. Choose a glass style independently of image quality. Low uses tint only; Medium caps effects at prepared blur. Liquid needs Android 13+ and falls back to Frosted on older devices. Colour separation stays off.")
             Note("Now: "+glassModeLabel(LocalRenderOptions.current)+". Prepared backgrounds are shared and reused until the image changes.")
         }
@@ -328,7 +333,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
 
 @Composable
 private fun glassModeLabel(options:RenderOptions):String = when(GlassPolicy.mode(options,android.os.Build.VERSION.SDK_INT,pressured=RuntimeBudgets.pressured)) {
-    GlassMode.TINT->"tint and highlights"
+    GlassMode.TINT->if(options.solidSurfaces)"solid surfaces, like Google TV" else "tint and highlights"
     GlassMode.FROSTED->"cached frosted glass"
     GlassMode.LIQUID->"refractive glass"
 }

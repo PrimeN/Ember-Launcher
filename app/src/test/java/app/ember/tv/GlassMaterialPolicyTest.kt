@@ -81,4 +81,18 @@ class GlassMaterialPolicyTest {
         assertEquals(.5f,GlassPolicy.readableTint(.5f,1f,true),.001f)
         assertTrue(high.copy(glassMethod="tint",custom=CustomPerformance(heroAnalysis=false)).hardwareHero)
     }
+
+    @Test fun googleTvStyleIsSolidAndCheapest() {
+        // #147: stock Google TV surfaces: opaque, no sample, highlight or edge.
+        assertTrue(GlassStyle.choices.any { it.first == GlassStyle.SOLID && it.second == "Google TV" })
+        assertEquals(GlassStyle.SOLID, GlassStyle.normalize("solid"))
+        for (glass in listOf(true, false)) {
+            val options = RenderOptions(glass = glass, quality = "high", glassMethod = GlassStyle.SOLID)
+            assertTrue(options.solidSurfaces)
+            assertEquals(GLASS_STATIC, options.glassTier)
+            assertEquals(GlassMode.TINT, GlassPolicy.mode(options, 34))
+        }
+        assertFalse(RenderOptions(glass = true, glassMethod = "liquid").solidSurfaces)
+        assertTrue(SettingDefinitions.matching("google tv").any { it.id == "artwork" })
+    }
 }
