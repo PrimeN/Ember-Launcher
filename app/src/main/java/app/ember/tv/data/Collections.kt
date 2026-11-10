@@ -232,9 +232,11 @@ object Collections {
         else "\"$name\" is not one of $addon's catalogs. Turn it on in the add-on's settings, or remove it from this folder."
     }
     private val requests by lazy { CollectionRequests() }
+    /** Trakt's public lists, for the widget editors (#161). */
+    internal suspend fun traktLists(tab: String, query: String) = requests.traktLists(tab, query)
     suspend fun page(s: CollectionSource, defs: List<CatalogDef>, client: AddonClient, skip: Int = 0, readSecret: (String) -> String? = { null }): Result<CollectionPage> = try {
         Result.success(when (s.provider.lowercase(Locale.ROOT)) {
-            "tmdb", "trakt" -> requests.page(s, skip)
+            "tmdb", "trakt", HomeWidgets.MDBLIST -> requests.page(s, skip)
             else -> {
                 val def = defs.firstOrNull { matches(it, s) }
                     ?: error(missingCatalog(s))

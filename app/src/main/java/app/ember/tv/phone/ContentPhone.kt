@@ -16,7 +16,11 @@ data class PhoneContent(
     val library: List<PhoneCollection> = emptyList(),
     /** Your Home widgets in Home order (#161). */
     val widgets: List<PhoneWidget> = emptyList(),
+    /** Your lists a widget can show: the built-in three and what your trackers offer right now. */
+    val lists: List<Pair<String, String>> = app.ember.tv.data.HomeWidgets.lists,
 )
+/** One result of a search made from the widget editor: a person, studio, service or Trakt list. */
+data class PhoneLookup(val id: String, val name: String, val note: String = "")
 /** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
 data class PhoneWidget(val id: String, val title: String, val style: String, val shape: String, val limit: Int, val source: String, val status: String,
     val canMoveUp: Boolean = true, val canMoveDown: Boolean = true)
@@ -30,6 +34,19 @@ object ContentPhone {
     const val EXPORT_ALL = "all"
     private fun esc(value: String) = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
     private const val BIND = "function bind(id,attribute){const source=document.getElementById(id);function filters(){document.querySelectorAll('['+attribute+']').forEach(box=>{const on=box.getAttribute(attribute)===source.value;box.hidden=!on;box.querySelectorAll('input,select').forEach(input=>input.disabled=!on);});}source.addEventListener('change',filters);filters();}"
+    /** Search-as-you-type for the widget editor: people, studios and services become chips; a Trakt list fills its number. */
+    private const val FINDERS = "(function(){var K=(location.search.match(/[?&]k=([^&]+)/)||[])[1]||'';" +
+        "function ask(kind,q,tab,done){fetch('/lookup?k='+K+'&kind='+kind+'&tab='+encodeURIComponent(tab||'')+'&q='+encodeURIComponent(q||'')).then(function(r){return r.json()}).then(done).catch(function(){done([])})}" +
+        "function note(box,text){box.textContent='';var p=document.createElement('p');p.className='m';p.textContent=text;box.appendChild(p)}" +
+        "function list(box,rows,pick){box.textContent='';if(!rows.length){note(box,'Nothing found.');return}rows.forEach(function(r){var b=document.createElement('button');b.type='button';b.className='res';var t=document.createElement('b');t.textContent=r.name;b.appendChild(t);if(r.note){var s=document.createElement('small');s.textContent=r.note;b.appendChild(s)}b.onclick=function(){pick(r)};box.appendChild(b)})}" +
+        "function quiet(i){i.addEventListener('keydown',function(e){if(e.key==='Enter')e.preventDefault()})}" +
+        "document.querySelectorAll('.pick').forEach(function(p){var i=p.querySelector('input[type=search]'),res=p.querySelector('.results'),chosen=p.querySelector('.chosen'),t;quiet(i);" +
+        "i.addEventListener('input',function(){clearTimeout(t);var q=i.value.trim();if(q.length<2){res.textContent='';return}t=setTimeout(function(){ask(p.dataset.lookup,q,'',function(rows){list(res,rows,function(r){" +
+        "var name='ref:'+p.dataset.ref+':'+r.id;if(!chosen.querySelector('[name=\"'+name+'\"]')){var c=document.createElement('label'),h=document.createElement('input'),s=document.createElement('span');h.type='hidden';h.name=name;h.value=r.name;s.textContent=r.name+' \u00d7';c.appendChild(h);c.appendChild(s);c.onclick=function(){c.remove()};chosen.appendChild(c)}res.textContent='';i.value=''})})},350)})});" +
+        "var tf=document.getElementById('trakt-find');if(tf){var res=tf.querySelector('.results'),q=tf.querySelector('input[type=search]'),id=document.getElementById('tk'),title=document.getElementById('wt'),t2;quiet(q);" +
+        "function show(tab,text){note(res,'Loading\u2026');ask('trakt',text,tab,function(rows){list(res,rows,function(r){id.value=r.id;if(!title.value)title.value=r.name;note(res,'Chosen: '+r.name)})})}" +
+        "tf.querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){show(b.dataset.tab,'')}});" +
+        "q.addEventListener('input',function(){clearTimeout(t2);var v=q.value.trim();if(v.length<2)return;t2=setTimeout(function(){show('',v)},400)})}})();"
     private fun web(url: String?) = url?.takeIf { it.startsWith("https://", true) || it.startsWith("http://", true) }
     private fun shapeName(shape: String) = when (shape) { "poster" -> "Poster"; "wide" -> "Wide"; else -> "Square" }
     private fun StringBuilder.options(values: List<Pair<String, String>>) { values.forEach { (id, name) -> append("<option value=\"").append(esc(id)).append("\">").append(esc(name)).append("</option>") } }
@@ -100,7 +117,7 @@ object ContentPhone {
         if (widget != null) append("<p class=m>Now: <b>").append(esc(widget.source)).append("</b></p>")
         append("<label for=kind>").append(if (widget == null) "Where the titles come from" else "Change the source").append("</label><select id=kind name=kind>")
         if (widget != null) append("<option value=keep>Keep the current source</option>")
-        append("<option value=catalog>A catalog or saved Discover search</option><option value=filters>Filters</option><option value=trakt>A Trakt list</option><option value=tmdb>A TMDB list</option><option value=list>One of my lists</option></select>")
+        append("<option value=catalog>A catalog or saved Discover search</option><option value=filters>Filters</option><option value=trakt>A Trakt list</option><option value=mdblist>An MDBList list</option><option value=tmdb>A TMDB list</option><option value=list>One of my lists</option></select>")
         append("<fieldset data-kind=catalog><legend>Catalog</legend><select name=source id=source>"); options(content.sources); append("</select>")
         extras(content.catalogExtras, "extra", "data-source")
         append("</fieldset><fieldset data-kind=filters><legend>Filters</legend><label for=fk>Type</label><select id=fk name=fkind>")
@@ -110,15 +127,23 @@ object ContentPhone {
         append("</select><label>Genres (any of)</label><div class=picks>")
         app.ember.tv.discover.ExploreGenres.all.forEach { g -> append("<label><input type=checkbox name=\"genre:").append(esc(g.key)).append("\"><span>").append(esc(g.label)).append("</span></label>") }
         append("</div><label for=fy>From year</label><input id=fy name=fromYear type=number inputmode=numeric placeholder=\"Any\"><label for=ty>To year</label><input id=ty name=toYear type=number inputmode=numeric placeholder=\"Any\">")
-        append("<label for=mr>Minimum rating (0–10)</label><input id=mr name=minRating type=number inputmode=decimal step=0.1 min=0 max=10 placeholder=\"Any\"></fieldset>")
-        append("<fieldset data-kind=trakt><legend>Trakt list</legend><label for=tk>List link or number</label><input id=tk name=trakt placeholder=\"https://trakt.tv/lists/…\">")
+        append("<label for=mr>Minimum rating (0–10)</label><input id=mr name=minRating type=number inputmode=decimal step=0.1 min=0 max=10 placeholder=\"Any\">")
+        // Cast, directors, studios and streaming services are found by name and added as chips.
+        listOf(Triple("actor", "person", "Cast"), Triple("director", "person", "Directors"), Triple("company", "company", "Studios"), Triple("provider", "provider", "Streaming services")).forEach { (ref, lookup, name) ->
+            append("<label>").append(name).append("</label><div class=pick data-ref=").append(ref).append(" data-lookup=").append(lookup).append("><div class=chosen></div><input type=search autocomplete=off placeholder=\"Search to add\" aria-label=\"Search ").append(name.lowercase()).append("\"><div class=results></div></div>")
+        }
+        append("</fieldset>")
+        append("<fieldset data-kind=trakt><legend>Trakt list</legend><div id=trakt-find><div class=tabs2><button type=button data-tab=popular>Popular</button><button type=button data-tab=trending>Trending</button></div>")
+        append("<input type=search autocomplete=off placeholder=\"Search Trakt lists\" aria-label=\"Search Trakt lists\"><div class=results></div></div>")
+        append("<label for=tk>List number, or a link that contains it</label><input id=tk name=trakt placeholder=\"Pick a list above, or paste here\">")
         append("<label for=tkm>Show</label><select id=tkm name=traktMedia><option value=MOVIE>Movies</option><option value=TV>Shows</option></select></fieldset>")
         append("<fieldset data-kind=tmdb><legend>TMDB list</legend><label for=tm>List link or number</label><input id=tm name=tmdb placeholder=\"https://www.themoviedb.org/list/…\">")
         append("<label for=tmm>Show</label><select id=tmm name=tmdbMedia><option value=MOVIE>Movies</option><option value=TV>Shows</option></select></fieldset>")
-        append("<fieldset data-kind=list><legend>My lists</legend><select name=list>"); options(app.ember.tv.data.HomeWidgets.lists); append("</select></fieldset>")
-        append("<p class=m>MDBList lists come through their addon: add it in Setup, then pick its catalog above.</p>")
+        append("<fieldset data-kind=mdblist><legend>MDBList list</legend><label for=md>List link, user/list-name or number</label><input id=md name=mdblist placeholder=\"https://mdblist.com/lists/user/list-name\">")
+        append("<label for=mdm>Show</label><select id=mdm name=mdblistMedia><option value=''>Movies and shows</option><option value=MOVIE>Movies</option><option value=TV>Shows</option></select><p class=m>Needs your MDBList API key (Setup &gt; API keys).</p></fieldset>")
+        append("<fieldset data-kind=list><legend>My lists</legend><select name=list>"); options(content.lists); append("</select><p class=m>Tracker lists appear here once the TV has loaded them.</p></fieldset>")
         append("<button>Save</button><p class=m>Saving sends the widget to the TV. Approve it there in Phone setup.</p></form>")
-        append("<script>").append(BIND).append("bind('source','data-source');bind('kind','data-kind');</script>")
+        append("<script>").append(BIND).append("bind('source','data-source');bind('kind','data-kind');").append(FINDERS).append("</script>")
     }
 
     /** The collections list (#160): every folder with its cover, shape and sources, and move, edit and delete buttons. */

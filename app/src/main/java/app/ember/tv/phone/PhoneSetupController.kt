@@ -162,6 +162,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     catalogExtras = collectionCatalogs.filter { it.extras.isNotEmpty() }.map { app.ember.tv.phone.PhoneCatalogExtras(AddonAccess.key(it.key), it.label, it.extras.map { e -> if (app.ember.tv.data.CollectionSecrets.sensitive(e.name)) e.copy(default = null, options = emptyList()) else e }) },
                     collections = collections.list.map { targetKey(it.id) to it.title },
                     folderSources = folderSources().map { (id, target) -> id to (target.first.title + " / " + target.second.title + " / " + app.ember.tv.data.Collections.label(target.second.allSources[target.third], collectionCatalogs)) },
+                    lists = widgetLists(),
                     widgets = run {
                         // #161: in Home order, which is the order of their sections in the Home layout.
                         val order = sections.layout.map { it.first }
@@ -194,6 +195,17 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             })
                         }
                     })
+            }
+            override fun lookup(kind: String, tab: String, query: String): List<app.ember.tv.phone.PhoneLookup> = onPhoneMain {
+                check(!profiles.profile.kids) { "Switch to an adult profile." }
+                val q = query.trim()
+                when (kind) {
+                    "person", "company" -> exploreRepository.search(q, company = kind == "company").map { app.ember.tv.phone.PhoneLookup(it.id.toString(), it.name) }
+                    "provider" -> exploreRepository.providers(watch.watchRegion).filter { it.name.contains(q, true) }.take(20).map { app.ember.tv.phone.PhoneLookup(it.id.toString(), it.name) }
+                    "trakt" -> traktLists(tab, q).map { l -> app.ember.tv.phone.PhoneLookup(l.id.toString(), l.name,
+                        listOfNotNull(l.by.takeIf { it.isNotBlank() }?.let { "by @$it" }, "${l.items} titles", "${l.likes} likes", l.description.takeIf { it.isNotBlank() }).joinToString(" · ")) }
+                    else -> emptyList()
+                }
             }
             override fun proposeContent(fields: Map<String, String>): String = onPhoneMain {
                 when (fields["action"]) {
@@ -270,6 +282,10 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         if (title.isBlank()) return@onPhoneMain "Enter a widget title."
                         fun year(name: String): Int? = fields[name].orEmpty().trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 }
                         val media = { name: String -> fields[name].takeIf { it == "TV" } ?: "MOVIE" }
+                        // People, studios and services chosen in the editor: "ref:<kind>:<TMDB id>" = name.
+                        fun refs(kind: String) = fields.filterKeys { it.startsWith("ref:$kind:") }.mapNotNull { (key, name) ->
+                            key.substringAfterLast(':').toLongOrNull()?.takeIf { it > 0 }?.let { app.ember.tv.discover.ExploreRef(it, name.trim().take(80).ifBlank { "#$it" }) }
+                        }
                         val source = when (fields["kind"] ?: "keep") {
                             "keep" -> old?.source ?: return@onPhoneMain "Choose where the titles come from."
                             "catalog" -> runCatching { configuredSource(fields["source"].orEmpty(), fields) }.getOrNull()
@@ -280,7 +296,8 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                                     kind = app.ember.tv.discover.ExploreKind.entries.firstOrNull { it.name == fields["fkind"] } ?: app.ember.tv.discover.ExploreKind.ALL,
                                     sort = app.ember.tv.discover.ExploreSort.entries.firstOrNull { it.name == fields["fsort"] } ?: app.ember.tv.discover.ExploreSort.POPULAR,
                                     genres = app.ember.tv.discover.ExploreGenres.all.map { it.key }.filter { fields["genre:$it"] == "on" }.toSet(),
-                                    fromYear = year("fromYear"), toYear = year("toYear"), minRating = rating)
+                                    fromYear = year("fromYear"), toYear = year("toYear"), minRating = rating,
+                                    actors = refs("actor"), directors = refs("director"), companies = refs("company"), providers = refs("provider"))
                                 query.error()?.let { return@onPhoneMain it }
                                 app.ember.tv.data.CollectionDrafts.discover(title, query, owner)
                             }
@@ -288,7 +305,15 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                                 traktListId = app.ember.tv.data.CollectionDrafts.numericId(fields["trakt"].orEmpty()) ?: return@onPhoneMain "Enter a Trakt list link that contains its number, or the number.")
                             "tmdb" -> app.ember.tv.data.CollectionSource(provider = "tmdb", title = title, tmdbSourceType = "LIST", mediaType = media("tmdbMedia"),
                                 tmdbId = app.ember.tv.data.CollectionDrafts.numericId(fields["tmdb"].orEmpty())?.takeIf { it <= Int.MAX_VALUE }?.toInt() ?: return@onPhoneMain "Enter a TMDB list link or number.")
-                            "list" -> app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.LIST, catalogId = fields["list"], title = title)
+                            "mdblist" -> {
+                                if (app.ember.tv.data.ApiKeys.get("MDBLIST_API_KEY").isBlank()) return@onPhoneMain "Add your MDBList API key in Setup first."
+                                app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.MDBLIST, title = title, mediaType = fields["mdblistMedia"]?.takeIf { it == "MOVIE" || it == "TV" },
+                                    catalogId = app.ember.tv.data.HomeWidgets.mdblistPath(fields["mdblist"].orEmpty()) ?: return@onPhoneMain "Enter an MDBList list link, user/list-name or number.")
+                            }
+                            "list" -> {
+                                val chosen = widgetLists().firstOrNull { it.first == fields["list"] } ?: return@onPhoneMain "That list is not available right now. Reload the page."
+                                app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.LIST, catalogId = chosen.first, title = chosen.second)
+                            }
                             else -> return@onPhoneMain "Choose where the titles come from."
                         }
                         val widget = app.ember.tv.data.HomeWidgets.normalize(app.ember.tv.data.HomeWidget(

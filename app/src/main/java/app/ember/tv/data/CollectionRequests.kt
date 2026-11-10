@@ -28,7 +28,61 @@ internal class CollectionRequests(
 
     suspend fun page(source: CollectionSource, skip: Int): CollectionPage {
         require(skip >= 0)
-        return if (source.provider.equals("trakt", true)) trakt(source, skip) else tmdb(source, skip)
+        return if (source.provider.equals("trakt", true)) trakt(source, skip)
+            else if (source.provider.equals(HomeWidgets.MDBLIST, true)) mdblist(source, skip) else tmdb(source, skip)
+    }
+
+    /** A public Trakt list, for choosing one as a Home widget's source (#161). */
+    data class ListRef(val id: Long, val name: String, val by: String, val items: Int, val likes: Int, val description: String)
+
+    /** Trakt's popular or trending lists, or a search of its public lists. Needs only the app's client id. */
+    suspend fun traktLists(tab: String, query: String): List<ListRef> {
+        val clientId = key("TRAKT_CLIENT_ID").ifBlank { error("Trakt lists need a client id.") }
+        val q = query.trim()
+        val url = (if (q.isNotEmpty()) "https://api.trakt.tv/search/list" else "https://api.trakt.tv/lists/" + if (tab == "trending") "trending" else "popular")
+            .toHttpUrl().newBuilder().apply { if (q.isNotEmpty()) addQueryParameter("query", q.take(100)) }.addQueryParameter("limit", "30").build()
+        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId).build())
+        return parseTraktLists(result.body)
+    }
+
+    /**
+     * MDBList (#161): a list by number or user/list-name. Movies and shows come back together;
+     * [CollectionSource.mediaType] narrows them. Artwork comes by IMDb id, as for Trakt lists.
+     */
+    private suspend fun mdblist(s: CollectionSource, skip: Int): CollectionPage {
+        val apiKey = key("MDBLIST_API_KEY").ifBlank { error("MDBList lists need your MDBList API key.") }
+        val path = s.catalogId?.let(HomeWidgets::mdblistPath) ?: error("This MDBList source has no list.")
+        val url = "https://api.mdblist.com/lists/$path/items".toHttpUrl().newBuilder()
+            .addQueryParameter("apikey", apiKey).addQueryParameter("limit", "100").addQueryParameter("offset", skip.toString()).build()
+        val root = request(Request.Builder().url(url).build()).body
+        val (items, raw) = parseMdblist(root, s.mediaType)
+        return CollectionPage(items, skip + 100, raw < 100, CollectionPage.fingerprint(root))
+    }
+
+    companion object {
+        internal fun parseTraktLists(body: JsonElement): List<ListRef> = (body as? JsonArray).orEmpty().mapNotNull { e ->
+            val list = (e as? JsonObject)?.get("list") as? JsonObject ?: return@mapNotNull null
+            val id = ((list["ids"] as? JsonObject)?.get("trakt") as? JsonPrimitive)?.longOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+            fun text(o: JsonObject?, name: String) = (o?.get(name) as? JsonPrimitive)?.contentOrNull.orEmpty()
+            fun number(name: String) = (list[name] as? JsonPrimitive)?.intOrNull ?: 0
+            ListRef(id, text(list, "name").ifBlank { return@mapNotNull null }, text(list["user"] as? JsonObject, "username"),
+                number("item_count"), number("likes"), text(list, "description").replace(Regex("\\s+"), " ").trim().take(200))
+        }.distinctBy { it.id }
+
+        /** The titles and how many rows the page held (to know whether another page follows). */
+        internal fun parseMdblist(root: JsonElement, mediaType: String?): Pair<List<Meta>, Int> {
+            val o = root as? JsonObject ?: error("The collection provider returned an unreadable page.")
+            fun rows(field: String) = (o[field] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+            fun titles(field: String, type: String) = rows(field).mapNotNull { row ->
+                val imdb = (row["imdb_id"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.startsWith("tt") } ?: return@mapNotNull null
+                Meta(id = imdb, type = type, name = (row["title"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } ?: return@mapNotNull null,
+                    releaseInfo = (row["release_year"] as? JsonPrimitive)?.contentOrNull?.takeIf { it != "null" }, imdbId = imdb,
+                    poster = "https://images.metahub.space/poster/medium/$imdb/img", background = "https://images.metahub.space/background/medium/$imdb/img")
+            }
+            val movies = if (mediaType.equals("tv", true)) emptyList() else titles("movies", "movie")
+            val shows = if (mediaType.equals("movie", true)) emptyList() else titles("shows", "series")
+            return (movies + shows) to (rows("movies").size + rows("shows").size)
+        }
     }
 
     private data class Reply(val body: JsonElement, val pageCount: Int? = null)

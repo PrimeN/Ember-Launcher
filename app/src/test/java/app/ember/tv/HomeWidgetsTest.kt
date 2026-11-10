@@ -44,6 +44,7 @@ class HomeWidgetsTest {
 
         assertEquals("Trakt list 42", HomeWidgets.sourceLabel(trakt, emptyList()))
         assertEquals("TMDB list 7", HomeWidgets.sourceLabel(CollectionSource(provider = "tmdb", tmdbId = 7), emptyList()))
+        assertEquals("TMDB company 3", HomeWidgets.sourceLabel(CollectionSource(provider = "tmdb", tmdbSourceType = "COMPANY", tmdbId = 3), emptyList()))
         assertEquals("In progress", HomeWidgets.sourceLabel(CollectionSource(provider = HomeWidgets.LIST, catalogId = "continue"), emptyList()))
         val q = ExploreQuery(kind = ExploreKind.MOVIE, genres = setOf("comedy"), fromYear = 2020, toYear = 2026, minRating = 7.0, sort = ExploreSort.RATING)
         assertEquals("Movies · Comedy · 2020–2026 · 7+ · Highest rated", HomeWidgets.summary(q))
@@ -118,6 +119,69 @@ class HomeWidgetsTest {
         val fresh = ContentPhone.widgetEditor(content, "lease", "new")
         assertTrue(fresh.contains("New widget")); assertFalse("a new widget must choose a source", fresh.contains("value=keep")); assertTrue(fresh.contains("value=row checked"))
         assertTrue(ContentPhone.widgetEditor(content, "lease", "w-gone").contains("no longer exists"))
+    }
+
+    @Test fun heroBannersTrackerListsAndMdblistAreWidgetSources() {
+        // The follow-ups of #161.
+        assertTrue(HomeWidgets.styles.any { it.first == HomeWidgets.HERO }); assertEquals("Hero banner", HomeWidgets.styleName(HomeWidgets.HERO))
+        assertEquals(HomeWidgets.HERO, HomeWidgets.normalize(widget(style = HomeWidgets.HERO)).style)
+        // A tracker row is one of your lists, by its Home key.
+        val upNext = CollectionSource(provider = HomeWidgets.LIST, catalogId = "smart:upnext", title = "Up next · WeTrakr")
+        assertNull(HomeWidgets.error(widget(source = upNext))); assertEquals("Up next · WeTrakr", HomeWidgets.sourceLabel(upNext, emptyList()))
+        assertNotNull(HomeWidgets.error(widget(source = upNext.copy(catalogId = "smart:"))))
+        assertNotNull(HomeWidgets.error(widget(source = CollectionSource(provider = "nowhere"))))
+        // MDBList: a link, user/list-name or number.
+        assertEquals("garycrawfordgc/latest-tv-shows", HomeWidgets.mdblistPath("https://mdblist.com/lists/garycrawfordgc/latest-tv-shows/?sort=rank"))
+        assertEquals("garycrawfordgc/latest-tv-shows", HomeWidgets.mdblistPath(" garycrawfordgc/latest-tv-shows "))
+        assertEquals("2194", HomeWidgets.mdblistPath("2194"))
+        for (bad in listOf("", "https://mdblist.com/", "a/b/c", "user/list name", "../x")) assertNull(bad, HomeWidgets.mdblistPath(bad))
+        val mdb = CollectionSource(provider = HomeWidgets.MDBLIST, catalogId = "2194")
+        assertNull(HomeWidgets.error(widget(source = mdb))); assertEquals("MDBList 2194", HomeWidgets.sourceLabel(mdb, emptyList()))
+        assertNotNull(HomeWidgets.error(widget(source = mdb.copy(catalogId = "not a list"))))
+        assertEquals(listOf(widget(source = mdb)), HomeWidgets.decode(HomeWidgets.encode(listOf(widget(source = mdb)))))
+    }
+
+    @Test fun mdblistPagesAndTraktListSearchesAreRead() {
+        val page = kotlinx.serialization.json.Json.parseToJsonElement("""{"movies":[{"id":1,"rank":1,"title":"Film","imdb_id":"tt0000001","release_year":2024,"mediatype":"movie"},{"title":"No id"}],
+            "shows":[{"id":2,"rank":2,"title":"Show","imdb_id":"tt0000002","release_year":null,"mediatype":"show"}]}""")
+        val (all, raw) = CollectionRequests.parseMdblist(page, null)
+        assertEquals(listOf("tt0000001" to "movie", "tt0000002" to "series"), all.map { it.id to it.type }); assertEquals(3, raw)
+        assertEquals("2024", all[0].releaseInfo); assertNull(all[1].releaseInfo); assertTrue(all[0].poster!!.contains("tt0000001"))
+        assertEquals(listOf("tt0000002"), CollectionRequests.parseMdblist(page, "TV").first.map { it.id })
+        assertEquals(listOf("tt0000001"), CollectionRequests.parseMdblist(page, "MOVIE").first.map { it.id })
+        assertTrue(runCatching { CollectionRequests.parseMdblist(kotlinx.serialization.json.JsonArray(emptyList()), null) }.isFailure)
+
+        val lists = CollectionRequests.parseTraktLists(kotlinx.serialization.json.Json.parseToJsonElement("""[
+            {"like_count":5,"list":{"name":"Top  Films","description":"The\nbest","item_count":250,"likes":6282,"ids":{"trakt":42,"slug":"top"},"user":{"username":"trakt"}}},
+            {"type":"list","score":1,"list":{"name":"Searched","item_count":3,"likes":0,"ids":{"trakt":7}}},
+            {"list":{"name":"","ids":{"trakt":8}}},{"list":{"name":"No id","ids":{}}},{"list":{"name":"Again","ids":{"trakt":42}}}]"""))
+        assertEquals(listOf(42L, 7L), lists.map { it.id })
+        assertEquals(CollectionRequests.ListRef(42, "Top  Films", "trakt", 250, 6282, "The best"), lists[0]); assertEquals("", lists[1].by)
+        val source = app.ember.tv.ui.WidgetDrafts.trakt(lists[0], "TV")
+        assertEquals(42L, source.traktListId); assertEquals("TV", source.mediaType); assertNull(HomeWidgets.error(widget(source = source)))
+    }
+
+    @Test fun theTvEditorNamesAnUntitledWidgetAfterItsSource() {
+        val fresh = app.ember.tv.ui.WidgetDrafts.new()
+        assertFalse(app.ember.tv.ui.WidgetDrafts.hasSource(fresh)); assertNotNull(HomeWidgets.error(fresh.copy(title = "x")))
+        val named = app.ember.tv.ui.WidgetDrafts.withSource(fresh, trakt)
+        assertEquals("Top", named.title); assertTrue(app.ember.tv.ui.WidgetDrafts.hasSource(named)); assertNull(HomeWidgets.error(named))
+        assertEquals("Mine", app.ember.tv.ui.WidgetDrafts.withSource(fresh.copy(title = "Mine"), trakt).title)
+        assertEquals("Numbered row · Trakt list 42 · up to 10 titles", app.ember.tv.ui.WidgetDrafts.summary(widget(), emptyList()))
+        assertNotEquals(fresh.id, app.ember.tv.ui.WidgetDrafts.new().id)
+    }
+
+    @Test fun thePhoneEditorSearchesPeopleServicesAndTraktLists() {
+        val content = PhoneContent(listOf("opaque" to "Popular"), emptyList(), emptyList(), lists = HomeWidgets.lists + ("smart:upnext" to "Up next · WeTrakr"))
+        val edit = ContentPhone.widgetEditor(content, "lease", "new")
+        assertTrue(edit.contains("value=hero")); assertTrue(edit.contains("Hero banner"))
+        assertTrue(edit.contains("<option value=mdblist>")); assertTrue(edit.contains("data-kind=mdblist")); assertTrue(edit.contains("name=mdblist "))
+        assertTrue(edit.contains("<option value=\"smart:upnext\">Up next · WeTrakr</option>"))
+        for ((ref, lookup) in listOf("actor" to "person", "director" to "person", "company" to "company", "provider" to "provider")) assertTrue(ref, edit.contains("data-ref=$ref data-lookup=$lookup"))
+        assertTrue(edit.contains("id=trakt-find")); assertTrue(edit.contains("data-tab=popular")); assertTrue(edit.contains("data-tab=trending"))
+        assertTrue(edit.contains("/lookup?k=")); assertFalse("search boxes are not submitted", Regex("<input type=search[^>]* name=").containsMatchIn(edit))
+        val server = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
+        assertTrue(server.contains("path == \"/lookup\""))
     }
 
     private fun memoryPrefs(): Prefs {

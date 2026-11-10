@@ -45,6 +45,8 @@ class PhoneSetup(
         fun importPresentation(name:String,bytes:ByteArray):String = "Presentation uploads are unavailable."
         fun content(): PhoneContent? = null
         fun proposeContent(fields: Map<String, String>): String = "Content editing is unavailable."
+        /** A search from the widget editor (#161): [kind] is person, company, provider or trakt ([tab] popular or trending). */
+        fun lookup(kind: String, tab: String, query: String): List<PhoneLookup> = emptyList()
         /** Setup checklist and version (#49). */
         fun status(): PhoneStatus? = null
         /** Every setting the phone may change, read on the TV; throws with a message when none may be. */
@@ -251,6 +253,14 @@ class PhoneSetup(
                 val message = handler.proposeContent(form)
                 val content = handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()
                 respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + "<p class=ok>${esc(message)}</p>" + content))
+            }
+            // #161: searches made by the widget editor; answers are names and numbers only.
+            method == "GET" && path == "/lookup" -> {
+                val found = runCatching { handler.lookup(query["kind"].orEmpty(), query["tab"].orEmpty(), query["q"].orEmpty().take(100)) }.getOrDefault(emptyList())
+                access.requireActive()
+                respondJson(c, kotlinx.serialization.json.buildJsonArray { found.take(40).forEach { row -> add(kotlinx.serialization.json.buildJsonObject {
+                    put("id", kotlinx.serialization.json.JsonPrimitive(row.id)); put("name", kotlinx.serialization.json.JsonPrimitive(row.name)); put("note", kotlinx.serialization.json.JsonPrimitive(row.note))
+                }) } }.toString())
             }
             // #161: so is the widget editor.
             path == "/content" && query["widget"] != null -> respond(c, 200, page("Edit widget", nav(access, Tab.CONTENT) +
@@ -573,12 +583,17 @@ form,.card{background:var(--card);border:1px solid var(--line);border-radius:16p
 .card.wide{margin:14px 0}.thumb.st-numbered{font-size:26px;color:var(--fg)}
 .shapes .w-row,.shapes .w-numbered{width:64px;height:30px;background:repeating-linear-gradient(90deg,#5b5d63 0 12px,transparent 12px 17px)}
 .shapes .w-numbered{border-left:5px solid var(--accent)}.shapes .w-carousel{width:64px;height:36px}
+.shapes .w-hero{width:64px;height:36px;background:linear-gradient(90deg,#d5d8dc 0 38%,#5b5d63 38%)}
+.tabs2{display:flex;gap:8px}.tabs2 button{flex:1;margin-top:4px;padding:9px;background:#2c2d32;color:var(--fg);font-size:14px}
+button.res{background:#2c2d32;color:var(--fg);text-align:left;border-radius:12px;padding:10px 12px;margin-top:6px;font-size:14px}
+button.res small{display:block;color:var(--mute);font-size:12px;font-weight:400;margin-top:2px}
+.chosen{display:flex;flex-wrap:wrap;gap:8px}.chosen label{margin:4px 0 0!important;padding:7px 12px;border-radius:999px;border:1px solid var(--accent);background:#2c2d32;color:var(--fg)!important;font-size:13px;cursor:pointer}
 .picks{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}.picks label{margin:0;position:relative}.picks input{position:absolute;opacity:0;width:1px;height:1px}
 .picks span{display:block;padding:8px 12px;border-radius:999px;border:1px solid #3a3b40;background:var(--bg);color:var(--mute);font-size:13px}
 .picks input:checked+span{border-color:var(--accent);background:#2c2d32;color:var(--fg)}.picks input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 .back{color:var(--fg);text-decoration:none;font-weight:600}
 form.ed{max-width:820px}form.ed label{display:block;margin-top:14px;font-size:14px;color:var(--mute)}form.ed h3{font-size:17px;margin-top:22px}
-.shapes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.shapes label{margin:4px 0 0;position:relative}
+.shapes{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px}.shapes label{margin:4px 0 0;position:relative}
 .shapes input{position:absolute;opacity:0;width:1px;height:1px}
 .shapes span{display:block;text-align:center;padding:14px 6px 10px;border-radius:12px;border:1px solid #3a3b40;background:var(--bg);color:var(--mute);font-size:13px}
 .shapes i{display:block;margin:0 auto 8px;height:36px;background:#5b5d63;border-radius:5px}.shapes .poster{width:24px}.shapes .wide{width:58px}.shapes .square{width:36px}

@@ -13,7 +13,7 @@ import kotlinx.serialization.json.Json
 data class HomeWidget(
     val id: String = "",
     val title: String = "",
-    /** [HomeWidgets.ROW], [HomeWidgets.NUMBERED] or [HomeWidgets.CAROUSEL]. */
+    /** [HomeWidgets.ROW], [HomeWidgets.NUMBERED], [HomeWidgets.CAROUSEL] or [HomeWidgets.HERO]. */
     val style: String = HomeWidgets.ROW,
     /** "default" (follow Home's card setting), "poster" or "wide". The carousel is always wide. */
     val shape: String = "default",
@@ -25,12 +25,26 @@ object HomeWidgets {
     const val ROW = "row"
     const val NUMBERED = "numbered"
     const val CAROUSEL = "carousel"
-    val styles = listOf(ROW to "Row", NUMBERED to "Numbered row", CAROUSEL to "Cinematic carousel")
+    /** A banner of its own: artwork, title, description and buttons, one title at a time. */
+    const val HERO = "hero"
+    val styles = listOf(ROW to "Row", NUMBERED to "Numbered row", CAROUSEL to "Cinematic carousel", HERO to "Hero banner")
     val shapes = listOf("default" to "Follow Home", "poster" to "Poster", "wide" to "Wide")
 
     /** A source that is one of your own lists; [CollectionSource.catalogId] says which. Needs no request. */
     const val LIST = "home-list"
     val lists = listOf("watchlist" to "Your watchlist", "continue" to "In progress", "recent" to "Recently watched")
+    /** A tracker row (Up next, recommendations, your tracker lists…) by its Home key, e.g. "smart:upnext". */
+    fun isTrackerList(id: String?) = id != null && id.startsWith("smart:") && id.length in 7..200
+
+    /** MDBList (widgets only): [CollectionSource.catalogId] is the list's number or "user/list-name". */
+    const val MDBLIST = "mdblist"
+    private val mdbPath = Regex("[0-9]{1,12}|[A-Za-z0-9][A-Za-z0-9_.-]{0,63}/[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+    /** The list in a pasted MDBList link, "user/list" text or number; null when it is none of those. */
+    fun mdblistPath(text: String): String? {
+        val t = text.trim().substringBefore('?').substringBefore('#').trimEnd('/')
+        val path = if (t.contains("mdblist.com", true)) t.substringAfter("mdblist.com", "").substringAfter("/lists/", "") else t
+        return path.trim('/').takeIf { mdbPath.matches(it) }
+    }
 
     const val DEFAULT_LIMIT = 20
     val LIMITS = 5..50
@@ -53,10 +67,12 @@ object HomeWidgets {
     fun error(w: HomeWidget): String? = when {
         w.id.isBlank() -> "The widget has no id."
         w.title.isBlank() -> "Enter a widget title."
-        w.source.provider == LIST && lists.none { it.first == w.source.catalogId } -> "Choose one of your lists."
+        w.source.provider !in setOf("addon", "ember", "trakt", "tmdb", LIST, MDBLIST) -> "Choose a source."
+        w.source.provider == LIST && lists.none { it.first == w.source.catalogId } && !isTrackerList(w.source.catalogId) -> "Choose one of your lists."
+        w.source.provider == MDBLIST && w.source.catalogId?.let { mdbPath.matches(it) } != true -> "Enter an MDBList list link, user/list-name or number."
         w.source.provider == "addon" && w.source.catalogId.isNullOrBlank() -> "Choose a catalog."
         w.source.provider == "trakt" && w.source.traktListId == null -> "Enter a Trakt list link or number."
-        w.source.provider == "tmdb" && w.source.tmdbId == null -> "Enter a TMDB list link or number."
+        w.source.provider == "tmdb" && w.source.tmdbId == null && !w.source.tmdbSourceType.equals("DISCOVER", true) -> "Enter a TMDB list link or number."
         w.source.provider == "ember" && w.source.exploreQuery == null -> "Choose filters."
         w.source.provider == "ember" -> w.source.exploreQuery?.error()
         // Private keys belong in Collections, which store them encrypted; a widget is plain settings.
@@ -67,10 +83,11 @@ object HomeWidgets {
 
     /** What the source is, for the widget lists on the TV and the phone. */
     fun sourceLabel(source: CollectionSource, defs: List<CatalogDef>): String = when (source.provider) {
-        LIST -> lists.firstOrNull { it.first == source.catalogId }?.second ?: "Your list"
+        LIST -> lists.firstOrNull { it.first == source.catalogId }?.second ?: source.title?.takeIf { it.isNotBlank() } ?: "Your list"
+        MDBLIST -> "MDBList ${source.catalogId.orEmpty()}".trim()
         "ember" -> "Filters" + (source.exploreQuery?.let { q -> ": " + summary(q) } ?: "")
         "trakt" -> "Trakt list ${source.traktListId ?: ""}".trim()
-        "tmdb" -> "TMDB list ${source.tmdbId ?: ""}".trim()
+        "tmdb" -> "TMDB ${(source.tmdbSourceType ?: "list").lowercase()} ${source.tmdbId ?: ""}".trim()
         else -> Collections.label(source, defs)
     }
 

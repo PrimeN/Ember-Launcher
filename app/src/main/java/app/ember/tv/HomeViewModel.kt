@@ -1047,8 +1047,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** Deleting a widget also drops its place in the Home layout. */
     fun deleteWidget(id: String) { if (widgets.remove(id)) refreshWidgets() }
     internal fun widgetItems(w: HomeWidget): List<Meta> = if (w.source.provider == HomeWidgets.LIST) {
-        if (!personalOn) emptyList() else when (w.source.catalogId) { "continue" -> inProgressItems; "recent" -> recentItems; else -> combinedWatchlist }.take(w.limit)
+        if (!personalOn) emptyList() else when (val list = w.source.catalogId) {
+            "continue" -> inProgressItems; "recent" -> recentItems; "watchlist" -> combinedWatchlist
+            // A tracker row (Up next, recommendations, your tracker lists…) by its Home key.
+            else -> smartRows.firstOrNull { it.catalogKey == list }?.items.orEmpty()
+        }.take(w.limit)
     } else widgets.items[w.id].orEmpty()
+    /** Your lists a widget can show: the three built-in ones, then whatever your trackers offer right now. */
+    internal fun widgetLists(): List<Pair<String, String>> = HomeWidgets.lists + if (!personalOn) emptyList() else
+        smartRows.mapNotNull { row -> row.catalogKey?.takeIf(HomeWidgets::isTrackerList)?.let { it to listOf(row.displayTitle, row.addonName).filter(String::isNotBlank).joinToString(" · ") } }.distinctBy { it.first }
+    /** Trakt's public lists for the widget editors: "popular", "trending", or a search. */
+    internal suspend fun traktLists(tab: String, query: String) = app.ember.tv.data.Collections.traktLists(tab, query)
 
     val discoverSections: List<app.ember.tv.state.DiscoverSection> get() = app.ember.tv.data.DiscoverVisibility.visible(
         look.discoverSections,

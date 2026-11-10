@@ -105,6 +105,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.tv.material3.MaterialTheme
@@ -416,7 +417,11 @@ fun ModernHome(
                         HomeFolderLinks(vm)
                         AppsGrid(vm, circles = vm.look.appIcons == "circle", onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
                     }
-                    is HomeViewModel.HomeBlock.Row -> ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
+                    is HomeViewModel.HomeBlock.Row -> if (b.widget?.style == app.ember.tv.data.HomeWidgets.HERO) ModernSection(b.row.displayTitle) {
+                        // #161: a banner of its own, with its own artwork; the main hero keeps the page backdrop.
+                        WidgetHero(b.row.items, minOf(heroHeight * .82f, maxHeight * .7f), vm::isSaved, vm::toggleWatchlist, onOpenTitle,
+                            rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
+                    } else ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
                         // #161: one of your widgets draws in its own style and card shape.
                         val look = WidgetLook.of(b.widget, wide)
                         MediaRow(
@@ -608,6 +613,70 @@ fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFoc
             if (onSeeAll != null) item(key = "seeall") { SeeAllCard(w, if (wide) w * 9f / 16f else w * 1.5f, onSeeAll) }
         }
     }
+}
+
+/**
+ * A Hero banner widget (#161): one title at a time with its own artwork, text and buttons. Left and
+ * right at the ends of the buttons page through the titles, as on the main hero; it turns by itself
+ * while nothing in it is focused. Unlike the main hero it draws its own picture, so several can
+ * sit on Home, and it takes no part in startup focus.
+ */
+@Composable
+internal fun WidgetHero(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onToggleSaved: (Meta) -> Unit, onOpen: (Meta) -> Unit,
+    rotating: Boolean, onFocus: () -> Unit) {
+    if (items.isEmpty()) return
+    val reduceMotion = LocalReduceMotion.current
+    var index by remember(items.map { it.mediaKey() }) { androidx.compose.runtime.mutableIntStateOf(0) }
+    var focused by remember { mutableStateOf(false) }
+    val watchFocus = remember { FocusRequester() }
+    val saveFocus = remember { FocusRequester() }
+    val safe = HeroBanner.index(index, items.size)
+    val meta = items[safe]
+    val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
+    LaunchedEffect(items, focused, safe, rotating, reduceMotion) {
+        if (items.size > 1 && !focused && rotating && !reduceMotion) { delay(9000); index = HeroBanner.next(safe, items.size) }
+    }
+    CompositionLocalProvider(LocalNight provides true) {
+    MaterialTheme(colorScheme = emberColorScheme(LocalAccentIndex.current, false, Ui.isOled)) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).clip(RoundedCornerShape(TvTokens.Shape.Panel.dp)).background(PanelHi).testTag("widget_hero")) {
+        Crossfade(targetState = meta, animationSpec = tween(if (reduceMotion) 0 else 320), label = "widgetHeroArt") { shown ->
+            LandscapeImage(shown, Modifier.fillMaxSize())
+        }
+        // Text sits on the left and bottom, so the shade is strongest there.
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xE6000000), .55f to Color(0x66000000), 1f to Color.Transparent)))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.5f to Color.Transparent, 1f to Color(0xB3000000))))
+        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(.56f).padding(start = 22.dp, bottom = 26.dp, top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            HeroTitle(meta, expanded = false)
+            Text(listOfNotNull(meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }, meta.releaseInfo?.takeIf { it.isNotBlank() },
+                meta.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() }).joinToString("  ·  "), fontSize = 13.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            meta.description?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = Color(0xFFDADCE0), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 2.dp).onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }) {
+                DetailsActionButton("Watch now", Icons.Outlined.PlayArrow, text = "Watch now", width = 148.dp,
+                    modifier = Modifier.focusRequester(watchFocus).focusProperties { if (rtl) left = saveFocus else right = saveFocus }.onPreviewKeyEvent { event ->
+                        if (event.key != heroEdgeKey(previous = true, rtl = rtl) || items.size <= 1) false else {
+                            if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size)) index = HeroBanner.previous(safe, items.size)
+                            true
+                        }
+                    }) { onOpen(meta) }
+                val saved = isSaved(meta)
+                DetailsActionButton(if (saved) "Remove from watchlist" else "Add to watchlist", if (saved) Icons.Outlined.Check else Icons.Outlined.Add, selected = saved, width = 44.dp,
+                    modifier = Modifier.focusRequester(saveFocus).focusProperties { if (rtl) right = watchFocus else left = watchFocus }.onPreviewKeyEvent { event ->
+                        if (event.key != heroEdgeKey(previous = false, rtl = rtl) || items.size <= 1) false else {
+                            if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size)) index = HeroBanner.next(safe, items.size)
+                            true
+                        }
+                    }) { onToggleSaved(meta) }
+            }
+        }
+        Row(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 14.dp).clearAndSetSemantics { contentDescription = "Title ${safe + 1} of ${items.size}" },
+            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            items.take(12).forEachIndexed { i, _ ->
+                Box(Modifier.size(width = if (i == safe) 16.dp else 4.dp, height = 3.dp).clip(CircleShape).background(if (i == safe) Fg else Fg.copy(alpha = .4f)))
+            }
+        }
+    }
+    } }
 }
 
 /** How one of your Home widgets draws (#161); a built-in row follows Home's card setting. */

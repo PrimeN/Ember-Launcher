@@ -102,6 +102,8 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         HeroBannerSettings(vm)
         PersonalListSettings(vm)
+        // #161
+        if (!vm.profiles.profile.kids) WidgetsSettings(vm)
         Section(stringResource(R.string.ui_home_layout), stringResource(R.string.ui_switch_sections_on_or_off_and)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 layout.forEachIndexed { i, (id, on) ->
@@ -126,7 +128,6 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
                         MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
                     }
                 }
-                Note("Add your own widgets (a numbered row, a cinematic carousel, a Trakt list, filters…) from the phone setup page: Addons & content > Organize content > Home widgets.")
                 Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
             }
         }
