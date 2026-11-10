@@ -399,12 +399,15 @@ class PhoneSetup(
         append(nav(access, tab))
         message?.let { append("<p class=ok role=status>${esc(it)}</p>") }
         val auth = "?k=${access.code}"
+        // #159: cards flow into as many columns as the screen has room for.
+        append("<div class=cols>")
         when (tab) {
             Tab.SETUP -> setupTab(auth, handler)
             Tab.SETTINGS -> settingsTab(auth, handler)
             Tab.CONTENT -> contentTab(auth, handler)
             Tab.BACKUP -> backupTab(auth, handler)
         }
+        append("</div>")
     }
 
     private fun StringBuilder.setupTab(auth: String, handler: Handler) {
@@ -538,22 +541,30 @@ class PhoneSetup(
     private fun page(title: String, body: String) = """<!doctype html><html><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
 :root{color-scheme:dark;--bg:#111215;--card:#1f2024;--line:#2c2d32;--fg:#e8eaed;--mute:#a9adb4;--accent:$accent}
-body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--fg)}main{max-width:640px;margin:auto;padding:16px}
+body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%}
+main{max-width:1240px;margin:auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
 h1{font-size:24px;margin:8px 0 2px}h1 i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--accent);margin-right:10px}
 h2{font-size:19px;margin:0 0 4px}h3{font-size:15px;margin:16px 0 2px}.m{color:var(--mute);font-size:13px;margin:2px 0 8px}
 nav{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;padding:10px 0;background:var(--bg);scrollbar-width:none}
 nav a{flex:none;padding:9px 14px;border-radius:999px;background:var(--card);color:var(--fg);text-decoration:none;font-size:14px;font-weight:600}
 nav a[aria-current]{background:var(--accent);color:#111}
-form,.card{background:var(--card);border-radius:16px;padding:16px;margin:14px 0}
+form,.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+.cols{column-width:320px;column-gap:20px}.cols>*{break-inside:avoid;-webkit-column-break-inside:avoid}
+.cols>form,.cols>.card,.cols>.grp{margin:0 0 16px}.cols>p,.cols>#find,.cols>h2{column-span:all;-webkit-column-span:all}
+.grp>h3{font-size:17px;margin:0 0 2px}.grp>form{margin:8px 0 0}
+.cols>#find{margin-bottom:14px}main>h2{margin-top:12px}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--accent)}
+a:focus-visible,button:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:active,.btn:active{opacity:.8}
 input,select,textarea{box-sizing:border-box;width:100%;margin:4px 0;padding:12px;border-radius:10px;border:1px solid #3a3b40;background:var(--bg);color:var(--fg);font-size:16px}
 button,.btn{display:block;box-sizing:border-box;text-align:center;text-decoration:none;margin-top:10px;width:100%;padding:13px;border:0;border-radius:999px;background:#f1f3f4;color:#1f1f1f;font-size:16px;font-weight:600}
 button.danger{background:#5c1f1f;color:#ffd9d6}
 .ok{background:#1e3a2a;color:#b9f0cf;padding:12px;border-radius:10px}
 .tick{display:flex;gap:10px;align-items:center;margin:8px 0}.tick input{width:auto}
-form.flat{background:none;padding:0;margin:10px 0}
-form.s{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:none;border-radius:0;margin:0;padding:12px 0;border-top:1px solid var(--line)}
+form.flat{background:none;border:0;padding:0;margin:10px 0}
+form.s{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:none;border:0;border-radius:0;margin:0;padding:12px 0;border-top:1px solid var(--line)}
 form.s label{font-size:15px}form.s small{display:block;color:var(--mute);font-size:12px;margin-top:2px}
-form.s select,form.s input[type=number]{width:auto;max-width:52vw;margin:0}
+form.s select,form.s input[type=number]{width:auto;max-width:min(52vw,220px);margin:0}
 form.s .save{grid-column:1/-1;margin-top:4px;padding:9px}form.s .st{grid-column:1/-1;font-size:12px;color:var(--mute)}form.s .st:empty{display:none}
 .st.good{color:#8fe3b0}.st.bad{color:#ffb4ab}
 .js form.s .save{display:none}
@@ -564,6 +575,8 @@ form.s .save{grid-column:1/-1;margin-top:4px;padding:9px}form.s .st{grid-column:
 .check span{font-size:13px;color:var(--mute)}.check .done span{color:#8fe3b0}
 details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-size:14px}
 pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--bg);padding:10px;border-radius:10px;max-height:50vh;overflow:auto}
+@media(min-width:700px){main{padding-top:24px;padding-bottom:40px}h1{font-size:30px}#find{max-width:520px;display:block}
+nav{gap:8px;padding:14px 0}nav a{padding:11px 18px;font-size:15px}main>p.m{font-size:14px}}
 [hidden]{display:none!important}</style></head>
 <body><main><h1><i></i>${esc(title)}</h1><p class=m>Sent straight to your TV on this network. Nothing goes through the internet.</p>$body</main><script>$SCRIPT</script></body></html>"""
 

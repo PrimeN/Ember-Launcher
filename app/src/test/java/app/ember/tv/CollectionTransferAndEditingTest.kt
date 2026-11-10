@@ -88,4 +88,18 @@ class CollectionTransferAndEditingTest {
         // One collection: nothing to combine.
         assertFalse(ContentPhone.render(content.copy(collections = listOf("c-1" to "Films")), "lease").contains("All collections"))
     }
+
+    @Test fun thePhonePagesFlowIntoColumnsOnTabletsAndWiderScreens() {
+        // #159: each Organize content task is one card inside the column flow.
+        val html = ContentPhone.render(PhoneContent(listOf("opaque" to "Popular"), listOf("f-1" to "Films / Action"), emptyList(), collections = listOf("c-1" to "Films")), "lease")
+        assertEquals(1, Regex("<div class=cols>").findAll(html).count())
+        assertEquals(7, Regex("<div class=grp>").findAll(html).count())
+        assertEquals(Regex("<div").findAll(html).count(), Regex("</div>").findAll(html).count())
+        assertTrue(html.indexOf("<div class=cols>") < html.indexOf("<h3>Create or add to a collection</h3>"))
+        val server = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
+        assertTrue(server.contains(".cols{column-width:320px"))
+        assertTrue(server.contains("append(\"<div class=cols>\")"))
+        assertTrue("phones keep the readable single column; wide screens get room", server.contains("main{max-width:1240px"))
+        assertFalse(server.contains("max-width:640px"))
+    }
 }
