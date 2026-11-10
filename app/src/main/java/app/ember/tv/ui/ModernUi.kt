@@ -731,7 +731,7 @@ internal fun WidgetCarousel(items: List<Meta>, height: Dp, isSaved: (Meta) -> Bo
                     if (event.type == KeyEventType.KeyDown) index = target
                     true
                 },
-            radius = TvTokens.Shape.Panel, container = PanelHi, focusedScale = 1f,
+            radius = TvTokens.Shape.Panel, container = PanelHi, focusedScale = TvTokens.Focus.None,
         ) {
             Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
                 Crossfade(targetState = meta, animationSpec = tween(if (reduceMotion) 0 else 320), label = "widgetCarouselArt") { shown ->
