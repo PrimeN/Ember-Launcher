@@ -152,18 +152,17 @@ class PhonePageTabsTest {
     @Test fun settingsLandOnTheirSectionAndLongListsFold() {
         // #165
         fun view(id: String, group: String, label: String = id) = PhoneSettingView(id, group, label, null, "toggle", emptyList(), "true")
-        val tab = PhoneSetup.Tab
-        assertEquals(tab.UI to "interface", app.ember.tv.phone.PhonePages.place(view("look.theme", "Look")))
-        assertEquals(tab.UI to "size", app.ember.tv.phone.PhonePages.place(view("look.text", "Look")))
-        assertEquals(tab.UI to "effects", app.ember.tv.phone.PhonePages.place(view("look.custom.blur", "Look")))
-        assertEquals(tab.UI to "tiles", app.ember.tv.phone.PhonePages.place(view("look.light.clock", "Look")))
-        assertEquals(tab.SETTINGS to "system", app.ember.tv.phone.PhonePages.place(view("look.remoteSounds", "Look")))
-        assertEquals(tab.PLAYER to "playback", app.ember.tv.phone.PhonePages.place(view("play.x", "Playback")))
-        assertEquals(tab.PLAYER to "subtitles", app.ember.tv.phone.PhonePages.place(view("subs.x", "Subtitles")))
-        assertEquals(tab.SETTINGS to "home", app.ember.tv.phone.PhonePages.place(view("home.x", "Home")))
-        assertEquals(tab.SETTINGS to "sources", app.ember.tv.phone.PhonePages.place(view("src.x", "Sources")))
-        assertEquals(tab.ADDONS to "catalogs", app.ember.tv.phone.PhonePages.place(view("catalog.a.home", "Catalogs")))
-        assertEquals(tab.ADDONS, tab.of("content")); assertEquals(tab.SETUP, tab.of("nope")); assertEquals(tab.SETUP, tab.of(null))
+        assertEquals(PhoneSetup.Tab.UI to "interface", app.ember.tv.phone.PhonePages.place(view("look.theme", "Look")))
+        assertEquals(PhoneSetup.Tab.UI to "size", app.ember.tv.phone.PhonePages.place(view("look.text", "Look")))
+        assertEquals(PhoneSetup.Tab.UI to "effects", app.ember.tv.phone.PhonePages.place(view("look.custom.blur", "Look")))
+        assertEquals(PhoneSetup.Tab.UI to "tiles", app.ember.tv.phone.PhonePages.place(view("look.light.clock", "Look")))
+        assertEquals(PhoneSetup.Tab.SETTINGS to "system", app.ember.tv.phone.PhonePages.place(view("look.remoteSounds", "Look")))
+        assertEquals(PhoneSetup.Tab.PLAYER to "playback", app.ember.tv.phone.PhonePages.place(view("play.x", "Playback")))
+        assertEquals(PhoneSetup.Tab.PLAYER to "subtitles", app.ember.tv.phone.PhonePages.place(view("subs.x", "Subtitles")))
+        assertEquals(PhoneSetup.Tab.SETTINGS to "home", app.ember.tv.phone.PhonePages.place(view("home.x", "Home")))
+        assertEquals(PhoneSetup.Tab.SETTINGS to "sources", app.ember.tv.phone.PhonePages.place(view("src.x", "Sources")))
+        assertEquals(PhoneSetup.Tab.ADDONS to "catalogs", app.ember.tv.phone.PhonePages.place(view("catalog.a.home", "Catalogs")))
+        assertEquals(PhoneSetup.Tab.ADDONS, PhoneSetup.Tab.of("content")); assertEquals(PhoneSetup.Tab.SETUP, PhoneSetup.Tab.of("nope")); assertEquals(PhoneSetup.Tab.SETUP, PhoneSetup.Tab.of(null))
 
         val rows = listOf(view("a", "Look", "Theme"), view("b", "Look", "Light Home: clock"), view("c", "Look", "Light Home: weather"), view("d", "Look", "Light Home: dock"),
             view("e", "Look", "Focused background: media rows"), view("f", "Look", "Glass"))
