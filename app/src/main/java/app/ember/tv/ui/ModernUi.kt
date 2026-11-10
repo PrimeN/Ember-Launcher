@@ -421,13 +421,17 @@ fun ModernHome(
                         // #161: a banner of its own, with its own artwork; the main hero keeps the page backdrop.
                         WidgetHero(b.row.items, minOf(heroHeight * .82f, maxHeight * .7f), vm::isSaved, vm::toggleWatchlist, onOpenTitle,
                             rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
+                    } else if (b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) ModernSection(b.row.displayTitle) {
+                        // #167: one giant panel, a title at a time; not a row of cards.
+                        WidgetCarousel(b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT, vm::isSaved, onOpenTitle,
+                            rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
                     } else ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
                         // #161: one of your widgets draws in its own style and card shape.
                         val look = WidgetLook.of(b.widget, wide)
                         MediaRow(
                             b.row.items, look.wide, isSaved = { b.saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle,
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
-                            numbered = look.numbered, large = look.large,
+                            numbered = look.numbered,
                         )
                     }
                     is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
@@ -582,15 +586,15 @@ internal fun ModernHero(
 /** A row of wide 16:9 cards, or of posters when Settings > Appearance says so. */
 @Composable
 fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFocus: (Meta?) -> Unit = {}, onSeeAll: (() -> Unit)? = null,
-    /** Widget styles (#161): a rank on each card, and the cinematic carousel's large artwork cards. */
-    numbered: Boolean = false, large: Boolean = false, onOpen: (Meta) -> Unit) {
+    /** A Numbered row widget (#161): a rank on each card. */
+    numbered: Boolean = false, onOpen: (Meta) -> Unit) {
     // Six landscape cards or eight posters across the row (CardSizes), whatever the screen.
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
         val gap = if (wide) 16.dp else 14.dp
         val uniqueItems = remember(items) { items.distinctBy { it.mediaKey() } }
         val baseWidth = CardSizes.width(maxWidth, if(isEmberX && !wide)EmberXLayout.posterCount(maxWidth.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else LocalRenderOptions.current.count(wide), gap, 4.dp)
         val rowState=androidx.compose.foundation.lazy.rememberLazyListState()
-        val w = if (large) WidgetLook.carouselWidth(maxWidth, baseWidth) else baseWidth
+        val w = baseWidth
         PrefetchRowArtwork(items,rowState,wide,w)
         // Remove from Continue Watching (or marking it watched) hands focus to the next card (#130).
         val keeper = rememberFocusKeeper(remember(uniqueItems) { uniqueItems.map { it.mediaKey() } })
@@ -680,18 +684,71 @@ internal fun WidgetHero(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolea
 }
 
 /** How one of your Home widgets draws (#161); a built-in row follows Home's card setting. */
-internal data class WidgetLook(val wide: Boolean, val numbered: Boolean, val large: Boolean) {
+internal data class WidgetLook(val wide: Boolean, val numbered: Boolean) {
     companion object {
+        /** For Row and Numbered row widgets; the carousel and hero banner draw their own panels. */
         fun of(widget: app.ember.tv.data.HomeWidget?, homeWide: Boolean): WidgetLook = when {
-            widget == null -> WidgetLook(homeWide, numbered = false, large = false)
-            widget.style == app.ember.tv.data.HomeWidgets.CAROUSEL -> WidgetLook(wide = true, numbered = false, large = true)
+            widget == null -> WidgetLook(homeWide, numbered = false)
             else -> WidgetLook(when (widget.shape) { "poster" -> false; "wide" -> true; else -> homeWide },
-                numbered = widget.style == app.ember.tv.data.HomeWidgets.NUMBERED, large = false)
+                numbered = widget.style == app.ember.tv.data.HomeWidgets.NUMBERED)
         }
-        /** Two and a bit cards across, so the next one shows there is more; never smaller than a normal wide card. */
-        fun carouselWidth(row: androidx.compose.ui.unit.Dp, normal: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
-            maxOf(normal, row * CAROUSEL_FRACTION)
-        const val CAROUSEL_FRACTION = .42f
+        /** The cinematic carousel's share of the screen's height (#167): giant, with the next row's title still in view. */
+        const val CAROUSEL_HEIGHT = .72f
+        /** Stepping from [index] by a left or right press; null at either end, where the press leaves the carousel. */
+        fun carouselStep(index: Int, count: Int, forward: Boolean): Int? = (if (forward) index + 1 else index - 1).takeIf { it in 0 until count }
+    }
+}
+
+/**
+ * The Cinematic carousel widget (#167): one giant panel showing a single title: its artwork filling
+ * the panel, name and year centred at the bottom. It is one focus stop: left and right step through
+ * the titles, OK opens the one showing, and at either end the press moves on like any row. It turns
+ * by itself while it is not focused.
+ */
+@Composable
+internal fun WidgetCarousel(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onOpen: (Meta) -> Unit, rotating: Boolean, onFocus: () -> Unit) {
+    if (items.isEmpty()) return
+    val reduceMotion = LocalReduceMotion.current
+    var index by remember(items.map { it.mediaKey() }) { androidx.compose.runtime.mutableIntStateOf(0) }
+    var focused by remember { mutableStateOf(false) }
+    val safe = HeroBanner.index(index, items.size)
+    val meta = items[safe]
+    val actions = LocalTitleActions.current
+    val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
+    LaunchedEffect(items, focused, safe, rotating, reduceMotion) {
+        if (items.size > 1 && !focused && rotating && !reduceMotion) { delay(8000); index = HeroBanner.next(safe, items.size) }
+    }
+    CompositionLocalProvider(LocalNight provides true) {
+        Focusable(
+            onClick = { onOpen(meta) },
+            onLongClick = actions?.let { action -> { action(meta) } },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).testTag("widget_carousel")
+                .mediaSemantics(meta, isSaved(meta))
+                .onFocusChanged { focused = it.isFocused || it.hasFocus; if (focused) onFocus() }
+                .onPreviewKeyEvent { event ->
+                    val forward = when (event.key) { heroEdgeKey(previous = false, rtl = rtl) -> true; heroEdgeKey(previous = true, rtl = rtl) -> false; else -> return@onPreviewKeyEvent false }
+                    val target = WidgetLook.carouselStep(safe, items.size, forward) ?: return@onPreviewKeyEvent false
+                    if (event.type == KeyEventType.KeyDown) index = target
+                    true
+                },
+            radius = TvTokens.Shape.Panel, container = PanelHi, focusedScale = 1f,
+        ) {
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+                Crossfade(targetState = meta, animationSpec = tween(if (reduceMotion) 0 else 320), label = "widgetCarouselArt") { shown ->
+                    LandscapeImage(shown, Modifier.fillMaxSize())
+                }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.55f to Color.Transparent, 1f to Color(0xE6000000))))
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(.8f).padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(meta.name, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    meta.releaseInfo?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 15.sp, color = Color(0xFFDADCE0), maxLines = 1) }
+                }
+                if (items.size > 1) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    items.take(12).forEachIndexed { i, _ ->
+                        Box(Modifier.size(width = if (i == safe) 16.dp else 4.dp, height = 3.dp).clip(CircleShape).background(if (i == safe) Color.White else Color.White.copy(alpha = .4f)))
+                    }
+                }
+            }
+        }
     }
 }
 

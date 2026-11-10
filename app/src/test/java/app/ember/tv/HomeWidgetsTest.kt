@@ -52,13 +52,20 @@ class HomeWidgetsTest {
     }
 
     @Test fun aWidgetDrawsInItsOwnStyleAndBuiltInRowsFollowHome() {
-        assertEquals(WidgetLook(wide = true, numbered = false, large = false), WidgetLook.of(null, homeWide = true))
-        assertEquals(WidgetLook(wide = false, numbered = false, large = false), WidgetLook.of(null, homeWide = false))
-        assertEquals(WidgetLook(wide = false, numbered = true, large = false), WidgetLook.of(widget(), homeWide = true))
-        assertEquals(WidgetLook(wide = true, numbered = false, large = false), WidgetLook.of(widget(style = HomeWidgets.ROW).copy(shape = "default"), homeWide = true))
-        // The carousel is always large wide cards, whatever shape was saved.
-        assertEquals(WidgetLook(wide = true, numbered = false, large = true), WidgetLook.of(widget(style = HomeWidgets.CAROUSEL), homeWide = false))
-        assertTrue(WidgetLook.CAROUSEL_FRACTION > 1f / 3f && WidgetLook.CAROUSEL_FRACTION < .5f)
+        assertEquals(WidgetLook(wide = true, numbered = false), WidgetLook.of(null, homeWide = true))
+        assertEquals(WidgetLook(wide = false, numbered = false), WidgetLook.of(null, homeWide = false))
+        assertEquals(WidgetLook(wide = false, numbered = true), WidgetLook.of(widget(), homeWide = true))
+        assertEquals(WidgetLook(wide = true, numbered = false), WidgetLook.of(widget(style = HomeWidgets.ROW).copy(shape = "default"), homeWide = true))
+        // #167: the cinematic carousel is one giant panel, a title at a time, not a row of cards.
+        assertTrue(WidgetLook.CAROUSEL_HEIGHT >= .6f && WidgetLook.CAROUSEL_HEIGHT <= .8f)
+        assertEquals(1, WidgetLook.carouselStep(0, 3, forward = true)); assertEquals(1, WidgetLook.carouselStep(2, 3, forward = false))
+        assertNull("left on the first title leaves the carousel", WidgetLook.carouselStep(0, 3, forward = false))
+        assertNull("right on the last title leaves the carousel", WidgetLook.carouselStep(2, 3, forward = true))
+        assertNull(WidgetLook.carouselStep(0, 1, forward = true))
+        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
+        assertTrue(home.contains("b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) ModernSection(b.row.displayTitle) {"))
+        assertTrue(home.contains("WidgetCarousel(b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT"))
+        assertFalse("no row of large cards any more", home.contains("carouselWidth"))
     }
 
     @Test fun widgetsLoadSaveAndForgetPerProfile() {

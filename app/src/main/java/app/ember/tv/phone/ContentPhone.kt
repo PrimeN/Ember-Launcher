@@ -117,7 +117,7 @@ object ContentPhone {
         }
         append("</div><label for=shape>Card shape</label><select id=shape name=shape>")
         app.ember.tv.data.HomeWidgets.shapes.forEach { (value, name) -> append("<option value=").append(value).append(if ((widget?.shape ?: "default") == value) " selected" else "").append(">").append(name).append("</option>") }
-        append("</select><p class=m>The cinematic carousel always uses large wide cards.</p>")
+        append("</select><p class=m>Card shape applies to rows. The cinematic carousel and hero banner are one large panel showing a title at a time.</p>")
         append("<label for=limit>Titles to show</label><input id=limit name=limit type=number inputmode=numeric min=").append(app.ember.tv.data.HomeWidgets.LIMITS.first).append(" max=").append(app.ember.tv.data.HomeWidgets.LIMITS.last)
             .append(" value=").append(widget?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT).append(">")
         append("<h3>Content source</h3>")
