@@ -64,8 +64,27 @@ class HomeWidgetsTest {
         assertNull(WidgetLook.carouselStep(0, 1, forward = true))
         val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
         assertTrue(home.contains("b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) ModernSection(b.row.displayTitle) {"))
-        assertTrue(home.contains("WidgetCarousel(b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT"))
+        assertTrue(home.contains("WidgetCarousel(b.key, b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT"))
         assertFalse("no row of large cards any more", home.contains("carouselWidth"))
+    }
+
+    @Test fun aWidgetSavedWhileOthersLoadIsLoadedWhenTheyFinish() {
+        // #168: it used to be skipped and stay empty until Home was opened again.
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val gate = CompletableDeferred<Unit>(); val asked = mutableListOf<Long?>()
+        try {
+            val state = WidgetsState(memoryPrefs(), scope, { "me" }, { true }, page = { source ->
+                asked += source.traktListId; if (source.traktListId == 42L) gate.await()
+                Result.success(CollectionPage(listOf(Meta("tt${source.traktListId}", "movie", "Title")), 1, true))
+            }, onChanged = {}, clock = { 0L })
+            assertNull(state.save(widget())); state.refresh { true }
+            assertEquals(setOf("w1"), state.loading)
+            assertNull(state.save(widget("late", "Late", source = trakt.copy(traktListId = 7)))); state.refresh { true }
+            assertEquals("the first load is not restarted", listOf<Long?>(42L), asked)
+            gate.complete(Unit)
+            assertEquals(listOf<Long?>(42L, 7L), asked); assertEquals("tt7", state.items["late"]?.single()?.id)
+            assertTrue(state.loading.isEmpty()); assertTrue(state.errors.isEmpty())
+        } finally { scope.cancel() }
     }
 
     @Test fun widgetsLoadSaveAndForgetPerProfile() {
@@ -87,6 +106,12 @@ class HomeWidgetsTest {
             assertEquals("the size limit is applied", 10, state.items["w1"]!!.size)
             assertEquals("your own lists need no request", listOf(42L, 13L), asked.map { it.traktListId })
             assertEquals(setOf("broken"), state.failed); assertTrue(state.loading.isEmpty())
+            // #168: the TV list says why, in Ember's own words; anything else reads as the connection.
+            assertEquals(mapOf("broken" to "gone"), state.errors)
+            assertTrue(WidgetsState.reason(java.io.IOException("socket https://secret.example")).startsWith("The source could not be reached"))
+            assertEquals("Could not load: gone", app.ember.tv.ui.WidgetDrafts.status(on = true, loading = false, error = "gone", titles = 0))
+            assertEquals("Loading…", app.ember.tv.ui.WidgetDrafts.status(true, true, "gone", 0)); assertEquals("Nothing to show yet", app.ember.tv.ui.WidgetDrafts.status(true, false, null, 0))
+            assertNull(app.ember.tv.ui.WidgetDrafts.status(true, false, null, 4)); assertNull(app.ember.tv.ui.WidgetDrafts.status(false, false, "gone", 0))
             // Nothing is asked again while fresh; a changed source or an old load is.
             state.refresh { true }; assertEquals(3, asked.size) // the failed one is retried
             assertNull(state.save(widget(title = "Top ten"))); state.refresh { it == HomeWidgets.section("w1") }; assertEquals(3, asked.size)
@@ -152,6 +177,19 @@ class HomeWidgetsTest {
         val page = kotlinx.serialization.json.Json.parseToJsonElement("""{"movies":[{"id":1,"rank":1,"title":"Film","imdb_id":"tt0000001","release_year":2024,"mediatype":"movie"},{"title":"No id"}],
             "shows":[{"id":2,"rank":2,"title":"Show","imdb_id":"tt0000002","release_year":null,"mediatype":"show"}]}""")
         val (all, raw) = CollectionRequests.parseMdblist(page, null)
+        // #170: a mixed list keeps the list's own order, by rank.
+        val mixed = kotlinx.serialization.json.Json.parseToJsonElement("""{"movies":[{"rank":2,"title":"B","imdb_id":"tt2"},{"rank":4,"title":"D","imdb_id":"tt4"}],"shows":[{"rank":1,"title":"A","imdb_id":"tt1"},{"rank":3,"title":"C","imdb_id":"tt3"},{"title":"Unranked","imdb_id":"tt9"}]}""")
+        assertEquals(listOf("tt1", "tt2", "tt3", "tt4", "tt9"), CollectionRequests.parseMdblist(mixed, null).first.map { it.id })
+        // #171: the TV editor takes the same list text as the phone.
+        assertEquals("user/top-list", app.ember.tv.ui.WidgetDrafts.mdblist("https://mdblist.com/lists/user/top-list", true).second?.catalogId)
+        assertNull(app.ember.tv.ui.WidgetDrafts.mdblist("2194", false).second); assertTrue(app.ember.tv.ui.WidgetDrafts.mdblist("2194", false).first!!.contains("API key"))
+        assertNotNull(app.ember.tv.ui.WidgetDrafts.mdblist("not a list", true).first)
+        // #169: a banner or carousel comes back on the title that was opened; long ones count instead of dots.
+        val shown = (1..20).map { Meta("tt$it", "movie", "Title $it") }
+        assertEquals(0, app.ember.tv.ui.WidgetPlace.index("widget:test169", shown))
+        app.ember.tv.ui.WidgetPlace.keep("widget:test169", shown[7]); assertEquals(7, app.ember.tv.ui.WidgetPlace.index("widget:test169", shown))
+        assertEquals("gone from the list: start again", 0, app.ember.tv.ui.WidgetPlace.index("widget:test169", shown.take(3)))
+        assertNull(app.ember.tv.ui.WidgetPlace.counter(3, 12)); assertEquals("13 / 30", app.ember.tv.ui.WidgetPlace.counter(12, 30))
         assertEquals(listOf("tt0000001" to "movie", "tt0000002" to "series"), all.map { it.id to it.type }); assertEquals(3, raw)
         assertEquals("2024", all[0].releaseInfo); assertNull(all[1].releaseInfo); assertTrue(all[0].poster!!.contains("tt0000001"))
         assertEquals(listOf("tt0000002"), CollectionRequests.parseMdblist(page, "TV").first.map { it.id })

@@ -78,13 +78,14 @@ internal class CollectionRequests(
             fun rows(field: String) = (o[field] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
             fun titles(field: String, type: String) = rows(field).mapNotNull { row ->
                 val imdb = (row["imdb_id"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.startsWith("tt") } ?: return@mapNotNull null
-                Meta(id = imdb, type = type, name = (row["title"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } ?: return@mapNotNull null,
+                ((row["rank"] as? JsonPrimitive)?.intOrNull ?: Int.MAX_VALUE) to Meta(id = imdb, type = type, name = (row["title"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } ?: return@mapNotNull null,
                     releaseInfo = (row["release_year"] as? JsonPrimitive)?.contentOrNull?.takeIf { it != "null" }, imdbId = imdb,
                     poster = "https://images.metahub.space/poster/medium/$imdb/img", background = "https://images.metahub.space/background/medium/$imdb/img")
             }
             val movies = if (mediaType.equals("tv", true)) emptyList() else titles("movies", "movie")
             val shows = if (mediaType.equals("movie", true)) emptyList() else titles("shows", "series")
-            return (movies + shows) to (rows("movies").size + rows("shows").size)
+            // #170: a mixed list keeps its own order (each row's rank), not every movie before any show.
+            return (movies + shows).sortedBy { it.first }.map { it.second } to (rows("movies").size + rows("shows").size)
         }
     }
 

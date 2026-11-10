@@ -36,6 +36,10 @@ class WidgetsState(
     var items by mutableStateOf<Map<String, List<Meta>>>(emptyMap()); private set
     var loading by mutableStateOf<Set<String>>(emptySet()); private set
     var failed by mutableStateOf<Set<String>>(emptySet()); private set
+    /** Why each failed widget could not load, for the TV's widget list (#168). */
+    var errors by mutableStateOf<Map<String, String>>(emptyMap()); private set
+    /** A refresh asked for while one was running (#168): it runs when that one ends. */
+    private var waiting: ((String) -> Boolean)? = null
     var revision by mutableLongStateOf(0L); private set
     private val loadedAt = HashMap<String, Long>()
     private val loadedSource = HashMap<String, CollectionSource>()
@@ -46,7 +50,7 @@ class WidgetsState(
         job?.cancel(); job = null
         owner = profileId()
         list = HomeWidgets.decode(prefs.homeWidgets(owner))
-        items = emptyMap(); loading = emptySet(); failed = emptySet()
+        items = emptyMap(); loading = emptySet(); failed = emptySet(); errors = emptyMap(); waiting = null
         loadedAt.clear(); loadedSource.clear()
         revision++
     }
@@ -55,27 +59,40 @@ class WidgetsState(
     fun refresh(force: Boolean = false, visible: (String) -> Boolean) {
         if (profileId() != owner) reload()
         if (!allowed()) return
-        val now = clock()
-        val due = list.filter { w ->
-            w.source.provider != HomeWidgets.LIST && visible(HomeWidgets.section(w.id)) &&
-                (force || loadedSource[w.id] != w.source || now - (loadedAt[w.id] ?: Long.MIN_VALUE / 2) > FRESH_MILLIS)
-        }
-        if (due.isEmpty() || (job?.isActive == true && !force)) return
-        job?.cancel()
+        val due = due(force, visible)
+        if (due.isEmpty()) return
+        // #168: a widget saved while others load is picked up when they finish, not skipped.
+        if (job?.isActive == true && !force) { waiting = visible; return }
+        job?.cancel(); waiting = null
         val id = owner
         loading = due.map { it.id }.toSet()
         job = scope.launch {
-            for (w in due) {
-                val result = try { page(w.source) } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
-                ensureActive()
-                if (profileId() != id || owner != id) return@launch
-                result.onSuccess { loaded ->
-                    items = items + (w.id to loaded.items.take(w.limit))
-                    loadedAt[w.id] = clock(); loadedSource[w.id] = w.source
-                    failed = failed - w.id
-                }.onFailure { failed = failed + w.id }
-                loading = loading - w.id
+            var batch = due
+            while (batch.isNotEmpty()) {
+                for (w in batch) {
+                    val result = try { page(w.source) } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
+                    ensureActive()
+                    if (profileId() != id || owner != id) return@launch
+                    result.onSuccess { loaded ->
+                        items = items + (w.id to loaded.items.take(w.limit))
+                        loadedAt[w.id] = clock(); loadedSource[w.id] = w.source
+                        failed = failed - w.id; errors = errors - w.id
+                    }.onFailure { failed = failed + w.id; errors = errors + (w.id to reason(it)) }
+                    loading = loading - w.id
+                }
+                val done = batch.map { it.id }.toSet()
+                // What was asked for meanwhile, less what this pass just tried (a failure is not retried at once).
+                batch = waiting?.let { asked -> waiting = null; due(false, asked).filterNot { it.id in done } }.orEmpty()
+                loading = loading + batch.map { it.id }
             }
+        }
+    }
+
+    private fun due(force: Boolean, visible: (String) -> Boolean): List<HomeWidget> {
+        val now = clock()
+        return list.filter { w ->
+            w.source.provider != HomeWidgets.LIST && visible(HomeWidgets.section(w.id)) &&
+                (force || loadedSource[w.id] != w.source || now - (loadedAt[w.id] ?: Long.MIN_VALUE / 2) > FRESH_MILLIS)
         }
     }
 
@@ -110,7 +127,7 @@ class WidgetsState(
         if (profileId() != owner) reload()
         if (list.none { it.id == id }) return false
         persist(list.filterNot { it.id == id })
-        items = items - id; loading = loading - id; failed = failed - id
+        items = items - id; loading = loading - id; failed = failed - id; errors = errors - id
         loadedAt.remove(id); loadedSource.remove(id)
         return true
     }
@@ -122,5 +139,10 @@ class WidgetsState(
         onChanged()
     }
 
-    companion object { const val FRESH_MILLIS = 15 * 60_000L }
+    companion object {
+        const val FRESH_MILLIS = 15 * 60_000L
+        /** Ember's own messages ("Trakt lists need a client id.") say what to do; anything else is the connection. */
+        internal fun reason(failure: Throwable): String =
+            failure.message?.takeIf { failure is IllegalStateException && it.isNotBlank() }?.take(160) ?: "The source could not be reached. Check the connection."
+    }
 }

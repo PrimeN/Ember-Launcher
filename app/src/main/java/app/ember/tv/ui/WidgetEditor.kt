@@ -41,6 +41,8 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                         } }.fold({ "Saved to $it" }, { "Could not save the widget pack." })
                     }
                 }
+            // #168: after a failure (a missing key, no connection) there was no way to try again without leaving Home.
+            if (vm.widgets.errors.isNotEmpty()) Chip("Reload widgets") { vm.refreshWidgets(force = true) }
             }
             message?.let { Text(it, color = Mute, fontSize = 13.sp) }
             // In Home order, so Move matches what Home shows.
@@ -52,6 +54,10 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                     Column(Modifier.width(340.dp)) {
                         Text(w.title, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(WidgetDrafts.summary(w, vm.allCatalogs), color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // #168: why a widget is not on Home, instead of a row that is silently missing.
+                        WidgetDrafts.status(vm.sections.sectionOn(section), w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)?.let {
+                            Text(it, color = Mute, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                     SwitchChip("On Home", vm.sections.sectionOn(section)) { vm.sections.toggleSection(section) }
                     MoveButton(w.title, order.indexOf(section), order.lastIndex) { step -> vm.sections.moveSection(section, step) }
@@ -81,6 +87,19 @@ internal object WidgetDrafts {
         w.copy(source = source, title = w.title.ifBlank { (label ?: source.title).orEmpty().take(100) })
     fun trakt(list: CollectionRequests.ListRef, media: String) = CollectionSource(provider = "trakt", title = list.name.take(100), traktListId = list.id, mediaType = media)
     val limits = listOf(10, 20, 30, 50)
+    /** What to say under a widget that shows nothing on Home; null when it is showing titles or switched off. */
+    fun status(on: Boolean, loading: Boolean, error: String?, titles: Int): String? = when {
+        !on || titles > 0 -> null
+        loading -> "Loading…"
+        error != null -> "Could not load: $error"
+        else -> "Nothing to show yet"
+    }
+    /** #171: an MDBList list typed on the TV; the error to show, or the source. */
+    fun mdblist(text: String, hasKey: Boolean): Pair<String?, CollectionSource?> {
+        val path = HomeWidgets.mdblistPath(text) ?: return "Enter an MDBList list link, user/list-name or number." to null
+        if (!hasKey) return "Add your MDBList API key in Settings > Accounts > API keys first." to null
+        return null to CollectionSource(provider = HomeWidgets.MDBLIST, catalogId = path, title = "MDBList $path")
+    }
 }
 
 @Composable
@@ -113,6 +132,15 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
                 draft = WidgetDrafts.withSource(draft, CollectionSource(provider = HomeWidgets.LIST, catalogId = id, title = label), label); message = null
             }
         } }
+        // #171: MDBList was only on the phone page.
+        Text("Or an MDBList list", color = Mute, fontSize = 13.sp)
+        var mdb by remember { mutableStateOf(if (draft.source.provider == HomeWidgets.MDBLIST) draft.source.catalogId.orEmpty() else "") }
+        TvTextField(mdb, { mdb = it.take(200) }, Modifier.fillMaxWidth(), placeholder = "MDBList link, user/list-name or number")
+        ButtonRow { Chip("Use this MDBList list", draft.source.provider == HomeWidgets.MDBLIST) {
+            val (problem, source) = WidgetDrafts.mdblist(mdb, ApiKeys.get("MDBLIST_API_KEY").isNotBlank())
+            message = problem
+            if (source != null) draft = WidgetDrafts.withSource(draft, source)
+        } }
         message?.let { Text(it, color = Mute, fontSize = 13.sp) }
         ButtonRow {
             Chip("Save widget") {
@@ -121,7 +149,7 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
             }
             Chip("Cancel") { close() }
         }
-        Note("Filters: save a search in Discover, then pick it under Catalog, saved search or TMDB. MDBList by link is on the phone setup page.")
+        Note("Filters: save a search in Discover, then pick it under Catalog, saved search or TMDB.")
     }
 }
 

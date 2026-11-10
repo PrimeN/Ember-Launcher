@@ -419,11 +419,11 @@ fun ModernHome(
                     }
                     is HomeViewModel.HomeBlock.Row -> if (b.widget?.style == app.ember.tv.data.HomeWidgets.HERO) ModernSection(b.row.displayTitle) {
                         // #161: a banner of its own, with its own artwork; the main hero keeps the page backdrop.
-                        WidgetHero(b.row.items, minOf(heroHeight * .82f, maxHeight * .7f), vm::isSaved, vm::toggleWatchlist, onOpenTitle,
+                        WidgetHero(b.key, b.row.items, minOf(heroHeight * .82f, maxHeight * .7f), vm::isSaved, vm::toggleWatchlist, onOpenTitle,
                             rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
                     } else if (b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) ModernSection(b.row.displayTitle) {
                         // #167: one giant panel, a title at a time; not a row of cards.
-                        WidgetCarousel(b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT, vm::isSaved, onOpenTitle,
+                        WidgetCarousel(b.key, b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT, vm::isSaved, onOpenTitle,
                             rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
                     } else ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
                         // #161: one of your widgets draws in its own style and card shape.
@@ -626,11 +626,11 @@ fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFoc
  * sit on Home, and it takes no part in startup focus.
  */
 @Composable
-internal fun WidgetHero(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onToggleSaved: (Meta) -> Unit, onOpen: (Meta) -> Unit,
+internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onToggleSaved: (Meta) -> Unit, onOpen: (Meta) -> Unit,
     rotating: Boolean, onFocus: () -> Unit) {
     if (items.isEmpty()) return
     val reduceMotion = LocalReduceMotion.current
-    var index by remember(items.map { it.mediaKey() }) { androidx.compose.runtime.mutableIntStateOf(0) }
+    var index by remember(items.map { it.mediaKey() }) { androidx.compose.runtime.mutableIntStateOf(WidgetPlace.index(id, items)) }
     var focused by remember { mutableStateOf(false) }
     val watchFocus = remember { FocusRequester() }
     val saveFocus = remember { FocusRequester() }
@@ -657,12 +657,12 @@ internal fun WidgetHero(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolea
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 2.dp).onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }) {
                 DetailsActionButton("Watch now", Icons.Outlined.PlayArrow, text = "Watch now", width = 148.dp,
-                    modifier = Modifier.focusRequester(watchFocus).focusProperties { if (rtl) left = saveFocus else right = saveFocus }.onPreviewKeyEvent { event ->
+                    modifier = Modifier.focusRequester(watchFocus).focusProperties { if (rtl) left = saveFocus else right = saveFocus }.restoreFocus(id).onPreviewKeyEvent { event ->
                         if (event.key != heroEdgeKey(previous = true, rtl = rtl) || items.size <= 1) false else {
                             if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size)) index = HeroBanner.previous(safe, items.size)
                             true
                         }
-                    }) { onOpen(meta) }
+                    }) { WidgetPlace.keep(id, meta); onOpen(meta) }
                 val saved = isSaved(meta)
                 DetailsActionButton(if (saved) "Remove from watchlist" else "Add to watchlist", if (saved) Icons.Outlined.Check else Icons.Outlined.Add, selected = saved, width = 44.dp,
                     modifier = Modifier.focusRequester(saveFocus).focusProperties { if (rtl) right = watchFocus else left = watchFocus }.onPreviewKeyEvent { event ->
@@ -675,9 +675,7 @@ internal fun WidgetHero(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolea
         }
         Row(Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 14.dp).clearAndSetSemantics { contentDescription = "Title ${safe + 1} of ${items.size}" },
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            items.take(12).forEachIndexed { i, _ ->
-                Box(Modifier.size(width = if (i == safe) 16.dp else 4.dp, height = 3.dp).clip(CircleShape).background(if (i == safe) Fg else Fg.copy(alpha = .4f)))
-            }
+            WidgetPosition(safe, items.size, Fg)
         }
     }
     } }
@@ -700,16 +698,38 @@ internal data class WidgetLook(val wide: Boolean, val numbered: Boolean) {
 }
 
 /**
+ * Where a hero banner or carousel widget was when a title was opened from it (#169), so coming back
+ * shows that title again instead of the first. Kept for the life of the app, by Home section.
+ */
+internal object WidgetPlace {
+    private val opened = HashMap<String, String>()
+    fun keep(id: String, meta: Meta) { opened[id] = meta.mediaKey() }
+    fun index(id: String, items: List<Meta>): Int = opened[id]?.let { key -> items.indexOfFirst { it.mediaKey() == key } }?.takeIf { it >= 0 } ?: 0
+    /** Dots up to this many titles; a longer widget shows "13 / 30", where dots ran out (#169). */
+    const val DOTS = 12
+    fun counter(index: Int, count: Int): String? = if (count > DOTS) "${index + 1} / $count" else null
+}
+
+@Composable
+private fun WidgetPosition(index: Int, count: Int, color: Color) {
+    val counter = WidgetPlace.counter(index, count)
+    if (counter != null) Text(counter, fontSize = 12.sp, color = color.copy(alpha = .85f), maxLines = 1)
+    else repeat(count) { i ->
+        Box(Modifier.size(width = if (i == index) 16.dp else 4.dp, height = 3.dp).clip(CircleShape).background(if (i == index) color else color.copy(alpha = .4f)))
+    }
+}
+
+/**
  * The Cinematic carousel widget (#167): one giant panel showing a single title: its artwork filling
  * the panel, name and year centred at the bottom. It is one focus stop: left and right step through
  * the titles, OK opens the one showing, and at either end the press moves on like any row. It turns
  * by itself while it is not focused.
  */
 @Composable
-internal fun WidgetCarousel(items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onOpen: (Meta) -> Unit, rotating: Boolean, onFocus: () -> Unit) {
+internal fun WidgetCarousel(id: String, items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onOpen: (Meta) -> Unit, rotating: Boolean, onFocus: () -> Unit) {
     if (items.isEmpty()) return
     val reduceMotion = LocalReduceMotion.current
-    var index by remember(items.map { it.mediaKey() }) { androidx.compose.runtime.mutableIntStateOf(0) }
+    var index by remember(items.map { it.mediaKey() }) { androidx.compose.runtime.mutableIntStateOf(WidgetPlace.index(id, items)) }
     var focused by remember { mutableStateOf(false) }
     val safe = HeroBanner.index(index, items.size)
     val meta = items[safe]
@@ -720,9 +740,9 @@ internal fun WidgetCarousel(items: List<Meta>, height: Dp, isSaved: (Meta) -> Bo
     }
     CompositionLocalProvider(LocalNight provides true) {
         Focusable(
-            onClick = { onOpen(meta) },
+            onClick = { WidgetPlace.keep(id, meta); onOpen(meta) },
             onLongClick = actions?.let { action -> { action(meta) } },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).testTag("widget_carousel")
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).testTag("widget_carousel").restoreFocus(id)
                 .mediaSemantics(meta, isSaved(meta))
                 .onFocusChanged { focused = it.isFocused || it.hasFocus; if (focused) onFocus() }
                 .onPreviewKeyEvent { event ->
@@ -743,9 +763,7 @@ internal fun WidgetCarousel(items: List<Meta>, height: Dp, isSaved: (Meta) -> Bo
                     meta.releaseInfo?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 15.sp, color = Color(0xFFDADCE0), maxLines = 1) }
                 }
                 if (items.size > 1) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    items.take(12).forEachIndexed { i, _ ->
-                        Box(Modifier.size(width = if (i == safe) 16.dp else 4.dp, height = 3.dp).clip(CircleShape).background(if (i == safe) Color.White else Color.White.copy(alpha = .4f)))
-                    }
+                    WidgetPosition(safe, items.size, Color.White)
                 }
             }
         }
