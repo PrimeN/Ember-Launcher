@@ -274,12 +274,15 @@ object ContentPhone {
 
 /** Why a search made from the widget editor failed, in words that say what to do (#165). */
 internal object PhoneLookups {
+    /** "HTTP 403" from a provider error, and nothing else of it. */
+    private fun http(message: String): String? = Regex("HTTP [0-9]{3}").find(message)?.value
     fun reason(kind: String, failure: Throwable): String {
         val message = failure.message.orEmpty()
         return when {
             message.contains("adult profile", true) -> "Switch the TV to an adult profile to search."
             kind == "trakt" && message.contains("client id", true) -> "Trakt search needs a Trakt client ID. Add one under Accounts & APIs > Trakt, then search again."
-            kind == "trakt" && (message.contains("HTTP 401") || message.contains("HTTP 403")) -> "Trakt refused the request. Check the Trakt client ID under Accounts & APIs."
+            kind == "trakt" && (message.contains("HTTP 401") || message.contains("HTTP 403")) -> "Trakt refused the request (${http(message)}). Check the Trakt client ID under Accounts & APIs."
+            kind == "trakt" && http(message) != null -> "Trakt answered with an error (${http(message)}). Try again in a minute."
             kind == "trakt" -> "Trakt could not be reached. Check the TV's connection and try again."
             message.contains("key", true) -> "This search needs the TMDB key. Add it under Accounts & APIs > TMDB."
             else -> "The TV could not search right now. Check its connection and try again."

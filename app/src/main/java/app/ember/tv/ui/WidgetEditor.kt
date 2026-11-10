@@ -165,13 +165,14 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
     var query by remember { mutableStateOf("") }
     var media by remember { mutableStateOf("MOVIE") }
     var found by remember { mutableStateOf<List<CollectionRequests.ListRef>?>(null) }
-    var failed by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(tab, query) {
-        found = null; failed = false
+        found = null; failed = null
         if (query.isNotBlank()) delay(450)
         val result = runCatching { vm.traktLists(tab, query.trim().takeIf { it.length >= 2 }.orEmpty()) }
         kotlinx.coroutines.currentCoroutineContext().ensureActive()
-        failed = result.isFailure
+        // #166: say why, as the phone page does; "check the connection" hid a missing or refused client ID.
+        failed = result.exceptionOrNull()?.let { app.ember.tv.phone.PhoneLookups.reason("trakt", it).replace("Accounts & APIs > Trakt", "Settings > Accounts > API keys > Trakt").replace("under Accounts & APIs", "in Settings > Accounts > API keys") }
         found = result.getOrDefault(emptyList())
     }
     MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true) {
@@ -184,7 +185,7 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
         val lists = found
         when {
             lists == null -> Text("Loading…", color = Mute)
-            failed -> Text("Trakt's lists could not be loaded. Check the connection and try again.", color = Mute)
+            failed != null -> Text(failed.orEmpty(), color = Mute)
             lists.isEmpty() -> Text("No lists found.", color = Mute)
             else -> lists.take(30).forEach { l ->
                 Chip(l.name + listOfNotNull(l.by.takeIf { it.isNotBlank() }?.let { " · @$it" }, " · ${l.items} titles").joinToString(""), modifier = Modifier.fillMaxWidth(), maxLines = 1) {

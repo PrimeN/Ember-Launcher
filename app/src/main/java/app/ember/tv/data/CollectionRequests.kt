@@ -41,7 +41,8 @@ internal class CollectionRequests(
         val q = query.trim()
         val url = (if (q.isNotEmpty()) "https://api.trakt.tv/search/list" else "https://api.trakt.tv/lists/" + if (tab == "trending") "trending" else "popular")
             .toHttpUrl().newBuilder().apply { if (q.isNotEmpty()) addQueryParameter("query", q.take(100)) }.addQueryParameter("limit", "30").build()
-        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId).build())
+        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId)
+            .header("Content-Type", "application/json").header("User-Agent", TRAKT_AGENT).build())
         return parseTraktLists(result.body)
     }
 
@@ -60,6 +61,8 @@ internal class CollectionRequests(
     }
 
     companion object {
+        /** Trakt asks API clients to identify themselves (#166). */
+        const val TRAKT_AGENT = "EmberTV/1.0 (Android TV; https://github.com/PrimeN/Ember-Launcher)"
         internal fun parseTraktLists(body: JsonElement): List<ListRef> = (body as? JsonArray).orEmpty().mapNotNull { e ->
             val list = (e as? JsonObject)?.get("list") as? JsonObject ?: return@mapNotNull null
             val id = ((list["ids"] as? JsonObject)?.get("trakt") as? JsonPrimitive)?.longOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
@@ -177,7 +180,8 @@ internal class CollectionRequests(
         val page = skip / 100 + 1
         val url = "https://api.trakt.tv/lists/$id/items/$type/$sort/$how".toHttpUrl().newBuilder()
             .addQueryParameter("limit", "100").addQueryParameter("page", page.toString()).build()
-        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId).build())
+        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId)
+            .header("Content-Type", "application/json").header("User-Agent", TRAKT_AGENT).build())
         val raw = result.body as? JsonArray ?: error("The collection provider returned an unreadable page.")
         val items = raw.mapNotNull { e ->
             val o = (e as? JsonObject)?.get(type) as? JsonObject ?: return@mapNotNull null

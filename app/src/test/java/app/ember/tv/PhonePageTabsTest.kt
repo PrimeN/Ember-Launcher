@@ -178,6 +178,12 @@ class PhonePageTabsTest {
         assertTrue(reason("trakt", IllegalStateException("Trakt lists need a client id.")).contains("Trakt client ID"))
         assertTrue(reason("trakt", IllegalStateException("The collection provider returned HTTP 403.")).contains("refused"))
         assertTrue(reason("trakt", java.io.IOException("timeout")).contains("could not be reached"))
+        // #166: the status is named, so a refused client ID is not mistaken for a network problem.
+        assertTrue(reason("trakt", IllegalStateException("The collection provider returned HTTP 403.")).contains("HTTP 403"))
+        assertTrue(reason("trakt", IllegalStateException("The collection provider returned HTTP 502.")).contains("HTTP 502"))
+        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertTrue(tv.contains("PhoneLookups.reason(\"trakt\"")); assertFalse(tv.contains("Check the connection and try again"))
+        assertEquals(2, Regex("header\\(\"User-Agent\", TRAKT_AGENT\\)").findAll(java.io.File("src/main/java/app/ember/tv/data/CollectionRequests.kt").readText()).count())
         assertTrue(reason("person", IllegalStateException("TMDB sources need an API key.")).contains("TMDB key"))
         assertTrue(reason("person", IllegalStateException("Switch to an adult profile.")).contains("adult profile"))
         for (kind in listOf("trakt", "person", "company", "provider")) assertFalse(reason(kind, RuntimeException("secret-token-123")).contains("secret-token-123"))
