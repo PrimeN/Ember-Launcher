@@ -92,7 +92,7 @@ class CollectionTransferAndEditingTest {
     @Test fun thePhonePagesFlowIntoColumnsOnTabletsAndWiderScreens() {
         // #159: each Organize content task is one card inside the column flow.
         val html = ContentPhone.render(PhoneContent(listOf("opaque" to "Popular"), listOf("f-1" to "Films / Action"), emptyList(), collections = listOf("c-1" to "Films")), "lease")
-        assertEquals(1, Regex("<div class=cols>").findAll(html).count())
+        assertEquals(2, Regex("<div class=cols>").findAll(html).count())
         assertEquals(7, Regex("<div class=grp>").findAll(html).count())
         assertEquals(Regex("<div").findAll(html).count(), Regex("</div>").findAll(html).count())
         assertTrue(html.indexOf("<div class=cols>") < html.indexOf("<h3>Create or add to a collection</h3>"))
@@ -101,5 +101,41 @@ class CollectionTransferAndEditingTest {
         assertTrue(server.contains("append(\"<div class=cols>\")"))
         assertTrue("phones keep the readable single column; wide screens get room", server.contains("main{max-width:1240px"))
         assertFalse(server.contains("max-width:640px"))
+    }
+
+    @Test fun thePhoneListsCollectionsWithCoversAndOffersMoveEditAndDelete() {
+        // #160
+        val content = PhoneContent(listOf("opaque" to "Popular"), emptyList(), emptyList(), library = listOf(PhoneCollection("c-1", "Studios", listOf(
+            PhoneFolder("f-1", "Warner <Bros>", "wide", true, "https://example.com/wb.png", listOf("s-1" to "MDBList · Movies")),
+            PhoneFolder("f-2", "A24", "poster", false, "javascript:alert(1)", emptyList())))))
+        val html = ContentPhone.render(content, "lease")
+        val list = html.substringBefore("<h2>More tools</h2>")
+        assertTrue(list.contains("<h2>Studios</h2>")); assertTrue(list.contains("2 folders"))
+        assertTrue(list.contains("Warner &lt;Bros&gt;")); assertFalse(list.contains("<Bros>"))
+        assertTrue(list.contains("src=\"https://example.com/wb.png\"")); assertFalse("only web covers are shown", list.contains("javascript:"))
+        assertTrue(list.contains("<span class=chip>Wide</span>MDBList · Movies")); assertTrue(list.contains("<span class=chip>Poster</span>No sources"))
+        assertTrue(list.contains("/content?k=lease&amp;edit=f-1")); assertTrue(list.contains("/content?k=lease&amp;edit=new&amp;in=c-1")); assertTrue(list.contains("/content?k=lease&amp;edit=new\""))
+        assertEquals(4, Regex("name=action value=move-folder").findAll(list).count()); assertEquals(2, Regex("name=action value=delete").findAll(list).count())
+        // The first can't move up and the last can't move down.
+        assertEquals(2, Regex("aria-label=\"Move [^\"]+\" title=\"[^\"]+\" disabled").findAll(list).count())
+        assertEquals(Regex("<div").findAll(html).count(), Regex("</div>").findAll(html).count())
+    }
+    @Test fun theFolderEditorShowsWhatIsSavedAndCoversNewFoldersAndCollections() {
+        // #160
+        val content = PhoneContent(listOf("opaque" to "Popular"), emptyList(), emptyList(),
+            catalogExtras = listOf(PhoneCatalogExtras("opaque", "Provider", listOf(CatalogExtraDef("genre", false, listOf("Action"), null)))),
+            library = listOf(PhoneCollection("c-1", "Studios", listOf(PhoneFolder("f-1", "Warner \"Bros\"", "wide", true, "https://example.com/wb.png", listOf("s-1" to "MDBList · Movies"))))))
+        val edit = ContentPhone.editor(content, "lease", "f-1", null)
+        assertTrue(edit.contains("name=action value=save-folder")); assertTrue(edit.contains("name=target value=\"f-1\"")); assertTrue(edit.contains("name=in value=\"c-1\""))
+        assertTrue(edit.contains("value=\"Warner &quot;Bros&quot;\"")); assertTrue(edit.contains("value=LANDSCAPE checked")); assertFalse(edit.contains("value=POSTER checked"))
+        assertTrue(edit.contains("name=hideTitle checked")); assertTrue(edit.contains("value=\"https://example.com/wb.png\""))
+        assertTrue(edit.contains("name=\"remove:s-1\"")); assertTrue(edit.contains("Don't add another")); assertTrue(edit.contains("extra:opaque:genre"))
+        assertFalse("an existing collection keeps its title", edit.contains("name=collection"))
+        val folder = ContentPhone.editor(content, "lease", "new", "c-1")
+        assertTrue(folder.contains("New folder")); assertTrue(folder.contains("name=in value=\"c-1\"")); assertFalse(folder.contains("name=collection")); assertTrue(folder.contains("First source"))
+        val collection = ContentPhone.editor(content, "lease", "new", null)
+        assertTrue(collection.contains("name=collection")); assertTrue(collection.contains("name=in value=\"new\"")); assertFalse(collection.contains("remove:"))
+        val gone = ContentPhone.editor(content, "lease", "f-missing", null)
+        assertTrue(gone.contains("no longer exists")); assertFalse(gone.contains("<form"))
     }
 }

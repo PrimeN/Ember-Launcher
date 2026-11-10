@@ -252,6 +252,9 @@ class PhoneSetup(
                 val content = handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()
                 respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + "<p class=ok>${esc(message)}</p>" + content))
             }
+            // #160: the folder editor is its own page.
+            path == "/content" && query["edit"] != null -> respond(c, 200, page("Edit collection", nav(access, Tab.CONTENT) +
+                handler.content()?.let { ContentPhone.editor(it, access.code, query["edit"].orEmpty(), query["in"]) }.orEmpty()))
             path == "/content" -> respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()))
             path == "/" -> shell(tab)
             else -> respond(c, 404, page("Not found", ""))
@@ -553,6 +556,30 @@ form,.card{background:var(--card);border:1px solid var(--line);border-radius:16p
 .cols>form,.cols>.card,.cols>.grp{margin:0 0 16px}.cols>p,.cols>#find,.cols>h2{column-span:all;-webkit-column-span:all}
 .grp>h3{font-size:17px;margin:0 0 2px}.grp>form{margin:8px 0 0}
 .cols>#find{margin-bottom:14px}main>h2{margin-top:12px}
+.head{display:flex;align-items:baseline;gap:10px}.head h2{flex:1;margin:0 0 6px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.thumb{flex:none;width:52px;height:52px;border-radius:10px;background:var(--bg);display:grid;place-items:center;font-weight:700;font-size:20px;color:var(--mute);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.row .t{flex:1 1 150px;min-width:0}.row .t b,.row .t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t small{color:var(--mute);font-size:12px;margin-top:3px}
+.chip{display:inline-block;padding:1px 7px;border-radius:6px;background:#34353b;color:var(--fg);font-size:11px;font-weight:600;margin-right:6px}
+.acts{display:flex;gap:6px;margin-left:auto}.acts form{background:none;border:0;padding:0;margin:0}
+.ib{display:grid;place-items:center;flex:none;width:40px;height:40px;margin:0;padding:0;border:0;border-radius:50%;background:#2c2d32;color:var(--fg);font-size:16px;font-weight:600;text-decoration:none}
+.ib.danger{background:#3a2222;color:#ffb4ab}.ib:disabled{opacity:.3}
+.btn.quiet{background:#2c2d32;color:var(--fg)}
+.back{color:var(--fg);text-decoration:none;font-weight:600}
+form.ed{max-width:820px}form.ed label{display:block;margin-top:14px;font-size:14px;color:var(--mute)}form.ed h3{font-size:17px;margin-top:22px}
+.shapes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.shapes label{margin:4px 0 0;position:relative}
+.shapes input{position:absolute;opacity:0;width:1px;height:1px}
+.shapes span{display:block;text-align:center;padding:14px 6px 10px;border-radius:12px;border:1px solid #3a3b40;background:var(--bg);color:var(--mute);font-size:13px}
+.shapes i{display:block;margin:0 auto 8px;height:36px;background:#5b5d63;border-radius:5px}.shapes .poster{width:24px}.shapes .wide{width:58px}.shapes .square{width:36px}
+.shapes input:checked+span{border-color:var(--accent);background:#2c2d32;color:var(--fg)}.shapes input:checked+span i{background:#d5d8dc}
+.shapes input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+form.ed .tick{display:flex;justify-content:space-between;color:var(--fg);font-size:15px;padding:10px 0;margin:0;border-top:1px solid var(--line)}
+form.ed .tick.opt{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px}
+form.ed .tick small{display:block;color:var(--mute);font-size:12px}.tick .sw{width:52px;flex:none}form.ed .tick span{flex:1;min-width:0}
+.cover{display:block;margin-top:8px;width:140px;max-height:140px;object-fit:cover;border-radius:10px;background:var(--bg)}
+fieldset{border:1px solid var(--line);border-radius:12px;margin:10px 0;padding:8px 12px}legend{color:var(--mute);font-size:13px}
 input:focus,select:focus,textarea:focus{outline:0;border-color:var(--accent)}
 a:focus-visible,button:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button:active,.btn:active{opacity:.8}

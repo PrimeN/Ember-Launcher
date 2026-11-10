@@ -1,6 +1,9 @@
 package app.ember.tv.phone
 
-/** Phone pages expose labels and opaque references, never configured add-on URLs or API keys. */
+/**
+ * Phone pages expose labels and opaque references, never configured add-on URLs or API keys.
+ * Since #160 a folder's cover image link is also sent, so the editor can show and change it.
+ */
 data class PhoneContent(
     val sources: List<Pair<String, String>>,
     val targets: List<Pair<String, String>>,
@@ -9,41 +12,116 @@ data class PhoneContent(
     val collections: List<Pair<String, String>> = emptyList(),
     val folderSources: List<Pair<String, String>> = emptyList(),
     val existingExtras: List<PhoneCatalogExtras> = emptyList(),
+    /** Every collection with its folders, for the list and the folder editor (#160). */
+    val library: List<PhoneCollection> = emptyList(),
 )
+data class PhoneCollection(val id: String, val title: String, val folders: List<PhoneFolder>)
+/** [shape] is "poster", "wide" or "square"; [sources] are opaque ids with their labels, in order. */
+data class PhoneFolder(val id: String, val title: String, val shape: String, val hideTitle: Boolean, val cover: String?, val sources: List<Pair<String, String>>)
 data class PhoneCatalogExtras(val id: String, val label: String, val extras: List<app.ember.tv.data.CatalogExtraDef>)
 
 object ContentPhone {
     /** The export form's value for every collection in one pack (#158); real ids are opaque hashes starting "c-". */
     const val EXPORT_ALL = "all"
     private fun esc(value: String) = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+    private const val BIND = "function bind(id,attribute){const source=document.getElementById(id);function filters(){document.querySelectorAll('['+attribute+']').forEach(box=>{const on=box.getAttribute(attribute)===source.value;box.hidden=!on;box.querySelectorAll('input,select').forEach(input=>input.disabled=!on);});}source.addEventListener('change',filters);filters();}"
+    private fun web(url: String?) = url?.takeIf { it.startsWith("https://", true) || it.startsWith("http://", true) }
+    private fun shapeName(shape: String) = when (shape) { "poster" -> "Poster"; "wide" -> "Wide"; else -> "Square" }
+    private fun StringBuilder.options(values: List<Pair<String, String>>) { values.forEach { (id, name) -> append("<option value=\"").append(esc(id)).append("\">").append(esc(name)).append("</option>") } }
+    private fun StringBuilder.extras(catalogs: List<PhoneCatalogExtras>, prefix: String, attribute: String) { catalogs.forEach { catalog ->
+        append("<fieldset ").append(attribute).append("=\"").append(esc(catalog.id)).append("\"><legend>").append(esc(catalog.label)).append(" filters</legend>")
+        catalog.extras.forEach { extra ->
+            val key = "$prefix:${catalog.id}:${extra.name}"
+            append("<label>").append(esc(extra.name)).append(if (extra.required) " (required)" else "").append("</label>")
+            if (extra.options.isNotEmpty() && !app.ember.tv.data.CollectionSecrets.sensitive(extra.name)) {
+                append("<select name=\"").append(esc(key)).append("\"><option value=''>Choose / any</option>")
+                extra.options.forEach { value -> append("<option value=\"").append(esc(value)).append("\"" + if (value == extra.default) " selected" else "").append(">").append(esc(value)).append("</option>") }
+                append("</select>")
+            } else {
+                append("<input autocomplete=off name=\"").append(esc(key)).append("\" type=")
+                    .append(if (app.ember.tv.data.CollectionSecrets.sensitive(extra.name)) "password" else "text")
+                    .append(" value=\"").append(esc(if (app.ember.tv.data.CollectionSecrets.sensitive(extra.name)) "" else extra.default.orEmpty())).append("\">")
+            }
+        }; append("</fieldset>")
+    } }
+
+    /** The collections list (#160): every folder with its cover, shape and sources, and move, edit and delete buttons. */
+    private fun StringBuilder.library(content: PhoneContent, auth: String) {
+        fun post(action: String, target: String, extra: String, label: String, glyph: String, disabled: Boolean = false, danger: Boolean = false) {
+            append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=").append(action).append("><input type=hidden name=target value=\"").append(esc(target)).append("\">")
+                .append(extra).append("<button class=\"ib").append(if (danger) " danger" else "").append("\" aria-label=\"").append(esc(label)).append("\" title=\"").append(esc(label)).append("\"")
+                .append(if (disabled) " disabled" else "").append(">").append(glyph).append("</button></form>")
+        }
+        append("<div class=cols>")
+        content.library.forEach { c ->
+            append("<section class=\"card lib\"><div class=head><h2>").append(esc(c.title)).append("</h2><span class=m>").append(c.folders.size).append(if (c.folders.size == 1) " folder" else " folders").append("</span></div>")
+            c.folders.forEachIndexed { index, f ->
+                val name = f.title.ifBlank { "Folder" }
+                append("<div class=row><span class=thumb>")
+                web(f.cover)?.let { append("<img loading=lazy referrerpolicy=no-referrer alt=\"\" src=\"").append(esc(it)).append("\">") } ?: append(esc(name.take(1).uppercase()))
+                append("</span><div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(shapeName(f.shape)).append("</span>")
+                    .append(esc(f.sources.joinToString(" · ") { it.second }.ifBlank { "No sources" })).append("</small></div><div class=acts>")
+                post("move-folder", f.id, "<input type=hidden name=dir value=up>", "Move $name up", "&uarr;", disabled = index == 0)
+                post("move-folder", f.id, "<input type=hidden name=dir value=down>", "Move $name down", "&darr;", disabled = index == c.folders.lastIndex)
+                append("<a class=ib href=\"/content?k=$auth&amp;edit=").append(esc(f.id)).append("\" aria-label=\"Edit ").append(esc(name)).append("\" title=\"Edit ").append(esc(name)).append("\">&#9998;</a>")
+                post("delete", f.id, "", "Delete $name", "&#10005;", danger = true)
+                append("</div></div>")
+            }
+            append("<a class=\"btn quiet\" href=\"/content?k=$auth&amp;edit=new&amp;in=").append(esc(c.id)).append("\">Add a folder</a></section>")
+        }
+        append("<section class=card><h2>New collection</h2><p class=m>A collection is a row on Home and Discover; each folder in it is a tile that opens one or more catalogs.</p>")
+        append("<a class=btn href=\"/content?k=$auth&amp;edit=new\">Create a collection</a></section></div>")
+    }
+
+    /**
+     * The folder editor (#160): title, tile shape, hide title, cover and sources in one form, so one
+     * Save sends the whole edit to the TV. [edit] is a folder id or "new"; [into] the collection a new
+     * folder joins (absent: a new collection).
+     */
+    fun editor(content: PhoneContent, code: String, edit: String, into: String?): String = buildString {
+        val auth = esc(code)
+        val owner = if (edit == "new") content.library.firstOrNull { it.id == into } else content.library.firstOrNull { c -> c.folders.any { it.id == edit } }
+        val folder = owner?.folders?.firstOrNull { it.id == edit }
+        append("<p><a class=back href=\"/content?k=$auth\">&lsaquo; Collections</a></p>")
+        if (edit != "new" && folder == null) { append("<p class=ok>That folder no longer exists. Go back and pick another.</p>"); return@buildString }
+        append("<form class=ed method=post action=\"/content?k=$auth\"><input type=hidden name=action value=save-folder>")
+        append("<input type=hidden name=target value=\"").append(esc(edit)).append("\"><input type=hidden name=in value=\"").append(esc(owner?.id ?: "new")).append("\">")
+        append("<h2>").append(if (folder == null) "New folder" else "Edit folder").append("</h2>")
+        if (owner == null) append("<label for=ct>Collection title</label><p class=m>The row's name on Home, for example Studios.</p><input id=ct name=collection maxlength=100 required>")
+        else append("<p class=m>In the collection <b>").append(esc(owner.title)).append("</b></p>")
+        append("<label for=ft>Folder title</label><input id=ft name=name maxlength=100 required value=\"").append(esc(folder?.title.orEmpty())).append("\">")
+        append("<label>Tile shape</label><div class=shapes>")
+        val shape = folder?.shape ?: "wide"
+        listOf(Triple("POSTER", "poster", "Poster"), Triple("LANDSCAPE", "wide", "Wide"), Triple("SQUARE", "square", "Square")).forEach { (value, key, name) ->
+            append("<label><input type=radio name=shape value=").append(value).append(if (shape == key) " checked" else "").append("><span><i class=").append(key).append("></i>").append(name).append("</span></label>")
+        }
+        append("</div><label class=\"tick opt\"><span>Hide title<small>Only show the cover image</small></span><input class=sw type=checkbox role=switch name=hideTitle").append(if (folder?.hideTitle == true) " checked" else "").append("></label>")
+        append("<label for=cover>Cover image</label><p class=m>A link to an image, or leave empty to show the title.</p>")
+        append("<input id=cover name=cover type=url inputmode=url autocomplete=off placeholder=\"https://…\" value=\"").append(esc(web(folder?.cover).orEmpty())).append("\">")
+        append("<img id=pv class=cover referrerpolicy=no-referrer alt=\"Cover preview\" hidden>")
+        append("<h3>Content sources</h3><p class=m>What this folder shows. Several sources are combined.</p>")
+        folder?.sources?.forEach { (id, label) ->
+            append("<label class=\"tick src\"><span>").append(esc(label)).append("</span><input type=checkbox name=\"remove:").append(esc(id)).append("\"> Remove</label>")
+        }
+        append("<label for=source>").append(if (folder == null) "First source" else "Add another source").append("</label><select name=source id=source>")
+        append("<option value=''>").append(if (folder == null) "Choose a catalog or saved search" else "Don't add another").append("</option>"); options(content.sources); append("</select>")
+        extras(content.catalogExtras, "extra", "data-source")
+        append("<button>Save</button><p class=m>Saving sends the edit to the TV. Approve it there in Phone setup.</p></form>")
+        append("<script>").append(BIND).append("bind('source','data-source');(function(){var i=document.getElementById('cover'),p=document.getElementById('pv');function show(){var v=i.value.trim();if(/^https?:\\/\\//i.test(v)){p.src=v;p.hidden=false}else{p.hidden=true}}p.onerror=function(){p.hidden=true};i.addEventListener('input',show);show();})();</script>")
+    }
+
     fun render(content: PhoneContent, code: String): String = buildString {
         val auth = esc(code)
         append("<h2>Organize content</h2><p class=m>Changes are sent to the TV for review. Approve them there before they are saved.</p>")
+        library(content, auth)
         // #159: each task is its own card, and the cards flow into columns on tablets and wider screens.
-        append("<div class=cols>")
+        append("<h2>More tools</h2><div class=cols>")
         var open = false
         fun group() { if (open) append("</div>"); open = true; append("<div class=grp>") }
-        fun options(values: List<Pair<String, String>>) { values.forEach { (id, name) -> append("<option value=\"").append(esc(id)).append("\">").append(esc(name)).append("</option>") } }
         // #158: headed sections, so creating, exporting and deleting are easy to find.
-        group(); append("<h3>Create or add to a collection</h3><p class=m>To create a collection, keep Destination on <b>New collection and folder</b>, name both, and choose the first catalog to put in it. To grow one you have, pick it as the destination.</p>")
+        group(); append("<h3>Create or add to a collection</h3><p class=m>The quick way to drop one catalog into a new or existing folder. To create a collection here, keep Destination on <b>New collection and folder</b> and name both.</p>")
         append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=add-source>")
         append("<label>Catalog or saved search</label><select name=source id=source>"); options(content.sources); append("</select>")
-        fun extras(catalogs: List<PhoneCatalogExtras>, prefix: String, attribute: String) { catalogs.forEach { catalog ->
-            append("<fieldset ").append(attribute).append("=\"").append(esc(catalog.id)).append("\"><legend>").append(esc(catalog.label)).append(" filters</legend>")
-            catalog.extras.forEach { extra ->
-                val key = "$prefix:${catalog.id}:${extra.name}"
-                append("<label>").append(esc(extra.name)).append(if (extra.required) " (required)" else "").append("</label>")
-                if (extra.options.isNotEmpty() && !app.ember.tv.data.CollectionSecrets.sensitive(extra.name)) {
-                    append("<select name=\"").append(esc(key)).append("\"><option value=''>Choose / any</option>")
-                    extra.options.forEach { value -> append("<option value=\"").append(esc(value)).append("\"" + if (value == extra.default) " selected" else "").append(">").append(esc(value)).append("</option>") }
-                    append("</select>")
-                } else {
-                    append("<input autocomplete=off name=\"").append(esc(key)).append("\" type=")
-                        .append(if (app.ember.tv.data.CollectionSecrets.sensitive(extra.name)) "password" else "text")
-                        .append(" value=\"").append(esc(if (app.ember.tv.data.CollectionSecrets.sensitive(extra.name)) "" else extra.default.orEmpty())).append("\">")
-                }
-            }; append("</fieldset>")
-        } }
         extras(content.catalogExtras, "extra", "data-source")
         append("<label>Destination</label><select name=target><option value=new>New collection and folder</option>"); options(content.targets); append("</select>")
         append("<input name=collection maxlength=100 placeholder=\"New collection name\"><input name=folder maxlength=100 placeholder=\"New folder name\">")
@@ -62,7 +140,7 @@ object ContentPhone {
         append("<form method=post action=\"/collection-export?k=$auth\"><label>Collection to export</label><select name=collectionId>")
         if (content.collections.size > 1) append("<option value=\"").append(EXPORT_ALL).append("\">All collections (").append(content.collections.size).append(")</option>")
         options(content.collections); append("</select><input type=password name=passphrase minlength=8 autocomplete=off placeholder='Export passphrase (at least 8 characters)'><button>Download encrypted collection</button></form>")
-        append("""<script>function bind(id,attribute){const source=document.getElementById(id);function filters(){document.querySelectorAll('['+attribute+']').forEach(box=>{const on=box.getAttribute(attribute)===source.value;box.hidden=!on;box.querySelectorAll('input,select').forEach(input=>input.disabled=!on);});}source.addEventListener('change',filters);filters();}bind('source','data-source');bind('existing-source','data-existing-source');</script>""")
+        append("<script>").append(BIND).append("bind('source','data-source');bind('existing-source','data-existing-source');</script>")
         group(); append("<h3>Delete</h3><p class=m>Deleting can't be undone; export first to keep a copy. Deleting a collection's only folder deletes the collection.</p>")
         append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=delete><label>Collection or folder to delete</label><select name=target>")
         options(content.collections.map { (id, name) -> id to "$name (whole collection)" } + content.targets.filterNot { it.first.startsWith("c-") })

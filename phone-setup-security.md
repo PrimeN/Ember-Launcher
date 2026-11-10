@@ -40,3 +40,8 @@ On a TV and phone, check:
 5. Traffic does not renew the deadline, and required TV approvals cannot be bypassed.
 6. Failed authentication is throttled and sensitive exports are encrypted with the
    chosen passphrase.
+
+The collections editor on the page lists collections, folders and source labels by
+opaque reference. It also sends each folder's cover image link, so the editor can
+show and change it; the browser loads that image directly, without a referrer.
+Add-on URLs, API keys and private source settings are never sent.

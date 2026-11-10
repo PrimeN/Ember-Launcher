@@ -161,6 +161,11 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     catalogExtras = collectionCatalogs.filter { it.extras.isNotEmpty() }.map { app.ember.tv.phone.PhoneCatalogExtras(AddonAccess.key(it.key), it.label, it.extras.map { e -> if (app.ember.tv.data.CollectionSecrets.sensitive(e.name)) e.copy(default = null, options = emptyList()) else e }) },
                     collections = collections.list.map { targetKey(it.id) to it.title },
                     folderSources = folderSources().map { (id, target) -> id to (target.first.title + " / " + target.second.title + " / " + app.ember.tv.data.Collections.label(target.second.allSources[target.third], collectionCatalogs)) },
+                    library = folderSources().let { ids -> collections.list.map { c -> app.ember.tv.phone.PhoneCollection(targetKey(c.id), c.title, c.folders.map { f ->
+                        app.ember.tv.phone.PhoneFolder(targetKey(c.id, f.id), f.title, f.shape, f.hideTitle, f.coverImageUrl,
+                            ids.filter { it.second.first.id == c.id && it.second.second.id == f.id }.sortedBy { it.second.third }
+                                .map { it.first to app.ember.tv.data.Collections.label(f.allSources[it.second.third], collectionCatalogs) })
+                    }) } },
                     existingExtras = folderSources().mapNotNull { (id, target) ->
                         val source = target.second.allSources[target.third]
                         collectionCatalogs.firstOrNull { app.ember.tv.data.Collections.matches(it, source) }?.let { def ->
@@ -236,6 +241,46 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         val updated = c.copy(folders = c.folders.map { if (it.id == f.id) it.copy(sources = ordered, catalogSources = emptyList()) else it })
                         app.ember.tv.data.Collections.inspect(app.ember.tv.data.Collections.encode(listOf(updated))).error?.let { return@onPhoneMain it }
                         stage("Edit source ${old.title ?: old.catalogId ?: "source"} in ${c.title} / ${f.title}; action: ${operation ?: "edit"}" + if (year.isNotBlank() || rating.isNotBlank()) "; year: $year, minimum rating: $rating." else ".") { collections.saveCollection(updated, c) }
+                    }
+                    "save-folder" -> {
+                        // #160: the folder editor's one Save: title, shape, hide title, cover and sources together.
+                        val target = fields["target"].orEmpty(); val into = fields["in"].orEmpty()
+                        val creating = target == "new"
+                        val c = if (creating) collections.list.firstOrNull { targetKey(it.id) == into }
+                            else collections.list.firstOrNull { c -> c.folders.any { targetKey(c.id, it.id) == target } } ?: return@onPhoneMain "That folder no longer exists. Reload the page."
+                        if (creating && c == null && into != "new" && into.isNotBlank()) return@onPhoneMain "That collection no longer exists. Reload the page."
+                        val old = if (creating || c == null) null else c.folders.firstOrNull { targetKey(c.id, it.id) == target }
+                        val name = fields["name"].orEmpty().trim().take(100)
+                        if (name.isBlank()) return@onPhoneMain "Enter a folder title."
+                        val collectionName = fields["collection"].orEmpty().trim().take(100)
+                        if (c == null && collectionName.isBlank()) return@onPhoneMain "Enter a collection title."
+                        val shape = fields["shape"]?.takeIf { it in setOf("POSTER", "LANDSCAPE", "SQUARE") } ?: old?.tileShape ?: "SQUARE"
+                        val cover = fields["cover"].orEmpty().trim().take(4000).ifBlank { null }
+                        if (cover != null && !cover.startsWith("https://", true) && !cover.startsWith("http://", true)) return@onPhoneMain "The cover image must be an http or https link."
+                        val ids = if (c == null || old == null) emptyMap<Int, String>() else folderSources().filter { it.second.first.id == c.id && it.second.second.id == old.id }.associate { it.second.third to it.first }
+                        val kept = old?.allSources.orEmpty().filterIndexed { index, _ -> fields["remove:" + ids[index]] != "on" }
+                        val added = fields["source"].orEmpty().takeIf { it.isNotBlank() }?.let { id ->
+                            runCatching { configuredSource(id, fields) }.getOrNull() ?: return@onPhoneMain "Choose an available source and complete its required filters."
+                        }
+                        if (added != null && kept.any { collections.sourceKey(it) == collections.sourceKey(added) }) return@onPhoneMain "That source is already in this folder."
+                        val sources = kept + listOfNotNull(added)
+                        if (sources.isEmpty()) return@onPhoneMain "A folder needs at least one source. Choose one, or delete the folder instead."
+                        val folder = (old ?: app.ember.tv.data.CollectionFolder(id = java.util.UUID.randomUUID().toString()))
+                            .copy(title = name, tileShape = shape, hideTitle = fields["hideTitle"] == "on", coverImageUrl = cover, sources = sources, catalogSources = emptyList())
+                        val updated = if (c == null) app.ember.tv.data.MediaCollection(id = java.util.UUID.randomUUID().toString(), title = collectionName, folders = listOf(folder))
+                            else c.copy(folders = if (old == null) c.folders + folder else c.folders.map { if (it.id == old.id) folder else it })
+                        app.ember.tv.data.Collections.inspect(app.ember.tv.data.Collections.encode(listOf(updated))).error?.let { return@onPhoneMain it }
+                        val changes = listOfNotNull("${sources.size} source(s)", "shape ${shape.lowercase()}", if (cover != old?.coverImageUrl) "cover changed" else null, if (folder.hideTitle) "title hidden" else null).joinToString(", ")
+                        stage((if (old == null) "Create the folder " else "Save the folder ") + "${updated.title} / $name: $changes.") { collections.saveCollection(updated, c) }
+                    }
+                    "move-folder" -> {
+                        val target = fields["target"].orEmpty()
+                        val c = collections.list.firstOrNull { c -> c.folders.any { targetKey(c.id, it.id) == target } } ?: return@onPhoneMain "That folder no longer exists. Reload the page."
+                        val from = c.folders.indexOfFirst { targetKey(c.id, it.id) == target }
+                        val to = from + if (fields["dir"] == "up") -1 else 1
+                        if (to !in c.folders.indices) return@onPhoneMain "That folder is already at the ${if (fields["dir"] == "up") "start" else "end"}."
+                        val moved = c.folders.toMutableList().apply { add(to, removeAt(from)) }
+                        stage("Move the folder ${c.title} / ${c.folders[from].title} ${if (fields["dir"] == "up") "up" else "down"}.") { collections.saveCollection(c.copy(folders = moved), c) }
                     }
                     "delete" -> {
                         // #158: a whole collection ("c-…") or one folder; approved on the TV like every phone change.
