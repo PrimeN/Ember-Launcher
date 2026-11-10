@@ -76,7 +76,7 @@ class DiscoverState(
                     if (index < 0) { discoverCatalogs = listOf(wanted) + discoverCatalogs; index = 0 }
                     selectCatalog(index)
                 }
-                discoverCatalogs.isEmpty() -> discoverNote = "No catalogs to browse. Add an addon, or switch catalogs on for Discover in Settings > Catalogs."
+                discoverCatalogs.isEmpty() -> discoverNote = "No catalogs to browse. Add an addon, or switch catalogs on for Discover in Settings > Addons & catalogs."
                 loadRequested -> selectCatalog(0)
             }
         }

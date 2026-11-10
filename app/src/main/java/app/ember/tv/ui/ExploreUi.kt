@@ -217,7 +217,7 @@ private fun DiscoverCollections(vm: HomeViewModel) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = TvTokens.Space.Page.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (collections.isEmpty()) item(key = "empty") {
-            RecoveryPanel("No collections to show", "Import collections and choose which ones appear in Discover in Settings > Stremio.")
+            RecoveryPanel("No collections to show", "Import collections and choose which ones appear in Discover in Settings > Home > Widgets & collections.")
         }
         items(collections, key = { it.id }) { collection ->
             CollectionRow(collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,

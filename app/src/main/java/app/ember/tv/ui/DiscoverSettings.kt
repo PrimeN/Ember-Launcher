@@ -16,7 +16,7 @@ internal fun DiscoverSettings(vm: HomeViewModel) {
             val note = when (section) {
                 DiscoverSection.EXPLORE -> "Movie and show discovery. Requires a TMDB key; unavailable to Kids profiles."
                 DiscoverSection.CATALOGS -> "Installed, enabled catalogs that can be browsed in Discover."
-                DiscoverSection.COLLECTIONS -> "Collections selected for Discover in Stremio settings."
+                DiscoverSection.COLLECTIONS -> "Collections selected for Discover in Settings > Home > Widgets & collections."
             }
             SettingToggle(section.name.lowercase().replaceFirstChar { it.uppercase() }, note, on) { vm.look.updateDiscoverSection(section.name, !on) }
         }

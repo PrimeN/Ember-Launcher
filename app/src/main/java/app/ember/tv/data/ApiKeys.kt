@@ -100,7 +100,7 @@ object ApiKeys {
         ),
         Service(
             "TVDB",
-            "TV show details, artwork and episode names (Settings > Metadata).",
+            "TV show details, artwork and episode names (Settings > Artwork & metadata).",
             "thetvdb.com > Dashboard > API keys: create a project key. The PIN is only for keys tied to a TVDB subscription.",
             listOf(Field("TVDB_API_KEY", "API key"), Field("TVDB_PIN", "Subscriber PIN (optional)", optional = true)),
         ),

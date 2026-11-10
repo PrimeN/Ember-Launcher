@@ -503,7 +503,7 @@ class PhoneSetup(
         }
         append("<form method=post action=\"/presentation$auth\" enctype=multipart/form-data><h2>Presentation playlist</h2><p class=m>Images and short videos up to 8 MB. Approve each addition on the TV. For larger videos, choose a file on the TV.</p><input name=name required placeholder=\"File name including extension, e.g. photo.jpg or clip.mp4\"><input name=file type=file accept=\"image/*,video/*\" required><button>Send for TV approval</button></form>")
         append("<form method=post action=\"/collections$auth\" enctype=multipart/form-data>")
-        append("<h2>Import collections</h2><p class=m>A collections export (JSON) for Settings &gt; Stremio &gt; Collections. Pick the file, or paste its contents.</p>")
+        append("<h2>Import collections</h2><p class=m>A collections export (JSON) for Settings &gt; Home &gt; Widgets &amp; collections. Pick the file, or paste its contents.</p>")
         append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><input type=password name=passphrase autocomplete=off placeholder='Passphrase for encrypted Ember collection packs'><button>Add collections</button></form>")
         append("<form method=post action=\"/badges$auth\" enctype=multipart/form-data>")
         append("<h2>Source badges</h2><p class=m>A badge pack (JSON) for Settings &gt; Stremio &gt; Badges. Pick the file, or paste its contents.</p>")

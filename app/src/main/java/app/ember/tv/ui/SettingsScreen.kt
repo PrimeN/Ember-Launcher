@@ -95,26 +95,23 @@ import java.util.Date
 import java.util.Locale
 
 /** The pages of Settings, in side-list order. Each page holds one topic; [group] heads the list. */
-internal enum class SettingsTab(val label: String, val group: String) {
+internal enum class SettingsTab(val label: String, val group: String, private val mergedInto: String? = null) {
     SEARCH("Search settings", "Search"),
     // Look & feel: how Ember looks and responds, in every interface.
     APPEARANCE("Appearance", "Look"),
     SIZE("Size & spacing", "Look"),
     PERFORMANCE("Performance & effects", "Look"),
-    REMOTE("Remote", "Look"),
     // Home: what the Home screen shows and what happens at startup.
     HOME_ROWS("Home layout", "Home"),
     // #163: what you add to Home yourself, in one place.
     WIDGETS("Widgets & collections", "Home"),
-    LIGHT_HOME("Ember Light Home", "Home"),
-    TOP_MENU("Top menu", "Home"),
-    DISCOVER("Discover", "Home"),
     HOME_TOOLS("Apps & folders", "Home"),
-    DEFAULT_HOME("Startup", "Home"),
-    HOME_EXTRAS("Extras", "Home"),
-    FEATURES("Features", "Home"),
-    WEATHER("Weather", "Home"),
-    SCREENSAVER("Screensaver", "Home"),
+    TOP_MENU("Top menu", "Home"),
+    LIGHT_HOME("Ember Light Home", "Home"),
+    DEFAULT_HOME("Startup & screensaver", "Home"),
+    SCREENSAVER("Screensaver", "Home", "DEFAULT_HOME"),
+    HOME_EXTRAS("Extras & weather", "Home"),
+    WEATHER("Weather", "Home", "HOME_EXTRAS"),
     // Playback: the player and what it picks.
     PLAYER("Player", "Playback"),
     AUDIO_VIDEO("Audio & video", "Playback"),
@@ -122,26 +119,36 @@ internal enum class SettingsTab(val label: String, val group: String) {
     PLAY_BUTTON("Play button", "Playback"),
     WATCH_STATUS("Watched & spoilers", "Playback"),
     // Sources: where titles, streams and their details come from.
-    ADDONS("Addons", "Sources"),
-    CATALOGS("Catalogs", "Sources"),
+    ADDONS("Addons & catalogs", "Sources"),
+    CATALOGS("Catalogs", "Sources", "ADDONS"),
     STREMIO("Stream results & badges", "Sources"),
     LIVE("Live TV", "Sources"),
     STREAMING("Where to watch", "Sources"),
-    POSTERS("Posters & ratings", "Sources"),
-    METADATA("Metadata", "Sources"),
+    POSTERS("Artwork & metadata", "Sources"),
+    METADATA("Metadata", "Sources", "POSTERS"),
+    DISCOVER("Discover", "Sources"),
     PROFILES("Profiles & PIN", "Accounts"),
     TRACKERS("Trackers", "Accounts"),
     SERVERS("Media servers", "Accounts"),
     KEYS("API keys", "Accounts"),
-    DEVICE_TOOLS("TV & device", "System"),
-    CACHE("Cache Management", "System"),
-    BACKUP("Backup & restore", "System"),
+    DEVICE_TOOLS("TV & remote", "System"),
+    REMOTE("Remote", "System", "DEVICE_TOOLS"),
     PHONE("Phone setup", "System"),
+    BACKUP("Backup & restore", "System"),
     UPDATES("Updates", "System"),
-    DEBUG("Diagnostics", "System"),
+    DEBUG("Storage & diagnostics", "System"),
+    CACHE("Cache Management", "System", "DEBUG"),
+    FEATURES("Features", "System"),
     // About: what Ember is and its licences, in their own section (#67).
     ABOUT("About Ember", "About"),
-    LEGAL("Legal", "About"),
+    LEGAL("Legal", "About");
+
+    /**
+     * #164: a page that became part of another keeps its name, so search results, shortcuts and
+     * saved positions still resolve; opening it opens [host], which shows its settings.
+     */
+    val host: SettingsTab get() = mergedInto?.let { name -> entries.first { it.name == name } } ?: this
+    val merged: Boolean get() = mergedInto != null
 }
 
 /**
@@ -161,7 +168,7 @@ fun SettingsScreen(vm: HomeViewModel) {
     var returnToSearch by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var lastTopic by remember {mutableStateOf<SettingsTab?>(null)}
     var focusContent by remember {mutableStateOf(true)}
-    fun openPage(page:SettingsTab) {location=SettingsLocation.open(page);lastTopic=page;focusContent=true}
+    fun openPage(page:SettingsTab) {location=SettingsLocation.open(page);lastTopic=page.host;focusContent=true}
     val openKeys = {searchTarget=null;returnToSearch=false;openPage(SettingsTab.KEYS)}
     LaunchedEffect(vm.look.settingsJump) {
         vm.look.settingsJump?.let {name->
@@ -197,11 +204,13 @@ fun SettingsScreen(vm: HomeViewModel) {
                 appearancePage(vm, SettingsTab.LIGHT_HOME)
             }
             SettingsTab.HOME_TOOLS -> item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)}
-            SettingsTab.HOME_EXTRAS -> item(key="home-extras"){HomeToolsPage(vm, HomeToolsPart.EXTRAS)}
+            SettingsTab.HOME_EXTRAS -> { item(key="home-extras"){HomeToolsPage(vm, HomeToolsPart.EXTRAS)}; item(key = "weather") { WeatherSection(vm) } }
             SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE -> appearancePage(vm, tab)
             SettingsTab.POSTERS -> {
                 item(key = "posters") { PostersPage(vm, openKeys) }
                 ratingsPage(vm, openKeys)
+                // #164: Metadata joins Posters & ratings.
+                item(key = "metadata") { MetadataPage(vm, openKeys) }
             }
             SettingsTab.METADATA -> item(key = "metadata") { MetadataPage(vm, openKeys) }
             SettingsTab.WEATHER -> item(key = "weather") { WeatherSection(vm) }
@@ -212,6 +221,8 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.ADDONS -> {
                 item(key = "addonstatus") { SourceStatusButton("Addon status", vm.catalogs.health.entries.values, vm.catalogs::retry) }
                 addonsPage(vm)
+                // #164: their catalogs follow on the same page.
+                catalogsPage(vm)
             }
             SettingsTab.CATALOGS -> {
                 item(key = "catalogstatus") { SourceStatusButton("Addon status", vm.catalogs.health.entries.values, vm.catalogs::retry) }
@@ -244,8 +255,11 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.DEFAULT_HOME -> {
                 item(key = "defaulthome") { DefaultHomePage() }
                 item(key = "startup") { HomeToolsPage(vm, HomeToolsPart.STARTUP) }
+                item(key = "screensaver") { ScreensaverSection(vm) }
             }
             SettingsTab.DEVICE_TOOLS -> {
+                // #164: the remote's settings lead the page they joined.
+                appearancePage(vm, SettingsTab.REMOTE)
                 item(key = "device-tools") { DeviceToolsSettings(vm) }
                 item(key = "engineering") { EngineeringMenusSettings(vm) }
             }
@@ -259,6 +273,7 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.CACHE -> CACHE_KEYS.forEach { part -> item(key=part) { CacheManagementSettings(part) } }
             SettingsTab.UPDATES -> item(key="updates") {UpdatesSection(vm)}
             SettingsTab.DEBUG -> {
+                CACHE_KEYS.forEach { part -> item(key=part) { CacheManagementSettings(part) } }
                 item(key="debug-build") {Section("Build information",id="debug-build") {
                     Text("${app.ember.tv.BuildConfig.VERSION_NAME} · ${app.ember.tv.BuildConfig.BUILD_TYPE}",color=Fg)
                     if(app.ember.tv.BuildConfig.DEBUG)Note(stringResource(R.string.ui_this_is_a_debug_build_updates))
@@ -287,7 +302,8 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.PLAYER -> PLAYER_KEYS
             SettingsTab.AUDIO_VIDEO -> AUDIO_VIDEO_KEYS
             SettingsTab.CACHE -> CACHE_KEYS
-            SettingsTab.DEBUG -> listOf("debug-build","image-cache","provider-diagnostics","crash-log")
+            SettingsTab.DEBUG -> SettingsMerges.diagnosticsKeys
+            SettingsTab.DEVICE_TOOLS -> lookKeys(SettingsTab.REMOTE, vm.look.uiStyle) + listOf("device-tools", "engineering")
             else -> emptyList()
         }
         keys.indexOf(target).takeIf { it >= 0 }

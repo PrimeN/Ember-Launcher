@@ -115,7 +115,8 @@ class CacheManagementCoreTest {
  }
  @Test fun cacheSettingsAreSearchableUnderSystem(){
   assertEquals(SettingsCategory.SYSTEM,SettingsCategory.of(SettingsTab.CACHE))
-  assertEquals(SettingsTab.CACHE,SettingsLocation.jump("CACHE")!!.page)
+  // #164: Cache Management is part of Storage & diagnostics.
+  assertEquals(SettingsTab.DEBUG,SettingsLocation.jump("CACHE")!!.page)
   for(query in listOf("image duration","metadata cache","catalog cache","cache size","network cache"))
    assertTrue(query,SettingDefinitions.matching(query).any{it.tab==SettingsTab.CACHE})
  }

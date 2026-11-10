@@ -34,20 +34,20 @@ internal fun SettingsTab.title(): String = stringResource(
         SettingsTab.PERFORMANCE -> R.string.settings_page_performance
         SettingsTab.REMOTE -> R.string.settings_page_remote
         SettingsTab.LIGHT_HOME -> R.string.settings_page_light_home
-        SettingsTab.HOME_EXTRAS -> R.string.settings_page_extras
+        SettingsTab.HOME_EXTRAS -> R.string.settings_page_extras_weather
         SettingsTab.AUDIO_VIDEO -> R.string.settings_page_audio_video
         SettingsTab.HOME_ROWS -> R.string.settings_home_rows
         SettingsTab.WIDGETS -> R.string.settings_page_widgets
         SettingsTab.APPEARANCE -> R.string.settings_appearance
-        SettingsTab.POSTERS -> R.string.settings_page_posters
+        SettingsTab.POSTERS -> R.string.settings_page_artwork_metadata
         SettingsTab.METADATA -> R.string.settings_metadata
         SettingsTab.WEATHER -> R.string.settings_weather
         SettingsTab.PLAYER -> R.string.settings_player
         SettingsTab.WATCH_STATUS -> R.string.settings_watch_status
         SettingsTab.UPDATES -> R.string.settings_updates
-        SettingsTab.DEBUG -> R.string.settings_page_diagnostics
+        SettingsTab.DEBUG -> R.string.settings_page_storage_diagnostics
         SettingsTab.PLAY_BUTTON -> R.string.settings_play_button
-        SettingsTab.ADDONS -> R.string.settings_addons
+        SettingsTab.ADDONS -> R.string.settings_page_addons_catalogs
         SettingsTab.CATALOGS -> R.string.settings_catalogs
         SettingsTab.STREMIO -> R.string.settings_page_stream_results
         SettingsTab.SUBTITLES -> R.string.settings_page_languages
@@ -57,8 +57,8 @@ internal fun SettingsTab.title(): String = stringResource(
         SettingsTab.TRACKERS -> R.string.settings_trackers
         SettingsTab.SERVERS -> R.string.settings_servers
         SettingsTab.KEYS -> R.string.settings_keys
-        SettingsTab.DEFAULT_HOME -> R.string.settings_page_startup
-        SettingsTab.DEVICE_TOOLS -> R.string.settings_page_tv_device
+        SettingsTab.DEFAULT_HOME -> R.string.settings_page_startup_screensaver
+        SettingsTab.DEVICE_TOOLS -> R.string.settings_page_tv_remote
         SettingsTab.PHONE -> R.string.settings_phone
         SettingsTab.SCREENSAVER -> R.string.settings_screensaver
         SettingsTab.BACKUP -> R.string.settings_page_backup

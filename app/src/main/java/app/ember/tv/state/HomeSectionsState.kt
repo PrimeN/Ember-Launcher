@@ -38,7 +38,7 @@ class HomeSectionsState(
             add(SectionInfo(HOME_SERVERS, "Your media servers", "Continue and recently added on Plex, Jellyfin or Emby."))
             SmartRows.ALL.filter { it.first != SmartRows.UP_NEXT }.forEach { (id, label) -> add(SectionInfo(smartSection(id), label, "Extra row.")) }
             addAll(extraSections().map { it.first })
-            add(SectionInfo(HOME_CATALOGS, "Addon catalogs", "The catalogs switched on for Home in Settings > Catalogs, in that order."))
+            add(SectionInfo(HOME_CATALOGS, "Addon catalogs", "The catalogs switched on for Home in Settings > Addons & catalogs, in that order."))
         }
 
     val sectionInfo: List<SectionInfo>

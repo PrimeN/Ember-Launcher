@@ -47,6 +47,12 @@
     <string name="settings_page_startup">Startup</string>
     <string name="settings_page_extras">Extras</string>
     <string name="settings_page_widgets">Widgets &amp; collections</string>
+    <string name="settings_page_extras_weather">Extras &amp; weather</string>
+    <string name="settings_page_artwork_metadata">Artwork &amp; metadata</string>
+    <string name="settings_page_storage_diagnostics">Storage &amp; diagnostics</string>
+    <string name="settings_page_addons_catalogs">Addons &amp; catalogs</string>
+    <string name="settings_page_startup_screensaver">Startup &amp; screensaver</string>
+    <string name="settings_page_tv_remote">TV &amp; remote</string>
     <string name="settings_page_audio_video">Audio &amp; video</string>
     <string name="settings_page_languages">Languages &amp; subtitles</string>
     <string name="settings_page_stream_results">Stream results &amp; badges</string>
@@ -63,6 +69,12 @@
     <string name="settings_summary_startup">Ember as Home, the Home button and what opens when the TV starts.</string>
     <string name="settings_summary_extras">Now Playing and presentation slideshows.</string>
     <string name="settings_summary_widgets">Your own Home rows, banners and collections.</string>
+    <string name="settings_summary_extras_weather">Now Playing, presentation slideshows and weather.</string>
+    <string name="settings_summary_artwork_metadata">Posters, ratings and where title details come from.</string>
+    <string name="settings_summary_storage_diagnostics">Cache sizes and durations, crash log and build details.</string>
+    <string name="settings_summary_addons_catalogs">Add addons and choose where their catalogs show.</string>
+    <string name="settings_summary_startup_screensaver">What opens when the TV starts, and the screensaver.</string>
+    <string name="settings_summary_tv_remote">Remote buttons and sounds, TV menus and inputs.</string>
     <string name="settings_summary_audio_video">Audio output, lip sync, decoding, HDR, frame rate and buffering.</string>
     <string name="settings_summary_tv_device">Calibration, display and input shortcuts, manufacturer and engineering menus.</string>
 </resources>

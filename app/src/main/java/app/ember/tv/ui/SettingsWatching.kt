@@ -551,7 +551,7 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
             Note(
                 stringResource(R.string.ui_add_an_m3u_playlist_link_or) +
                     "use channel up and down (or Up and Down) to change channel, and Info for the playback panel. " +
-                    "Addon catalogs for Live TV are chosen in Settings > Catalogs.",
+                    "Addon catalogs for Live TV are chosen in Settings > Addons & catalogs.",
             )
         }
 
