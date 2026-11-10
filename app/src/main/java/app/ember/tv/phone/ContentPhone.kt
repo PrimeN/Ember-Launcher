@@ -33,18 +33,20 @@ object ContentPhone {
     /** The export form's value for every collection in one pack (#158); real ids are opaque hashes starting "c-". */
     const val EXPORT_ALL = "all"
     private fun esc(value: String) = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+    /** A collection with more folders than this starts collapsed. */
+    const val FOLDERS_OPEN = 6
     private const val BIND = "function bind(id,attribute){const source=document.getElementById(id);function filters(){document.querySelectorAll('['+attribute+']').forEach(box=>{const on=box.getAttribute(attribute)===source.value;box.hidden=!on;box.querySelectorAll('input,select').forEach(input=>input.disabled=!on);});}source.addEventListener('change',filters);filters();}"
     /** Search-as-you-type for the widget editor: people, studios and services become chips; a Trakt list fills its number. */
     private const val FINDERS = "(function(){var K=(location.search.match(/[?&]k=([^&]+)/)||[])[1]||'';" +
-        "function ask(kind,q,tab,done){fetch('/lookup?k='+K+'&kind='+kind+'&tab='+encodeURIComponent(tab||'')+'&q='+encodeURIComponent(q||'')).then(function(r){return r.json()}).then(done).catch(function(){done([])})}" +
+        "function ask(kind,q,tab,done){fetch('/lookup?k='+K+'&kind='+kind+'&tab='+encodeURIComponent(tab||'')+'&q='+encodeURIComponent(q||'')).then(function(r){return r.json()}).then(function(j){if(j&&j.error)done([],j.error);else done(j)}).catch(function(){done([],'The TV did not answer. The session may have ended.')})}" +
         "function note(box,text){box.textContent='';var p=document.createElement('p');p.className='m';p.textContent=text;box.appendChild(p)}" +
         "function list(box,rows,pick){box.textContent='';if(!rows.length){note(box,'Nothing found.');return}rows.forEach(function(r){var b=document.createElement('button');b.type='button';b.className='res';var t=document.createElement('b');t.textContent=r.name;b.appendChild(t);if(r.note){var s=document.createElement('small');s.textContent=r.note;b.appendChild(s)}b.onclick=function(){pick(r)};box.appendChild(b)})}" +
         "function quiet(i){i.addEventListener('keydown',function(e){if(e.key==='Enter')e.preventDefault()})}" +
         "document.querySelectorAll('.pick').forEach(function(p){var i=p.querySelector('input[type=search]'),res=p.querySelector('.results'),chosen=p.querySelector('.chosen'),t;quiet(i);" +
-        "i.addEventListener('input',function(){clearTimeout(t);var q=i.value.trim();if(q.length<2){res.textContent='';return}t=setTimeout(function(){ask(p.dataset.lookup,q,'',function(rows){list(res,rows,function(r){" +
+        "i.addEventListener('input',function(){clearTimeout(t);var q=i.value.trim();if(q.length<2){res.textContent='';return}t=setTimeout(function(){ask(p.dataset.lookup,q,'',function(rows,err){if(err){note(res,err);return}list(res,rows,function(r){" +
         "var name='ref:'+p.dataset.ref+':'+r.id;if(!chosen.querySelector('[name=\"'+name+'\"]')){var c=document.createElement('label'),h=document.createElement('input'),s=document.createElement('span');h.type='hidden';h.name=name;h.value=r.name;s.textContent=r.name+' \u00d7';c.appendChild(h);c.appendChild(s);c.onclick=function(){c.remove()};chosen.appendChild(c)}res.textContent='';i.value=''})})},350)})});" +
         "var tf=document.getElementById('trakt-find');if(tf){var res=tf.querySelector('.results'),q=tf.querySelector('input[type=search]'),id=document.getElementById('tk'),title=document.getElementById('wt'),t2;quiet(q);" +
-        "function show(tab,text){note(res,'Loading\u2026');ask('trakt',text,tab,function(rows){list(res,rows,function(r){id.value=r.id;if(!title.value)title.value=r.name;note(res,'Chosen: '+r.name)})})}" +
+        "function show(tab,text){note(res,'Loading\u2026');ask('trakt',text,tab,function(rows,err){if(err){note(res,err);return}list(res,rows,function(r){id.value=r.id;if(!title.value)title.value=r.name;note(res,'Chosen: '+r.name)})})}" +
         "tf.querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){show(b.dataset.tab,'')}});" +
         "q.addEventListener('input',function(){clearTimeout(t2);var v=q.value.trim();if(v.length<2)return;t2=setTimeout(function(){show('',v)},400)})}})();"
     private fun web(url: String?) = url?.takeIf { it.startsWith("https://", true) || it.startsWith("http://", true) }
@@ -103,7 +105,7 @@ object ContentPhone {
     fun widgetEditor(content: PhoneContent, code: String, id: String): String = buildString {
         val auth = esc(code)
         val widget = content.widgets.firstOrNull { it.id == id }
-        append("<p><a class=back href=\"/content?k=$auth\">&lsaquo; Organize content</a></p>")
+        append("<p><a class=back href=\"/content?k=$auth&amp;part=widgets\">&lsaquo; Home widgets</a></p>")
         if (id != "new" && widget == null) { append("<p class=ok>That widget no longer exists. Go back and pick another.</p>"); return@buildString }
         append("<form class=ed method=post action=\"/content?k=$auth\"><input type=hidden name=action value=save-widget><input type=hidden name=target value=\"").append(esc(id)).append("\">")
         append("<h2>").append(if (widget == null) "New widget" else "Edit widget").append("</h2>")
@@ -156,6 +158,8 @@ object ContentPhone {
         append("<div class=cols>")
         content.library.forEach { c ->
             append("<section class=\"card lib\"><div class=head><h2>").append(esc(c.title)).append("</h2><span class=m>").append(c.folders.size).append(if (c.folders.size == 1) " folder" else " folders").append("</span></div>")
+            // #165: a long collection opens on demand instead of filling the page.
+            append("<details class=fold").append(if (c.folders.size <= FOLDERS_OPEN) " open" else "").append("><summary>Folders</summary>")
             c.folders.forEachIndexed { index, f ->
                 val name = f.title.ifBlank { "Folder" }
                 append("<div class=row><span class=thumb>")
@@ -168,7 +172,7 @@ object ContentPhone {
                 post(auth, "delete", f.id, "", "Delete $name", "&#10005;", danger = true)
                 append("</div></div>")
             }
-            append("<a class=\"btn quiet\" href=\"/content?k=$auth&amp;edit=new&amp;in=").append(esc(c.id)).append("\">Add a folder</a></section>")
+            append("</details><a class=\"btn quiet\" href=\"/content?k=$auth&amp;edit=new&amp;in=").append(esc(c.id)).append("\">Add a folder</a></section>")
         }
         append("<section class=card><h2>New collection</h2><p class=m>A collection is a row on Home and Discover; each folder in it is a tile that opens one or more catalogs.</p>")
         append("<a class=btn href=\"/content?k=$auth&amp;edit=new\">Create a collection</a></section></div>")
@@ -183,7 +187,7 @@ object ContentPhone {
         val auth = esc(code)
         val owner = if (edit == "new") content.library.firstOrNull { it.id == into } else content.library.firstOrNull { c -> c.folders.any { it.id == edit } }
         val folder = owner?.folders?.firstOrNull { it.id == edit }
-        append("<p><a class=back href=\"/content?k=$auth\">&lsaquo; Collections</a></p>")
+        append("<p><a class=back href=\"/content?k=$auth&amp;part=collections\">&lsaquo; Collections</a></p>")
         if (edit != "new" && folder == null) { append("<p class=ok>That folder no longer exists. Go back and pick another.</p>"); return@buildString }
         append("<form class=ed method=post action=\"/content?k=$auth\"><input type=hidden name=action value=save-folder>")
         append("<input type=hidden name=target value=\"").append(esc(edit)).append("\"><input type=hidden name=in value=\"").append(esc(owner?.id ?: "new")).append("\">")
@@ -211,14 +215,28 @@ object ContentPhone {
         append("<script>").append(BIND).append("bind('source','data-source');(function(){var i=document.getElementById('cover'),p=document.getElementById('pv');function show(){var v=i.value.trim();if(/^https?:\\/\\//i.test(v)){p.src=v;p.hidden=false}else{p.hidden=true}}p.onerror=function(){p.hidden=true};i.addEventListener('input',show);show();})();</script>")
     }
 
-    fun render(content: PhoneContent, code: String): String = buildString {
+    /** Organize content's three pages (#165): Home widgets, Collections, and the source and addon tools. */
+    val PARTS = listOf("widgets", "collections", "tools")
+    fun title(part: String) = when (part) { "widgets" -> "Home widgets"; "collections" -> "Collections"; else -> "Sources and addon tools" }
+    /** The page a change belongs to, so the answer to a form shows the page it was sent from. */
+    fun partOf(action: String?) = when (action) {
+        "save-widget", "move-widget", "delete-widget" -> "widgets"
+        "save-folder", "move-folder", "delete" -> "collections"
+        else -> "tools"
+    }
+
+    /** [part] is one of [PARTS], or null for everything on one page. */
+    fun render(content: PhoneContent, code: String, part: String? = null): String = buildString {
         val auth = esc(code)
-        append("<h2>Organize content</h2><p class=m>Changes are sent to the TV for review. Approve them there before they are saved.</p>")
-        widgets(content, auth)
-        append("<h2>Collections</h2>")
-        library(content, auth)
-        // #159: each task is its own card, and the cards flow into columns on tablets and wider screens.
-        append("<h2>More tools</h2><div class=cols>")
+        if (part != null) append("<p><a class=back href=\"/?k=$auth&amp;tab=").append(if (part == "tools") "addons" else "ui").append("\">&lsaquo; ").append(if (part == "tools") "Addons" else "UI").append("</a></p>")
+        if (part == null) append("<h2>Organize content</h2>")
+        append("<p class=m>Changes are sent to the TV for review. Approve them there before they are saved.</p>")
+        if (part == null || part == "widgets") widgets(content, auth)
+        if (part == null) append("<h2>Collections</h2>")
+        if (part == null || part == "collections") library(content, auth)
+        if (part != null && part != "tools") return@buildString
+        // Each task is its own card.
+        append(if (part == null) "<h2>More tools</h2><div class=cols>" else "<div class=cols>")
         var open = false
         fun group() { if (open) append("</div>"); open = true; append("<div class=grp>") }
         // #158: headed sections, so creating, exporting and deleting are easy to find.
@@ -251,5 +269,20 @@ object ContentPhone {
         group(); append("<h3>Add-ons</h3><form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=addon><label>Add-on</label><select name=addon>")
         options(content.addons); append("</select><select name=enabled><option value=on>Enable</option><option value=off>Pause</option></select><button>Preview add-on change on TV</button></form>")
         append("</div></div>")
+    }
+}
+
+/** Why a search made from the widget editor failed, in words that say what to do (#165). */
+internal object PhoneLookups {
+    fun reason(kind: String, failure: Throwable): String {
+        val message = failure.message.orEmpty()
+        return when {
+            message.contains("adult profile", true) -> "Switch the TV to an adult profile to search."
+            kind == "trakt" && message.contains("client id", true) -> "Trakt search needs a Trakt client ID. Add one under Accounts & APIs > Trakt, then search again."
+            kind == "trakt" && (message.contains("HTTP 401") || message.contains("HTTP 403")) -> "Trakt refused the request. Check the Trakt client ID under Accounts & APIs."
+            kind == "trakt" -> "Trakt could not be reached. Check the TV's connection and try again."
+            message.contains("key", true) -> "This search needs the TMDB key. Add it under Accounts & APIs > TMDB."
+            else -> "The TV could not search right now. Check its connection and try again."
+        }
     }
 }

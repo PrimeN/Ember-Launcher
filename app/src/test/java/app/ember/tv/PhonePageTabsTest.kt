@@ -67,7 +67,9 @@ class PhonePageTabsTest {
         try {
             val uri = URI(setup.start()!!)
             val home = request(uri, "/?${uri.rawQuery}")
-            for (tab in listOf("setup", "settings", "content", "backup")) assertTrue(tab, home.contains("href=\"/?${uri.rawQuery}&amp;tab=$tab\""))
+            // #165: seven sections.
+            for (tab in listOf("setup", "settings", "ui", "player", "addons", "accounts", "backup")) assertTrue(tab, home.contains("href=\"/?${uri.rawQuery}&amp;tab=$tab\""))
+            assertEquals(7, Regex("<nav>(.*?)</nav>").find(home)!!.groupValues[1].split("<a ").size - 1)
             assertTrue(home.contains("Metadata key (TMDB)") && home.contains("Not set up"))
             // An unknown tab falls back to Setup rather than an error.
             assertTrue(request(uri, "/?${uri.rawQuery}&tab=nope").contains("Add addons"))
@@ -78,14 +80,24 @@ class PhonePageTabsTest {
         val setup = server()
         try {
             val uri = URI(setup.start()!!)
-            val settings = request(uri, "/?${uri.rawQuery}&tab=settings")
-            assertTrue(settings.contains("id=find"))
+            // #165: a section opens on a menu of sub-pages; the settings themselves are one tap in.
+            val ui = request(uri, "/?${uri.rawQuery}&tab=ui")
+            assertTrue(ui.contains("class=menu") && ui.contains("href=\"/?${uri.rawQuery}&amp;tab=ui&amp;s=interface\""))
+            assertTrue(ui.contains("Interface and colours") && ui.contains("2 settings"))
+            assertTrue(ui.contains("href=\"/content?${uri.rawQuery}&amp;part=widgets\"") && ui.contains("href=\"/content?${uri.rawQuery}&amp;part=collections\""))
+            assertFalse("the menu holds no settings", ui.contains("role=switch"))
+            val settings = request(uri, "/?${uri.rawQuery}&tab=ui&s=interface")
             assertTrue(settings.contains("<option value=\"night\" selected>Night</option>"))
             assertTrue(settings.contains("role=switch"))
-            assertFalse("catalogs belong on the content tab", settings.contains("Popular: Home"))
-            val content = request(uri, "/?${uri.rawQuery}&tab=content")
-            assertTrue(content.contains("Popular: Home") && content.contains("<h2>Cinemeta</h2>"))
-            assertTrue(content.contains("href=\"/content?${uri.rawQuery}\""))
+            assertTrue(settings.contains("href=\"/?${uri.rawQuery}&amp;tab=ui\">&lsaquo; UI</a>"))
+            assertFalse("catalogs belong under Addons", settings.contains("Popular: Home"))
+            val catalogs = request(uri, "/?${uri.rawQuery}&tab=addons&s=catalogs")
+            assertTrue(catalogs.contains("Popular: Home") && catalogs.contains("<span>Cinemeta</span>") && catalogs.contains("id=find"))
+            assertTrue("one addon opens by itself", catalogs.contains("<details class=\"card g\" open>"))
+            // The old Addons & content tab's address still opens Addons.
+            assertTrue(request(uri, "/?${uri.rawQuery}&tab=content").contains("aria-current=page>Addons<"))
+            assertTrue(request(uri, "/?${uri.rawQuery}&tab=accounts").contains("name=action value=keys"))
+            assertTrue(request(uri, "/?${uri.rawQuery}&tab=player").contains("&amp;s=playback"))
         } finally { setup.stop() }
     }
 
@@ -102,10 +114,10 @@ class PhonePageTabsTest {
             val rejected = request(uri, "/setting?${uri.rawQuery}", "POST", form("id" to "look.theme", "value" to "<script>", "js" to "1"))
             assertTrue(rejected.contains("\"ok\":false") && !rejected.contains("\"value\""))
             val page = request(uri, "/setting?${uri.rawQuery}", "POST", form("id" to "look.theme", "value" to "night"))
-            assertTrue(page.contains("Content-Type: text/html") && page.contains("aria-current=page>Settings<"))
+            assertTrue(page.contains("Content-Type: text/html") && page.contains("aria-current=page>UI<") && page.contains("&lsaquo; UI</a>"))
             assertTrue(page.contains("<p class=ok role=status>Saved</p>"))
             val catalog = request(uri, "/setting?${uri.rawQuery}", "POST", form("id" to "catalog.abc.home", "value" to "false"))
-            assertTrue("a catalog change returns to its tab", catalog.contains("aria-current=page>Addons &amp; content<"))
+            assertTrue("a catalog change returns to its page", catalog.contains("aria-current=page>Addons<") && catalog.contains("<h2>Catalogs</h2>"))
         } finally { setup.stop() }
     }
 
@@ -122,7 +134,8 @@ class PhonePageTabsTest {
         val setup = server()
         try {
             val uri = URI(setup.start()!!)
-            val backup = request(uri, "/?${uri.rawQuery}&tab=backup")
+            assertTrue(request(uri, "/?${uri.rawQuery}&tab=backup").contains("2 entries, newest first."))
+            val backup = request(uri, "/?${uri.rawQuery}&tab=backup&s=crash")
             assertTrue(backup.contains("2 entries") && backup.contains("&lt;boom&gt;") && !backup.contains("<boom>"))
             assertTrue(backup.contains("Ember 9.9.9 (build 1)"))
             val file = request(uri, "/crash-log?${uri.rawQuery}", "POST")
@@ -132,7 +145,50 @@ class PhonePageTabsTest {
             assertEquals(0, handler!!.cleared)
             assertTrue(request(uri, "/crash-log-clear?${uri.rawQuery}", "POST", form("confirm" to "on")).contains("Crash log cleared."))
             assertEquals(1, handler!!.cleared)
-            assertTrue(request(uri, "/?${uri.rawQuery}&tab=backup").contains("Nothing recorded"))
+            assertTrue(request(uri, "/?${uri.rawQuery}&tab=backup&s=crash").contains("Nothing recorded"))
         } finally { setup.stop() }
+    }
+
+    @Test fun settingsLandOnTheirSectionAndLongListsFold() {
+        // #165
+        fun view(id: String, group: String, label: String = id) = PhoneSettingView(id, group, label, null, "toggle", emptyList(), "true")
+        val tab = PhoneSetup.Tab
+        assertEquals(tab.UI to "interface", app.ember.tv.phone.PhonePages.place(view("look.theme", "Look")))
+        assertEquals(tab.UI to "size", app.ember.tv.phone.PhonePages.place(view("look.text", "Look")))
+        assertEquals(tab.UI to "effects", app.ember.tv.phone.PhonePages.place(view("look.custom.blur", "Look")))
+        assertEquals(tab.UI to "tiles", app.ember.tv.phone.PhonePages.place(view("look.light.clock", "Look")))
+        assertEquals(tab.SETTINGS to "system", app.ember.tv.phone.PhonePages.place(view("look.remoteSounds", "Look")))
+        assertEquals(tab.PLAYER to "playback", app.ember.tv.phone.PhonePages.place(view("play.x", "Playback")))
+        assertEquals(tab.PLAYER to "subtitles", app.ember.tv.phone.PhonePages.place(view("subs.x", "Subtitles")))
+        assertEquals(tab.SETTINGS to "home", app.ember.tv.phone.PhonePages.place(view("home.x", "Home")))
+        assertEquals(tab.SETTINGS to "sources", app.ember.tv.phone.PhonePages.place(view("src.x", "Sources")))
+        assertEquals(tab.ADDONS to "catalogs", app.ember.tv.phone.PhonePages.place(view("catalog.a.home", "Catalogs")))
+        assertEquals(tab.ADDONS, tab.of("content")); assertEquals(tab.SETUP, tab.of("nope")); assertEquals(tab.SETUP, tab.of(null))
+
+        val rows = listOf(view("a", "Look", "Theme"), view("b", "Look", "Light Home: clock"), view("c", "Look", "Light Home: weather"), view("d", "Look", "Light Home: dock"),
+            view("e", "Look", "Focused background: media rows"), view("f", "Look", "Glass"))
+        val (plain, groups) = app.ember.tv.phone.PhonePages.fold(rows)
+        assertEquals(listOf("a", "e", "f"), plain.map { it.id })
+        assertEquals(listOf("Light Home" to listOf("b", "c", "d")), groups.map { it.first to it.second.map { row -> row.id } })
+        assertEquals(rows, app.ember.tv.phone.PhonePages.fold(rows, least = 9).first)
+    }
+
+    @Test fun aFailedSearchSaysWhatToDo() {
+        // #165: Trakt search used to show "Nothing found" for every failure.
+        val reason = app.ember.tv.phone.PhoneLookups::reason
+        assertTrue(reason("trakt", IllegalStateException("Trakt lists need a client id.")).contains("Trakt client ID"))
+        assertTrue(reason("trakt", IllegalStateException("The collection provider returned HTTP 403.")).contains("refused"))
+        assertTrue(reason("trakt", java.io.IOException("timeout")).contains("could not be reached"))
+        assertTrue(reason("person", IllegalStateException("TMDB sources need an API key.")).contains("TMDB key"))
+        assertTrue(reason("person", IllegalStateException("Switch to an adult profile.")).contains("adult profile"))
+        for (kind in listOf("trakt", "person", "company", "provider")) assertFalse(reason(kind, RuntimeException("secret-token-123")).contains("secret-token-123"))
+        val setup = server()
+        try {
+            val uri = URI(setup.start()!!)
+            val answer = request(uri, "/lookup?${uri.rawQuery}&kind=trakt&q=marvel")
+            assertTrue(answer, answer.contains("Content-Type: application/json") && answer.trimEnd().endsWith("[]"))
+        } finally { setup.stop() }
+        val script = java.io.File("src/main/java/app/ember/tv/phone/ContentPhone.kt").readText()
+        assertTrue(script.contains("if(j&&j.error)done([],j.error)") && script.contains("if(err){note(res,err);return}"))
     }
 }

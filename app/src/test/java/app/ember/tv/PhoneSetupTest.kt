@@ -186,7 +186,9 @@ class PhoneSetupTest {
         try {
             val uri = URI(setup.start()!!)
             // Every tab (#49): each form posts with the session code, and together they keep every endpoint.
-            val actions = listOf("setup", "settings", "content", "backup").flatMap { tab ->
+            // #165: seven sections, each with sub-pages.
+            val actions = listOf("setup", "settings", "settings&s=presentation", "ui", "ui&s=import", "player", "addons", "addons&s=add", "addons&s=iptv",
+                "addons&s=catalogs", "addons&s=badges", "accounts", "backup", "backup&s=backup", "backup&s=restore", "backup&s=crash").flatMap { tab ->
                 val response = request(uri, "/?${uri.rawQuery}&tab=$tab")
                 assertTrue(response.startsWith("HTTP/1.1 200"))
                 assertTrue(response.contains("Referrer-Policy: no-referrer"))

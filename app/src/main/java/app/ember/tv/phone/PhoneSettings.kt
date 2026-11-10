@@ -282,3 +282,38 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         internal fun humanize(name: String) = name.replace(Regex("([a-z0-9])([A-Z])"), "$1 $2").lowercase().replaceFirstChar { it.uppercase() }
     }
 }
+
+/** Where each setting lives on the phone and tablet page, and how long lists are folded (#165). */
+internal object PhonePages {
+    private val interfaceIds = setOf("look.interface", "look.navbar", "look.mediaPageLayout", "look.theme", "look.oled", "look.accent", "look.menu")
+    private val sizeIds = setOf("look.size", "look.text", "look.margins", "look.density")
+    private val remoteIds = setOf("look.remoteSounds", "look.settingsKey")
+    private val effectPrefixes = listOf("look.performance", "look.quality", "look.custom", "look.glass", "look.focus", "look.appFocusColors", "look.cardFocus")
+
+    /** The section and sub-page a setting is shown on. Catalog switches have their own page under Addons. */
+    fun place(s: PhoneSettingView): Pair<PhoneSetup.Tab, String> = when (s.group) {
+        PhoneSettings.CATALOGS -> PhoneSetup.Tab.ADDONS to "catalogs"
+        "Look" -> when {
+            s.id in interfaceIds -> PhoneSetup.Tab.UI to "interface"
+            s.id in sizeIds -> PhoneSetup.Tab.UI to "size"
+            s.id in remoteIds -> PhoneSetup.Tab.SETTINGS to "system"
+            effectPrefixes.any { s.id.startsWith(it) } -> PhoneSetup.Tab.UI to "effects"
+            else -> PhoneSetup.Tab.UI to "tiles"
+        }
+        "Playback" -> PhoneSetup.Tab.PLAYER to "playback"
+        "Subtitles" -> PhoneSetup.Tab.PLAYER to "subtitles"
+        "Home" -> PhoneSetup.Tab.SETTINGS to "home"
+        "Sources" -> PhoneSetup.Tab.SETTINGS to "sources"
+        else -> PhoneSetup.Tab.SETTINGS to "system"
+    }
+
+    /**
+     * Rows that share a "Name: " label prefix with at least two others become one group; the rest
+     * stay as they are. Both keep their order.
+     */
+    fun fold(rows: List<PhoneSettingView>, least: Int = 3): Pair<List<PhoneSettingView>, List<Pair<String, List<PhoneSettingView>>>> {
+        fun prefix(s: PhoneSettingView) = s.label.substringBefore(": ", "").trim()
+        val grouped = rows.filter { prefix(it).isNotEmpty() }.groupBy(::prefix).filterValues { it.size >= least }
+        return rows.filter { prefix(it) !in grouped.keys } to grouped.map { it.key to it.value }
+    }
+}

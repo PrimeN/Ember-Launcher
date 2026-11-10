@@ -190,9 +190,19 @@ class PhoneSetup(
         val form = if (multipart.isEmpty()) parse(String(raw, Charsets.UTF_8)) else multipart.filterKeys {it!="file"}.mapValues { String(it.value, Charsets.UTF_8) }
         access.requireActive()
         val tab = Tab.of(query["tab"])
-        fun shell(shown: Tab, message: String? = null) = respond(c, 200, page(shown.title, tabs(access, shown, handler, message)))
+        fun shell(shown: Tab, message: String? = null, section: String? = null) = respond(c, 200, page(shown.title, tabs(access, shown, section, handler, message)))
+        // #165: Organize content is three pages. The page a change came from is the one shown after it.
+        fun contentPage(part: String?, message: String? = null) {
+            val shown = part?.takeIf { it in ContentPhone.PARTS } ?: "widgets"
+            val body = handler.content()?.let { ContentPhone.render(it, access.code, shown) }.orEmpty()
+            respond(c, 200, page(ContentPhone.title(shown), nav(access, if (shown == "tools") Tab.ADDONS else Tab.UI) + message?.let { "<p class=ok role=status>${esc(it)}</p>" }.orEmpty() + body))
+        }
         when {
-            method == "POST" && path == "/save" -> shell(Tab.SETUP, handle(form, handler, access))
+            method == "POST" && path == "/save" -> handle(form, handler, access).let { message -> when (form["action"]) {
+                "keys" -> shell(Tab.ACCOUNTS, message)
+                "iptv" -> shell(Tab.ADDONS, message, "iptv")
+                else -> shell(Tab.ADDONS, message, "add")
+            } }
             method == "POST" && path == "/setting" -> {
                 val result = runCatching { handler.changeSetting(form["id"].orEmpty(), form["value"].orEmpty()) }
                     .getOrElse { PhoneSettingResult(false, it.message ?: "Could not change that setting.") }
@@ -202,17 +212,23 @@ class PhoneSetup(
                     put("message", kotlinx.serialization.json.JsonPrimitive(result.message))
                     result.setting?.let { put("value", kotlinx.serialization.json.JsonPrimitive(it.value)) }
                 }.toString())
-                else shell(if (form["id"].orEmpty().startsWith(PhoneSettings.CATALOGS_PREFIX)) Tab.CONTENT else Tab.SETTINGS, result.message)
+                else {
+                    // Without JavaScript the form reloads the sub-page the setting is on.
+                    val id = form["id"].orEmpty()
+                    val place = if (id.startsWith(PhoneSettings.CATALOGS_PREFIX)) Tab.ADDONS to "catalogs"
+                        else runCatching { handler.settings() }.getOrNull()?.firstOrNull { it.id == id }?.let(PhonePages::place) ?: (Tab.SETTINGS to null)
+                    shell(place.first, result.message, place.second)
+                }
             }
             method == "POST" && path == "/backup" -> {
                 // The phone page is plain HTTP on the home network: an unencrypted backup would carry
                 // every sign-in and key across it readable. Only encrypted backups leave the TV this way.
                 val passphrase = form["passphrase"].orEmpty()
                 if (passphrase.length < MIN_BACKUP_PASSPHRASE) shell(Tab.BACKUP,
-                    "Enter a passphrase of at least $MIN_BACKUP_PASSPHRASE characters. Backups saved to a phone are always encrypted.")
+                    "Enter a passphrase of at least $MIN_BACKUP_PASSPHRASE characters. Backups saved to a phone are always encrypted.", "backup")
                 else run {
                 val bytes = runCatching { handler.exportBackup(passphrase) }.getOrNull()
-                if (bytes == null) shell(Tab.BACKUP, "Could not make the backup.")
+                if (bytes == null) shell(Tab.BACKUP, "Could not make the backup.", "backup")
                 else { access.requireActive(); respondFile(c, app.ember.tv.data.Backup.fileName(), bytes) }
                 }
             }
@@ -220,27 +236,27 @@ class PhoneSetup(
                 val file = multipart["file"]
                 val msg = if (file == null || file.isEmpty()) "Choose a backup file first."
                 else handler.importBackup(file, form["passphrase"].orEmpty(), form["apply"] == "on")
-                shell(Tab.BACKUP, msg)
+                shell(Tab.BACKUP, msg, "restore")
             }
             method == "POST" && path == "/crash-log" -> {
                 val entries = runCatching { handler.crashLog() }.getOrNull()
                 access.requireActive()
-                if (entries == null) shell(Tab.BACKUP, "The crash log is unavailable.")
+                if (entries == null) shell(Tab.BACKUP, "The crash log is unavailable.", "crash")
                 else respondFile(c, "ember-crash-log.txt", crashLogText(entries, runCatching { handler.status()?.version }.getOrNull()).toByteArray(Charsets.UTF_8), "text/plain; charset=utf-8")
             }
             method == "POST" && path == "/crash-log-clear" -> shell(Tab.BACKUP,
                 if (form["confirm"] != "on") "Tick the box to confirm, then clear the log."
-                else runCatching { handler.clearCrashLog() }.getOrElse { it.message ?: "Could not clear the crash log." })
+                else runCatching { handler.clearCrashLog() }.getOrElse { it.message ?: "Could not clear the crash log." }, "crash")
             method == "POST" && path == "/badges" -> {
                 val text = multipart["file"]?.toString(Charsets.UTF_8)?.takeIf { it.isNotBlank() } ?: form["json"].orEmpty()
                 val msg = if (text.isBlank()) "Choose a badge pack file, or paste its JSON." else handler.importBadges(text)
-                shell(Tab.CONTENT, msg)
+                shell(Tab.ADDONS, msg, "badges")
             }
             method == "POST" && path == "/collections" -> {
                 val text = multipart["file"]?.toString(Charsets.UTF_8)?.takeIf { it.isNotBlank() } ?: form["json"].orEmpty()
                 val msg = if (text.isBlank()) "Choose a collections file, or paste its JSON." else runCatching { app.ember.tv.data.CollectionTransfer.open(text, form["passphrase"].orEmpty()) }
                     .fold({ handler.importCollections(it) }, { "Could not unlock the collection pack. Check its passphrase and file." })
-                shell(Tab.CONTENT, msg)
+                shell(Tab.UI, msg, "import")
             }
             // #163: widget packs, like collection packs. Export downloads; import is approved on the TV.
             method == "POST" && path == "/widgets-export" -> {
@@ -251,9 +267,7 @@ class PhoneSetup(
             }
             method == "POST" && path == "/widgets" -> {
                 val text = multipart["file"]?.toString(Charsets.UTF_8)?.takeIf { it.isNotBlank() } ?: form["json"].orEmpty()
-                val message = if (text.isBlank()) "Choose a widget pack file, or paste its contents." else handler.importWidgets(text)
-                val content = handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()
-                respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + "<p class=ok>${esc(message)}</p>" + content))
+                contentPage("widgets", if (text.isBlank()) "Choose a widget pack file, or paste its contents." else handler.importWidgets(text))
             }
             method == "POST" && path == "/collection-export" -> {
                 val bytes = runCatching { handler.exportCollection(form["collectionId"].orEmpty(), form["passphrase"].orEmpty()) }.getOrNull()
@@ -264,29 +278,30 @@ class PhoneSetup(
             method=="POST" && path=="/presentation" -> {
                 val bytes=multipart["file"]
                 val message=if(bytes==null)"Choose a file." else handler.importPresentation(form["name"].orEmpty(),bytes)
-                shell(Tab.CONTENT, message)
+                shell(Tab.SETTINGS, message, "presentation")
             }
             method == "POST" && path == "/content" -> {
-                val message = handler.proposeContent(form)
-                val content = handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()
-                respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + "<p class=ok>${esc(message)}</p>" + content))
+                contentPage(ContentPhone.partOf(form["action"]), handler.proposeContent(form))
             }
             // #161: searches made by the widget editor; answers are names and numbers only.
             method == "GET" && path == "/lookup" -> {
-                val found = runCatching { handler.lookup(query["kind"].orEmpty(), query["tab"].orEmpty(), query["q"].orEmpty().take(100)) }.getOrDefault(emptyList())
+                // #165: a search that fails says why, instead of looking like "nothing found".
+                val found = runCatching { handler.lookup(query["kind"].orEmpty(), query["tab"].orEmpty(), query["q"].orEmpty().take(100)) }
                 access.requireActive()
-                respondJson(c, kotlinx.serialization.json.buildJsonArray { found.take(40).forEach { row -> add(kotlinx.serialization.json.buildJsonObject {
+                respondJson(c, found.fold({ rows -> kotlinx.serialization.json.buildJsonArray { rows.take(40).forEach { row -> add(kotlinx.serialization.json.buildJsonObject {
                     put("id", kotlinx.serialization.json.JsonPrimitive(row.id)); put("name", kotlinx.serialization.json.JsonPrimitive(row.name)); put("note", kotlinx.serialization.json.JsonPrimitive(row.note))
-                }) } }.toString())
+                }) } }.toString() }, { failure -> kotlinx.serialization.json.buildJsonObject {
+                    put("error", kotlinx.serialization.json.JsonPrimitive(PhoneLookups.reason(query["kind"].orEmpty(), failure)))
+                }.toString() }))
             }
             // #161: so is the widget editor.
-            path == "/content" && query["widget"] != null -> respond(c, 200, page("Edit widget", nav(access, Tab.CONTENT) +
+            path == "/content" && query["widget"] != null -> respond(c, 200, page("Edit widget", nav(access, Tab.UI) +
                 handler.content()?.let { ContentPhone.widgetEditor(it, access.code, query["widget"].orEmpty()) }.orEmpty()))
             // #160: the folder editor is its own page.
-            path == "/content" && query["edit"] != null -> respond(c, 200, page("Edit collection", nav(access, Tab.CONTENT) +
+            path == "/content" && query["edit"] != null -> respond(c, 200, page("Edit collection", nav(access, Tab.UI) +
                 handler.content()?.let { ContentPhone.editor(it, access.code, query["edit"].orEmpty(), query["in"]) }.orEmpty()))
-            path == "/content" -> respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()))
-            path == "/" -> shell(tab)
+            path == "/content" -> contentPage(query["part"])
+            path == "/" -> shell(tab, section = query["s"])
             else -> respond(c, 404, page("Not found", ""))
         }
     }
@@ -408,13 +423,23 @@ class PhoneSetup(
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
-    /** The four tabs of the phone page (#49). Plain links, so the page works without JavaScript. */
-    private enum class Tab(val id: String, val label: String, val title: String) {
-        SETUP("setup", "Setup", "Ember setup"),
-        SETTINGS("settings", "Settings", "Settings"),
-        CONTENT("content", "Addons & content", "Addons & content"),
-        BACKUP("backup", "Backup & diagnostics", "Backup & diagnostics");
-        companion object { fun of(id: String?) = entries.firstOrNull { it.id == id } ?: SETUP }
+    /**
+     * The sections of the phone and tablet page (#49, regrouped in #165). Each opens on a short menu
+     * of sub-pages, so no page is a long scroll. Plain links, so the page works without JavaScript.
+     */
+    internal enum class Tab(val id: String, val label: String) {
+        SETUP("setup", "Setup"),
+        SETTINGS("settings", "Settings"),
+        UI("ui", "UI"),
+        PLAYER("player", "Player"),
+        ADDONS("addons", "Addons"),
+        ACCOUNTS("accounts", "Accounts & APIs"),
+        BACKUP("backup", "Backup & diagnostics");
+        val title: String get() = if (this == SETUP) "Ember setup" else label
+        companion object {
+            /** "content" was the old Addons & content tab; links to it still land somewhere sensible. */
+            fun of(id: String?) = entries.firstOrNull { it.id == id } ?: if (id == "content") ADDONS else SETUP
+        }
     }
 
     private fun nav(access: PhoneSetupAccess, current: Tab): String = buildString {
@@ -427,119 +452,249 @@ class PhoneSetup(
         append("</nav>")
     }
 
-    private fun tabs(access: PhoneSetupAccess, tab: Tab, handler: Handler, message: String?): String = buildString {
+    private fun tabs(access: PhoneSetupAccess, tab: Tab, section: String?, handler: Handler, message: String?): String = buildString {
         access.requireActive()
         append(nav(access, tab))
         message?.let { append("<p class=ok role=status>${esc(it)}</p>") }
         val auth = "?k=${access.code}"
-        // #159: cards flow into as many columns as the screen has room for.
-        append("<div class=cols>")
         when (tab) {
             Tab.SETUP -> setupTab(auth, handler)
-            Tab.SETTINGS -> settingsTab(auth, handler)
-            Tab.CONTENT -> contentTab(auth, handler)
-            Tab.BACKUP -> backupTab(auth, handler)
+            Tab.SETTINGS -> settingsTab(auth, handler, section)
+            Tab.UI -> uiTab(auth, handler, section)
+            Tab.PLAYER -> playerTab(auth, handler, section)
+            Tab.ADDONS -> addonsTab(auth, handler, section)
+            Tab.ACCOUNTS -> accountsTab(auth)
+            Tab.BACKUP -> backupTab(auth, handler, section)
+        }
+    }
+
+    /** One entry of a section's menu: a sub-page id (or a full link starting with "/"), its title and a line about it. */
+    private data class MenuItem(val target: String, val title: String, val summary: String)
+
+    private fun StringBuilder.menu(auth: String, tab: Tab, items: List<MenuItem>) {
+        append("<div class=menu>")
+        items.forEach { item ->
+            val href = if (item.target.startsWith("/")) item.target else "/$auth&amp;tab=${tab.id}&amp;s=${item.target}"
+            append("<a class=mi href=\"$href\"><span><b>${esc(item.title)}</b><small>${esc(item.summary)}</small></span><i>&rsaquo;</i></a>")
         }
         append("</div>")
     }
 
-    private fun StringBuilder.setupTab(auth: String, handler: Handler) {
-        runCatching { handler.status() }.getOrNull()?.let { status ->
-            append("<section class=card><h2>Checklist</h2><p class=m>All optional. Configured is not a check that each service is online.</p><ul class=check>")
-            status.steps.forEach { (label, done) -> append("<li class=${if (done) "done" else "todo"}>${esc(label)}<span>${if (done) "Configured" else "Not set up"}</span></li>") }
-            append("</ul></section>")
-        }
-        append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=addon>")
-        append("<h2>Add addons</h2><p class=m>Stremio-compatible manifest links ending in manifest.json, one per line.</p>")
-        append("<textarea name=url rows=3 placeholder=\"https://…/manifest.json\"></textarea><button>Add</button></form>")
+    private fun StringBuilder.back(auth: String, tab: Tab) { append("<p><a class=back href=\"/$auth&amp;tab=${tab.id}\">&lsaquo; ${esc(tab.label)}</a></p>") }
 
-        append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=iptv>")
-        append("<h2>Add IPTV</h2><p class=m>An M3U playlist link, or Xtream Codes server, username and password.</p>")
-        append("<select name=kind><option value=m3u>M3U playlist</option><option value=xtream>Xtream Codes</option></select>")
-        append("<input name=name placeholder=\"Name (optional)\"><input name=url placeholder=\"Playlist link or server address\">")
-        append("<input name=username placeholder=\"Username (Xtream)\" autocomplete=off><input name=password type=password placeholder=\"Password (Xtream)\" autocomplete=off>")
-        append("<input name=epg placeholder=\"Guide (XMLTV) link, optional\"><button>Add</button></form>")
+    private fun count(n: Int, one: String, many: String = one + "s") = "$n " + if (n == 1) one else many
 
-        append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=keys>")
-        append("<h2>API keys and logins</h2><p class=m>Only filled-in fields are saved; leave the rest empty to keep what is on the TV.</p>")
-        ApiKeys.SERVICES.forEach { s ->
-            append("<h3>${esc(s.name)}</h3><p class=m>${esc(s.usedFor)}<br>${esc(s.where)}</p>")
-            s.fields.forEach { fld ->
-                val saved = if (ApiKeys.isEntered(fld.id)) " · saved " + ApiKeys.hint(ApiKeys.get(fld.id)) else ""
-                val type = if (fld.id.contains("PASSWORD") || fld.id.contains("SECRET") || fld.id.contains("TOKEN")) "password" else "text"
-                append("<input name=${fld.id} type=$type autocomplete=off placeholder=\"${esc(fld.label + saved)}\">")
-            }
-        }
-        append("<button>Save keys</button></form>")
-    }
+    private fun settingsOf(handler: Handler): List<PhoneSettingView>? = runCatching { handler.settings() }.getOrNull()
 
-    private fun StringBuilder.settingsTab(auth: String, handler: Handler) {
-        val all = runCatching { handler.settings() }.getOrElse { append("<p class=ok>${esc(it.message ?: "Settings are unavailable.")}</p>"); return }
-            ?: run { append("<p class=m>Settings are unavailable.</p>"); return }
+    /**
+     * A sub-page of settings. Rows that share a "Name: " prefix (Custom profile, Light Home, Labels
+     * under tiles…) fold into one collapsible group, so the page stays short; search opens the groups
+     * that match.
+     */
+    private fun StringBuilder.settingsList(auth: String, rows: List<PhoneSettingView>) {
+        if (rows.isEmpty()) { append("<p class=m>Nothing to change here on this TV.</p>"); return }
         append("<p class=m>Changes apply on the TV right away.</p>")
-        append("<input id=find type=search placeholder=\"Search settings\" aria-label=\"Search settings\" autocomplete=off>")
-        PhoneSettings.SETTINGS_GROUPS.forEach { group ->
-            val items = all.filter { it.group == group }
-            if (items.isEmpty()) return@forEach
-            append("<section class=\"card g\"><h2>${esc(group)}</h2>")
-            items.forEach { append(settingForm(auth, it)) }
+        if (rows.size > 8) append("<input id=find type=search placeholder=\"Search these settings\" aria-label=\"Search these settings\" autocomplete=off>")
+        val (plain, groups) = PhonePages.fold(rows)
+        if (plain.isNotEmpty()) {
+            append("<section class=\"card g\">")
+            plain.forEach { append(settingForm(auth, it)) }
             append("</section>")
+        }
+        groups.forEach { (name, members) ->
+            append("<details class=\"card g\"><summary><span>${esc(name)}</span><small>${count(members.size, "setting")}</small></summary><div class=in>")
+            members.forEach { append(settingForm(auth, it.copy(label = it.label.substringAfter(": ").replaceFirstChar { c -> c.uppercase() }))) }
+            append("</div></details>")
         }
         append("<p class=m id=none hidden>No setting matches.</p>")
     }
 
-    private fun StringBuilder.contentTab(auth: String, handler: Handler) {
-        append("<section class=card><h2>Collections, folders and addons</h2><p class=m>Create collections, edit folders, and pause or resume addons. Each change is approved on the TV.</p>")
-        append("<p><a class=btn href=\"/content$auth\">Organize content</a></p></section>")
-        val catalogs = runCatching { handler.settings() }.getOrNull().orEmpty().filter { it.group == PhoneSettings.CATALOGS }
-        if (catalogs.isNotEmpty()) {
-            append("<input id=find type=search placeholder=\"Search catalogs\" aria-label=\"Search catalogs\" autocomplete=off>")
-            catalogs.groupBy { it.note.orEmpty() }.forEach { (addon, rows) ->
-                append("<section class=\"card g\"><h2>${esc(addon.ifBlank { "Catalogs" })}</h2><p class=m>Where each catalog shows. Changes apply right away.</p>")
-                rows.forEach { append(settingForm(auth, it.copy(note = null))) }
-                append("</section>")
-            }
-            append("<p class=m id=none hidden>No catalog matches.</p>")
+    private fun StringBuilder.setupTab(auth: String, handler: Handler) {
+        runCatching { handler.status() }.getOrNull()?.let { status ->
+            val done = status.steps.count { it.second }
+            append("<section class=card><div class=head><h2>Checklist</h2><span class=m>$done of ${status.steps.size} set up</span></div><p class=m>All optional. Configured is not a check that each service is online.</p><ul class=check>")
+            status.steps.forEach { (label, ok) -> append("<li class=${if (ok) "done" else "todo"}>${esc(label)}<span>${if (ok) "Configured" else "Not set up"}</span></li>") }
+            append("</ul></section>")
         }
-        append("<form method=post action=\"/presentation$auth\" enctype=multipart/form-data><h2>Presentation playlist</h2><p class=m>Images and short videos up to 8 MB. Approve each addition on the TV. For larger videos, choose a file on the TV.</p><input name=name required placeholder=\"File name including extension, e.g. photo.jpg or clip.mp4\"><input name=file type=file accept=\"image/*,video/*\" required><button>Send for TV approval</button></form>")
-        append("<form method=post action=\"/collections$auth\" enctype=multipart/form-data>")
-        append("<h2>Import collections</h2><p class=m>A collections export (JSON) for Settings &gt; Home &gt; Widgets &amp; collections. Pick the file, or paste its contents.</p>")
-        append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><input type=password name=passphrase autocomplete=off placeholder='Passphrase for encrypted Ember collection packs'><button>Add collections</button></form>")
-        append("<form method=post action=\"/badges$auth\" enctype=multipart/form-data>")
-        append("<h2>Source badges</h2><p class=m>A badge pack (JSON) for Settings &gt; Stremio &gt; Badges. Pick the file, or paste its contents.</p>")
-        append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><button>Use these badges</button></form>")
+        append("<h2>Start here</h2>")
+        menu(auth, Tab.SETUP, listOf(
+            MenuItem("/$auth&amp;tab=addons&amp;s=add", "Add addons", "Paste Stremio-compatible manifest links."),
+            MenuItem("/$auth&amp;tab=addons&amp;s=iptv", "Add Live TV", "An M3U playlist or Xtream Codes account."),
+            MenuItem("/$auth&amp;tab=accounts", "API keys and logins", "TMDB, trackers, ratings and artwork services."),
+            MenuItem("/content$auth&amp;part=widgets", "Home widgets", "Your own rows and banners on Home."),
+            MenuItem("/$auth&amp;tab=backup&amp;s=restore", "Restore a backup", "Bring settings over from another Ember TV."),
+        ))
     }
 
-    private fun StringBuilder.backupTab(auth: String, handler: Handler) {
-        append("<form method=post action=\"/backup$auth\">")
-        append("<h2>Save a backup to this phone</h2><p class=m>Everything on the TV: settings, addons, sign-ins and keys. The file is encrypted with your passphrase; you need it to restore.</p>")
-        append("<input name=passphrase type=password required minlength=$MIN_BACKUP_PASSPHRASE placeholder=\"Passphrase (at least $MIN_BACKUP_PASSPHRASE characters)\" autocomplete=off><button>Download backup</button></form>")
-
-        append("<form method=post action=\"/restore$auth\" enctype=multipart/form-data>")
-        append("<h2>Restore a backup on the TV</h2><p class=m>Pick an Ember backup file. Leave the box unticked to check it first; tick it to replace everything on the TV, which then restarts Ember.</p>")
-        append("<input type=file name=file accept=\".json,application/json\"><input name=passphrase type=password placeholder=\"Passphrase, if it has one\" autocomplete=off>")
-        append("<label class=tick><input type=checkbox name=apply> Replace the TV's settings with this backup</label>")
-        append("<button>Check or restore</button></form>")
-
-        val entries = runCatching { handler.crashLog() }.getOrNull()
-        append("<section class=card><h2>Crash log</h2>")
-        when {
-            entries == null -> append("<p class=m>The crash log is unavailable.</p>")
-            entries.isEmpty() -> append("<p class=m>Nothing recorded. Crashes, freezes (ANR) and Android closing Ember appear here.</p>")
-            else -> {
-                append("<p class=m>${entries.size} entr${if (entries.size == 1) "y" else "ies"}, newest first. Links, passwords and keys are removed.</p>")
-                entries.take(CRASH_ENTRIES_SHOWN).forEachIndexed { i, e ->
-                    val first = e.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().take(120)
-                    append("<details${if (i == 0) " open" else ""}><summary>${esc(first)}</summary><pre>${esc(e)}</pre></details>")
-                }
-                if (entries.size > CRASH_ENTRIES_SHOWN) append("<p class=m>Download the log to see all ${entries.size}.</p>")
+    private fun StringBuilder.settingsTab(auth: String, handler: Handler, section: String?) {
+        // No settings from the TV (an older build, or none for this profile): the menus and forms still work.
+        val all = settingsOf(handler).orEmpty()
+        fun rows(part: String) = all.filter { PhonePages.place(it).let { place -> place.first == Tab.SETTINGS && place.second == part } }
+        when (section) {
+            "home", "sources", "system" -> {
+                back(auth, Tab.SETTINGS)
+                append("<h2>${when (section) { "home" -> "Home"; "sources" -> "Sources"; else -> "System and remote" }}</h2>")
+                settingsList(auth, rows(section))
             }
+            "presentation" -> {
+                back(auth, Tab.SETTINGS)
+                append("<form method=post action=\"/presentation$auth\" enctype=multipart/form-data><h2>Presentation playlist</h2><p class=m>Images and short videos up to 8 MB. Approve each addition on the TV. For larger videos, choose a file on the TV.</p><input name=name required placeholder=\"File name including extension, e.g. photo.jpg\"><input type=file name=file required><button>Send to presentation playlist</button></form>")
+            }
+            else -> menu(auth, Tab.SETTINGS, listOf(
+                MenuItem("home", "Home", "Rows, lists and what Home shows · " + count(rows("home").size, "setting")),
+                MenuItem("sources", "Sources", "Streams, metadata and where to watch · " + count(rows("sources").size, "setting")),
+                MenuItem("system", "System and remote", "Updates, remote and device · " + count(rows("system").size, "setting")),
+                MenuItem("presentation", "Presentation playlist", "Send images and short videos to the TV's slideshow."),
+            ))
         }
-        if (!entries.isNullOrEmpty()) {
-            append("<form class=flat method=post action=\"/crash-log$auth\"><button>Download crash log</button></form>")
-            append("<form class=flat method=post action=\"/crash-log-clear$auth\"><label class=tick><input type=checkbox name=confirm required> Delete every entry</label><button class=danger>Clear crash log</button></form>")
+    }
+
+    private fun StringBuilder.uiTab(auth: String, handler: Handler, section: String?) {
+        // No settings from the TV (an older build, or none for this profile): the menus and forms still work.
+        val all = settingsOf(handler).orEmpty()
+        fun rows(part: String) = all.filter { PhonePages.place(it).let { place -> place.first == Tab.UI && place.second == part } }
+        val titles = listOf("interface" to "Interface and colours", "size" to "Size and spacing", "tiles" to "Home and tiles", "effects" to "Performance and effects")
+        val current = titles.firstOrNull { it.first == section }
+        when {
+            current != null -> { back(auth, Tab.UI); append("<h2>${current.second}</h2>"); settingsList(auth, rows(current.first)) }
+            section == "import" -> {
+                back(auth, Tab.UI)
+                append("<form method=post action=\"/collections$auth\" enctype=multipart/form-data>")
+                append("<h2>Import collections</h2><p class=m>A collections export (JSON) for Settings &gt; Home &gt; Widgets &amp; collections. Pick the file, or paste its contents.</p>")
+                append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><input type=password name=passphrase autocomplete=off placeholder='Passphrase for encrypted Ember collection packs'><button>Add collections</button></form>")
+            }
+            else -> menu(auth, Tab.UI, titles.map { (id, title) -> MenuItem(id, title, when (id) {
+                "interface" -> "Interface, theme, colour theme, navbar"; "size" -> "Interface and text size, margins, density"
+                "tiles" -> "App icons, cards, labels, Ember Light Home"; else -> "Performance profile, glass, focus effects" } + " · " + count(rows(id).size, "setting")) } + listOf(
+                MenuItem("/content$auth&amp;part=widgets", "Home widgets", "Your own rows, numbered lists, carousels and banners."),
+                MenuItem("/content$auth&amp;part=collections", "Collections", "Rows of folder tiles: create, edit, reorder, delete."),
+                MenuItem("import", "Import collections", "Add collections from a file or pasted pack."),
+            ))
         }
-        append("</section>")
+    }
+
+    private fun StringBuilder.playerTab(auth: String, handler: Handler, section: String?) {
+        // No settings from the TV (an older build, or none for this profile): the menus and forms still work.
+        val all = settingsOf(handler).orEmpty()
+        fun rows(part: String) = all.filter { PhonePages.place(it).let { place -> place.first == Tab.PLAYER && place.second == part } }
+        when (section) {
+            "playback", "subtitles" -> { back(auth, Tab.PLAYER); append("<h2>${if (section == "playback") "Playback" else "Languages and subtitles"}</h2>"); settingsList(auth, rows(section)) }
+            else -> menu(auth, Tab.PLAYER, listOf(
+                MenuItem("playback", "Playback", "Player, audio, video and the Play button · " + count(rows("playback").size, "setting")),
+                MenuItem("subtitles", "Languages and subtitles", "Subtitle look and preferred languages · " + count(rows("subtitles").size, "setting")),
+            ))
+        }
+    }
+
+    private fun StringBuilder.addonsTab(auth: String, handler: Handler, section: String?) {
+        val catalogs = settingsOf(handler).orEmpty().filter { it.group == PhoneSettings.CATALOGS }
+        when (section) {
+            "add" -> {
+                back(auth, Tab.ADDONS)
+                append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=addon>")
+                append("<h2>Add addons</h2><p class=m>Stremio-compatible manifest links ending in manifest.json, one per line.</p>")
+                append("<textarea name=url rows=3 placeholder=\"https://…/manifest.json\"></textarea><button>Add</button></form>")
+            }
+            "iptv" -> {
+                back(auth, Tab.ADDONS)
+                append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=iptv>")
+                append("<h2>Add Live TV</h2><p class=m>An M3U playlist link, or Xtream Codes server, username and password.</p>")
+                append("<select name=kind><option value=m3u>M3U playlist</option><option value=xtream>Xtream Codes</option></select>")
+                append("<input name=name placeholder=\"Name (optional)\"><input name=url placeholder=\"Playlist link or server address\">")
+                append("<input name=username placeholder=\"Username (Xtream)\" autocomplete=off><input name=password type=password placeholder=\"Password (Xtream)\" autocomplete=off>")
+                append("<input name=epg placeholder=\"Guide (XMLTV) link, optional\"><button>Add</button></form>")
+            }
+            "catalogs" -> {
+                back(auth, Tab.ADDONS)
+                append("<h2>Catalogs</h2>")
+                if (catalogs.isEmpty()) append("<p class=m>No catalogs yet. Add an addon first.</p>") else {
+                    append("<p class=m>Where each catalog shows. Open an addon to see its catalogs; changes apply right away.</p>")
+                    append("<input id=find type=search placeholder=\"Search catalogs\" aria-label=\"Search catalogs\" autocomplete=off>")
+                    val byAddon = catalogs.groupBy { it.note.orEmpty() }
+                    byAddon.forEach { (addon, rows) ->
+                        append("<details class=\"card g\"${if (byAddon.size == 1) " open" else ""}><summary><span>${esc(addon.ifBlank { "Catalogs" })}</span><small>${count(rows.size, "switch", "switches")}</small></summary><div class=in>")
+                        rows.forEach { append(settingForm(auth, it.copy(note = null))) }
+                        append("</div></details>")
+                    }
+                    append("<p class=m id=none hidden>No catalog matches.</p>")
+                }
+            }
+            "badges" -> {
+                back(auth, Tab.ADDONS)
+                append("<form method=post action=\"/badges$auth\" enctype=multipart/form-data>")
+                append("<h2>Source badges</h2><p class=m>A badge pack (JSON) for Settings &gt; Sources &gt; Stream results &amp; badges. Pick the file, or paste its contents.</p>")
+                append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><button>Use these badges</button></form>")
+            }
+            else -> menu(auth, Tab.ADDONS, listOf(
+                MenuItem("add", "Add addons", "Paste Stremio-compatible manifest links."),
+                MenuItem("catalogs", "Catalogs", if (catalogs.isEmpty()) "Where each catalog shows." else "Where each catalog shows · " + count(catalogs.map { it.note.orEmpty() }.distinct().size, "addon")),
+                MenuItem("/content$auth&amp;part=tools", "Sources and addon tools", "Add catalogs to folders, edit filters, export, pause addons."),
+                MenuItem("iptv", "Add Live TV", "An M3U playlist or Xtream Codes account."),
+                MenuItem("badges", "Source badges", "Import a badge pack for stream results."),
+            ))
+        }
+    }
+
+    /** One collapsible form per service, so thirty key fields are not one long page. */
+    private fun StringBuilder.accountsTab(auth: String) {
+        append("<h2>API keys and logins</h2><p class=m>Open a service to add or replace its keys. Empty fields keep what is on the TV.</p>")
+        ApiKeys.SERVICES.forEach { s ->
+            val saved = s.fields.count { ApiKeys.isEntered(it.id) }
+            append("<details class=card><summary><span>${esc(s.name)}</span><small>${if (saved == 0) "Not set" else if (saved == s.fields.size) "Saved" else "$saved of ${s.fields.size} saved"}</small></summary><div class=in>")
+            append("<form class=flat method=post action=\"/save$auth\"><input type=hidden name=action value=keys><p class=m>${esc(s.usedFor)}<br>${esc(s.where)}</p>")
+            s.fields.forEach { fld ->
+                val hint = if (ApiKeys.isEntered(fld.id)) " · saved " + ApiKeys.hint(ApiKeys.get(fld.id)) else ""
+                val type = if (fld.id.contains("PASSWORD") || fld.id.contains("SECRET") || fld.id.contains("TOKEN")) "password" else "text"
+                append("<input name=${fld.id} type=$type autocomplete=off placeholder=\"${esc(fld.label + hint)}\" aria-label=\"${esc(s.name + " " + fld.label)}\">")
+            }
+            append("<button>Save ${esc(s.name)}</button></form></div></details>")
+        }
+    }
+
+    private fun StringBuilder.backupTab(auth: String, handler: Handler, section: String?) {
+        val entries = runCatching { handler.crashLog() }.getOrNull()
+        when (section) {
+            "backup" -> {
+                back(auth, Tab.BACKUP)
+                append("<form method=post action=\"/backup$auth\">")
+                append("<h2>Save a backup to this phone</h2><p class=m>Everything on the TV: settings, addons, sign-ins and keys. The file is encrypted with your passphrase; you need it to restore.</p>")
+                append("<input name=passphrase type=password required minlength=$MIN_BACKUP_PASSPHRASE placeholder=\"Passphrase (at least $MIN_BACKUP_PASSPHRASE characters)\" autocomplete=off><button>Download backup</button></form>")
+            }
+            "restore" -> {
+                back(auth, Tab.BACKUP)
+                append("<form method=post action=\"/restore$auth\" enctype=multipart/form-data>")
+                append("<h2>Restore a backup on the TV</h2><p class=m>Pick an Ember backup file. Leave the box unticked to check it first; tick it to replace everything on the TV, which then restarts Ember.</p>")
+                append("<input type=file name=file accept=\".json,application/json\"><input name=passphrase type=password placeholder=\"Passphrase, if it has one\" autocomplete=off>")
+                append("<label class=tick><input type=checkbox name=apply> Replace the TV's settings with this backup</label>")
+                append("<button>Check or restore</button></form>")
+            }
+            "crash" -> {
+                back(auth, Tab.BACKUP)
+                append("<section class=card><h2>Crash log</h2>")
+                when {
+                    entries == null -> append("<p class=m>The crash log is unavailable.</p>")
+                    entries.isEmpty() -> append("<p class=m>Nothing recorded. Crashes, freezes (ANR) and Android closing Ember appear here.</p>")
+                    else -> {
+                        append("<p class=m>${entries.size} entr${if (entries.size == 1) "y" else "ies"}, newest first. Links, passwords and keys are removed.</p>")
+                        entries.take(CRASH_ENTRIES_SHOWN).forEachIndexed { i, e ->
+                            val first = e.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().take(120)
+                            append("<details${if (i == 0) " open" else ""}><summary>${esc(first)}</summary><pre>${esc(e)}</pre></details>")
+                        }
+                        if (entries.size > CRASH_ENTRIES_SHOWN) append("<p class=m>Download the log to see all ${entries.size}.</p>")
+                    }
+                }
+                if (!entries.isNullOrEmpty()) {
+                    append("<form class=flat method=post action=\"/crash-log$auth\"><button>Download crash log</button></form>")
+                    append("<form class=flat method=post action=\"/crash-log-clear$auth\"><label class=tick><input type=checkbox name=confirm required> Delete every entry</label><button class=danger>Clear crash log</button></form>")
+                }
+                append("</section>")
+            }
+            else -> menu(auth, Tab.BACKUP, listOf(
+                MenuItem("backup", "Save a backup", "Download everything on the TV, encrypted with a passphrase."),
+                MenuItem("restore", "Restore a backup", "Check a backup file, or replace the TV's settings with it."),
+                MenuItem("crash", "Crash log", when { entries == null -> "Unavailable."; entries.isEmpty() -> "Nothing recorded."; else -> count(entries.size, "entry", "entries") + ", newest first." }),
+            ))
+        }
         runCatching { handler.status() }.getOrNull()?.let { append("<p class=m>Ember ${esc(it.version)}</p>") }
     }
 
@@ -575,17 +730,26 @@ class PhoneSetup(
 <meta name=viewport content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
 :root{color-scheme:dark;--bg:#111215;--card:#1f2024;--line:#2c2d32;--fg:#e8eaed;--mute:#a9adb4;--accent:$accent}
 body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%}
-main{max-width:1240px;margin:auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
+main{max-width:760px;margin:auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
 h1{font-size:24px;margin:8px 0 2px}h1 i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--accent);margin-right:10px}
 h2{font-size:19px;margin:0 0 4px}h3{font-size:15px;margin:16px 0 2px}.m{color:var(--mute);font-size:13px;margin:2px 0 8px}
 nav{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;padding:10px 0;background:var(--bg);scrollbar-width:none}
 nav a{flex:none;padding:9px 14px;border-radius:999px;background:var(--card);color:var(--fg);text-decoration:none;font-size:14px;font-weight:600}
 nav a[aria-current]{background:var(--accent);color:#111}
 form,.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
-.cols{column-width:320px;column-gap:20px}.cols>*{break-inside:avoid;-webkit-column-break-inside:avoid}
-.cols>form,.cols>.card,.cols>.grp{margin:0 0 16px}.cols>p,.cols>#find,.cols>h2{column-span:all;-webkit-column-span:all}
+.cols>form,.cols>.card,.cols>.grp{margin:0 0 16px}
 .grp>h3{font-size:17px;margin:0 0 2px}.grp>form{margin:8px 0 0}
-.cols>#find{margin-bottom:14px}main>h2{margin-top:12px}
+#find{margin:6px 0 12px}main>h2{margin:16px 0 6px}
+.menu{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));margin:12px 0}
+.mi{display:flex;align-items:center;gap:12px;padding:15px 16px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--fg);text-decoration:none}
+.mi span{flex:1;min-width:0}.mi b{display:block;font-size:16px}.mi small{display:block;color:var(--mute);font-size:13px;margin-top:3px}.mi i{font-style:normal;color:var(--mute);font-size:24px;line-height:1}
+.mi:active{background:#2c2d32}
+details.card{padding:0;margin:10px 0}details.card>summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px 16px;font-size:16px;font-weight:600;list-style:none}
+details.card>summary::-webkit-details-marker{display:none}details.card>summary span{flex:1;min-width:0}
+details.card>summary small{color:var(--mute);font-weight:400;font-size:13px}
+details.card>summary:after{content:"\25BE";color:var(--mute)}details.card[open]>summary:after{content:"\25B4"}
+details.card>.in{padding:0 16px 14px}details.card>.in>form.flat{margin:0}
+details.fold{border-top:0;padding:0}details.fold>summary{color:var(--mute);font-size:13px;padding:6px 0}
 .head{display:flex;align-items:baseline;gap:10px}.head h2{flex:1;margin:0 0 6px}
 .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 0;border-top:1px solid var(--line)}
 .thumb{flex:none;width:52px;height:52px;border-radius:10px;background:var(--bg);display:grid;place-items:center;font-weight:700;font-size:20px;color:var(--mute);overflow:hidden}
@@ -643,10 +807,14 @@ form.s .save{grid-column:1/-1;margin-top:4px;padding:9px}form.s .st{grid-column:
 .check span{font-size:13px;color:var(--mute)}.check .done span{color:#8fe3b0}
 details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer;font-size:14px}
 pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:var(--bg);padding:10px;border-radius:10px;max-height:50vh;overflow:auto}
-@media(min-width:700px){main{padding-top:24px;padding-bottom:40px}h1{font-size:30px}#find{max-width:520px;display:block}
-nav{gap:8px;padding:14px 0}nav a{padding:11px 18px;font-size:15px}main>p.m{font-size:14px}}
+@media(min-width:700px){main{padding-top:24px;padding-bottom:40px}h1{font-size:30px}}
+@media(min-width:900px){main{max-width:1120px;display:grid;grid-template-columns:220px minmax(0,1fr);column-gap:36px;align-items:start}
+main>h1,main>.intro{grid-column:1/-1}
+main>nav{grid-column:1;grid-row:3/span 400;flex-direction:column;gap:6px;top:16px;overflow:visible;padding:8px 0;background:none}
+main>nav a{border-radius:12px;padding:12px 14px;font-size:15px}
+main>*:not(nav):not(h1):not(.intro){grid-column:2;max-width:800px;width:100%;box-sizing:border-box}}
 [hidden]{display:none!important}</style></head>
-<body><main><h1><i></i>${esc(title)}</h1><p class=m>Sent straight to your TV on this network. Nothing goes through the internet.</p>$body</main><script>$SCRIPT</script></body></html>"""
+<body><main><h1><i></i>${esc(title)}</h1><p class="m intro">Sent straight to your TV on this network. Nothing goes through the internet.</p>$body</main><script>$SCRIPT</script></body></html>"""
 
     companion object {
         internal const val MIN_BACKUP_PASSPHRASE = 8
@@ -672,7 +840,7 @@ document.querySelectorAll('form.s').forEach(function(f){
 var find=document.getElementById('find');
 if(find)find.addEventListener('input',function(){
   var q=find.value.trim().toLowerCase(),any=false;
-  document.querySelectorAll('.g').forEach(function(g){var n=0;g.querySelectorAll('form.s').forEach(function(f){var hit=!q||f.dataset.q.indexOf(q)>=0;f.hidden=!hit;if(hit)n++;});g.hidden=n===0;if(n)any=true;});
+  document.querySelectorAll('.g').forEach(function(g){var n=0;g.querySelectorAll('form.s').forEach(function(f){var hit=!q||f.dataset.q.indexOf(q)>=0;f.hidden=!hit;if(hit)n++;});g.hidden=n===0;if(n)any=true;if(q&&n&&g.tagName==='DETAILS')g.open=true;});
   var none=document.getElementById('none');if(none)none.hidden=any;
 });
 """

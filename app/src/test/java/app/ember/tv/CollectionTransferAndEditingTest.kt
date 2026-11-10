@@ -96,11 +96,22 @@ class CollectionTransferAndEditingTest {
         assertEquals(7, Regex("<div class=grp>").findAll(html).count())
         assertEquals(Regex("<div").findAll(html).count(), Regex("</div>").findAll(html).count())
         assertTrue(html.indexOf("<div class=cols>") < html.indexOf("<h3>Create or add to a collection</h3>"))
+        // #165: one steady content column (reflowing columns made the page jump); tablets get a sidebar.
         val server = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
-        assertTrue(server.contains(".cols{column-width:320px"))
-        assertTrue(server.contains("append(\"<div class=cols>\")"))
-        assertTrue("phones keep the readable single column; wide screens get room", server.contains("main{max-width:1240px"))
-        assertFalse(server.contains("max-width:640px"))
+        assertFalse(server.contains("column-width")); assertFalse(server.contains("column-span"))
+        assertTrue(server.contains("@media(min-width:900px){main{max-width:1120px;display:grid;grid-template-columns:220px minmax(0,1fr)"))
+        // Each page of Organize content stands alone, and a long collection starts folded.
+        for (part in ContentPhone.PARTS) assertTrue(part, ContentPhone.render(PhoneContent(listOf("opaque" to "Popular"), listOf("f-1" to "Films / Action"), emptyList()), "lease", part).contains("&lsaquo;"))
+        val widgetsOnly = ContentPhone.render(PhoneContent(emptyList(), emptyList(), emptyList()), "lease", "widgets")
+        assertTrue(widgetsOnly.contains("Home widgets")); assertFalse(widgetsOnly.contains("New collection")); assertFalse(widgetsOnly.contains("<h3>Export</h3>"))
+        val toolsOnly = ContentPhone.render(PhoneContent(emptyList(), emptyList(), emptyList()), "lease", "tools")
+        assertTrue(toolsOnly.contains("<h3>Export</h3>")); assertFalse(toolsOnly.contains("Home widgets")); assertTrue(toolsOnly.contains("tab=addons"))
+        assertEquals(Regex("<div").findAll(toolsOnly).count(), Regex("</div>").findAll(toolsOnly).count())
+        val many = PhoneContent(emptyList(), emptyList(), emptyList(), library = listOf(PhoneCollection("c-1", "Studios", (1..ContentPhone.FOLDERS_OPEN + 1).map { PhoneFolder("f-$it", "Folder $it", "wide", false, null, emptyList()) }),
+            PhoneCollection("c-2", "Small", listOf(PhoneFolder("g-1", "One", "wide", false, null, emptyList())))))
+        val library = ContentPhone.render(many, "lease", "collections")
+        assertEquals(1, Regex("<details class=fold>").findAll(library).count()); assertEquals(1, Regex("<details class=fold open>").findAll(library).count())
+        assertEquals("collections", ContentPhone.partOf("save-folder")); assertEquals("widgets", ContentPhone.partOf("delete-widget")); assertEquals("tools", ContentPhone.partOf("addon"))
     }
 
     @Test fun thePhoneListsCollectionsWithCoversAndOffersMoveEditAndDelete() {
