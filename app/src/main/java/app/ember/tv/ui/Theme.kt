@@ -127,8 +127,8 @@ internal fun glassTint(day: Boolean): Color = when {
     // Android TV (#150): Google TV's slate navy.
     isModernEmber -> if (day) ModernEmberColors.DaySurface else if (Ui.isOled) ModernEmberColors.OledSurface else Color(0xFF232937)
     day -> GlassTintDay
-    Ui.isOled -> GlassTintOled
-    else -> GlassTintNight
+    // #155: Ember, Blue, Green and Rose glass carries a touch of the theme, like their panels.
+    else -> AccentTones.glass(LocalAccentIndex.current, Ui.isOled) ?: if (Ui.isOled) GlassTintOled else GlassTintNight
 }
 
 val Mute: Color

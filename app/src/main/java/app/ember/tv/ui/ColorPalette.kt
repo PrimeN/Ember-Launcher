@@ -52,6 +52,8 @@ internal object AccentTones {
     fun page(index:Int):Color = tone(Page,index,.025f)
     fun panel(index:Int,oled:Boolean):Color = if(oled)tone(OledRow,index,.025f) else tone(Row,index,.035f)
     fun panelHi(index:Int,oled:Boolean):Color = if(oled)tone(OledRowHi,index,.035f) else tone(RowHi,index,.045f)
+    /** Night glass (#155): the same faint touch as the panels; null for themes with their own glass. */
+    fun glass(index:Int,oled:Boolean):Color? = if(!toned(index))null else if(oled)tone(Color(0xFF0C0C0D),index,.04f) else tone(Color(0xFF1A1A1C),index,.05f)
     fun floating(index:Int):Color = tone(Color(0xFF1D1E22),index,.035f)
     fun floatingHeader(index:Int):Color = tone(Color(0xFF232428),index,.035f)
 
@@ -197,4 +199,11 @@ internal fun emberColorScheme(accentIndex:Int,day:Boolean,oled:Boolean):androidx
         surfaceVariant=AccentTones.panelHi(accentIndex,oled),onSurfaceVariant=lerp(Color(0xFFC4C7CC),accent,.08f),
         border=lerp(Color(0xFF6F7378),accent,.12f),borderVariant=lerp(Color(0xFF3A3B40),accent,.08f),
     )
+}
+
+/** The phone setup page is always dark, so it takes the theme's night accent even in the day theme (#156). */
+internal fun phonePageAccent(accentIndex: Int): String {
+    val c = emberColorScheme(accentIndex, day = false, oled = false).primary
+    fun part(v: Float) = (v * 255f + .5f).toInt().coerceIn(0, 255)
+    return String.format(java.util.Locale.ROOT, "#%02X%02X%02X", part(c.red), part(c.green), part(c.blue))
 }

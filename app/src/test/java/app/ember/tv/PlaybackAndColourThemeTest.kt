@@ -204,4 +204,26 @@ class PlaybackAndColourThemeTest {
         val charcoal=emberColorScheme(ColorThemes.SHADOW_EMBER,false,false)
         assertTrue(hsv(charcoal.surface)[1]<.18f)
     }
+
+    @Test fun glassTakesATouchOfTheAccentOnlyInTheAccentThemes() {
+        // #155
+        for(index in listOf(0,2,3,4))for(oled in listOf(false,true)) {
+            val glass=AccentTones.glass(index,oled)!!
+            assertTrue(glass.luminance()<.03f)
+            val turn=kotlin.math.abs(hsv(glass)[0]-hsv(Accents[index].second)[0]).let {minOf(it,360f-it)}
+            assertTrue("${Accents[index].first} glass leans to its accent: ${hsv(glass)[0]}",turn<40f)
+        }
+        for(index in listOf(ColorThemes.SHADOW_EMBER,ColorThemes.MODERN_EMBER,ColorThemes.CINEMA_RED))assertNull(AccentTones.glass(index,false))
+    }
+
+    @Test fun thePhonePageUsesEachThemesNightAccent() {
+        // #156: near-black text sits on it, whatever the TV's day or night theme.
+        for(index in Accents.indices) {
+            val hex=phonePageAccent(index)
+            assertTrue(hex,Regex("#[0-9A-F]{6}").matches(hex))
+            val accent=emberColorScheme(index,false,false).primary
+            assertTrue("${Accents[index].first} $hex",contrast(Color(0xFF111111),accent)>=3.0)
+        }
+        assertEquals("#FF7A2F",phonePageAccent(0))
+    }
 }

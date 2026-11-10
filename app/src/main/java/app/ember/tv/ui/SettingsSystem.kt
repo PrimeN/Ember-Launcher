@@ -585,7 +585,8 @@ internal fun TrackerRow(vm: HomeViewModel, t: Tracker, openKeys: () -> Unit) {
 /** Explicit, non-persistent opt-in. The server independently enforces the same 15-minute lease. */
 @Composable
 internal fun PhoneSetupPage(vm: HomeViewModel) {
-    val accentHex = String.format("#%06X", MaterialTheme.colorScheme.primary.toArgb() and 0xFFFFFF)
+    // #156: the phone page is always dark, so it takes the theme's night accent even in the day theme.
+    val accentHex = phonePageAccent(vm.look.accent)
     val setup = remember(vm.profiles.profileId) { app.ember.tv.phone.PhoneSetup(vm::phoneHandler, accentHex) }
     var link by remember(setup) { mutableStateOf<String?>(null) }
     var seconds by remember(setup) { androidx.compose.runtime.mutableLongStateOf(0L) }

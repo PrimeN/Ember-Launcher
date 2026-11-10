@@ -429,7 +429,7 @@
     <string name="settings_summary_menu">Choose, hide and reorder navigation tabs.</string>
     <string name="settings_summary_discover">Choose Explore, Collections and Catalogs visibility.</string>
     <string name="settings_summary_home">Arrange app rows, catalogs and personal sections.</string>
-    <string name="settings_summary_appearance">Interface, theme, accent colour, menu and Settings style.</string>
+    <string name="settings_summary_appearance">Interface, theme, colours, navbar and labels.</string>
     <string name="settings_summary_posters">Artwork, title logos and ratings on media cards.</string>
     <string name="settings_summary_metadata">Choose sources for descriptions, artwork and episodes.</string>
     <string name="settings_summary_weather">Location, temperature units and weather display.</string>

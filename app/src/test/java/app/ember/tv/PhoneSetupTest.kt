@@ -352,4 +352,28 @@ class PhoneSetupTest {
             assertTrue(request(uri).startsWith("HTTP/1.1 200"))
         } finally {setup.stop()}
     }
+
+    @Test fun aPageThatFailsStillAnswersAndABusyTvSaysSo() {
+        // #154: both used to close the connection with no response.
+        val failing=PhoneSetup({access->object:PhoneSetup.Handler by Handler(access,AtomicInteger()) {
+            override fun content():app.ember.tv.phone.PhoneContent=error("boom")
+        }},address={"127.0.0.1"},port=0)
+        try {
+            val uri=URI(failing.start()!!)
+            val answer=request(uri,"/content?${uri.rawQuery}")
+            assertTrue(answer,answer.startsWith("HTTP/1.1 500"))
+            assertTrue(answer.contains("Reload this page"));assertFalse(answer.contains("boom"))
+            assertTrue("the next page still loads",request(uri).startsWith("HTTP/1.1 200"))
+        } finally {failing.stop()}
+        val setup=server()
+        val idle=mutableListOf<Socket>()
+        try {
+            val uri=URI(setup.start()!!)
+            repeat(4) {idle+=connect(uri)}
+            Thread.sleep(300)
+            val answer=request(uri)
+            assertTrue(answer,answer.startsWith("HTTP/1.1 503"))
+            assertTrue(answer.contains("Reload this page in a moment"))
+        } finally {idle.forEach {runCatching {it.close()}};setup.stop()}
+    }
 }

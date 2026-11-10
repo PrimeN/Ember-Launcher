@@ -83,13 +83,28 @@ class PhoneSetup(
             try {
                 while (!socket.isClosed && access.active) {
                     val client = try { socket.accept() } catch (_: SocketException) { break }
+                    var busy = false
                     val admitted = synchronized(this) {
-                        if (session !== active || !access.active || !slots.tryAcquire()) false
+                        if (session !== active || !access.active) false
+                        else if (!slots.tryAcquire()) { busy = true; false }
                         else { active.clients.add(client); true }
                     }
-                    if (!admitted) { runCatching { client.close() }; continue }
+                    if (!admitted) {
+                        // #154: say so instead of dropping the connection, which browsers report as a network error.
+                        if (busy) runCatching { respond(client, 503, page("Busy", "<p>The TV is answering other requests. Reload this page in a moment.</p>")) }
+                        runCatching { client.close() }; continue
+                    }
                     thread(name = "ember-phone-request", isDaemon = true) {
-                        try { runCatching { serve(client, active) } }
+                        try {
+                            try { serve(client, active) }
+                            catch (_: java.io.IOException) { }
+                            catch (e: Exception) {
+                                // #154: a page that failed to build still gets an answer. A session that was
+                                // switched off stays silent, as before.
+                                if (access.active) runCatching { respond(client, 500, page("Something went wrong",
+                                    "<p>The TV could not finish that request. Reload this page; if it keeps happening, turn Phone setup off and on again.</p>")) }
+                            }
+                        }
                         finally {
                             runCatching { client.close() }
                             synchronized(this) { active.clients.remove(client) }
@@ -262,7 +277,7 @@ class PhoneSetup(
 
     private fun respond(c: Socket, status: Int, html: String) {
         val bytes = html.toByteArray(Charsets.UTF_8)
-        val reason = when (status) { 200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; 413 -> "Payload Too Large"; 429 -> "Too Many Requests"; else -> "Not Found" }
+        val reason = when (status) { 200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; 413 -> "Payload Too Large"; 429 -> "Too Many Requests"; 500 -> "Internal Server Error"; 503 -> "Service Unavailable"; else -> "Not Found" }
         val out = c.getOutputStream()
         out.write(
             ("HTTP/1.1 $status $reason\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: ${bytes.size}\r\n" +

@@ -306,8 +306,8 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         } }
     }
         "artwork" -> Section(SettingDefinitions.artwork.title, "Navigation, dock, menus and media buttons share one glass material. Labels and focus indicators stay sharp.", id = "artwork") {
-        ToggleRow("Modern glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
-        // Google TV works with Modern glass on or off; the see-through styles turn it on (#147).
+        ToggleRow("Glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
+        // Google TV works with Glass on or off; the see-through styles turn it on (#147).
         ButtonRow { app.ember.tv.data.GlassStyle.choices.forEach {(value,label)->
             Chip(label,selected=vm.look.navigationGlassMethod==value,maxLines=1){
                 vm.look.updateNavigationGlassMethod(value)
