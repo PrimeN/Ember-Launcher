@@ -332,4 +332,24 @@ class PhoneSetupTest {
             request(uri,"/collections?${uri.rawQuery}","POST","json=$pack&passphrase=fixture-passphrase"); assertEquals(1,calls.get())
         } finally { setup.stop() }
     }
+
+    @Test fun aBrowserTryingHttpsIsRefusedAtOnceAndThePageStillLoadsOverHttp() {
+        // #152: a TLS handshake used to wait out the 4-second header timeout.
+        assertTrue(PhoneSetup.isTlsHandshake(0x16));assertTrue(PhoneSetup.isTlsHandshake(0x80))
+        for(method in listOf("GET","POST","HEAD","OPTIONS"))assertFalse(PhoneSetup.isTlsHandshake(method[0].code))
+        val setup=server()
+        try {
+            val uri=URI(setup.start()!!)
+            val started=System.nanoTime()
+            connect(uri).use {socket->
+                // The start of a TLS 1.2+ ClientHello record; no line ending follows.
+                socket.getOutputStream().write(byteArrayOf(0x16,0x03,0x01,0x02,0x00,0x01,0x00,0x01,0xFC.toByte(),0x03,0x03))
+                socket.getOutputStream().flush()
+                val answer=runCatching {socket.getInputStream().read()}.getOrDefault(-1)
+                assertEquals("no HTTP answer to a TLS handshake",-1,answer)
+            }
+            assertTrue("refused well inside the header timeout",(System.nanoTime()-started)/1_000_000<2_000)
+            assertTrue(request(uri).startsWith("HTTP/1.1 200"))
+        } finally {setup.stop()}
+    }
 }

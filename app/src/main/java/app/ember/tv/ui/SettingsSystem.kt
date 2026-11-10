@@ -654,6 +654,8 @@ internal fun PhoneSetupPage(vm: HomeViewModel) {
                         Text(stringResource(R.string.ui_or_open_this_address), color = Mute, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                         Text(l, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Note(stringResource(R.string.ui_the_page_works_only_while_this))
+                        // #152
+                        Note("If the browser says it can't make a secure connection, type the address exactly as shown, starting with http:// (not https://).")
                     }
                 }
             }

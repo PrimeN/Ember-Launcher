@@ -125,6 +125,14 @@ class PhoneSetup(
         // uploaded backup) gets the longer limit below.
         c.soTimeout = HEADER_TIMEOUT_MILLIS
         val input = BufferedInputStream(c.getInputStream())
+        // #152: a browser trying HTTPS first sends a TLS handshake, which never forms an HTTP request
+        // line. Waiting out the header timeout made Safari report a failed secure connection; refusing
+        // at once lets the browser fall back to http:// straight away and frees the slot.
+        input.mark(1)
+        val first = input.read()
+        if (first == -1) return
+        if (isTlsHandshake(first)) { runCatching { c.setSoLinger(true, 0) }; return }
+        input.reset()
         val requestLine = readLine(input) ?: return
         val headers = HashMap<String, String>()
         var headerCount = 0
@@ -573,6 +581,9 @@ if(find)find.addEventListener('input',function(){
 });
 """
         private const val HEADER_TIMEOUT_MILLIS = 4_000
+
+        /** The first byte of a TLS record (0x16, handshake) or an old SSLv2 hello (0x80); no HTTP method starts with either. */
+        internal fun isTlsHandshake(firstByte: Int): Boolean = firstByte == 0x16 || firstByte == 0x80
         private const val BODY_TIMEOUT_MILLIS = 10_000
         private val timer = java.util.concurrent.ScheduledThreadPoolExecutor(1) { task ->
             Thread(task, "ember-phone-expiry").apply { isDaemon = true }
