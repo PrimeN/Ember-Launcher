@@ -109,6 +109,8 @@ class CollectionsState(
         } }
         return result
     }
+    /** A source's first page for a Home widget (#161): the same loader, limits and cache as a folder's tab. */
+    internal suspend fun firstPage(source: CollectionSource): Result<CollectionPage> = fetch(source, catalogs(), 0)
     @Volatile private var cacheGeneration = 0L
     private data class FlightKey(val key: CacheKey, val skip: Int, val generation: Long)
     private class Flight(val task: kotlinx.coroutines.Deferred<Result<CollectionPage>>, var readers: Int = 0, val priority: Boolean = false, @Volatile var started: Boolean = false)

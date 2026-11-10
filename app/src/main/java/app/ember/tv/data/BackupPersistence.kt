@@ -78,6 +78,7 @@ internal object BackupFormat {
                     else->when {
                         key.startsWith("explore:")->json.decodeFromString<List<app.ember.tv.discover.SavedExplore>>(value)
                         key.startsWith("search:")->json.decodeFromString<List<String>>(value)
+                        key.startsWith("widgets:")->json.decodeFromString<List<HomeWidget>>(value)
                         else->Unit
                     }
                 }

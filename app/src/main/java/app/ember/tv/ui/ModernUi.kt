@@ -417,9 +417,12 @@ fun ModernHome(
                         AppsGrid(vm, circles = vm.look.appIcons == "circle", onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
                     }
                     is HomeViewModel.HomeBlock.Row -> ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
+                        // #161: one of your widgets draws in its own style and card shape.
+                        val look = WidgetLook.of(b.widget, wide)
                         MediaRow(
-                            b.row.items, wide, isSaved = { b.saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle,
+                            b.row.items, look.wide, isSaved = { b.saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle,
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
+                            numbered = look.numbered, large = look.large,
                         )
                     }
                     is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
@@ -573,13 +576,16 @@ internal fun ModernHero(
 
 /** A row of wide 16:9 cards, or of posters when Settings > Appearance says so. */
 @Composable
-fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFocus: (Meta?) -> Unit = {}, onSeeAll: (() -> Unit)? = null, onOpen: (Meta) -> Unit) {
+fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFocus: (Meta?) -> Unit = {}, onSeeAll: (() -> Unit)? = null,
+    /** Widget styles (#161): a rank on each card, and the cinematic carousel's large artwork cards. */
+    numbered: Boolean = false, large: Boolean = false, onOpen: (Meta) -> Unit) {
     // Six landscape cards or eight posters across the row (CardSizes), whatever the screen.
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
         val gap = if (wide) 16.dp else 14.dp
         val uniqueItems = remember(items) { items.distinctBy { it.mediaKey() } }
-        val w = CardSizes.width(maxWidth, if(isEmberX && !wide)EmberXLayout.posterCount(maxWidth.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else LocalRenderOptions.current.count(wide), gap, 4.dp)
+        val baseWidth = CardSizes.width(maxWidth, if(isEmberX && !wide)EmberXLayout.posterCount(maxWidth.value,androidx.compose.ui.platform.LocalDensity.current.fontScale) else LocalRenderOptions.current.count(wide), gap, 4.dp)
         val rowState=androidx.compose.foundation.lazy.rememberLazyListState()
+        val w = if (large) WidgetLook.carouselWidth(maxWidth, baseWidth) else baseWidth
         PrefetchRowArtwork(items,rowState,wide,w)
         // Remove from Continue Watching (or marking it watched) hands focus to the next card (#130).
         val keeper = rememberFocusKeeper(remember(uniqueItems) { uniqueItems.map { it.mediaKey() } })
@@ -596,11 +602,36 @@ fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFoc
                     } else {
                         Box(Modifier.onFocusChanged { if (it.hasFocus) onFocus(m) }) { TitleCard(m, isSaved(m), width = w) { onOpen(m) } }
                     }
+                    if (numbered) RankBadge(index + 1, small = w < 150.dp)
                 }
             }
             if (onSeeAll != null) item(key = "seeall") { SeeAllCard(w, if (wide) w * 9f / 16f else w * 1.5f, onSeeAll) }
         }
     }
+}
+
+/** How one of your Home widgets draws (#161); a built-in row follows Home's card setting. */
+internal data class WidgetLook(val wide: Boolean, val numbered: Boolean, val large: Boolean) {
+    companion object {
+        fun of(widget: app.ember.tv.data.HomeWidget?, homeWide: Boolean): WidgetLook = when {
+            widget == null -> WidgetLook(homeWide, numbered = false, large = false)
+            widget.style == app.ember.tv.data.HomeWidgets.CAROUSEL -> WidgetLook(wide = true, numbered = false, large = true)
+            else -> WidgetLook(when (widget.shape) { "poster" -> false; "wide" -> true; else -> homeWide },
+                numbered = widget.style == app.ember.tv.data.HomeWidgets.NUMBERED, large = false)
+        }
+        /** Two and a bit cards across, so the next one shows there is more; never smaller than a normal wide card. */
+        fun carouselWidth(row: androidx.compose.ui.unit.Dp, normal: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+            maxOf(normal, row * CAROUSEL_FRACTION)
+        const val CAROUSEL_FRACTION = .42f
+    }
+}
+
+/** The rank on a Numbered row's card: a large outlined figure in the top corner, clear of the title. */
+@Composable
+private fun BoxScope.RankBadge(rank: Int, small: Boolean) {
+    Text(rank.toString(), fontSize = if (small) 26.sp else 34.sp, fontWeight = FontWeight.Black, color = Color.White,
+        style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black, androidx.compose.ui.geometry.Offset(0f, 2f), 8f)),
+        modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 2.dp).clearAndSetSemantics { })
 }
 
 /** A 16:9 card: the title's backdrop (poster if there is none) with its name over a soft shade. */

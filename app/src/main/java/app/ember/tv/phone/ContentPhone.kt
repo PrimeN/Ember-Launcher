@@ -14,7 +14,12 @@ data class PhoneContent(
     val existingExtras: List<PhoneCatalogExtras> = emptyList(),
     /** Every collection with its folders, for the list and the folder editor (#160). */
     val library: List<PhoneCollection> = emptyList(),
+    /** Your Home widgets in Home order (#161). */
+    val widgets: List<PhoneWidget> = emptyList(),
 )
+/** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
+data class PhoneWidget(val id: String, val title: String, val style: String, val shape: String, val limit: Int, val source: String, val status: String,
+    val canMoveUp: Boolean = true, val canMoveDown: Boolean = true)
 data class PhoneCollection(val id: String, val title: String, val folders: List<PhoneFolder>)
 /** [shape] is "poster", "wide" or "square"; [sources] are opaque ids with their labels, in order. */
 data class PhoneFolder(val id: String, val title: String, val shape: String, val hideTitle: Boolean, val cover: String?, val sources: List<Pair<String, String>>)
@@ -45,13 +50,79 @@ object ContentPhone {
         }; append("</fieldset>")
     } }
 
+    private fun StringBuilder.post(auth: String, action: String, target: String, extra: String, label: String, glyph: String, disabled: Boolean = false, danger: Boolean = false) {
+        append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=").append(action).append("><input type=hidden name=target value=\"").append(esc(target)).append("\">")
+            .append(extra).append("<button class=\"ib").append(if (danger) " danger" else "").append("\" aria-label=\"").append(esc(label)).append("\" title=\"").append(esc(label)).append("\"")
+            .append(if (disabled) " disabled" else "").append(">").append(glyph).append("</button></form>")
+    }
+
+    /** Your Home widgets (#161), in Home order, with move, edit and delete, and Add a widget. */
+    private fun StringBuilder.widgets(content: PhoneContent, auth: String) {
+        append("<section class=\"card lib wide\"><div class=head><h2>Home widgets</h2><span class=m>").append(content.widgets.size).append(if (content.widgets.size == 1) " widget" else " widgets").append("</span></div>")
+        append("<p class=m>Your own rows on the Ember Home. The banner, apps, catalogs and collections keep their place in Settings &gt; Home on the TV, where widgets can also be switched off.</p>")
+        content.widgets.forEach { w ->
+            val name = w.title.ifBlank { "Widget" }
+            append("<div class=row><span class=\"thumb st-").append(esc(w.style)).append("\">").append(when (w.style) { app.ember.tv.data.HomeWidgets.NUMBERED -> "1"; app.ember.tv.data.HomeWidgets.CAROUSEL -> "&#9645;"; else -> "&#9776;" }).append("</span>")
+            append("<div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(esc(app.ember.tv.data.HomeWidgets.styleName(w.style))).append("</span>")
+                .append(esc(w.source)).append(" · ").append(esc(w.status)).append("</small></div><div class=acts>")
+            post(auth, "move-widget", w.id, "<input type=hidden name=dir value=up>", "Move $name up on Home", "&uarr;", disabled = !w.canMoveUp)
+            post(auth, "move-widget", w.id, "<input type=hidden name=dir value=down>", "Move $name down on Home", "&darr;", disabled = !w.canMoveDown)
+            append("<a class=ib href=\"/content?k=$auth&amp;widget=").append(esc(w.id)).append("\" aria-label=\"Edit ").append(esc(name)).append("\" title=\"Edit ").append(esc(name)).append("\">&#9998;</a>")
+            post(auth, "delete-widget", w.id, "", "Delete $name", "&#10005;", danger = true)
+            append("</div></div>")
+        }
+        append("<a class=btn href=\"/content?k=$auth&amp;widget=new\">Add a widget</a></section>")
+    }
+
+    /**
+     * The widget editor (#161): title, style, card shape, size and source in one form. [id] is a
+     * widget id or "new". An existing widget keeps its source unless another kind is chosen.
+     */
+    fun widgetEditor(content: PhoneContent, code: String, id: String): String = buildString {
+        val auth = esc(code)
+        val widget = content.widgets.firstOrNull { it.id == id }
+        append("<p><a class=back href=\"/content?k=$auth\">&lsaquo; Organize content</a></p>")
+        if (id != "new" && widget == null) { append("<p class=ok>That widget no longer exists. Go back and pick another.</p>"); return@buildString }
+        append("<form class=ed method=post action=\"/content?k=$auth\"><input type=hidden name=action value=save-widget><input type=hidden name=target value=\"").append(esc(id)).append("\">")
+        append("<h2>").append(if (widget == null) "New widget" else "Edit widget").append("</h2>")
+        append("<label for=wt>Widget title</label><input id=wt name=title maxlength=100 required value=\"").append(esc(widget?.title.orEmpty())).append("\">")
+        append("<label>Style</label><div class=shapes>")
+        val style = widget?.style ?: app.ember.tv.data.HomeWidgets.ROW
+        app.ember.tv.data.HomeWidgets.styles.forEach { (value, name) ->
+            append("<label><input type=radio name=style value=").append(value).append(if (style == value) " checked" else "").append("><span><i class=\"w-").append(value).append("\"></i>").append(name).append("</span></label>")
+        }
+        append("</div><label for=shape>Card shape</label><select id=shape name=shape>")
+        app.ember.tv.data.HomeWidgets.shapes.forEach { (value, name) -> append("<option value=").append(value).append(if ((widget?.shape ?: "default") == value) " selected" else "").append(">").append(name).append("</option>") }
+        append("</select><p class=m>The cinematic carousel always uses large wide cards.</p>")
+        append("<label for=limit>Titles to show</label><input id=limit name=limit type=number inputmode=numeric min=").append(app.ember.tv.data.HomeWidgets.LIMITS.first).append(" max=").append(app.ember.tv.data.HomeWidgets.LIMITS.last)
+            .append(" value=").append(widget?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT).append(">")
+        append("<h3>Content source</h3>")
+        if (widget != null) append("<p class=m>Now: <b>").append(esc(widget.source)).append("</b></p>")
+        append("<label for=kind>").append(if (widget == null) "Where the titles come from" else "Change the source").append("</label><select id=kind name=kind>")
+        if (widget != null) append("<option value=keep>Keep the current source</option>")
+        append("<option value=catalog>A catalog or saved Discover search</option><option value=filters>Filters</option><option value=trakt>A Trakt list</option><option value=tmdb>A TMDB list</option><option value=list>One of my lists</option></select>")
+        append("<fieldset data-kind=catalog><legend>Catalog</legend><select name=source id=source>"); options(content.sources); append("</select>")
+        extras(content.catalogExtras, "extra", "data-source")
+        append("</fieldset><fieldset data-kind=filters><legend>Filters</legend><label for=fk>Type</label><select id=fk name=fkind>")
+        app.ember.tv.discover.ExploreKind.entries.forEach { append("<option value=").append(it.name).append(">").append(esc(it.label)).append("</option>") }
+        append("</select><label for=fs>Order</label><select id=fs name=fsort>")
+        app.ember.tv.discover.ExploreSort.entries.forEach { append("<option value=").append(it.name).append(">").append(esc(it.label)).append("</option>") }
+        append("</select><label>Genres (any of)</label><div class=picks>")
+        app.ember.tv.discover.ExploreGenres.all.forEach { g -> append("<label><input type=checkbox name=\"genre:").append(esc(g.key)).append("\"><span>").append(esc(g.label)).append("</span></label>") }
+        append("</div><label for=fy>From year</label><input id=fy name=fromYear type=number inputmode=numeric placeholder=\"Any\"><label for=ty>To year</label><input id=ty name=toYear type=number inputmode=numeric placeholder=\"Any\">")
+        append("<label for=mr>Minimum rating (0–10)</label><input id=mr name=minRating type=number inputmode=decimal step=0.1 min=0 max=10 placeholder=\"Any\"></fieldset>")
+        append("<fieldset data-kind=trakt><legend>Trakt list</legend><label for=tk>List link or number</label><input id=tk name=trakt placeholder=\"https://trakt.tv/lists/…\">")
+        append("<label for=tkm>Show</label><select id=tkm name=traktMedia><option value=MOVIE>Movies</option><option value=TV>Shows</option></select></fieldset>")
+        append("<fieldset data-kind=tmdb><legend>TMDB list</legend><label for=tm>List link or number</label><input id=tm name=tmdb placeholder=\"https://www.themoviedb.org/list/…\">")
+        append("<label for=tmm>Show</label><select id=tmm name=tmdbMedia><option value=MOVIE>Movies</option><option value=TV>Shows</option></select></fieldset>")
+        append("<fieldset data-kind=list><legend>My lists</legend><select name=list>"); options(app.ember.tv.data.HomeWidgets.lists); append("</select></fieldset>")
+        append("<p class=m>MDBList lists come through their addon: add it in Setup, then pick its catalog above.</p>")
+        append("<button>Save</button><p class=m>Saving sends the widget to the TV. Approve it there in Phone setup.</p></form>")
+        append("<script>").append(BIND).append("bind('source','data-source');bind('kind','data-kind');</script>")
+    }
+
     /** The collections list (#160): every folder with its cover, shape and sources, and move, edit and delete buttons. */
     private fun StringBuilder.library(content: PhoneContent, auth: String) {
-        fun post(action: String, target: String, extra: String, label: String, glyph: String, disabled: Boolean = false, danger: Boolean = false) {
-            append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=").append(action).append("><input type=hidden name=target value=\"").append(esc(target)).append("\">")
-                .append(extra).append("<button class=\"ib").append(if (danger) " danger" else "").append("\" aria-label=\"").append(esc(label)).append("\" title=\"").append(esc(label)).append("\"")
-                .append(if (disabled) " disabled" else "").append(">").append(glyph).append("</button></form>")
-        }
         append("<div class=cols>")
         content.library.forEach { c ->
             append("<section class=\"card lib\"><div class=head><h2>").append(esc(c.title)).append("</h2><span class=m>").append(c.folders.size).append(if (c.folders.size == 1) " folder" else " folders").append("</span></div>")
@@ -61,10 +132,10 @@ object ContentPhone {
                 web(f.cover)?.let { append("<img loading=lazy referrerpolicy=no-referrer alt=\"\" src=\"").append(esc(it)).append("\">") } ?: append(esc(name.take(1).uppercase()))
                 append("</span><div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(shapeName(f.shape)).append("</span>")
                     .append(esc(f.sources.joinToString(" · ") { it.second }.ifBlank { "No sources" })).append("</small></div><div class=acts>")
-                post("move-folder", f.id, "<input type=hidden name=dir value=up>", "Move $name up", "&uarr;", disabled = index == 0)
-                post("move-folder", f.id, "<input type=hidden name=dir value=down>", "Move $name down", "&darr;", disabled = index == c.folders.lastIndex)
+                post(auth, "move-folder", f.id, "<input type=hidden name=dir value=up>", "Move $name up", "&uarr;", disabled = index == 0)
+                post(auth, "move-folder", f.id, "<input type=hidden name=dir value=down>", "Move $name down", "&darr;", disabled = index == c.folders.lastIndex)
                 append("<a class=ib href=\"/content?k=$auth&amp;edit=").append(esc(f.id)).append("\" aria-label=\"Edit ").append(esc(name)).append("\" title=\"Edit ").append(esc(name)).append("\">&#9998;</a>")
-                post("delete", f.id, "", "Delete $name", "&#10005;", danger = true)
+                post(auth, "delete", f.id, "", "Delete $name", "&#10005;", danger = true)
                 append("</div></div>")
             }
             append("<a class=\"btn quiet\" href=\"/content?k=$auth&amp;edit=new&amp;in=").append(esc(c.id)).append("\">Add a folder</a></section>")
@@ -113,6 +184,8 @@ object ContentPhone {
     fun render(content: PhoneContent, code: String): String = buildString {
         val auth = esc(code)
         append("<h2>Organize content</h2><p class=m>Changes are sent to the TV for review. Approve them there before they are saved.</p>")
+        widgets(content, auth)
+        append("<h2>Collections</h2>")
         library(content, auth)
         // #159: each task is its own card, and the cards flow into columns on tablets and wider screens.
         append("<h2>More tools</h2><div class=cols>")

@@ -252,6 +252,9 @@ class PhoneSetup(
                 val content = handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()
                 respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + "<p class=ok>${esc(message)}</p>" + content))
             }
+            // #161: so is the widget editor.
+            path == "/content" && query["widget"] != null -> respond(c, 200, page("Edit widget", nav(access, Tab.CONTENT) +
+                handler.content()?.let { ContentPhone.widgetEditor(it, access.code, query["widget"].orEmpty()) }.orEmpty()))
             // #160: the folder editor is its own page.
             path == "/content" && query["edit"] != null -> respond(c, 200, page("Edit collection", nav(access, Tab.CONTENT) +
                 handler.content()?.let { ContentPhone.editor(it, access.code, query["edit"].orEmpty(), query["in"]) }.orEmpty()))
@@ -567,6 +570,12 @@ form,.card{background:var(--card);border:1px solid var(--line);border-radius:16p
 .ib{display:grid;place-items:center;flex:none;width:40px;height:40px;margin:0;padding:0;border:0;border-radius:50%;background:#2c2d32;color:var(--fg);font-size:16px;font-weight:600;text-decoration:none}
 .ib.danger{background:#3a2222;color:#ffb4ab}.ib:disabled{opacity:.3}
 .btn.quiet{background:#2c2d32;color:var(--fg)}
+.card.wide{margin:14px 0}.thumb.st-numbered{font-size:26px;color:var(--fg)}
+.shapes .w-row,.shapes .w-numbered{width:64px;height:30px;background:repeating-linear-gradient(90deg,#5b5d63 0 12px,transparent 12px 17px)}
+.shapes .w-numbered{border-left:5px solid var(--accent)}.shapes .w-carousel{width:64px;height:36px}
+.picks{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}.picks label{margin:0;position:relative}.picks input{position:absolute;opacity:0;width:1px;height:1px}
+.picks span{display:block;padding:8px 12px;border-radius:999px;border:1px solid #3a3b40;background:var(--bg);color:var(--mute);font-size:13px}
+.picks input:checked+span{border-color:var(--accent);background:#2c2d32;color:var(--fg)}.picks input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 .back{color:var(--fg);text-decoration:none;font-weight:600}
 form.ed{max-width:820px}form.ed label{display:block;margin-top:14px;font-size:14px;color:var(--mute)}form.ed h3{font-size:17px;margin-top:22px}
 .shapes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.shapes label{margin:4px 0 0;position:relative}

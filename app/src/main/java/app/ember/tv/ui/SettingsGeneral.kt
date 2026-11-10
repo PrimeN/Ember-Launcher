@@ -114,11 +114,19 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
                                 ?: vm.rows.firstOrNull { it.catalogKey == catalogKey }?.title ?: s.label
                             CatalogRenameButton(vm, catalogKey, original)
                         }
+                        // #161: one of your widgets. Created and edited on the phone page; removable here.
+                        if (app.ember.tv.data.HomeWidgets.isSection(id)) {
+                            var removing by remember(id) { mutableStateOf(false) }
+                            Chip("Delete") { removing = true }
+                            if (removing) ConfirmDestructive("Delete ${s.label}?", "This deletes the widget from Home. This can't be undone; its source (a catalog, list or filters) is not affected.",
+                                { removing = false }) { vm.deleteWidget(id.removePrefix("widget:")) }
+                        }
                         // In progress, Recently watched and the watchlist: a row of titles or a button.
                         if (vm.sections.isList(id)) Chip(if (vm.sections.listStyle(id) == "row") "As a row" else "As a button") { vm.sections.toggleListStyle(id) }
                         MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
                     }
                 }
+                Note("Add your own widgets (a numbered row, a cinematic carousel, a Trakt list, filters…) from the phone setup page: Addons & content > Organize content > Home widgets.")
                 Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
             }
         }

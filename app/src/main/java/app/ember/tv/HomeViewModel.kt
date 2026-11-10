@@ -1024,6 +1024,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             collections.closeFolder(); collectionExplore.clear()
             discover.reset()
             explore.reset()
+            widgets.reload()
             updateScreensaver()
             refreshRows(refetch = false)
             saveSnapshot()
@@ -1035,6 +1036,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val exploreRepository = ExploreRepository(java.io.File(getApplication<Application>().cacheDir, "discover/${cacheGeneration.ifEmpty {"legacy"}}"))
     val explore: ExploreState = ExploreState(viewModelScope, exploreRepository, prefs, { profiles.profileId },
         { !profiles.profile.kids }, { watch.watchRegion }, { sections.reloadLayout() })
+    // ---- Home widgets (#161, state/WidgetsState.kt) ----
+    // Declared after profiles: it reads the active profile's widgets as it is created.
+    val widgets = app.ember.tv.state.WidgetsState(prefs, viewModelScope, { profiles.profileId }, { !profiles.profile.kids },
+        page = { source -> collections.firstPage(source) }, onChanged = { sections.reloadLayout(); saveSnapshot() })
+    fun refreshWidgets(force: Boolean = false) = widgets.refresh(force) { sections.sectionOn(it) }
+    /** Deleting a widget also drops its place in the Home layout. */
+    fun deleteWidget(id: String) { if (widgets.remove(id)) refreshWidgets() }
+    internal fun widgetItems(w: app.ember.tv.data.HomeWidget): List<Meta> = if (w.source.provider == app.ember.tv.data.HomeWidgets.LIST) {
+        if (!personalOn) emptyList() else when (w.source.catalogId) { "continue" -> inProgressItems; "recent" -> recentItems; else -> combinedWatchlist }.take(w.limit)
+    } else widgets.items[w.id].orEmpty()
+
     val discoverSections: List<app.ember.tv.state.DiscoverSection> get() = app.ember.tv.data.DiscoverVisibility.visible(
         look.discoverSections,
         allCatalogs.any { addonAvailable(it.addon.url) && isInDiscover(it) } || discover.discoverCatalogs.isNotEmpty(),
@@ -1138,6 +1150,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         extraSections = { if (profile.kids) emptyList() else buildList {
             if(homeShortcuts.items.isNotEmpty())add(HomeSectionsState.SectionInfo("pinned-shortcuts","Your shortcuts","Pinned server libraries, collections and network folders.") to true)
             addAll(explore.saved.filter {it.home}.map {HomeSectionsState.SectionInfo(it.section,it.name,"Saved Discover · up to 20 matching titles") to true})
+            // #161: your own widgets are sections like the rest, so they can be switched off and moved.
+            addAll(widgets.list.map {w->HomeSectionsState.SectionInfo(app.ember.tv.data.HomeWidgets.section(w.id),w.title,
+                "Widget · ${app.ember.tv.data.HomeWidgets.styleName(w.style)} · ${app.ember.tv.data.HomeWidgets.sourceLabel(w.source,allCatalogs)}") to true})
         } },
         onCatalogVisibilityChanged = { values ->
             catalogs.updateCatalogHomes(values.mapKeys { HomeSectionsState.catalogKey(it.key) })
@@ -1162,7 +1177,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         data class Shortcuts(override val key: String, val ids: List<String>) : HomeBlock
         data class Pinned(val items:List<app.ember.tv.data.HomeShortcut>):HomeBlock {override val key="pinned-shortcuts"}
         data class Loading(override val key:String,val title:String):HomeBlock
-        data class Row(override val key: String, val row: CatalogRow, val saved: Boolean = false) : HomeBlock
+        /** [widget] is set for one of your own widgets (#161); the Ember interface draws it in its style. */
+        data class Row(override val key: String, val row: CatalogRow, val saved: Boolean = false, val widget: app.ember.tv.data.HomeWidget? = null) : HomeBlock
         /** A Collection: a row of folder tiles. */
         data class Collection(override val key: String, val collection: app.ember.tv.data.MediaCollection) : HomeBlock
     }
@@ -1205,6 +1221,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                             add(HomeBlock.Row("addon:$key",row))
                         } else if(catalogs.loading && count {it is HomeBlock.Loading}<3) {
                             allCatalogs.firstOrNull {it.key==key}?.let {add(HomeBlock.Loading("addon:$key",it.label))}
+                        }
+                    } else if (app.ember.tv.data.HomeWidgets.isSection(id) && !profile.kids) {
+                        widgets.list.firstOrNull { app.ember.tv.data.HomeWidgets.section(it.id) == id }?.let { w ->
+                            val items = widgetItems(w)
+                            if (items.isNotEmpty()) add(HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
+                            else if (w.id in widgets.loading && count { it is HomeBlock.Loading } < 3) add(HomeBlock.Loading(id, w.title))
                         }
                     } else if (id.startsWith("explore:") && !profile.kids) {
                         explore.homeRows.firstOrNull { it.catalogKey == id }?.let { add(HomeBlock.Row(id, it)) }

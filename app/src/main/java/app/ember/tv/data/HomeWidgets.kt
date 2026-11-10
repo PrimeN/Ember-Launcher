@@ -1,0 +1,95 @@
+package app.ember.tv.data
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/**
+ * A Home widget (#161): a row on the Ember interface's Home that you define: what it shows
+ * ([source]) and how ([style], [shape]). The built-in sections (hero, apps, catalogs, collections,
+ * lists) are not stored here; they keep their own settings. Its place on Home is its section in
+ * the Home layout, like every other section.
+ */
+@Serializable
+data class HomeWidget(
+    val id: String = "",
+    val title: String = "",
+    /** [HomeWidgets.ROW], [HomeWidgets.NUMBERED] or [HomeWidgets.CAROUSEL]. */
+    val style: String = HomeWidgets.ROW,
+    /** "default" (follow Home's card setting), "poster" or "wide". The carousel is always wide. */
+    val shape: String = "default",
+    val source: CollectionSource = CollectionSource(),
+    val limit: Int = HomeWidgets.DEFAULT_LIMIT,
+)
+
+object HomeWidgets {
+    const val ROW = "row"
+    const val NUMBERED = "numbered"
+    const val CAROUSEL = "carousel"
+    val styles = listOf(ROW to "Row", NUMBERED to "Numbered row", CAROUSEL to "Cinematic carousel")
+    val shapes = listOf("default" to "Follow Home", "poster" to "Poster", "wide" to "Wide")
+
+    /** A source that is one of your own lists; [CollectionSource.catalogId] says which. Needs no request. */
+    const val LIST = "home-list"
+    val lists = listOf("watchlist" to "Your watchlist", "continue" to "In progress", "recent" to "Recently watched")
+
+    const val DEFAULT_LIMIT = 20
+    val LIMITS = 5..50
+    const val MAX_WIDGETS = 40
+
+    private const val PREFIX = "widget:"
+    fun section(id: String) = PREFIX + id
+    fun isSection(section: String) = section.startsWith(PREFIX)
+
+    fun styleName(style: String) = styles.firstOrNull { it.first == style }?.second ?: "Row"
+
+    /** Unknown styles and shapes (an older or newer build's) fall back, so a restored widget still shows. */
+    fun normalize(w: HomeWidget) = w.copy(
+        title = w.title.trim().take(100),
+        style = w.style.takeIf { s -> styles.any { it.first == s } } ?: ROW,
+        shape = w.shape.takeIf { s -> shapes.any { it.first == s } } ?: "default",
+        limit = w.limit.coerceIn(LIMITS.first, LIMITS.last),
+    )
+
+    fun error(w: HomeWidget): String? = when {
+        w.id.isBlank() -> "The widget has no id."
+        w.title.isBlank() -> "Enter a widget title."
+        w.source.provider == LIST && lists.none { it.first == w.source.catalogId } -> "Choose one of your lists."
+        w.source.provider == "addon" && w.source.catalogId.isNullOrBlank() -> "Choose a catalog."
+        w.source.provider == "trakt" && w.source.traktListId == null -> "Enter a Trakt list link or number."
+        w.source.provider == "tmdb" && w.source.tmdbId == null -> "Enter a TMDB list link or number."
+        w.source.provider == "ember" && w.source.exploreQuery == null -> "Choose filters."
+        w.source.provider == "ember" -> w.source.exploreQuery?.error()
+        // Private keys belong in Collections, which store them encrypted; a widget is plain settings.
+        w.source.extraArgs.any { (name, value) -> value.isNotBlank() && CollectionSecrets.sensitive(name) } ->
+            "This catalog needs a private key. Put it in a collection instead."
+        else -> null
+    }
+
+    /** What the source is, for the widget lists on the TV and the phone. */
+    fun sourceLabel(source: CollectionSource, defs: List<CatalogDef>): String = when (source.provider) {
+        LIST -> lists.firstOrNull { it.first == source.catalogId }?.second ?: "Your list"
+        "ember" -> "Filters" + (source.exploreQuery?.let { q -> ": " + summary(q) } ?: "")
+        "trakt" -> "Trakt list ${source.traktListId ?: ""}".trim()
+        "tmdb" -> "TMDB list ${source.tmdbId ?: ""}".trim()
+        else -> Collections.label(source, defs)
+    }
+
+    /** The filters in a few words, e.g. "Movies · Comedy · 2020–2026 · 7+ · Highest rated". */
+    fun summary(q: app.ember.tv.discover.ExploreQuery): String = listOfNotNull(
+        q.kind.label,
+        q.genres.mapNotNull { key -> app.ember.tv.discover.ExploreGenres.all.firstOrNull { it.key == key }?.label }.takeIf { it.isNotEmpty() }?.joinToString(", "),
+        when {
+            q.fromYear != null && q.toYear != null -> if (q.fromYear == q.toYear) "${q.fromYear}" else "${q.fromYear}–${q.toYear}"
+            q.fromYear != null -> "from ${q.fromYear}"
+            q.toYear != null -> "to ${q.toYear}"
+            else -> null
+        },
+        q.minRating?.let { r -> (if (r % 1.0 == 0.0) r.toInt().toString() else r.toString()) + "+" },
+        q.sort.label,
+    ).joinToString(" · ")
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true; explicitNulls = false }
+    fun decode(text: String?): List<HomeWidget> = runCatching { json.decodeFromString<List<HomeWidget>>(text ?: "[]") }.getOrDefault(emptyList())
+        .map(::normalize).filter { error(it) == null }.distinctBy { it.id }.take(MAX_WIDGETS)
+    fun encode(list: List<HomeWidget>): String = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(HomeWidget.serializer()), list)
+}

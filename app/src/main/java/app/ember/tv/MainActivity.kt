@@ -574,6 +574,7 @@ private fun Root(
         else if (tab == NavTabs.HOME) {
             vm.awaitUiPresentation()
             vm.explore.refreshHome { vm.sections.sectionOn(it) }
+            vm.refreshWidgets()
         }
     }
     val interactive = windowFocused && lifecycle.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
@@ -682,9 +683,9 @@ private fun RootContent(
         }
     }
     val discoveryInteractive = app.ember.tv.ui.LocalSceneInteractive.current
-    LaunchedEffect(tab, vm.profiles.profileId, vm.explore.saved, vm.sections.layout, vm.watch.watchRegion, discoveryInteractive) {
+    LaunchedEffect(tab, vm.profiles.profileId, vm.explore.saved, vm.sections.layout, vm.watch.watchRegion, discoveryInteractive, vm.widgets.revision) {
         if (tab != NavTabs.DISCOVER || !discoveryInteractive) vm.explore.pause()
-        if (tab == NavTabs.HOME && discoveryInteractive) vm.explore.refreshHome { vm.sections.sectionOn(it) }
+        if (tab == NavTabs.HOME && discoveryInteractive) { vm.explore.refreshHome { vm.sections.sectionOn(it) }; vm.refreshWidgets() }
     }
     val navigationContext = androidx.compose.ui.platform.LocalContext.current
     var options by remember { mutableStateOf<AppEntry?>(null) }

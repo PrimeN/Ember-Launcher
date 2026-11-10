@@ -65,6 +65,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
             require(def.extraError(values) == null) { "Complete the required catalog filters." }
             return source.copy(extraArgs = values, genre = values["genre"]?.ifBlank { null })
         }
+        fun widgetKey(id: String) = "w-" + AddonAccess.key("widget:$id")
         fun stage(summary: String, apply: suspend () -> String?): String =
             contentApproval.stage(summary, { access.active && profiles.profileId == owner }, apply)
         val registry = PhoneSettings(vm)
@@ -161,6 +162,24 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     catalogExtras = collectionCatalogs.filter { it.extras.isNotEmpty() }.map { app.ember.tv.phone.PhoneCatalogExtras(AddonAccess.key(it.key), it.label, it.extras.map { e -> if (app.ember.tv.data.CollectionSecrets.sensitive(e.name)) e.copy(default = null, options = emptyList()) else e }) },
                     collections = collections.list.map { targetKey(it.id) to it.title },
                     folderSources = folderSources().map { (id, target) -> id to (target.first.title + " / " + target.second.title + " / " + app.ember.tv.data.Collections.label(target.second.allSources[target.third], collectionCatalogs)) },
+                    widgets = run {
+                        // #161: in Home order, which is the order of their sections in the Home layout.
+                        val order = sections.layout.map { it.first }
+                        val shown = widgets.list.sortedBy { w -> order.indexOf(app.ember.tv.data.HomeWidgets.section(w.id)).let { if (it < 0) Int.MAX_VALUE else it } }
+                        shown.map { w ->
+                            val section = app.ember.tv.data.HomeWidgets.section(w.id)
+                            val at = order.indexOf(section)
+                            val count = widgetItems(w).size
+                            app.ember.tv.phone.PhoneWidget(widgetKey(w.id), w.title, w.style, w.shape, w.limit, app.ember.tv.data.HomeWidgets.sourceLabel(w.source, collectionCatalogs),
+                                when {
+                                    !sections.sectionOn(section) -> "Off on Home"
+                                    count > 0 -> "$count titles"
+                                    w.id in widgets.loading -> "Loading"
+                                    w.id in widgets.failed -> "Could not load"
+                                    else -> "Nothing to show yet"
+                                }, canMoveUp = at > 0, canMoveDown = at in 0 until order.lastIndex)
+                        }
+                    },
                     library = folderSources().let { ids -> collections.list.map { c -> app.ember.tv.phone.PhoneCollection(targetKey(c.id), c.title, c.folders.map { f ->
                         app.ember.tv.phone.PhoneFolder(targetKey(c.id, f.id), f.title, f.shape, f.hideTitle, f.coverImageUrl,
                             ids.filter { it.second.first.id == c.id && it.second.second.id == f.id }.sortedBy { it.second.third }
@@ -241,6 +260,58 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         val updated = c.copy(folders = c.folders.map { if (it.id == f.id) it.copy(sources = ordered, catalogSources = emptyList()) else it })
                         app.ember.tv.data.Collections.inspect(app.ember.tv.data.Collections.encode(listOf(updated))).error?.let { return@onPhoneMain it }
                         stage("Edit source ${old.title ?: old.catalogId ?: "source"} in ${c.title} / ${f.title}; action: ${operation ?: "edit"}" + if (year.isNotBlank() || rating.isNotBlank()) "; year: $year, minimum rating: $rating." else ".") { collections.saveCollection(updated, c) }
+                    }
+                    "save-widget" -> {
+                        // #161: the widget editor's one Save.
+                        val target = fields["target"].orEmpty()
+                        val old = widgets.list.firstOrNull { widgetKey(it.id) == target }
+                        if (target != "new" && old == null) return@onPhoneMain "That widget no longer exists. Reload the page."
+                        val title = fields["title"].orEmpty().trim().take(100)
+                        if (title.isBlank()) return@onPhoneMain "Enter a widget title."
+                        fun year(name: String): Int? = fields[name].orEmpty().trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 }
+                        val media = { name: String -> fields[name].takeIf { it == "TV" } ?: "MOVIE" }
+                        val source = when (fields["kind"] ?: "keep") {
+                            "keep" -> old?.source ?: return@onPhoneMain "Choose where the titles come from."
+                            "catalog" -> runCatching { configuredSource(fields["source"].orEmpty(), fields) }.getOrNull()
+                                ?: return@onPhoneMain "Choose an available catalog and complete its required filters."
+                            "filters" -> {
+                                val rating = fields["minRating"].orEmpty().trim().takeIf { it.isNotEmpty() }?.let { it.toDoubleOrNull() ?: -1.0 }
+                                val query = app.ember.tv.discover.ExploreQuery(
+                                    kind = app.ember.tv.discover.ExploreKind.entries.firstOrNull { it.name == fields["fkind"] } ?: app.ember.tv.discover.ExploreKind.ALL,
+                                    sort = app.ember.tv.discover.ExploreSort.entries.firstOrNull { it.name == fields["fsort"] } ?: app.ember.tv.discover.ExploreSort.POPULAR,
+                                    genres = app.ember.tv.discover.ExploreGenres.all.map { it.key }.filter { fields["genre:$it"] == "on" }.toSet(),
+                                    fromYear = year("fromYear"), toYear = year("toYear"), minRating = rating)
+                                query.error()?.let { return@onPhoneMain it }
+                                app.ember.tv.data.CollectionDrafts.discover(title, query, owner)
+                            }
+                            "trakt" -> app.ember.tv.data.CollectionSource(provider = "trakt", title = title, mediaType = media("traktMedia"),
+                                traktListId = app.ember.tv.data.CollectionDrafts.numericId(fields["trakt"].orEmpty()) ?: return@onPhoneMain "Enter a Trakt list link that contains its number, or the number.")
+                            "tmdb" -> app.ember.tv.data.CollectionSource(provider = "tmdb", title = title, tmdbSourceType = "LIST", mediaType = media("tmdbMedia"),
+                                tmdbId = app.ember.tv.data.CollectionDrafts.numericId(fields["tmdb"].orEmpty())?.takeIf { it <= Int.MAX_VALUE }?.toInt() ?: return@onPhoneMain "Enter a TMDB list link or number.")
+                            "list" -> app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.LIST, catalogId = fields["list"], title = title)
+                            else -> return@onPhoneMain "Choose where the titles come from."
+                        }
+                        val widget = app.ember.tv.data.HomeWidgets.normalize(app.ember.tv.data.HomeWidget(
+                            id = old?.id ?: java.util.UUID.randomUUID().toString(), title = title,
+                            style = fields["style"] ?: old?.style ?: app.ember.tv.data.HomeWidgets.ROW, shape = fields["shape"] ?: old?.shape ?: "default",
+                            source = source, limit = fields["limit"]?.trim()?.toIntOrNull() ?: old?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT))
+                        app.ember.tv.data.HomeWidgets.error(widget)?.let { return@onPhoneMain it }
+                        if (widget.source.provider != app.ember.tv.data.HomeWidgets.LIST && !collectionSourceAllowed(widget.source)) return@onPhoneMain "That source is unavailable for this profile."
+                        stage((if (old == null) "Add the Home widget " else "Save the Home widget ") + "$title: ${app.ember.tv.data.HomeWidgets.styleName(widget.style)}, " +
+                            "${app.ember.tv.data.HomeWidgets.sourceLabel(widget.source, collectionCatalogs)}, up to ${widget.limit} titles.") {
+                            widgets.save(widget).also { if (it == null) refreshWidgets() }
+                        }
+                    }
+                    "move-widget" -> {
+                        val w = widgets.list.firstOrNull { widgetKey(it.id) == fields["target"] } ?: return@onPhoneMain "That widget no longer exists. Reload the page."
+                        val up = fields["dir"] == "up"
+                        stage("Move the Home widget ${w.title} ${if (up) "up" else "down"} one place on Home.") {
+                            sections.moveSection(app.ember.tv.data.HomeWidgets.section(w.id), if (up) -1 else 1); null
+                        }
+                    }
+                    "delete-widget" -> {
+                        val w = widgets.list.firstOrNull { widgetKey(it.id) == fields["target"] } ?: return@onPhoneMain "That widget no longer exists. Reload the page."
+                        stage("Delete the Home widget ${w.title}. This can't be undone.") { deleteWidget(w.id); null }
                     }
                     "save-folder" -> {
                         // #160: the folder editor's one Save: title, shape, hide title, cover and sources together.

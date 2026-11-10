@@ -88,6 +88,9 @@ class Prefs(context: Context) {
     fun explorePresets(profile: String): List<app.ember.tv.discover.SavedExplore> = runCatching {
         json.decodeFromString<List<app.ember.tv.discover.SavedExplore>>(sp.getString("explore:" + HomeTitleVisibility.prefix(profile), "[]")!!)
     }.getOrDefault(emptyList())
+    /** Home widgets (#161) for a profile, as HomeWidgets.encode wrote them. */
+    fun homeWidgets(profile: String): String? = sp.getString("widgets:" + HomeTitleVisibility.prefix(profile), null)
+    fun setHomeWidgets(profile: String, value: String) { sp.edit { putString("widgets:" + HomeTitleVisibility.prefix(profile), value) } }
     fun setExplorePresets(profile: String, value: List<app.ember.tv.discover.SavedExplore>) {
         sp.edit { putString("explore:" + HomeTitleVisibility.prefix(profile), json.encodeToString(value)) }
     }

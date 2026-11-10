@@ -171,7 +171,7 @@ internal object PreferenceKeys {
         "positions","trackMemory","server_browser"->"s"
         "screensaver"->when(name) {"sources"->"set";"collectionsAt"->"l";"slides","art","space","photoFolder","weather"->"s";else->null}
         "ember"->expectedType(name) ?: when {
-            name.startsWith("explore:") || name.startsWith("folderSource:")->"s"
+            name.startsWith("explore:") || name.startsWith("folderSource:") || name.startsWith("widgets:")->"s"
             name.startsWith("search:")->if(name.endsWith("enabled"))"b" else "s"
             else->null
         }
