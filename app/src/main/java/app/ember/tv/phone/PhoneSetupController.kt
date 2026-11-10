@@ -318,7 +318,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             "tmdb" -> app.ember.tv.data.CollectionSource(provider = "tmdb", title = title, tmdbSourceType = "LIST", mediaType = media("tmdbMedia"),
                                 tmdbId = app.ember.tv.data.CollectionDrafts.numericId(fields["tmdb"].orEmpty())?.takeIf { it <= Int.MAX_VALUE }?.toInt() ?: return@onPhoneMain "Enter a TMDB list link or number.")
                             "mdblist" -> {
-                                if (app.ember.tv.data.ApiKeys.get("MDBLIST_API_KEY").isBlank()) return@onPhoneMain "Add your MDBList API key in Setup first."
+                                if (app.ember.tv.data.ApiKeys.get("MDBLIST_API_KEY").isBlank()) return@onPhoneMain "Add your MDBList API key under Accounts & APIs first."
                                 app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.MDBLIST, title = title, mediaType = fields["mdblistMedia"]?.takeIf { it == "MOVIE" || it == "TV" },
                                     catalogId = app.ember.tv.data.HomeWidgets.mdblistPath(fields["mdblist"].orEmpty()) ?: return@onPhoneMain "Enter an MDBList list link, user/list-name or number.")
                             }
