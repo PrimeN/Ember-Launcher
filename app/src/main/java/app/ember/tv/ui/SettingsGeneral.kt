@@ -102,8 +102,6 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         HeroBannerSettings(vm)
         PersonalListSettings(vm)
-        // #161
-        if (!vm.profiles.profile.kids) WidgetsSettings(vm)
         Section(stringResource(R.string.ui_home_layout), stringResource(R.string.ui_switch_sections_on_or_off_and)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 layout.forEachIndexed { i, (id, on) ->
@@ -128,6 +126,7 @@ internal fun HomeRowsSection(vm: HomeViewModel) {
                         MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
                     }
                 }
+                Note("Create, edit, import and export your own widgets, and manage collections, in Settings > Home > Widgets & collections.")
                 Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
             }
         }

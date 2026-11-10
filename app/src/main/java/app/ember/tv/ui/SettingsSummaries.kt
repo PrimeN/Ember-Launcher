@@ -18,6 +18,7 @@ internal fun SettingsTab.summary():String=stringResource(when(this) {
     SettingsTab.HOME_EXTRAS->R.string.settings_summary_extras
     SettingsTab.AUDIO_VIDEO->R.string.settings_summary_audio_video
     SettingsTab.HOME_ROWS->R.string.settings_summary_home
+    SettingsTab.WIDGETS->R.string.settings_summary_widgets
     SettingsTab.APPEARANCE->R.string.settings_summary_appearance
     SettingsTab.POSTERS->R.string.settings_summary_posters
     SettingsTab.METADATA->R.string.settings_summary_metadata

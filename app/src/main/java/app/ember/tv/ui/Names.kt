@@ -37,6 +37,7 @@ internal fun SettingsTab.title(): String = stringResource(
         SettingsTab.HOME_EXTRAS -> R.string.settings_page_extras
         SettingsTab.AUDIO_VIDEO -> R.string.settings_page_audio_video
         SettingsTab.HOME_ROWS -> R.string.settings_home_rows
+        SettingsTab.WIDGETS -> R.string.settings_page_widgets
         SettingsTab.APPEARANCE -> R.string.settings_appearance
         SettingsTab.POSTERS -> R.string.settings_page_posters
         SettingsTab.METADATA -> R.string.settings_metadata

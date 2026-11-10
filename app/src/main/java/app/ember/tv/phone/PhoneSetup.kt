@@ -47,6 +47,10 @@ class PhoneSetup(
         fun proposeContent(fields: Map<String, String>): String = "Content editing is unavailable."
         /** A search from the widget editor (#161): [kind] is person, company, provider or trakt ([tab] popular or trending). */
         fun lookup(kind: String, tab: String, query: String): List<PhoneLookup> = emptyList()
+        /** Every Home widget as a pack file (#163); null when there is none to export. */
+        fun exportWidgets(): ByteArray? = null
+        /** A widget pack's text, sent to the TV for approval. Returns a message. */
+        fun importWidgets(text: String): String = "Widget import is unavailable."
         /** Setup checklist and version (#49). */
         fun status(): PhoneStatus? = null
         /** Every setting the phone may change, read on the TV; throws with a message when none may be. */
@@ -174,7 +178,7 @@ class PhoneSetup(
             return respond(c, 403, page("Link expired",
                 "<p>Turn on <b>Settings &gt; Phone setup</b> on the TV and scan the new code.</p>"))
         }
-        val maxBody = if (path == "/restore" || path == "/badges" || path == "/collections" || path=="/presentation") 8_000_000 else 64_000
+        val maxBody = if (path == "/restore" || path == "/badges" || path == "/collections" || path=="/presentation") 8_000_000 else if (path == "/widgets") 2_000_000 else 64_000
         val length = headers["content-length"]?.toLongOrNull() ?: if ("content-length" in headers) -1 else 0
         if (length < 0 || "transfer-encoding" in headers) return respond(c, 400, page("Invalid request", ""))
         if (length > maxBody) return respond(c, 413, page("File too large", ""))
@@ -237,6 +241,19 @@ class PhoneSetup(
                 val msg = if (text.isBlank()) "Choose a collections file, or paste its JSON." else runCatching { app.ember.tv.data.CollectionTransfer.open(text, form["passphrase"].orEmpty()) }
                     .fold({ handler.importCollections(it) }, { "Could not unlock the collection pack. Check its passphrase and file." })
                 shell(Tab.CONTENT, msg)
+            }
+            // #163: widget packs, like collection packs. Export downloads; import is approved on the TV.
+            method == "POST" && path == "/widgets-export" -> {
+                val bytes = runCatching { handler.exportWidgets() }.getOrNull()
+                access.requireActive()
+                if (bytes == null) respond(c, 200, page("Widget export", "<p>There are no widgets to export yet.</p>"))
+                else respondFile(c, "ember-widgets.json", bytes)
+            }
+            method == "POST" && path == "/widgets" -> {
+                val text = multipart["file"]?.toString(Charsets.UTF_8)?.takeIf { it.isNotBlank() } ?: form["json"].orEmpty()
+                val message = if (text.isBlank()) "Choose a widget pack file, or paste its contents." else handler.importWidgets(text)
+                val content = handler.content()?.let { ContentPhone.render(it, access.code) }.orEmpty()
+                respond(c, 200, page("Organize content", nav(access, Tab.CONTENT) + "<p class=ok>${esc(message)}</p>" + content))
             }
             method == "POST" && path == "/collection-export" -> {
                 val bytes = runCatching { handler.exportCollection(form["collectionId"].orEmpty(), form["passphrase"].orEmpty()) }.getOrNull()
@@ -579,7 +596,7 @@ form,.card{background:var(--card);border:1px solid var(--line);border-radius:16p
 .acts{display:flex;gap:6px;margin-left:auto}.acts form{background:none;border:0;padding:0;margin:0}
 .ib{display:grid;place-items:center;flex:none;width:40px;height:40px;margin:0;padding:0;border:0;border-radius:50%;background:#2c2d32;color:var(--fg);font-size:16px;font-weight:600;text-decoration:none}
 .ib.danger{background:#3a2222;color:#ffb4ab}.ib:disabled{opacity:.3}
-.btn.quiet{background:#2c2d32;color:var(--fg)}
+.btn.quiet,button.quiet{background:#2c2d32;color:var(--fg)}
 .card.wide{margin:14px 0}.thumb.st-numbered{font-size:26px;color:var(--fg)}
 .shapes .w-row,.shapes .w-numbered{width:64px;height:30px;background:repeating-linear-gradient(90deg,#5b5d63 0 12px,transparent 12px 17px)}
 .shapes .w-numbered{border-left:5px solid var(--accent)}.shapes .w-carousel{width:64px;height:36px}

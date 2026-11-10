@@ -88,7 +88,12 @@ object ContentPhone {
             post(auth, "delete-widget", w.id, "", "Delete $name", "&#10005;", danger = true)
             append("</div></div>")
         }
-        append("<a class=btn href=\"/content?k=$auth&amp;widget=new\">Add a widget</a></section>")
+        append("<a class=btn href=\"/content?k=$auth&amp;widget=new\">Add a widget</a>")
+        // #163: move widgets between TVs and profiles as a file, like collections.
+        append("<details><summary>Import or export widgets</summary>")
+        if (content.widgets.isNotEmpty()) append("<form class=flat method=post action=\"/widgets-export?k=$auth\"><button class=quiet>Download all widgets</button></form>")
+        append("<form class=flat method=post action=\"/widgets?k=$auth\" enctype=multipart/form-data><p class=m>A widget pack exported from Ember. Widgets with the same id are updated; the rest are added. Approve the import on the TV.</p>")
+        append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the pack here\"></textarea><button>Import widgets</button></form></details></section>")
     }
 
     /**

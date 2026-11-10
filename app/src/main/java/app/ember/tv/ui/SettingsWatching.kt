@@ -802,8 +802,8 @@ internal fun StremioFormatPage(vm: HomeViewModel) {
             }
         }
 
-        PartHeader("Collections")
-        CollectionsSettings(vm)
+        // #163: Collections moved to Settings > Home > Widgets & collections.
+        Note("Collections are now in Settings > Home > Widgets & collections.")
     }
 }
 

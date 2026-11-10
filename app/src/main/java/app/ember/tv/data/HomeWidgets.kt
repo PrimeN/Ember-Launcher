@@ -108,5 +108,25 @@ object HomeWidgets {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true; explicitNulls = false }
     fun decode(text: String?): List<HomeWidget> = runCatching { json.decodeFromString<List<HomeWidget>>(text ?: "[]") }.getOrDefault(emptyList())
         .map(::normalize).filter { error(it) == null }.distinctBy { it.id }.take(MAX_WIDGETS)
+    // ---- export and import (#163) ----
+    const val PACK_FORMAT = "ember-widgets"
+    @Serializable private data class Pack(val format: String = "", val version: Int = 0, val widgets: List<HomeWidget> = emptyList())
+    /** A file of widgets for another TV or profile. Widgets hold no private keys, so the pack is plain JSON. */
+    fun pack(list: List<HomeWidget>): String = json.encodeToString(Pack.serializer(), Pack(format = PACK_FORMAT, version = 1, widgets = list))
+    /**
+     * The widgets in an exported pack (or a bare list). Filter widgets belong to a profile, so they
+     * become [profile]'s. Widgets that cannot work are left out; none at all is an error.
+     */
+    fun unpack(text: String, profile: String): Result<List<HomeWidget>> = runCatching {
+        require(text.length <= 2_000_000) { "The widget pack is too large." }
+        val raw = runCatching { json.decodeFromString(Pack.serializer(), text) }.getOrNull()?.takeIf { it.format == PACK_FORMAT }?.widgets
+            ?: runCatching { json.decodeFromString<List<HomeWidget>>(text) }.getOrNull()
+            ?: error("This is not an Ember widget pack.")
+        val usable = raw.map { w -> normalize(if (w.source.provider == "ember") w.copy(source = w.source.copy(ownerProfile = profile)) else w) }
+            .filter { error(it) == null }.distinctBy { it.id }.take(MAX_WIDGETS)
+        require(usable.isNotEmpty()) { "The pack has no widgets that can be used here." }
+        usable
+    }
+
     fun encode(list: List<HomeWidget>): String = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(HomeWidget.serializer()), list)
 }

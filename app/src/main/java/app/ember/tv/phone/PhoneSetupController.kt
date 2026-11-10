@@ -196,6 +196,18 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         }
                     })
             }
+            override fun exportWidgets(): ByteArray? = onPhoneMain {
+                check(!profiles.profile.kids) { "Switch to an adult profile." }
+                widgets.list.takeIf { it.isNotEmpty() }?.let { app.ember.tv.data.HomeWidgets.pack(it).toByteArray() }
+            }
+            override fun importWidgets(text: String): String = onPhoneMain {
+                check(!profiles.profile.kids) { "Switch to an adult profile." }
+                app.ember.tv.data.HomeWidgets.unpack(text, owner).fold({ found ->
+                    stage("Import ${found.size} Home widget(s): ${found.take(5).joinToString(", ") { it.title }}${if (found.size > 5) "…" else ""}. Widgets with the same id are updated.") {
+                        vm.importWidgets(text)
+                    }
+                }, { it.message ?: "This is not an Ember widget pack." })
+            }
             override fun lookup(kind: String, tab: String, query: String): List<app.ember.tv.phone.PhoneLookup> = onPhoneMain {
                 check(!profiles.profile.kids) { "Switch to an adult profile." }
                 val q = query.trim()

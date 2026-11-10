@@ -285,6 +285,7 @@ internal fun SettingsTab.icon(): androidx.compose.ui.graphics.vector.ImageVector
     SettingsTab.HOME_EXTRAS -> Icons.Outlined.IcWidgets
     SettingsTab.AUDIO_VIDEO -> Icons.Outlined.IcGraphicEq
     SettingsTab.HOME_ROWS -> Icons.Outlined.IcDashboard
+    SettingsTab.WIDGETS -> Icons.Outlined.IcWidgets
     SettingsTab.APPEARANCE -> Icons.Outlined.IcPalette
     SettingsTab.POSTERS -> Icons.Outlined.IcImage
     SettingsTab.METADATA -> Icons.Outlined.IcDescription

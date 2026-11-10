@@ -1044,6 +1044,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val widgets = WidgetsState(prefs, viewModelScope, { profiles.profileId }, { !profiles.profile.kids },
         page = { source -> collections.firstPage(source) }, onChanged = { sections.reloadLayout(); saveSnapshot() })
     fun refreshWidgets(force: Boolean = false) = widgets.refresh(force) { sections.sectionOn(it) }
+    /** Imports a widget pack's text (#163); returns the outcome as a message. */
+    fun importWidgets(text: String): String = HomeWidgets.unpack(text, profiles.profileId)
+        .fold({ widgets.importAll(it).also { refreshWidgets() } }, { it.message ?: "This is not an Ember widget pack." })
     /** Deleting a widget also drops its place in the Home layout. */
     fun deleteWidget(id: String) { if (widgets.remove(id)) refreshWidgets() }
     internal fun widgetItems(w: HomeWidget): List<Meta> = if (w.source.provider == HomeWidgets.LIST) {

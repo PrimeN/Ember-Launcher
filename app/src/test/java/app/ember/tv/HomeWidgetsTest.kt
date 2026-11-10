@@ -184,6 +184,51 @@ class HomeWidgetsTest {
         assertTrue(server.contains("path == \"/lookup\""))
     }
 
+    @Test fun widgetsExportAndImportBetweenTvsAndProfiles() {
+        // #163
+        val filters = widget("f", "Comedies", HomeWidgets.CAROUSEL, CollectionDrafts.discover("Comedies", ExploreQuery(genres = setOf("comedy")), "someone-else"))
+        val pack = HomeWidgets.pack(listOf(widget(), filters, widget("mine", "Later", HomeWidgets.ROW, CollectionSource(provider = HomeWidgets.LIST, catalogId = "watchlist"))))
+        assertTrue(pack.contains("\"format\":\"ember-widgets\""))
+        val opened = HomeWidgets.unpack(pack, "me").getOrThrow()
+        assertEquals(listOf("w1", "f", "mine"), opened.map { it.id })
+        assertEquals("filter widgets become the importing profile's", "me", opened[1].source.ownerProfile)
+        assertEquals(widget(), opened[0])
+        // A bare list is accepted; other files and empty packs are refused with a reason.
+        assertEquals(listOf("w1"), HomeWidgets.unpack(HomeWidgets.encode(listOf(widget())), "me").getOrThrow().map { it.id })
+        assertTrue(HomeWidgets.unpack("{\"format\":\"ember-collections\"}", "me").isFailure)
+        assertTrue(HomeWidgets.unpack("not json", "me").exceptionOrNull()!!.message!!.contains("widget pack"))
+        assertTrue(HomeWidgets.unpack(HomeWidgets.pack(listOf(widget(title = " "))), "me").exceptionOrNull()!!.message!!.contains("no widgets"))
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        try {
+            val state = WidgetsState(memoryPrefs(), scope, { "me" }, { true }, page = { Result.success(CollectionPage(emptyList(), 0, true)) }, onChanged = {}, clock = { 0L })
+            assertNull(state.save(widget(title = "Old name")))
+            assertEquals("Imported: 2 added, 1 updated.", state.importAll(opened))
+            assertEquals(listOf("w1" to "Top 10", "f" to "Comedies", "mine" to "Later"), state.list.map { it.id to it.title })
+            assertEquals("Imported: 0 added, 3 updated.", state.importAll(opened))
+            assertTrue(state.importAll(emptyList()).contains("no widgets"))
+        } finally { scope.cancel() }
+    }
+
+    @Test fun widgetsAndCollectionsShareOneSettingsPageAndThePhoneMovesPacks() {
+        // #163
+        assertEquals("Home", app.ember.tv.ui.SettingsTab.WIDGETS.group)
+        assertEquals("Widgets & collections", app.ember.tv.ui.SettingsTab.WIDGETS.label)
+        val index = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.WIDGETS }.second.lowercase()
+        for (word in listOf("widgets", "import", "export", "collections", "trakt", "carousel")) assertTrue(word, word in index)
+        assertFalse(java.io.File("src/main/java/app/ember/tv/ui/SettingsWatching.kt").readText().contains("CollectionsSettings(vm)"))
+        val screen = java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText()
+        assertTrue(screen.contains("WidgetsSettings(vm)")); assertTrue(screen.contains("CollectionsSettings(vm)"))
+
+        val some = PhoneContent(emptyList(), emptyList(), emptyList(), widgets = listOf(PhoneWidget("w-1", "Top", HomeWidgets.ROW, "default", 20, "Trakt list 42", "20 titles")))
+        val page = ContentPhone.render(some, "lease")
+        assertTrue(page.contains("action=\"/widgets-export?k=lease\"")); assertTrue(page.contains("action=\"/widgets?k=lease\" enctype=multipart/form-data"))
+        assertFalse("nothing to download yet", ContentPhone.render(PhoneContent(emptyList(), emptyList(), emptyList()), "lease").contains("/widgets-export"))
+        assertTrue(ContentPhone.render(PhoneContent(emptyList(), emptyList(), emptyList()), "lease").contains("action=\"/widgets?k=lease\""))
+        val server = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
+        assertTrue(server.contains("path == \"/widgets-export\"")); assertTrue(server.contains("path == \"/widgets\""))
+    }
+
     private fun memoryPrefs(): Prefs {
         val values = mutableMapOf<String, Any?>()
         val editor = Proxy.newProxyInstance(javaClass.classLoader, arrayOf(SharedPreferences.Editor::class.java)) { proxy, method, args -> when {

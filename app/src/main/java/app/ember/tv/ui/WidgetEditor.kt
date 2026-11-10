@@ -12,6 +12,7 @@ import app.ember.tv.HomeViewModel
 import app.ember.tv.data.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
 /**
  * Home widgets on the TV (#161): Settings > Home lists your widgets and creates, edits and deletes
@@ -22,23 +23,48 @@ import kotlinx.coroutines.ensureActive
 internal fun WidgetsSettings(vm: HomeViewModel) {
     var editing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var removing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
+    var importing by remember { mutableStateOf(false) }
+    var message by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     Section("Your widgets", "Rows you define for the Ember Home: a numbered Top 10, a cinematic carousel or a hero banner, from a catalog, a list or filters.", id = "home-widgets") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("Create widget", modifier = Modifier.testTag("widget_create")) { editing = WidgetDrafts.new() }
-            vm.widgets.list.forEach { w ->
+            ButtonRow {
+                Chip("Create widget", modifier = Modifier.testTag("widget_create")) { editing = WidgetDrafts.new() }
+                // #163: like collections, widgets move between TVs and profiles as a file.
+                Chip("Import") { importing = true }
+                if (vm.widgets.list.isNotEmpty()) Chip("Export all") {
+                    val pack = HomeWidgets.pack(vm.widgets.list)
+                    scope.launch {
+                        message = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            Backup.saveToDownloads(context, "ember-widgets-${System.currentTimeMillis()}.json", pack.toByteArray())
+                        } }.fold({ "Saved to $it" }, { "Could not save the widget pack." })
+                    }
+                }
+            }
+            message?.let { Text(it, color = Mute, fontSize = 13.sp) }
+            // In Home order, so Move matches what Home shows.
+            val layout = vm.sections.layout
+            val order = layout.map { it.first }
+            vm.widgets.list.sortedBy { w -> order.indexOf(HomeWidgets.section(w.id)).let { if (it < 0) Int.MAX_VALUE else it } }.forEach { w ->
+                val section = HomeWidgets.section(w.id)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Column(Modifier.width(420.dp)) {
+                    Column(Modifier.width(340.dp)) {
                         Text(w.title, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(WidgetDrafts.summary(w, vm.allCatalogs), color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
+                    SwitchChip("On Home", vm.sections.sectionOn(section)) { vm.sections.toggleSection(section) }
+                    MoveButton(w.title, order.indexOf(section), order.lastIndex) { step -> vm.sections.moveSection(section, step) }
                     Chip("Edit") { editing = w }
                     Chip("Delete") { removing = w }
                 }
             }
-            if (vm.widgets.list.isNotEmpty()) Note("Move widgets and switch them off in Home layout below.")
+            Note(if (vm.widgets.list.isEmpty()) "No widgets yet. The banner, apps, catalogs and lists that come with Home are arranged in Home layout."
+                else "Move steps a widget past every Home section, built-in ones included; Home layout shows the whole order.")
         }
     }
     editing?.let { WidgetEditorDialog(vm, it) { editing = null } }
+    if (importing) WidgetImportDialog(vm, { importing = false }) { message = it }
     removing?.let { w ->
         ConfirmDestructive("Delete ${w.title}?", "This deletes the widget from Home. This can't be undone; its source (a catalog, list or filters) is not affected.",
             { removing = null }) { vm.deleteWidget(w.id) }
@@ -96,6 +122,39 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
             Chip("Cancel") { close() }
         }
         Note("Filters: save a search in Discover, then pick it under Catalog, saved search or TMDB. MDBList by link is on the phone setup page.")
+    }
+}
+
+/** Import a widget pack from a link (#163). The phone setup page takes a file or pasted text instead. */
+@Composable
+private fun WidgetImportDialog(vm: HomeViewModel, close: () -> Unit, done: (String) -> Unit) {
+    var url by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var pending by remember { mutableStateOf<Pair<String, List<HomeWidget>>?>(null) }
+    val scope = rememberCoroutineScope()
+    MediaDialog("Import widgets", close, resizeForKeyboard = true) {
+        Text("A link to a widget pack exported from Ember. Widgets with the same id are updated; the rest are added.", color = Mute)
+        TvTextField(url, { url = it; pending = null; message = null }, Modifier.fillMaxWidth(), placeholder = "Pack link (https://…)")
+        message?.let { Text(it, color = Mute) }
+        val found = pending
+        if (found == null) Chip(if (busy) "Opening…" else "Check the pack") { if (!busy && url.isNotBlank()) { busy = true; scope.launch {
+            val text = runCatching { Collections.download(url) }
+            val widgets = text.getOrNull()?.let { HomeWidgets.unpack(it, vm.profiles.profileId) }
+            message = when {
+                text.isFailure -> "Could not open that link. Check it and the connection."
+                widgets?.isFailure == true -> widgets.exceptionOrNull()?.message ?: "This is not an Ember widget pack."
+                else -> null
+            }
+            pending = text.getOrNull()?.let { raw -> widgets?.getOrNull()?.let { raw to it } }
+            busy = false
+        } } } else {
+            Text("${found.second.size} widget" + (if (found.second.size == 1) "" else "s") + ": " + found.second.take(6).joinToString(", ") { it.title } + if (found.second.size > 6) "…" else "", fontSize = 15.sp)
+            ButtonRow {
+                Chip("Import ${found.second.size}") { done(vm.importWidgets(found.first)); close() }
+                Chip("Cancel") { close() }
+            }
+        }
     }
 }
 

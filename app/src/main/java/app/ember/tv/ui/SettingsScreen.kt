@@ -104,6 +104,8 @@ internal enum class SettingsTab(val label: String, val group: String) {
     REMOTE("Remote", "Look"),
     // Home: what the Home screen shows and what happens at startup.
     HOME_ROWS("Home layout", "Home"),
+    // #163: what you add to Home yourself, in one place.
+    WIDGETS("Widgets & collections", "Home"),
     LIGHT_HOME("Ember Light Home", "Home"),
     TOP_MENU("Top menu", "Home"),
     DISCOVER("Discover", "Home"),
@@ -184,6 +186,10 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.TOP_MENU -> item(key = "topmenu") { TopMenuSection(vm) }
             SettingsTab.DISCOVER -> item(key = "discover-sections") { DiscoverSettings(vm) }
             SettingsTab.HOME_ROWS -> { item(key = "home") { HomeRowsSection(vm) }; appearancePage(vm, SettingsTab.HOME_ROWS) }
+            SettingsTab.WIDGETS -> {
+                if (!vm.profiles.profile.kids) item(key = "widgets") { WidgetsSettings(vm) }
+                item(key = "collections") { Section("Collections", "Rows of folder tiles on Home and Discover; each folder opens one or more catalogs.", id = "collections") { CollectionsSettings(vm) } }
+            }
             SettingsTab.LIGHT_HOME -> {
                 if (vm.look.uiStyle != app.ember.tv.data.InterfaceStyles.LIGHT) item(key = "light-note") {
                     Note("These options apply when Appearance > Interface is Ember Light.")

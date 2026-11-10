@@ -91,6 +91,21 @@ class WidgetsState(
         return null
     }
 
+    /** Imported widgets replace ones with the same id and add the rest (#163). Returns a message for the user. */
+    fun importAll(incoming: List<HomeWidget>): String {
+        if (!allowed()) return "Widgets are unavailable for this profile."
+        if (profileId() != owner) reload()
+        val usable = incoming.map(HomeWidgets::normalize).filter { HomeWidgets.error(it) == null }.distinctBy { it.id }
+        if (usable.isEmpty()) return "The pack has no widgets that can be used here."
+        val ids = usable.map { it.id }.toSet()
+        val updated = list.count { it.id in ids }
+        val merged = (list.map { old -> usable.firstOrNull { it.id == old.id } ?: old } + usable.filter { w -> list.none { it.id == w.id } }).take(HomeWidgets.MAX_WIDGETS)
+        val added = merged.size - list.size
+        persist(merged)
+        val skipped = usable.size - updated - added
+        return listOfNotNull("Imported: $added added", "$updated updated", if (skipped > 0) "$skipped left out (Home holds ${HomeWidgets.MAX_WIDGETS})" else null).joinToString(", ") + "."
+    }
+
     fun remove(id: String): Boolean {
         if (profileId() != owner) reload()
         if (list.none { it.id == id }) return false

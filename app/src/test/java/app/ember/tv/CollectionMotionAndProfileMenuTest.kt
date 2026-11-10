@@ -122,7 +122,8 @@ class CollectionMotionAndProfileMenuTest {
     }
 
     @Test fun collectionAnimationSettingIsDiscoverableFromSettingsSearch() {
-        val text = SETTINGS_INDEX.single { it.first == SettingsTab.STREMIO }.second.lowercase()
+        // #163: Collections moved to Settings > Home > Widgets & collections.
+        val text = SETTINGS_INDEX.single { it.first == SettingsTab.WIDGETS }.second.lowercase()
         listOf("animated collections", "video", "gif", "on", "off").forEach { assertTrue(it in text) }
     }
 }

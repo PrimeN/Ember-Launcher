@@ -46,6 +46,7 @@
     <string name="settings_page_apps_folders">Apps &amp; folders</string>
     <string name="settings_page_startup">Startup</string>
     <string name="settings_page_extras">Extras</string>
+    <string name="settings_page_widgets">Widgets &amp; collections</string>
     <string name="settings_page_audio_video">Audio &amp; video</string>
     <string name="settings_page_languages">Languages &amp; subtitles</string>
     <string name="settings_page_stream_results">Stream results &amp; badges</string>
@@ -61,6 +62,7 @@
     <string name="settings_summary_apps_folders">App folders, custom artwork and app PIN locks for each profile.</string>
     <string name="settings_summary_startup">Ember as Home, the Home button and what opens when the TV starts.</string>
     <string name="settings_summary_extras">Now Playing and presentation slideshows.</string>
+    <string name="settings_summary_widgets">Your own Home rows, banners and collections.</string>
     <string name="settings_summary_audio_video">Audio output, lip sync, decoding, HDR, frame rate and buffering.</string>
     <string name="settings_summary_tv_device">Calibration, display and input shortcuts, manufacturer and engineering menus.</string>
 </resources>
