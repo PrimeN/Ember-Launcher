@@ -276,8 +276,20 @@ class CollectionsState(
         } }
     }
 
-    fun remove(id: String) {
-        scope.launch { update("Collection removed.") { current -> current.filterNot { it.id == id } } }
+    fun remove(id: String) { scope.launch { deleteCollection(id) } }
+
+    /** Deletes a collection; returns an error for the phone page, or null when done (#157, #158). */
+    suspend fun deleteCollection(id: String): String? {
+        if (list.none { it.id == id }) return "That collection no longer exists."
+        return update("Collection deleted.") { current -> current.filterNot { it.id == id } }
+    }
+
+    fun removeFolder(collectionId: String, folderId: String) { scope.launch { deleteFolder(collectionId, folderId) } }
+
+    /** Deletes one folder (#157). A collection needs a folder, so deleting its last one deletes the collection. */
+    suspend fun deleteFolder(collectionId: String, folderId: String): String? {
+        if (list.none { it.id == collectionId && it.folders.any { f -> f.id == folderId } }) return "That folder no longer exists."
+        return update("Folder deleted.") { current -> app.ember.tv.data.CollectionDrafts.withoutFolder(current, collectionId, folderId) }
     }
 
     fun removeAll() {
@@ -398,6 +410,12 @@ class CollectionsState(
         val f = c.folders.firstOrNull { it.id == folderId } ?: return@withLock "That folder no longer exists."
         persistUpdate("Folder duplicated.", list.map { if (it.id == c.id) it.copy(folders = it.folders + app.ember.tv.data.CollectionDrafts.duplicate(f).copy(title = f.title + " (copy)")) else it })
     }
+    /** Every collection in one encrypted pack (#158); importing it brings them all back. */
+    fun exportAll(passphrase: String): String {
+        require(list.isNotEmpty()) { "There are no collections to export." }
+        return app.ember.tv.data.CollectionTransfer.seal(list, passphrase) { app.ember.tv.tracker.TokenStore(context).get(it) }
+    }
+
     fun exportPack(id: String, passphrase: String): String {
         val c = list.firstOrNull { it.id == id } ?: error("That collection no longer exists.")
         return app.ember.tv.data.CollectionTransfer.seal(listOf(c), passphrase) { app.ember.tv.tracker.TokenStore(context).get(it) }

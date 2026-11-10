@@ -7,6 +7,7 @@ import app.ember.tv.isSaved
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.activity.compose.BackHandler
@@ -68,9 +69,12 @@ import androidx.compose.material.icons.outlined.PlayCircleOutline as PlayCircleI
 
 /** A Collection on Home: its title, then a row of folder tiles. */
 @Composable
-fun CollectionRow(c: MediaCollection, animations: Boolean = false, onMove: ((CollectionFolder, Int) -> Unit)? = null, onOpen: (CollectionFolder) -> Unit) {
+fun CollectionRow(c: MediaCollection, animations: Boolean = false, onMove: ((CollectionFolder, Int) -> Unit)? = null,
+    /** Deletes the folder, or the whole collection when the folder is null (#157). */
+    onDelete: ((CollectionFolder?) -> Unit)? = null, onOpen: (CollectionFolder) -> Unit) {
     // Hold OK on a folder to move it (#69), e.g. the ones used most to the front.
     var moving by remember(c.id) { mutableStateOf<CollectionFolder?>(null) }
+    var deleting by remember(c.id) { mutableStateOf<Pair<Boolean, CollectionFolder>?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(c.title, fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.padding(start = 4.dp))
         // Sized like the other rows: wide folders 5¼ across, poster folders like poster cards.
@@ -90,10 +94,18 @@ fun CollectionRow(c: MediaCollection, animations: Boolean = false, onMove: ((Col
         val index = c.folders.indexOfFirst { it.id == f.id }
         val last = c.folders.lastIndex
         if (index < 0 || onMove == null) { moving = null; return@let }
-        OptionMenu("Move ${f.title.ifBlank { "folder" }}", buildList {
+        OptionMenu(f.title.ifBlank { "Folder" }, buildList {
             if (index > 0) { add(MenuOption("To the front") { onMove(f, -index) }); add(MenuOption("Left") { onMove(f, -1) }) }
             if (index < last) { add(MenuOption("Right") { onMove(f, 1) }); add(MenuOption("To the end") { onMove(f, last - index) }) }
+            if (onDelete != null) {
+                add(MenuOption("Delete this folder", icon = Icons.Outlined.Delete) { deleting = false to f })
+                add(MenuOption("Delete the whole collection", icon = Icons.Outlined.Delete) { deleting = true to f })
+            }
         }) { moving = null }
+    }
+    deleting?.let { (whole, f) ->
+        if (whole) ConfirmDestructive("Delete ${c.title.ifBlank { "this collection" }}?", CollectionDeletion.collectionMessage(c.folders.size), { deleting = null }) { onDelete?.invoke(null) }
+        else ConfirmDestructive("Delete ${f.title.ifBlank { "this folder" }}?", CollectionDeletion.folderMessage(c.folders.size == 1), { deleting = null }) { onDelete?.invoke(f) }
     }
 }
 

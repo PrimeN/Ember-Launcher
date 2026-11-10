@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +32,8 @@ internal fun CollectionManager(vm: HomeViewModel) {
     var importing by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf<String?>(null) }
     var removing by remember { mutableStateOf<String?>(null) }
+    var removingFolder by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var removingAll by remember { mutableStateOf(false) }
     var restore by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope(); val cs = vm.collections
     val focus = remember { FocusRequester() }; val createFocus = remember { FocusRequester() }
@@ -47,6 +50,11 @@ internal fun CollectionManager(vm: HomeViewModel) {
         ButtonRow {
             Chip("Create collection", modifier = Modifier.focusRequester(createFocus)) { original = null; editing = true }
             Chip("Import pack") { importing = true }
+            // #157
+            if (cs.list.isNotEmpty()) {
+                Chip("Export all") { exporting = EXPORT_ALL }
+                Chip("Delete all", modifier = Modifier.testTag("collections_delete_all")) { removingAll = true }
+            }
             Text("${cs.list.size} collections · ${cs.list.sumOf { it.folders.size }} folders", color = Mute, fontSize = 12.sp)
         }
         TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find collections or folders")
@@ -63,12 +71,13 @@ internal fun CollectionManager(vm: HomeViewModel) {
                             SwitchChip("Home", c.id !in cs.hidden) { cs.toggle(c.id) }
                             SwitchChip("Discover", c.id in cs.inDiscover) { cs.toggleDiscover(c.id) }
                             MoveButton(c.title, cs.list.indexOfFirst { it.id == c.id }, cs.list.lastIndex) { step -> cs.move(c.id, step) }
-                            Chip("Remove") { removing = c.id }
+                            Chip("Delete", modifier = Modifier.testTag("collection_delete")) { removing = c.id }
                         }
                         c.folders.forEach { f -> ButtonRow(spacing = 6.dp) {
                             Text(f.title, color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             SwitchChip("Visible", cs.folderOn(c, f)) { cs.toggleFolder(c, f) }
                             Chip("Duplicate folder") { scope.launch { cs.duplicateFolder(c.id, f.id) } }
+                            Chip("Delete folder") { removingFolder = c.id to f.id }
                         } }
                     }
                 }
@@ -78,11 +87,20 @@ internal fun CollectionManager(vm: HomeViewModel) {
     if (editing) CollectionEditor(vm, original) { editing = false }
     if (importing) CollectionImportDialog(vm) { importing = false }
     exporting?.let { id -> CollectionExportDialog(vm, id) { exporting = null } }
-    removing?.let { id -> MediaDialog("Remove collection?", { removing = null }) {
-        Text(cs.list.firstOrNull { it.id == id }?.title.orEmpty(), fontSize = 16.sp)
-        Chip("Remove collection") { restore = id; expanded = null; cs.remove(id); removing = null }
-        Chip("Keep collection") { removing = null }
-    } }
+    // #157: the same prompt as other deletions: it starts on Cancel and says what is lost.
+    removing?.let { id ->
+        val c = cs.list.firstOrNull { it.id == id }
+        ConfirmDestructive("Delete ${c?.title?.ifBlank { null } ?: "this collection"}?", CollectionDeletion.collectionMessage(c?.folders?.size ?: 0),
+            { removing = null }) { restore = id; expanded = null; cs.remove(id) }
+    }
+    removingFolder?.let { (collectionId, folderId) ->
+        val owner = cs.list.firstOrNull { it.id == collectionId }
+        val f = owner?.folders?.firstOrNull { it.id == folderId }
+        ConfirmDestructive("Delete ${f?.title?.ifBlank { null } ?: "this folder"}?", CollectionDeletion.folderMessage(owner?.folders?.size == 1),
+            { removingFolder = null }) { restore = collectionId; cs.removeFolder(collectionId, folderId) }
+    }
+    if (removingAll) ConfirmDestructive("Delete all ${cs.list.size} collections?", CollectionDeletion.ALL_MESSAGE,
+        { removingAll = false }, "Delete all") { expanded = null; cs.removeAll(); runCatching { createFocus.requestFocus() } }
 }
 
 @Composable
@@ -110,14 +128,16 @@ private fun CollectionImportDialog(vm: HomeViewModel, close: () -> Unit) {
 private fun CollectionExportDialog(vm: HomeViewModel, id: String, close: () -> Unit) {
     var password by remember { mutableStateOf("") }; var message by remember { mutableStateOf<String?>(null) }; var busy by remember { mutableStateOf(false) }
     val context = LocalContext.current; val scope = rememberCoroutineScope()
-    MediaDialog("Export collection", close, resizeForKeyboard = true) {
-        Text("Save this collection and its private source settings in an encrypted pack. Keep the passphrase to import it on another TV.", color = Mute)
+    val all = id == EXPORT_ALL
+    MediaDialog(if (all) "Export all collections" else "Export collection", close, resizeForKeyboard = true) {
+        Text((if (all) "Save every collection and their private source settings in one encrypted pack." else "Save this collection and its private source settings in an encrypted pack.") +
+            " Keep the passphrase to import it on another TV.", color = Mute)
         TvTextField(password, { password = it }, Modifier.fillMaxWidth(), placeholder = "Passphrase (at least 8 characters)", password = true)
         message?.let { Text(it, color = Mute) }
         Chip(if (busy) "Saving…" else "Save encrypted pack") { if (!busy) { busy = true; scope.launch {
             message = runCatching { withContext(Dispatchers.IO) {
-                val pack = vm.collections.exportPack(id, password)
-                Backup.saveToDownloads(context, "ember-collection-${System.currentTimeMillis()}.json", pack.toByteArray())
+                val pack = if (all) vm.collections.exportAll(password) else vm.collections.exportPack(id, password)
+                Backup.saveToDownloads(context, (if (all) "ember-collections-" else "ember-collection-") + "${System.currentTimeMillis()}.json", pack.toByteArray())
             } }.fold({ "Saved to $it" }, { "Could not export. Use a passphrase of at least 8 characters and restore any missing private source settings." })
             busy = false
         } } }
@@ -203,4 +223,17 @@ internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
     }
     filters?.let { def -> CatalogOptions(def, def.requestExtras, { filters = null }) { values -> collect = CollectionDrafts.catalog(def, extras = values); filters = null } }
     collect?.let { source -> AddToCollection(vm, source) { collect = null } }
+}
+
+/** The export dialog's id for every collection at once (#158); never a real collection id. */
+internal const val EXPORT_ALL = "\u0000all"
+
+/** What each delete prompt says (#157). Nothing here can be undone, so each names the way to keep a copy. */
+internal object CollectionDeletion {
+    const val FOLDER_MESSAGE = "This deletes the folder and its sources from this collection. This can't be undone."
+    const val LAST_FOLDER_MESSAGE = "This is the collection's only folder, so the whole collection is deleted with it. This can't be undone."
+    fun folderMessage(last: Boolean) = if (last) LAST_FOLDER_MESSAGE else FOLDER_MESSAGE
+    const val ALL_MESSAGE = "This deletes every collection and folder from Home and Discover. This can't be undone; export the ones you want to keep first."
+    fun collectionMessage(folders: Int) =
+        "This deletes the collection" + (if (folders > 0) " and its $folders folder" + (if (folders == 1) "" else "s") else "") + " from Home and Discover. This can't be undone; use Export first to keep a copy."
 }

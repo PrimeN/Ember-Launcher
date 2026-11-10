@@ -221,7 +221,8 @@ private fun DiscoverCollections(vm: HomeViewModel) {
         }
         items(collections, key = { it.id }) { collection ->
             CollectionRow(collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
-                onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(collection, f, delta) })) { folder -> vm.collections.openFolder(collection, folder) }
+                onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(collection, f, delta) }),
+                onDelete = if (vm.profiles.profile.kids) null else ({ f -> if (f == null) vm.collections.remove(collection.id) else vm.collections.removeFolder(collection.id, f.id) })) { folder -> vm.collections.openFolder(collection, folder) }
         }
     }
 }

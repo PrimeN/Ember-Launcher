@@ -5,6 +5,10 @@ import java.util.UUID
 
 object CollectionDrafts {
     fun collection() = MediaCollection(UUID.randomUUID().toString(), "")
+    /** Without one folder (#157); a collection must keep a folder, so losing its last one removes it. */
+    fun withoutFolder(list: List<MediaCollection>, collectionId: String, folderId: String): List<MediaCollection> = list.mapNotNull { c ->
+        if (c.id != collectionId) c else c.copy(folders = c.folders.filterNot { it.id == folderId }).takeIf { it.folders.isNotEmpty() }
+    }
     fun folder() = CollectionFolder(UUID.randomUUID().toString(), "", sources = emptyList())
     fun catalog(def: CatalogDef, genre: String? = null, extras: Map<String, String> = def.defaultExtras) = CollectionSource(
         addonId = def.addon.manifestId, catalogId = def.id, type = def.type, title = def.label,

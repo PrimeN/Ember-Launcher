@@ -149,8 +149,9 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                 }
             }
             override fun exportCollection(id: String, passphrase: String): ByteArray = onPhoneMain {
-                val collection = collections.list.firstOrNull { targetKey(it.id) == id } ?: error("Choose a collection.")
-                val data = withContext(Dispatchers.IO) { collections.exportPack(collection.id, passphrase).toByteArray() }
+                val everything = id == ContentPhone.EXPORT_ALL
+                val collection = if (everything) null else collections.list.firstOrNull { targetKey(it.id) == id } ?: error("Choose a collection.")
+                val data = withContext(Dispatchers.IO) { (if (collection == null) collections.exportAll(passphrase) else collections.exportPack(collection.id, passphrase)).toByteArray() }
                 access.requireActive(); check(profiles.profileId == owner) { "The active profile changed." }; data
             }
             override fun content(): app.ember.tv.phone.PhoneContent = onPhoneMain {
@@ -235,6 +236,19 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         val updated = c.copy(folders = c.folders.map { if (it.id == f.id) it.copy(sources = ordered, catalogSources = emptyList()) else it })
                         app.ember.tv.data.Collections.inspect(app.ember.tv.data.Collections.encode(listOf(updated))).error?.let { return@onPhoneMain it }
                         stage("Edit source ${old.title ?: old.catalogId ?: "source"} in ${c.title} / ${f.title}; action: ${operation ?: "edit"}" + if (year.isNotBlank() || rating.isNotBlank()) "; year: $year, minimum rating: $rating." else ".") { collections.saveCollection(updated, c) }
+                    }
+                    "delete" -> {
+                        // #158: a whole collection ("c-…") or one folder; approved on the TV like every phone change.
+                        val target = fields["target"].orEmpty()
+                        val whole = collections.list.firstOrNull { targetKey(it.id) == target }
+                        val c = whole ?: collections.list.firstOrNull { c -> c.folders.any { targetKey(c.id, it.id) == target } } ?: return@onPhoneMain "That collection or folder no longer exists. Reload the page."
+                        val f = if (whole != null) null else c.folders.first { targetKey(c.id, it.id) == target }
+                        val revision = collections.revision
+                        stage(if (f == null) "Delete the collection ${c.title} and its ${c.folders.size} folder(s). This can't be undone."
+                            else "Delete the folder ${c.title} / ${f.title}" + (if (c.folders.size == 1) ", which also deletes the collection" else "") + ". This can't be undone.") {
+                            if (collections.revision != revision) "Collections changed. Reload the phone page."
+                            else if (f == null) collections.deleteCollection(c.id) else collections.deleteFolder(c.id, f.id)
+                        }
                     }
                     "addon" -> {
                         val url = addons.firstOrNull { AddonAccess.key(it) == fields["addon"] } ?: return@onPhoneMain "Choose an installed add-on."

@@ -423,7 +423,8 @@ fun ModernHome(
                         )
                     }
                     is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
-                        onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(b.collection, f, delta) })) { f -> vm.collections.openFolder(b.collection, f) }
+                        onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(b.collection, f, delta) }),
+                        onDelete = if (vm.profiles.profile.kids) null else ({ f -> if (f == null) vm.collections.remove(b.collection.id) else vm.collections.removeFolder(b.collection.id, f.id) })) { f -> vm.collections.openFolder(b.collection, f) }
                     is HomeViewModel.HomeBlock.Shortcuts -> ListButtons(vm, b.ids, onList)
                     is HomeViewModel.HomeBlock.Loading -> ModernSection(b.title) {LoadingCards(wide)}
                     is HomeViewModel.HomeBlock.Pinned -> ModernSection("Your shortcuts") {

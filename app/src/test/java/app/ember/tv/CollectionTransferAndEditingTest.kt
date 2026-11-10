@@ -47,4 +47,45 @@ class CollectionTransferAndEditingTest {
         val bad = c.copy(folders = listOf(c.folders.single().copy(sources = listOf(c.folders.single().allSources.single().copy(filters = mapOf("voteAverageGte" to JsonPrimitive("11")))))))
         assertNotNull(Collections.inspect(Collections.encode(listOf(bad))).error)
     }
+
+    @Test fun deletingAFolderKeepsTheRestAndTheLastFolderTakesItsCollection() {
+        // #157: a collection must keep a folder, so it never lingers empty and unsaveable.
+        fun folder(id: String) = CollectionFolder(id, "Folder $id", sources = listOf(CollectionSource(provider = "trakt", traktListId = 42)))
+        val two = MediaCollection("a", "Two", folders = listOf(folder("f1"), folder("f2")))
+        val one = MediaCollection("b", "One", folders = listOf(folder("f1")))
+        val list = listOf(two, one)
+        assertEquals(listOf("f2"), CollectionDrafts.withoutFolder(list, "a", "f1").first { it.id == "a" }.folders.map { it.id })
+        assertEquals(2, CollectionDrafts.withoutFolder(list, "a", "f1").size)
+        assertEquals(listOf("a"), CollectionDrafts.withoutFolder(list, "b", "f1").map { it.id })
+        assertEquals(list, CollectionDrafts.withoutFolder(list, "a", "missing"))
+        for (c in CollectionDrafts.withoutFolder(list, "a", "f1")) assertNull(Collections.inspect(Collections.encode(listOf(c))).error)
+        assertTrue(app.ember.tv.ui.CollectionDeletion.folderMessage(last = true).contains("whole collection"))
+        assertFalse(app.ember.tv.ui.CollectionDeletion.folderMessage(last = false).contains("whole collection"))
+        assertTrue(app.ember.tv.ui.CollectionDeletion.collectionMessage(1).contains("its 1 folder from"))
+        assertTrue(app.ember.tv.ui.CollectionDeletion.collectionMessage(3).contains("its 3 folders from"))
+        for (text in listOf(app.ember.tv.ui.CollectionDeletion.collectionMessage(3), app.ember.tv.ui.CollectionDeletion.ALL_MESSAGE, app.ember.tv.ui.CollectionDeletion.FOLDER_MESSAGE))
+            assertTrue(text, text.contains("can't be undone"))
+    }
+    @Test fun manyCollectionsExportAsOnePackAndComeBackWhole() {
+        // #158: Export all.
+        val list = (1..3).map { MediaCollection("c$it", "Collection $it", folders = listOf(CollectionFolder("f", "Folder", sources = listOf(CollectionSource(provider = "trakt", traktListId = it.toLong()))))) }
+        val pack = CollectionTransfer.seal(list, "fixture passphrase") { null }
+        assertFalse(pack.contains("Collection 2"))
+        assertEquals(list, Collections.parse(CollectionTransfer.open(pack, "fixture passphrase")))
+    }
+    @Test fun thePhonePageHasHeadedCreateExportAndDeleteSections() {
+        // #158
+        val content = PhoneContent(listOf("opaque" to "Popular"), listOf("c-1" to "Films / New folder", "f-1" to "Films / Action", "c-2" to "Shows / New folder", "f-2" to "Shows / Drama"), emptyList(),
+            collections = listOf("c-1" to "Films", "c-2" to "Shows"))
+        val html = ContentPhone.render(content, "lease")
+        for (heading in listOf("Create or add to a collection", "Edit a folder", "Edit a collection", "Edit a source", "Export", "Delete", "Add-ons"))
+            assertTrue(heading, html.contains("<h3>$heading</h3>"))
+        assertTrue(html.indexOf("<h3>Create or add to a collection</h3>") < html.indexOf("<h3>Export</h3>"))
+        assertTrue(html.contains("value=\"all\">All collections (2)"))
+        val delete = html.substringAfter("name=action value=delete>").substringBefore("</form>")
+        assertTrue(delete.contains("Films (whole collection)")); assertTrue(delete.contains("Shows / Drama")); assertFalse(delete.contains("New folder"))
+        assertTrue(delete.contains("review on the TV"))
+        // One collection: nothing to combine.
+        assertFalse(ContentPhone.render(content.copy(collections = listOf("c-1" to "Films")), "lease").contains("All collections"))
+    }
 }
