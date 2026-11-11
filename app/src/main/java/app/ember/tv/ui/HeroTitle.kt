@@ -28,7 +28,10 @@ import coil.request.ImageRequest
 /** Text reserves the same space and remains the fallback and accessible title. */
 @Composable
 internal fun HeroTitle(meta: Meta, modifier: Modifier = Modifier, expanded: Boolean = false,
-    details: Boolean = false, largeText: Boolean = false) {
+    details: Boolean = false, largeText: Boolean = false,
+    /** The Cinematic carousel (#174) centres the logo or name; everywhere else it sits at the start. */
+    centered: Boolean = false) {
+    val place = if (centered) Alignment.Center else Alignment.CenterStart
     val logo = meta.logo?.takeIf { it.isNotBlank() } ?: if(app.ember.tv.mediaserver.ServerRef.of(meta)==null)Posters.logoUrl(meta, PosterConfig()) else null
     var loaded by remember(logo) { mutableStateOf(false) }
     var failed by remember(logo) { mutableStateOf(false) }
@@ -37,13 +40,14 @@ internal fun HeroTitle(meta: Meta, modifier: Modifier = Modifier, expanded: Bool
     val font = if(details) { if(largeText)TvTokens.Type.DetailsLarge else TvTokens.Type.Details } else if(expanded)TvTokens.Type.HeroExpanded else TvTokens.Type.Hero
     val line = if(details)42 else if(expanded)44 else 34
     val height = if(isEmberX && details)60.dp else if(details || expanded)78.dp else 64.dp
-    Box(modifier.fillMaxWidth().heightIn(min=height).semantics { contentDescription=meta.name }, contentAlignment=Alignment.CenterStart) {
+    Box(modifier.fillMaxWidth().heightIn(min=height).semantics { contentDescription=meta.name }, contentAlignment=place) {
         Text(meta.name, fontSize=font.sp, lineHeight=line.sp, fontWeight=if(details)FontWeight.Bold else FontWeight.SemiBold,
             maxLines=if(details && largeText)3 else 2, overflow=TextOverflow.Ellipsis, color=Fg,
+            textAlign=if(centered)androidx.compose.ui.text.style.TextAlign.Center else null,
             style=TextStyle(shadow=Shadow(if(Ui.isDay && !LocalNight.current)Color.White.copy(alpha=.6f) else Color.Black.copy(alpha=.8f),Offset(0f,1f),4f)),
             modifier=Modifier.alpha(if(loaded && !failed)0f else 1f).clearAndSetSemantics { })
-        if(request!=null && !failed)Box(Modifier.matchParentSize(),contentAlignment=Alignment.CenterStart) {
-            AsyncImage(request,null,contentScale=ContentScale.Fit,alignment=Alignment.CenterStart,
+        if(request!=null && !failed)Box(Modifier.matchParentSize(),contentAlignment=place) {
+            AsyncImage(request,null,contentScale=ContentScale.Fit,alignment=place,
                 modifier=Modifier.widthIn(max=if(expanded)400.dp else 360.dp).fillMaxSize().alpha(if(loaded)1f else 0f),
                 onSuccess={loaded=true},onError={failed=true;loaded=false})
         }

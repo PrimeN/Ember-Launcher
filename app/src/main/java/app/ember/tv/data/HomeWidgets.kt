@@ -54,6 +54,13 @@ object HomeWidgets {
     fun section(id: String) = PREFIX + id
     fun isSection(section: String) = section.startsWith(PREFIX)
 
+    /** One line on what a style looks like, under its preview in the editors (#172). */
+    fun about(style: String) = when (style) {
+        NUMBERED -> "A ranked row with large numerals, for a Top 10."
+        CAROUSEL -> "One giant picture at a time. Left and right step through."
+        HERO -> "A banner with the description, Watch now and watchlist."
+        else -> "Cards side by side, like Home's own rows."
+    }
     fun styleName(style: String) = styles.firstOrNull { it.first == style }?.second ?: "Row"
 
     /** Unknown styles and shapes (an older or newer build's) fall back, so a restored widget still shows. */

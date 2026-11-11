@@ -110,10 +110,10 @@ object ContentPhone {
         append("<form class=ed method=post action=\"/content?k=$auth\"><input type=hidden name=action value=save-widget><input type=hidden name=target value=\"").append(esc(id)).append("\">")
         append("<h2>").append(if (widget == null) "New widget" else "Edit widget").append("</h2>")
         append("<label for=wt>Widget title</label><input id=wt name=title maxlength=100 required value=\"").append(esc(widget?.title.orEmpty())).append("\">")
-        append("<label>Style</label><div class=shapes>")
+        append("<label>Style</label><div class=\"shapes styles\">")
         val style = widget?.style ?: app.ember.tv.data.HomeWidgets.ROW
         app.ember.tv.data.HomeWidgets.styles.forEach { (value, name) ->
-            append("<label><input type=radio name=style value=").append(value).append(if (style == value) " checked" else "").append("><span><i class=\"w-").append(value).append("\"></i>").append(name).append("</span></label>")
+            append("<label><input type=radio name=style value=").append(value).append(if (style == value) " checked" else "").append("><span><i class=\"w-").append(value).append("\"></i>").append(name).append("<small>").append(esc(app.ember.tv.data.HomeWidgets.about(value))).append("</small></span></label>")
         }
         append("</div><label for=shape>Card shape</label><select id=shape name=shape>")
         app.ember.tv.data.HomeWidgets.shapes.forEach { (value, name) -> append("<option value=").append(value).append(if ((widget?.shape ?: "default") == value) " selected" else "").append(">").append(name).append("</option>") }

@@ -32,7 +32,13 @@ import androidx.compose.material.icons.outlined.Person as IcProfile
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -606,12 +612,15 @@ fun MediaRow(items: List<Meta>, wide: Boolean, isSaved: (Meta) -> Boolean, onFoc
         ) {
             itemsIndexed(uniqueItems, key = { _, m -> m.mediaKey() }) { index, m ->
                 Box(Modifier.focusKeeperItem(keeper, m.mediaKey(), index)) {
-                    if (wide) {
-                        WideCard(m, isSaved(m), width = w, onFocus = { onFocus(m) }) { onOpen(m) }
-                    } else {
-                        Box(Modifier.onFocusChanged { if (it.hasFocus) onFocus(m) }) { TitleCard(m, isSaved(m), width = w) { onOpen(m) } }
+                    // #175: the rank stands beside the card, tucked behind its edge.
+                    if (numbered) RankNumeral(index + 1, w, wide)
+                    Box(Modifier.padding(start = if (numbered) RankNumerals.inset(index + 1, w.value, wide).dp else 0.dp)) {
+                        if (wide) {
+                            WideCard(m, isSaved(m), width = w, onFocus = { onFocus(m) }) { onOpen(m) }
+                        } else {
+                            Box(Modifier.onFocusChanged { if (it.hasFocus) onFocus(m) }) { TitleCard(m, isSaved(m), width = w) { onOpen(m) } }
+                        }
                     }
-                    if (numbered) RankBadge(index + 1, small = w < 150.dp)
                 }
             }
             if (onSeeAll != null) item(key = "seeall") { SeeAllCard(w, if (wide) w * 9f / 16f else w * 1.5f, onSeeAll) }
@@ -692,6 +701,13 @@ internal data class WidgetLook(val wide: Boolean, val numbered: Boolean) {
         }
         /** The cinematic carousel's share of the screen's height (#167): giant, with the next row's title still in view. */
         const val CAROUSEL_HEIGHT = .72f
+        /** The line under the carousel's logo: kind, year and up to two genres. */
+        fun carouselLine(meta: Meta): String = listOfNotNull(meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() },
+            meta.releaseInfo?.takeIf { it.isNotBlank() }, meta.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() }).joinToString("  ·  ")
+        /** How much of the previous and next titles' artwork shows at the carousel's edges (#174), in dp. */
+        const val CAROUSEL_PEEK = 30
+        /** Whether going from one title to another moves forward; the turn from the last back to the first does. */
+        fun carouselForward(from: Int, to: Int, count: Int): Boolean = if (from == count - 1 && to == 0 && count > 2) true else if (from == 0 && to == count - 1 && count > 2) false else to > from
         /** Stepping from [index] by a left or right press; null at either end, where the press leaves the carousel. */
         fun carouselStep(index: Int, count: Int, forward: Boolean): Int? = (if (forward) index + 1 else index - 1).takeIf { it in 0 until count }
     }
@@ -720,10 +736,11 @@ private fun WidgetPosition(index: Int, count: Int, color: Color) {
 }
 
 /**
- * The Cinematic carousel widget (#167): one giant panel showing a single title: its artwork filling
- * the panel, name and year centred at the bottom. It is one focus stop: left and right step through
- * the titles, OK opens the one showing, and at either end the press moves on like any row. It turns
- * by itself while it is not focused.
+ * The Cinematic carousel widget (#167, #174): one giant panel showing a single title: its artwork
+ * filling the panel, its logo (or name) and a details line centred at the bottom, and a sliver of
+ * the titles before and after at the edges. It is one focus stop: left and right step through the
+ * titles, sliding the way you go; OK opens the one showing, and at either end the press moves on
+ * like any row. It turns by itself while it is not focused.
  */
 @Composable
 internal fun WidgetCarousel(id: String, items: List<Meta>, height: Dp, isSaved: (Meta) -> Boolean, onOpen: (Meta) -> Unit, rotating: Boolean, onFocus: () -> Unit) {
@@ -739,43 +756,86 @@ internal fun WidgetCarousel(id: String, items: List<Meta>, height: Dp, isSaved: 
         if (items.size > 1 && !focused && rotating && !reduceMotion) { delay(8000); index = HeroBanner.next(safe, items.size) }
     }
     CompositionLocalProvider(LocalNight provides true) {
-        Focusable(
-            onClick = { WidgetPlace.keep(id, meta); onOpen(meta) },
-            onLongClick = actions?.let { action -> { action(meta) } },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).testTag("widget_carousel").restoreFocus(id)
-                .mediaSemantics(meta, isSaved(meta))
-                .onFocusChanged { focused = it.isFocused || it.hasFocus; if (focused) onFocus() }
-                .onPreviewKeyEvent { event ->
-                    val forward = when (event.key) { heroEdgeKey(previous = false, rtl = rtl) -> true; heroEdgeKey(previous = true, rtl = rtl) -> false; else -> return@onPreviewKeyEvent false }
-                    val target = WidgetLook.carouselStep(safe, items.size, forward) ?: return@onPreviewKeyEvent false
-                    if (event.type == KeyEventType.KeyDown) index = target
-                    true
-                },
-            radius = TvTokens.Shape.Panel, container = PanelHi, focusedScale = TvTokens.Focus.None,
-        ) {
-            Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
-                Crossfade(targetState = meta, animationSpec = tween(if (reduceMotion) 0 else 320), label = "widgetCarouselArt") { shown ->
-                    LandscapeImage(shown, Modifier.fillMaxSize())
-                }
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.55f to Color.Transparent, 1f to Color(0xE6000000))))
-                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(.8f).padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(meta.name, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    meta.releaseInfo?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 15.sp, color = Color(0xFFDADCE0), maxLines = 1) }
-                }
-                if (items.size > 1) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    WidgetPosition(safe, items.size, Color.White)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height),
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            CarouselPeek(items.getOrNull(safe - 1), height)
+            Focusable(
+                onClick = { WidgetPlace.keep(id, meta); onOpen(meta) },
+                onLongClick = actions?.let { action -> { action(meta) } },
+                modifier = Modifier.weight(1f).fillMaxHeight().testTag("widget_carousel").restoreFocus(id)
+                    .mediaSemantics(meta, isSaved(meta))
+                    .onFocusChanged { focused = it.isFocused || it.hasFocus; if (focused) onFocus() }
+                    .onPreviewKeyEvent { event ->
+                        val forward = when (event.key) { heroEdgeKey(previous = false, rtl = rtl) -> true; heroEdgeKey(previous = true, rtl = rtl) -> false; else -> return@onPreviewKeyEvent false }
+                        val target = WidgetLook.carouselStep(safe, items.size, forward) ?: return@onPreviewKeyEvent false
+                        if (event.type == KeyEventType.KeyDown) index = target
+                        true
+                    },
+                radius = TvTokens.Shape.Panel, container = PanelHi, focusedScale = TvTokens.Focus.None,
+            ) {
+                Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+                    val millis = if (reduceMotion) 0 else 420
+                    AnimatedContent(targetState = safe, modifier = Modifier.fillMaxSize(), label = "widgetCarousel", transitionSpec = {
+                        // The new title comes in from the side you are heading to; with Reduce motion it simply appears.
+                        val fromEnd = WidgetLook.carouselForward(initialState, targetState, items.size) != rtl
+                        (slideInHorizontally(tween(millis)) { full -> if (reduceMotion) 0 else if (fromEnd) full else -full } + fadeIn(tween(millis)))
+                            .togetherWith(slideOutHorizontally(tween(millis)) { full -> if (reduceMotion) 0 else if (fromEnd) -full / 3 else full / 3 } + fadeOut(tween(millis)))
+                    }) { at ->
+                        val shown = items.getOrNull(at) ?: meta
+                        Box(Modifier.fillMaxSize()) {
+                            LandscapeImage(shown, Modifier.fillMaxSize())
+                            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.45f to Color.Transparent, 1f to Color(0xEB000000))))
+                            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(.7f).padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                HeroTitle(shown, centered = true)
+                                WidgetLook.carouselLine(shown).takeIf { it.isNotBlank() }?.let {
+                                    Text(it, fontSize = 14.sp, color = Color(0xFFDADCE0), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
+                    if (items.size > 1) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        WidgetPosition(safe, items.size, Color.White)
+                    }
                 }
             }
+            CarouselPeek(items.getOrNull(safe + 1), height)
         }
     }
 }
 
-/** The rank on a Numbered row's card: a large outlined figure in the top corner, clear of the title. */
+/** A dimmed sliver of the title before or after the one showing; empty at the ends, so the panel stays centred. */
 @Composable
-private fun BoxScope.RankBadge(rank: Int, small: Boolean) {
-    Text(rank.toString(), fontSize = if (small) 26.sp else 34.sp, fontWeight = FontWeight.Black, color = Color.White,
-        style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color.Black, androidx.compose.ui.geometry.Offset(0f, 2f), 8f)),
-        modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 2.dp).clearAndSetSemantics { })
+private fun CarouselPeek(meta: Meta?, height: Dp) {
+    Box(Modifier.width(WidgetLook.CAROUSEL_PEEK.dp).height(height * .84f).clip(RoundedCornerShape(TvTokens.Shape.Card.dp)).clearAndSetSemantics { }) {
+        if (meta != null) {
+            LandscapeImage(meta, Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .5f)))
+        }
+    }
+}
+
+/** A Numbered row's ranks (#175): how large the numeral is and how far it pushes its card along. */
+internal object RankNumerals {
+    /** The numeral's height in dp: most of a wide card's picture, about half of a poster's. */
+    fun size(cardWidth: Float, wide: Boolean): Float = if (wide) cardWidth * 9f / 16f * .92f else cardWidth * .78f
+    /** A heavy digit is about this wide for its height. */
+    private const val DIGIT = .58f
+    /** The share of the numeral hidden behind the card. */
+    const val TUCK = .22f
+    /** The room the numeral takes to the left of its card, in dp; "10" takes twice what "9" does. */
+    fun inset(rank: Int, cardWidth: Float, wide: Boolean): Float = rank.toString().length * size(cardWidth, wide) * DIGIT * (1f - TUCK)
+}
+
+/** A large outlined rank standing beside the card, as a Top 10 is shown (#175). The card draws over its trailing edge. */
+@Composable
+private fun RankNumeral(rank: Int, cardWidth: Dp, wide: Boolean) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val font = with(density) { RankNumerals.size(cardWidth.value, wide).dp.toSp() }
+    val stroke = with(density) { 3.dp.toPx() }
+    Box(Modifier.height(if (wide) cardWidth * 9f / 16f else cardWidth * 1.5f).clearAndSetSemantics { }, contentAlignment = Alignment.BottomStart) {
+        Text(rank.toString(), fontSize = font, lineHeight = font, fontWeight = FontWeight.Black, color = Fg.copy(alpha = .9f), maxLines = 1, softWrap = false,
+            style = androidx.compose.ui.text.TextStyle(drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, join = androidx.compose.ui.graphics.StrokeJoin.Round)))
+    }
 }
 
 /** A 16:9 card: the title's backdrop (poster if there is none) with its name over a soft shade. */

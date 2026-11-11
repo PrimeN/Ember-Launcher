@@ -1,8 +1,14 @@
 package app.ember.tv.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -102,6 +108,16 @@ internal object WidgetDrafts {
     }
 }
 
+/** The TV editor's three steps (#173): one decision on screen at a time. */
+internal object WidgetSteps {
+    const val STYLE = "style"; const val SOURCE = "source"; const val DETAILS = "details"
+    val all = listOf(STYLE to "Style", SOURCE to "Source", DETAILS to "Details")
+    /** A new widget starts by choosing how it looks; editing opens on the details, with the other steps one press away. */
+    fun first(existing: Boolean) = if (existing) DETAILS else STYLE
+    fun next(step: String): String? = all.map { it.first }.let { ids -> ids.getOrNull(ids.indexOf(step) + 1) }
+    fun heading(step: String) = when (step) { STYLE -> "How it looks"; SOURCE -> "Where the titles come from"; else -> "Name and size" }
+}
+
 @Composable
 private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: () -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
@@ -109,47 +125,115 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
     var trakt by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val existing = vm.widgets.list.any { it.id == initial.id }
-    if (picker) CollectionSourcePicker(vm, onChoose = { source -> draft = WidgetDrafts.withSource(draft, source); picker = false; message = null }, close = { picker = false })
-    else if (trakt) TraktListPicker(vm, onChoose = { source -> draft = WidgetDrafts.withSource(draft, source); trakt = false; message = null }, close = { trakt = false })
-    else MediaDialog(if (existing) "Edit widget" else "New widget", close, resizeForKeyboard = true) {
-        TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Widget title")
-        Text("Style", color = Mute, fontSize = 13.sp)
-        ButtonRow { HomeWidgets.styles.forEach { (value, name) -> Chip(name, draft.style == value) { draft = draft.copy(style = value) } } }
-        if (draft.style == HomeWidgets.ROW || draft.style == HomeWidgets.NUMBERED) {
-            Text("Card shape", color = Mute, fontSize = 13.sp)
-            ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> Chip(name, draft.shape == value) { draft = draft.copy(shape = value) } } }
-        }
-        Text("Titles to show", color = Mute, fontSize = 13.sp)
-        ButtonRow { WidgetDrafts.limits.forEach { n -> Chip("$n", draft.limit == n) { draft = draft.copy(limit = n) } } }
-        Text("Source: " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "none yet", fontSize = 15.sp)
-        ButtonRow {
-            Chip("Catalog, saved search or TMDB") { picker = true }
-            Chip("Browse Trakt lists") { trakt = true }
-        }
-        Text("Or one of your lists", color = Mute, fontSize = 13.sp)
-        ButtonRow { vm.widgetLists().take(14).forEach { (id, label) ->
-            Chip(label, draft.source.provider == HomeWidgets.LIST && draft.source.catalogId == id, maxLines = 1) {
-                draft = WidgetDrafts.withSource(draft, CollectionSource(provider = HomeWidgets.LIST, catalogId = id, title = label), label); message = null
+    var step by remember(initial.id) { mutableStateOf(WidgetSteps.first(existing)) }
+    // Choosing a source moves a new widget on to its details; an edit stays where it is.
+    fun chosen(source: CollectionSource, label: String? = null) { draft = WidgetDrafts.withSource(draft, source, label); message = null; if (!existing) step = WidgetSteps.DETAILS }
+    if (picker) CollectionSourcePicker(vm, onChoose = { source -> chosen(source); picker = false }, close = { picker = false })
+    else if (trakt) TraktListPicker(vm, onChoose = { source -> chosen(source); trakt = false }, close = { trakt = false })
+    else MediaDialog((if (existing) "Edit widget" else "New widget") + " · " + WidgetSteps.heading(step), close, resizeForKeyboard = true) {
+        ButtonRow { WidgetSteps.all.forEachIndexed { i, (id, name) -> Chip("${i + 1}  $name", step == id, modifier = Modifier.testTag("widget_step_$id")) { step = id; message = null } } }
+        when (step) {
+            WidgetSteps.STYLE -> {
+                // #172: each style as a small picture of itself.
+                ButtonRow { HomeWidgets.styles.forEach { (value, name) ->
+                    WidgetStyleTile(value, name, draft.style == value) { draft = draft.copy(style = value); if (!existing) step = WidgetSteps.SOURCE }
+                } }
             }
-        } }
-        // #171: MDBList was only on the phone page.
-        Text("Or an MDBList list", color = Mute, fontSize = 13.sp)
-        var mdb by remember { mutableStateOf(if (draft.source.provider == HomeWidgets.MDBLIST) draft.source.catalogId.orEmpty() else "") }
-        TvTextField(mdb, { mdb = it.take(200) }, Modifier.fillMaxWidth(), placeholder = "MDBList link, user/list-name or number")
-        ButtonRow { Chip("Use this MDBList list", draft.source.provider == HomeWidgets.MDBLIST) {
-            val (problem, source) = WidgetDrafts.mdblist(mdb, ApiKeys.get("MDBLIST_API_KEY").isNotBlank())
-            message = problem
-            if (source != null) draft = WidgetDrafts.withSource(draft, source)
-        } }
+            WidgetSteps.SOURCE -> {
+                Text("Now: " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "nothing chosen yet", fontSize = 15.sp)
+                ButtonRow {
+                    Chip("Catalog, saved search or TMDB") { picker = true }
+                    Chip("Browse Trakt lists") { trakt = true }
+                }
+                Text("One of your lists", color = Mute, fontSize = 13.sp)
+                ButtonRow { vm.widgetLists().take(14).forEach { (id, label) ->
+                    Chip(label, draft.source.provider == HomeWidgets.LIST && draft.source.catalogId == id, maxLines = 1) {
+                        chosen(CollectionSource(provider = HomeWidgets.LIST, catalogId = id, title = label), label)
+                    }
+                } }
+                // #171: MDBList was only on the phone page.
+                Text("An MDBList list", color = Mute, fontSize = 13.sp)
+                var mdb by remember { mutableStateOf(if (draft.source.provider == HomeWidgets.MDBLIST) draft.source.catalogId.orEmpty() else "") }
+                TvTextField(mdb, { mdb = it.take(200) }, Modifier.fillMaxWidth(), placeholder = "MDBList link, user/list-name or number")
+                ButtonRow { Chip("Use this MDBList list", draft.source.provider == HomeWidgets.MDBLIST) {
+                    val (problem, source) = WidgetDrafts.mdblist(mdb, ApiKeys.get("MDBLIST_API_KEY").isNotBlank())
+                    if (source != null) chosen(source) else message = problem
+                } }
+                Note("Filters: save a search in Discover, then pick it under Catalog, saved search or TMDB.")
+            }
+            else -> {
+                TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Widget title")
+                if (draft.style == HomeWidgets.ROW || draft.style == HomeWidgets.NUMBERED) {
+                    Text("Card shape", color = Mute, fontSize = 13.sp)
+                    ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> Chip(name, draft.shape == value) { draft = draft.copy(shape = value) } } }
+                }
+                Text("Titles to show", color = Mute, fontSize = 13.sp)
+                ButtonRow { WidgetDrafts.limits.forEach { n -> Chip("$n", draft.limit == n) { draft = draft.copy(limit = n) } } }
+                Text(HomeWidgets.styleName(draft.style) + " · " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "no source yet", color = Mute, fontSize = 13.sp)
+            }
+        }
         message?.let { Text(it, color = Mute, fontSize = 13.sp) }
         ButtonRow {
-            Chip("Save widget") {
+            val next = WidgetSteps.next(step)
+            if (next != null && !existing) Chip("Next") { step = next; message = null }
+            if (existing || next == null) Chip("Save widget", modifier = Modifier.testTag("widget_save")) {
                 message = vm.widgets.save(draft)
                 if (message == null) { vm.refreshWidgets(); close() }
+                // Send them to the step that is missing something.
+                else if (!WidgetDrafts.hasSource(draft)) step = WidgetSteps.SOURCE
             }
             Chip("Cancel") { close() }
         }
-        Note("Filters: save a search in Discover, then pick it under Catalog, saved search or TMDB.")
+    }
+}
+
+/** One widget style in the picker (#172): a small picture of it, its name and a line on what it is. */
+@Composable
+private fun WidgetStyleTile(style: String, name: String, selected: Boolean, onClick: () -> Unit) {
+    Focusable(onClick = onClick, modifier = Modifier.width(176.dp).testTag("widget_style_$style"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
+        val ink = androidx.tv.material3.LocalContentColor.current
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            WidgetStylePreview(style, ink)
+            Text(if (selected) "$name  ✓" else name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(HomeWidgets.about(style), fontSize = 11.sp, lineHeight = 14.sp, color = ink.copy(alpha = .7f), minLines = 3, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** A diagram of the style in the tile's own ink, so it reads on any theme and when focused. */
+@Composable
+private fun WidgetStylePreview(style: String, ink: Color) {
+    val soft = ink.copy(alpha = .4f); val strong = ink.copy(alpha = .92f)
+    fun Modifier.block(color: Color, corner: Int = 3) = clip(RoundedCornerShape(corner.dp)).background(color)
+    Box(Modifier.fillMaxWidth().height(80.dp).block(ink.copy(alpha = .1f), 8).padding(8.dp), contentAlignment = Alignment.Center) {
+        when (style) {
+            HomeWidgets.NUMBERED -> Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+                (1..3).forEach { n ->
+                    Text("$n", fontSize = 26.sp, lineHeight = 26.sp, fontWeight = FontWeight.Black, color = strong)
+                    Box(Modifier.width(20.dp).height(38.dp).block(soft))
+                }
+            }
+            HomeWidgets.CAROUSEL -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(5.dp).height(46.dp).block(ink.copy(alpha = .22f)))
+                Box(Modifier.weight(1f).fillMaxHeight().block(soft, 5)) {
+                    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 9.dp).width(46.dp).height(5.dp).block(strong))
+                }
+                Box(Modifier.width(5.dp).height(46.dp).block(ink.copy(alpha = .22f)))
+            }
+            HomeWidgets.HERO -> Box(Modifier.fillMaxSize().block(soft, 5)) {
+                Column(Modifier.align(Alignment.BottomStart).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(Modifier.width(56.dp).height(6.dp).block(strong))
+                    Box(Modifier.width(40.dp).height(4.dp).block(ink.copy(alpha = .7f)))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.width(24.dp).height(9.dp).block(strong, 5))
+                        Box(Modifier.size(9.dp).block(ink.copy(alpha = .7f), 5))
+                    }
+                }
+            }
+            else -> Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                repeat(4) { Box(Modifier.width(30.dp).height(44.dp).block(soft)) }
+            }
+        }
     }
 }
 

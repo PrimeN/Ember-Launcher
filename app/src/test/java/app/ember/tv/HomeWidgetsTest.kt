@@ -68,6 +68,44 @@ class HomeWidgetsTest {
         assertFalse("no row of large cards any more", home.contains("carouselWidth"))
     }
 
+    @Test fun theEditorsShowStylesAsPicturesAndTheTvWorksInSteps() {
+        // #172: every style has a line saying what it is, on the TV tiles and the phone's.
+        for ((style, _) in HomeWidgets.styles) assertTrue(style, HomeWidgets.about(style).length in 20..70)
+        assertEquals(HomeWidgets.styles.size, HomeWidgets.styles.map { HomeWidgets.about(it.first) }.toSet().size)
+        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertTrue(tv.contains("WidgetStyleTile(value, name, draft.style == value)")); assertTrue(tv.contains("HomeWidgets.about(style)"))
+        val phone = java.io.File("src/main/java/app/ember/tv/phone/ContentPhone.kt").readText()
+        assertTrue(phone.contains("shapes styles")); assertTrue(phone.contains("HomeWidgets.about(value)"))
+        val css = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
+        assertTrue("a chosen style keeps its picture", css.contains(".shapes input:checked+span i:not([class^=w-])"))
+        // #173: Style, Source, Details. New widgets start with the look; edits open on the details.
+        assertEquals(listOf("Style", "Source", "Details"), app.ember.tv.ui.WidgetSteps.all.map { it.second })
+        assertEquals(app.ember.tv.ui.WidgetSteps.STYLE, app.ember.tv.ui.WidgetSteps.first(existing = false))
+        assertEquals(app.ember.tv.ui.WidgetSteps.DETAILS, app.ember.tv.ui.WidgetSteps.first(existing = true))
+        assertEquals(app.ember.tv.ui.WidgetSteps.SOURCE, app.ember.tv.ui.WidgetSteps.next(app.ember.tv.ui.WidgetSteps.STYLE))
+        assertNull(app.ember.tv.ui.WidgetSteps.next(app.ember.tv.ui.WidgetSteps.DETAILS))
+        assertEquals(3, app.ember.tv.ui.WidgetSteps.all.map { app.ember.tv.ui.WidgetSteps.heading(it.first) }.toSet().size)
+    }
+
+    @Test fun theCarouselSlidesTheWayYouGoAndNumberedRowsMakeRoomForTheRank() {
+        // #174
+        assertTrue(WidgetLook.carouselForward(0, 1, 5)); assertFalse(WidgetLook.carouselForward(3, 2, 5))
+        assertTrue("turning from the last title to the first goes forward", WidgetLook.carouselForward(4, 0, 5))
+        assertFalse(WidgetLook.carouselForward(0, 4, 5))
+        assertTrue(WidgetLook.carouselForward(0, 1, 2)); assertFalse(WidgetLook.carouselForward(1, 0, 2))
+        assertEquals("Movie  ·  2024  ·  Drama, Crime", WidgetLook.carouselLine(Meta("tt1", "movie", "Film", releaseInfo = "2024", genres = listOf("Drama", "Crime", "Mystery"))))
+        assertEquals("", WidgetLook.carouselLine(Meta("tt1", "", "Film")))
+        assertTrue(WidgetLook.CAROUSEL_PEEK in 16..48)
+        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
+        assertTrue(home.contains("HeroTitle(shown, centered = true)")); assertEquals(2, Regex("CarouselPeek\\(items.getOrNull").findAll(home).count())
+        // #175: "10" needs twice the room of "9"; part of the numeral always sits behind the card.
+        val one = app.ember.tv.ui.RankNumerals.inset(9, 130f, wide = false); val two = app.ember.tv.ui.RankNumerals.inset(10, 130f, wide = false)
+        assertEquals(one * 2, two, .01f); assertTrue(one > 30f && one < 130f * .6f)
+        assertTrue(app.ember.tv.ui.RankNumerals.size(130f, false) < 130f * 1.5f); assertTrue(app.ember.tv.ui.RankNumerals.size(220f, true) < 220f * 9f / 16f)
+        assertTrue(app.ember.tv.ui.RankNumerals.TUCK > 0f && app.ember.tv.ui.RankNumerals.TUCK < .5f)
+        assertFalse(home.contains("RankBadge"))
+    }
+
     @Test fun aWidgetSavedWhileOthersLoadIsLoadedWhenTheyFinish() {
         // #168: it used to be skipped and stay empty until Home was opened again.
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

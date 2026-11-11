@@ -762,9 +762,12 @@ details.fold{border-top:0;padding:0}details.fold>summary{color:var(--mute);font-
 .ib.danger{background:#3a2222;color:#ffb4ab}.ib:disabled{opacity:.3}
 .btn.quiet,button.quiet{background:#2c2d32;color:var(--fg)}
 .card.wide{margin:14px 0}.thumb.st-numbered{font-size:26px;color:var(--fg)}
-.shapes .w-row,.shapes .w-numbered{width:64px;height:30px;background:repeating-linear-gradient(90deg,#5b5d63 0 12px,transparent 12px 17px)}
-.shapes .w-numbered{border-left:5px solid var(--accent)}.shapes .w-carousel{width:64px;height:36px}
-.shapes .w-hero{width:64px;height:36px;background:linear-gradient(90deg,#d5d8dc 0 38%,#5b5d63 38%)}
+.shapes .w-row{width:68px;height:36px;border-radius:0;background:repeating-linear-gradient(90deg,#5b5d63 0 14px,transparent 14px 18px)}
+.shapes .w-numbered{width:72px;height:36px;border-radius:0;font:900 20px/36px ui-monospace,Menlo,Consolas,monospace;font-style:normal;color:var(--fg);text-align:left;white-space:pre;overflow:hidden;background:repeating-linear-gradient(90deg,transparent 0 13px,#5b5d63 13px 23px,transparent 23px 24px)}
+.shapes .w-numbered::before{content:"1 2 3"}
+.shapes .w-carousel{width:60px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 50% 78%/26px 4px no-repeat,#5b5d63;box-shadow:-9px 0 0 -5px #45474c,9px 0 0 -5px #45474c}
+.shapes .w-hero{width:68px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 8px 14px/26px 4px no-repeat,linear-gradient(#a9adb3,#a9adb3) 8px 21px/18px 3px no-repeat,linear-gradient(#d5d8dc,#d5d8dc) 8px 27px/12px 5px no-repeat,#5b5d63}
+.shapes.styles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.shapes small{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--mute)}
 .tabs2{display:flex;gap:8px}.tabs2 button{flex:1;margin-top:4px;padding:9px;background:#2c2d32;color:var(--fg);font-size:14px}
 button.res{background:#2c2d32;color:var(--fg);text-align:left;border-radius:12px;padding:10px 12px;margin-top:6px;font-size:14px}
 button.res small{display:block;color:var(--mute);font-size:12px;font-weight:400;margin-top:2px}
@@ -778,7 +781,7 @@ form.ed{max-width:820px}form.ed label{display:block;margin-top:14px;font-size:14
 .shapes input{position:absolute;opacity:0;width:1px;height:1px}
 .shapes span{display:block;text-align:center;padding:14px 6px 10px;border-radius:12px;border:1px solid #3a3b40;background:var(--bg);color:var(--mute);font-size:13px}
 .shapes i{display:block;margin:0 auto 8px;height:36px;background:#5b5d63;border-radius:5px}.shapes .poster{width:24px}.shapes .wide{width:58px}.shapes .square{width:36px}
-.shapes input:checked+span{border-color:var(--accent);background:#2c2d32;color:var(--fg)}.shapes input:checked+span i{background:#d5d8dc}
+.shapes input:checked+span{border-color:var(--accent);background:#2c2d32;color:var(--fg)}.shapes input:checked+span i:not([class^=w-]){background:#d5d8dc}
 .shapes input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 form.ed .tick{display:flex;justify-content:space-between;color:var(--fg);font-size:15px;padding:10px 0;margin:0;border-top:1px solid var(--line)}
 form.ed .tick.opt{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px}
