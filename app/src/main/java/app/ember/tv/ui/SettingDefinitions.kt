@@ -24,7 +24,9 @@ internal object SettingDefinitions {
         Accents.mapIndexed { index, (label, _) -> index.toString() to label },
         formerly = listOf("Shadow Ember", "Blue ember", "Green flame", "Rose ember", "Modern Ember", "Cinema red"))
     val playerInterface = SettingDefinition("player_look", SettingsTab.PLAYER, "Player interface", "player look GUI controls basic simple advanced Ember Modern Ember Glass Ember X cinema streaming layout independent",
-        app.ember.tv.player.PlayerInterfaces.options)
+        app.ember.tv.player.PlayerInterfaces.options,
+        // #192: Basic, Ember Modern and Ember X were this setting's names before Ember, Glass and Basic.
+        formerly = listOf("Ember Modern", "Ember X"))
     val interfaceSize = SettingDefinition("interface-size", SettingsTab.SIZE, "Interface size", "screen scale", UiSizes.LABELS)
     val textSize = SettingDefinition("text-size", SettingsTab.SIZE, "Text size", "font accessibility", UiSizes.LABELS)
     val density = SettingDefinition("density", SettingsTab.SIZE, "Media card density", "spacing posters comfortable standard dense",
