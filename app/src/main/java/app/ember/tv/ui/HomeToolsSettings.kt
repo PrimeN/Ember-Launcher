@@ -15,6 +15,7 @@ import app.ember.tv.HomeViewModel
 import app.ember.tv.toggleAppsPage
 import app.ember.tv.toggleHidden
 import app.ember.tv.toggleLightNavigation
+import app.ember.tv.updateHomeAppRows
 import app.ember.tv.home.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
