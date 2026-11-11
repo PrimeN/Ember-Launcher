@@ -98,11 +98,11 @@ object ContentPhone {
         append("<div id=worder>")
         content.widgets.forEach { w ->
             val name = w.title.ifBlank { "Widget" }
-            append("<div class=row data-id=\"").append(esc(w.id)).append("\"><button type=button class=\"ib grip js\" aria-label=\"Drag ").append(esc(name)).append(" to reorder\" title=\"Drag to reorder\">&#8645;</button>")
+            append("<div class=row data-id=\"").append(esc(w.id)).append("\"><button type=button class=\"ib grip wj\" aria-label=\"Drag ").append(esc(name)).append(" to reorder\" title=\"Drag to reorder\">&#8645;</button>")
             append("<span class=\"thumb wt\"><i class=\"w-").append(esc(w.style)).append("\"></i></span>")
             append("<div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(esc(app.ember.tv.data.HomeWidgets.styleName(w.style))).append("</span>")
                 .append(esc(w.source)).append(" · ").append(esc(w.status)).append("</small></div><div class=acts>")
-            append("<button type=button class=\"ib up js\" aria-label=\"Move ").append(esc(name)).append(" up\">&uarr;</button><button type=button class=\"ib down js\" aria-label=\"Move ").append(esc(name)).append(" down\">&darr;</button>")
+            append("<button type=button class=\"ib up wj\" aria-label=\"Move ").append(esc(name)).append(" up\">&uarr;</button><button type=button class=\"ib down wj\" aria-label=\"Move ").append(esc(name)).append(" down\">&darr;</button>")
             // Without scripts, the one-place moves still work.
             append("<noscript>")
             post(auth, "move-widget", w.id, "<input type=hidden name=dir value=up>", "Move $name up on Home", "&uarr;", disabled = !w.canMoveUp)

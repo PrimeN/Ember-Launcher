@@ -763,7 +763,7 @@ details.fold{border-top:0;padding:0}details.fold>summary{color:var(--mute);font-
 .btn.quiet,button.quiet{background:#2c2d32;color:var(--fg)}
 .card.wide{margin:14px 0}.thumb.st-numbered{font-size:26px;color:var(--fg)}
 .thumb.wt{width:56px}.wt i{display:block;flex:none;height:36px;border-radius:5px;background:#5b5d63;transform:scale(.62)}
-.js{display:none}#worder.live .js{display:grid}#worder.live+form{margin-top:10px}
+.wj{display:none}#worder.live .wj{display:grid}#worder.live+form{margin-top:10px}
 .grip{background:none;color:var(--mute);cursor:grab;touch-action:none;width:28px}.row.drag{background:var(--bg);border-radius:10px;opacity:.85}
 .shapes .w-row,.wt .w-row{width:68px;height:36px;border-radius:0;background:repeating-linear-gradient(90deg,#5b5d63 0 14px,transparent 14px 18px)}
 .shapes .w-numbered,.wt .w-numbered{width:72px;height:36px;border-radius:0;font:900 20px/36px ui-monospace,Menlo,Consolas,monospace;font-style:normal;color:var(--fg);text-align:left;white-space:pre;overflow:hidden;background:repeating-linear-gradient(90deg,transparent 0 13px,#5b5d63 13px 23px,transparent 23px 24px)}

@@ -154,6 +154,11 @@ class HomeWidgetsTest {
         assertTrue(page.contains(ContentPhone.REORDER)); assertFalse("no secrets or links in the script", ContentPhone.REORDER.contains("http"))
         assertEquals(2, Regex("<noscript>").findAll(page).count())
         assertEquals("widgets", ContentPhone.partOf("order-widgets"))
+        // #191: the page's script puts the class "js" on the whole document, so a rule hiding ".js" blanks every page.
+        val sheet = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
+        assertTrue(sheet.contains("document.documentElement.classList.add('js')"))
+        assertFalse(Regex("(^|[},\\s])\\.js\\{[^}]*display:none").containsMatchIn(sheet))
+        assertTrue(sheet.contains(".wj{display:none}#worder.live .wj{display:grid}")); assertTrue(page.contains("class=\"ib grip wj\""))
         val one = ContentPhone.render(two.copy(widgets = two.widgets.take(1)), "lease")
         assertFalse("one widget has nothing to reorder", one.contains("id=wsend"))
         val controller = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetupController.kt").readText()
