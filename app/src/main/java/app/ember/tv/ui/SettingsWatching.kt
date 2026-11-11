@@ -550,34 +550,26 @@ private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: 
     }
 }
 
+/** One catalog on one line (#204): its place and name, then where it shows. Its addon is the group it sits in. */
 @Composable
 private fun CatalogCard(vm: HomeViewModel, i: Int, c: CatalogDef, lastIndex: Int) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("${i + 1}", color = Mute, fontSize = 13.sp, modifier = Modifier.width(26.dp))
-            Column {
-                Text(c.label, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(c.addon.name, color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-          }
-          ButtonRow(spacing = 8.dp) {
-            CatalogRenameButton(vm, c.key, c.originalLabel)
-            // Places a catalog can't go are locked switches that say why (#102), not text.
-            SwitchChip(stringResource(R.string.ui_home_b9499), vm.isOnHome(c), locked = !c.homeable) {
-                if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home"))
-            }
-            SwitchChip(stringResource(R.string.ui_live_tv_2386e), vm.isOnLive(c), locked = !c.homeable) {
-                if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV"))
-            }
-            SwitchChip(stringResource(R.string.ui_discover), vm.isInDiscover(c), locked = !c.browsable) {
-                if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover"))
-            }
-            MoveButton(c.label, i, lastIndex) { step -> vm.moveCatalog(c, step) }
-          }
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("${i + 1}", color = Mute, fontSize = 13.sp, modifier = Modifier.width(26.dp))
+        Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        // Places a catalog can't go are locked switches that say why (#102), not text.
+        SwitchChip(stringResource(R.string.ui_home_b9499), vm.isOnHome(c), locked = !c.homeable) {
+            if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home"))
         }
+        SwitchChip(stringResource(R.string.ui_live_tv_2386e), vm.isOnLive(c), locked = !c.homeable) {
+            if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV"))
+        }
+        SwitchChip(stringResource(R.string.ui_discover), vm.isInDiscover(c), locked = !c.browsable) {
+            if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover"))
+        }
+        CatalogRenameButton(vm, c.key, c.originalLabel)
+        MoveButton(c.label, i, lastIndex) { step -> vm.moveCatalog(c, step) }
+    }
 }
 
 /**

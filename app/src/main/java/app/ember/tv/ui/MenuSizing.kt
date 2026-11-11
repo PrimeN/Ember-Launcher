@@ -6,6 +6,9 @@ import androidx.compose.ui.unit.dp
 /** Compact TV menus expand for accessibility text and stay inside the actual window. */
 internal object MenuSizing {
     const val COMPACT_PANEL_SCALE=0.7f
+    /** A wide dialog (#204): nearly the whole screen, less the margin every dialog keeps. */
+    val WIDE_DIALOG = 900.dp
+    val WIDE_DIALOG_HEIGHT = 620.dp
     val ACTION_PADDING = 10.dp
     val ACTION_ICON = 18.dp
     val ACTION_GAP = 8.dp

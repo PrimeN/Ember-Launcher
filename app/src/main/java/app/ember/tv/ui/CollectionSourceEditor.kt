@@ -23,7 +23,7 @@ internal fun CollectionSourceEditor(vm: HomeViewModel, initial: CollectionSource
         onApply = { draft = draft.copy(exploreQuery = it); discover = false }, onClose = { discover = false })
     else if (options && def != null) CatalogOptions(def, vm.collections.sourceArguments(draft).getOrDefault(emptyMap()) + listOfNotNull(draft.genre?.let { "genre" to it }).toMap(), { options = false }) { values ->
         draft = draft.copy(genre = values["genre"].orEmpty().ifBlank { null }, extraArgs = values, secretArgsRef = null); options = false
-    } else MediaDialog("Edit source", close, resizeForKeyboard = true) {
+    } else MediaDialog("Edit source", close, resizeForKeyboard = true, wide = true) {
         TvTextField(draft.title.orEmpty(), { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Source name")
         Chip("Choose replacement source") { replacement = true }
         if (draft.provider == "addon") {

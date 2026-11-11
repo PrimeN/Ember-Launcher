@@ -17,14 +17,14 @@ class ProfileMenuTest {
         val actions = profileMenuActions(Profile("adult", "Adult"), libraryVisible = false)
         assertEquals(listOf(NavTabs.WATCHLIST, NavTabs.PROGRESS, NavTabs.RECENT), actions.mapNotNull { it.page })
         assertEquals(actions.size, actions.distinct().size)
-        assertEquals("PROFILES", actions.last().settings)
-        assertEquals(listOf("PROFILES"), actions.mapNotNull { it.settings })
+        // #205: no Manage profiles row; the Add button beside the avatars opens it.
+        assertTrue(actions.none { it.settings != null })
     }
 
     @Test fun kidsNeverExposePersonalPagesEvenWithPersonalFlagOrLibraryEnabled() {
         val actions = profileMenuActions(Profile("kids", "Kids", kids = true, personal = true), true)
         assertTrue(actions.none { it.page != null })
-        assertTrue(ProfileMenuAction.PROFILES in actions)
+        assertTrue("a Kids profile's menu is just the avatars", actions.isEmpty())
     }
 
     @Test fun adultWithPersonalRowsDisabledCannotUsePersonalShortcuts() {

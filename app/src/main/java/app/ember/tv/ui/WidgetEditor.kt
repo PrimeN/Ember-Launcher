@@ -218,7 +218,7 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
     // #181: Discover's own filter panel, opened in place; no saved search needed first.
     else if (filters) ExploreFilters(draft.source.exploreQuery ?: app.ember.tv.discover.ExploreQuery(), vm.watch.watchRegion, vm.exploreRepository,
         onApply = { query -> chosen(WidgetDrafts.filters(query, vm.profiles.profileId)); filters = false }, onClose = { filters = false })
-    else MediaDialog((if (existing) "Edit widget" else "New widget") + " · " + WidgetSteps.heading(step), close, resizeForKeyboard = true) {
+    else MediaDialog((if (existing) "Edit widget" else "New widget") + " · " + WidgetSteps.heading(step), close, resizeForKeyboard = true, wide = true) {
         ButtonRow { WidgetSteps.all.forEachIndexed { i, (id, name) -> Chip("${i + 1}  $name", step == id, modifier = Modifier.testTag("widget_step_$id")) { step = id; message = null } } }
         when (step) {
             WidgetSteps.STYLE -> {
@@ -356,7 +356,7 @@ private fun CardShapeTile(shape: String, name: String, selected: Boolean, onClic
 private fun BuiltInWidgetDialog(vm: HomeViewModel, section: String, label: String, rename: (String) -> Unit, close: () -> Unit) {
     var catalogs by remember { mutableStateOf(false) }
     if (catalogs) { CatalogSourcePicker(vm, "Banner catalog", vm.look.heroCatalog, vm.look::updateHeroCatalog) { catalogs = false }; return }
-    MediaDialog(label, close) {
+    MediaDialog(label, close, wide = true) {
         when {
             section == HomeViewModel.HOME_HERO -> {
                 SettingValueRow("Catalog", catalogSourceLabel(vm, vm.look.heroCatalog)) { catalogs = true }
@@ -417,20 +417,20 @@ private fun WidgetStyleTile(style: String, name: String, selected: Boolean, onCl
 private fun WidgetStylePreview(style: String, ink: Color) {
     val soft = ink.copy(alpha = .4f); val strong = ink.copy(alpha = .92f)
     fun Modifier.block(color: Color, corner: Int = 3) = clip(RoundedCornerShape(corner.dp)).background(color)
-    Box(Modifier.fillMaxWidth().height(80.dp).block(ink.copy(alpha = .1f), 8).padding(8.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().height(80.dp).block(ink.copy(alpha = .1f), 8).padding(if (style == HomeWidgets.CAROUSEL) 0.dp else 8.dp), contentAlignment = Alignment.Center) {
         when (style) {
-            HomeWidgets.NUMBERED -> Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
-                (1..3).forEach { n ->
-                    Text("$n", fontSize = 26.sp, lineHeight = 26.sp, fontWeight = FontWeight.Black, color = strong)
-                    Box(Modifier.width(20.dp).height(38.dp).block(soft))
+            // #202: the rank sits on each picture's corner.
+            HomeWidgets.NUMBERED -> Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                (1..4).forEach { n ->
+                    Box(Modifier.width(30.dp).height(44.dp).block(soft), contentAlignment = Alignment.BottomStart) {
+                        Text("$n", Modifier.padding(start = 3.dp), fontSize = 16.sp, lineHeight = 16.sp, fontWeight = FontWeight.Black, color = strong)
+                    }
                 }
             }
-            HomeWidgets.CAROUSEL -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(5.dp).height(46.dp).block(ink.copy(alpha = .22f)))
-                Box(Modifier.weight(1f).fillMaxHeight().block(soft, 5)) {
-                    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 9.dp).width(46.dp).height(5.dp).block(strong))
-                }
-                Box(Modifier.width(5.dp).height(46.dp).block(ink.copy(alpha = .22f)))
+            // #201: the whole page.
+            HomeWidgets.CAROUSEL -> Box(Modifier.fillMaxSize().block(soft, 2)) {
+                Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp).width(50.dp).height(6.dp).block(strong))
+                Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp).width(20.dp).height(2.dp).block(ink.copy(alpha = .7f)))
             }
             HomeWidgets.HERO -> Box(Modifier.fillMaxSize().block(soft, 5)) {
                 Column(Modifier.align(Alignment.BottomStart).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -503,7 +503,7 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
         failed = result.exceptionOrNull()?.let { app.ember.tv.phone.PhoneLookups.reason("trakt", it).replace("Accounts & APIs > Trakt", "Settings > Accounts > API keys > Trakt").replace("under Accounts & APIs", "in Settings > Accounts > API keys") }
         found = result.getOrDefault(emptyList())
     }
-    MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true) {
+    MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true, wide = true) {
         ButtonRow {
             Chip("Popular", tab == "popular" && query.isBlank()) { tab = "popular"; query = "" }
             Chip("Trending", tab == "trending" && query.isBlank()) { tab = "trending"; query = "" }
@@ -517,7 +517,7 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
             lists.isEmpty() -> Text("No lists found.", color = Mute)
             // #178: cards, two across, instead of thirty full-width buttons.
             else -> ButtonRow { lists.take(30).forEach { l ->
-                Focusable(onClick = { onChoose(WidgetDrafts.trakt(l, media)) }, modifier = Modifier.width(340.dp).testTag("trakt_list"), radius = TvTokens.Shape.Card, container = PanelHi) {
+                Focusable(onClick = { onChoose(WidgetDrafts.trakt(l, media)) }, modifier = Modifier.width(270.dp).testTag("trakt_list"), radius = TvTokens.Shape.Card, container = PanelHi) {
                     val ink = androidx.tv.material3.LocalContentColor.current
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(l.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)

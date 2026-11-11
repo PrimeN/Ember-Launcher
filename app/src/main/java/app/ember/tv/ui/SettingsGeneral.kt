@@ -153,25 +153,23 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         stringResource(R.string.ui_interface),
         "Ember is the default media-focused Home. Ember Light uses an app grid with movable navigation icons. Navbar, media-page and player layouts are chosen separately.", id = "interface",
     ) {
-        Choice(SettingDefinitions.interfaceStyle.options,vm.look.uiStyle,vm.look::updateUiStyle)
+        // #203: each choice as a small picture of the result.
+        PictureChoice("ui",SettingDefinitions.interfaceStyle.options,vm.look.uiStyle,vm.look::updateUiStyle)
         if(isEmberX)Note("Ember X uses a dark cinema Home layout. Navbar, media-page and player styles are configured separately. Colour themes remain independent.")
     }
         "media-page-layout" -> Section(SettingDefinitions.mediaPageLayout.title,
             "Choose movie and show details independently of your Home interface and player controls.", id = "media-page-layout") {
-            Choice(SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout, vm.look::updateMediaPageLayout)
+            PictureChoice("page", SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout, vm.look::updateMediaPageLayout)
         }
         "navbar-style" -> Section(SettingDefinitions.navbarStyle.title,
             "Choose navigation for Ember. Ember Light uses navigation icons in its app grid.",id="navbar-style") {
             if(app.ember.tv.data.NavbarStyles.available(vm.look.uiStyle))
-                Choice(SettingDefinitions.navbarStyle.options,vm.look.navbarStyle,vm.look::updateNavbarStyle)
+                PictureChoice("nav",SettingDefinitions.navbarStyle.options,vm.look.navbarStyle,vm.look::updateNavbarStyle)
             else Note("Light uses its own navigation.")
         }
         "theme" -> Section(stringResource(R.string.ui_theme), stringResource(R.string.ui_night_dark_day_light_backgrounds_and), id = "theme") {
-            ButtonRow(spacing = 10.dp) {
-                Chip(stringResource(R.string.ui_night), selected = vm.look.theme == "night") { vm.look.updateTheme("night") }
-                Chip(stringResource(R.string.ui_day), selected = vm.look.theme == "day") { vm.look.updateTheme("day") }
-                Chip(stringResource(R.string.ui_auto), selected = vm.look.theme == "auto") { vm.look.updateTheme("auto") }
-            }
+            PictureChoice("theme", listOf("night" to stringResource(R.string.ui_night), "day" to stringResource(R.string.ui_day), "auto" to stringResource(R.string.ui_auto)),
+                vm.look.theme, vm.look::updateTheme)
             ToggleRow(stringResource(R.string.ui_oled_mode), stringResource(R.string.ui_true_black_backgrounds_at_night_deeper), vm.look.oled) { vm.look.updateOled(!vm.look.oled) }
         }
         "screen_margins" -> Section(stringResource(R.string.ui_screen_margins), stringResource(R.string.ui_keeps_menus_and_the_clock_clear)) {
@@ -204,17 +202,13 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         }
     }
         "menu" -> if(vm.look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)Section(stringResource(R.string.ui_menu), stringResource(R.string.ui_along_the_top_or_down_the)) {
-            ButtonRow(spacing = 10.dp) {
-                Chip(stringResource(R.string.ui_top), selected = vm.look.menuPosition != "side") { vm.look.updateMenuPosition("top") }
-                Chip(stringResource(R.string.ui_side), selected = vm.look.menuPosition == "side") { vm.look.updateMenuPosition("side") }
-            }
+            PictureChoice("menu", listOf("top" to stringResource(R.string.ui_top), "side" to stringResource(R.string.ui_side)),
+                if (vm.look.menuPosition == "side") "side" else "top", vm.look::updateMenuPosition)
         }
         "wallpaper" -> LightHomeSettings(vm)
         "app_icons" -> Section(stringResource(R.string.ui_app_icons), stringResource(R.string.ui_how_your_apps_looks_on_home)) {
-            ButtonRow(spacing = 10.dp) {
-                Chip(stringResource(R.string.ui_banners), selected = vm.look.appIcons != "circle") { vm.look.updateAppIcons("banner") }
-                Chip(stringResource(R.string.ui_circles), selected = vm.look.appIcons == "circle") { vm.look.updateAppIcons("circle") }
-            }
+            PictureChoice("apps", listOf("banner" to stringResource(R.string.ui_banners), "circle" to stringResource(R.string.ui_circles)),
+                if (vm.look.appIcons == "circle") "circle" else "banner", vm.look::updateAppIcons)
         }
         "home_cards" -> Section(stringResource(R.string.ui_home_cards), stringResource(R.string.ui_wide_uses_each_title_s_backdrop)) {
             ButtonRow(spacing = 10.dp) {
@@ -253,9 +247,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             }
         }
         "density" -> Section(SettingDefinitions.density.title, "Card and text spacing, independent of Home app circles.", id = "density") {
-        ButtonRow(spacing = 10.dp) { SettingDefinitions.density.options.forEach { (value, label) ->
-            Chip(label, selected = vm.look.contentDensity == value) { vm.look.updateContentDensity(value) }
-        } }
+        PictureChoice("density", SettingDefinitions.density.options, vm.look.contentDensity, vm.look::updateContentDensity)
     }
         "artwork" -> Section(SettingDefinitions.artwork.title, "Navigation, dock, menus and media buttons share one glass material. Labels and focus indicators stay sharp.", id = "artwork") {
         ToggleRow("Glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }

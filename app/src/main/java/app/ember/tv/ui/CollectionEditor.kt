@@ -40,7 +40,7 @@ internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, clo
             draft = draft.copy(folders = if (draft.folders.any { it.id == edited.id }) draft.folders.map { if (it.id == edited.id) edited else it } else draft.folders + edited)
             returnFolder = edited.id; folder = null
         }, close = { returnFolder = folder?.id?.takeIf { id -> draft.folders.any { it.id == id } }; folder = null })
-    } else MediaDialog(if (original == null) "Create collection" else "Edit collection", ::dismiss, resizeForKeyboard = true, initialFocus = restoreFocus.takeIf { returnFolder != null }) {
+    } else MediaDialog(if (original == null) "Create collection" else "Edit collection", ::dismiss, resizeForKeyboard = true, initialFocus = restoreFocus.takeIf { returnFolder != null }, wide = true) {
         Text("Create folders from catalogs and Discover searches.", color = Mute, fontSize = 13.sp)
         TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Collection name")
         ButtonRow {
@@ -125,7 +125,7 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
         if (draft.allSources.none { vm.collections.sourceKey(it) == vm.collections.sourceKey(source) }) draft = draft.copy(sources = draft.allSources + source, catalogSources = emptyList())
         picker = false
     }, close = { picker = false })
-    else MediaDialog("Edit folder", ::dismiss, resizeForKeyboard = true) {
+    else MediaDialog("Edit folder", ::dismiss, resizeForKeyboard = true, wide = true) {
         ButtonRow { FolderSteps.all.forEachIndexed { i, (id, name) ->
             Chip("${i + 1}  $name" + if (id == FolderSteps.SOURCES) " (${draft.allSources.size})" else "", step == id, modifier = Modifier.testTag("folder_step_$id")) { step = id }
         } }
@@ -191,7 +191,7 @@ internal fun AddToCollection(vm: HomeViewModel, source: CollectionSource, close:
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    MediaDialog("Add to collection", close, resizeForKeyboard = true) {
+    MediaDialog("Add to collection", close, resizeForKeyboard = true, wide = true) {
         Text(source.title ?: "Selected source", fontSize = 16.sp)
         ButtonRow {
             Chip("New collection", collection == null) { collection = null; folder = null }
@@ -266,7 +266,7 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
     }
     if (catalog != null) CatalogOptions(catalog!!, emptyMap(), { catalog = null }) { values ->
         val c = catalog!!; onChoose(CollectionDrafts.catalog(c, values["genre"], values - "genre"))
-    } else MediaDialog("Choose a source", close, resizeForKeyboard = true) {
+    } else MediaDialog("Choose a source", close, resizeForKeyboard = true, wide = true) {
         ButtonRow { listOf("Catalogs", "Saved searches", "TMDB", "Trakt").forEach { value -> Chip(value, mode == value) { mode = value; query = "" } } }
         if (mode == "Catalogs") {
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find catalogs")

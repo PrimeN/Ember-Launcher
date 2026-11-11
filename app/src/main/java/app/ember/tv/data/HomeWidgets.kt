@@ -59,7 +59,7 @@ object HomeWidgets {
     /** One line on what a style looks like, under its preview in the editors (#172). */
     fun about(style: String) = when (style) {
         NUMBERED -> "A ranked row with large numerals, for a Top 10."
-        CAROUSEL -> "One giant picture at a time. Left and right step through."
+        CAROUSEL -> "One full-page picture at a time. Left and right step through."
         HERO -> "A banner with the description, Watch now and watchlist."
         else -> "Cards side by side, like Home's own rows."
     }

@@ -58,13 +58,16 @@ class HomeWidgetsTest {
         assertEquals(WidgetLook(wide = true, numbered = false), WidgetLook.of(widget(style = HomeWidgets.ROW).copy(shape = "default"), homeWide = true))
         // #167: the cinematic carousel is one giant panel, a title at a time, not a row of cards.
         // #198: bigger; nearly the whole screen under its title.
-        assertTrue(WidgetLook.CAROUSEL_HEIGHT >= .82f && WidgetLook.CAROUSEL_HEIGHT <= .9f)
+        assertEquals(1f, WidgetLook.CAROUSEL_HEIGHT, 0f)
         assertEquals(1, WidgetLook.carouselStep(0, 3, forward = true)); assertEquals(1, WidgetLook.carouselStep(2, 3, forward = false))
         assertNull("left on the first title leaves the carousel", WidgetLook.carouselStep(0, 3, forward = false))
         assertNull("right on the last title leaves the carousel", WidgetLook.carouselStep(2, 3, forward = true))
         assertNull(WidgetLook.carouselStep(0, 1, forward = true))
         val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        assertTrue(home.contains("b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) ModernSection(b.row.displayTitle) {"))
+        // #201: the whole page, with its name on the picture instead of a heading above it.
+        assertTrue(home.contains("b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) {"))
+        assertTrue(home.contains("title = b.row.displayTitle, bleed = (if(isEmberX)EmberXLayout.Gutter else TvTokens.Space.Page).dp)"))
+        assertTrue(home.contains("Modifier.bleed(bleed).fillMaxWidth().height(height)"))
         assertTrue(home.contains("WidgetCarousel(b.key, b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT"))
         assertFalse("no row of large cards any more", home.contains("carouselWidth"))
     }
@@ -96,14 +99,13 @@ class HomeWidgetsTest {
         assertTrue(WidgetLook.carouselForward(0, 1, 2)); assertFalse(WidgetLook.carouselForward(1, 0, 2))
         assertEquals("Movie  ·  2024  ·  Drama, Crime", WidgetLook.carouselLine(Meta("tt1", "movie", "Film", releaseInfo = "2024", genres = listOf("Drama", "Crime", "Mystery"))))
         assertEquals("", WidgetLook.carouselLine(Meta("tt1", "", "Film")))
-        assertTrue(WidgetLook.CAROUSEL_PEEK in 16..48)
         val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        assertTrue(home.contains("HeroTitle(shown, centered = true)")); assertEquals(2, Regex("CarouselPeek\\(items.getOrNull").findAll(home).count())
+        assertTrue(home.contains("HeroTitle(shown, centered = true)")); assertFalse("no slivers of the neighbours on a full page", home.contains("CarouselPeek"))
         // #175: "10" needs twice the room of "9"; part of the numeral always sits behind the card.
-        val one = app.ember.tv.ui.RankNumerals.inset(9, 130f, wide = false); val two = app.ember.tv.ui.RankNumerals.inset(10, 130f, wide = false)
-        assertEquals(one * 2, two, .01f); assertTrue(one > 30f && one < 130f * .6f)
-        assertTrue(app.ember.tv.ui.RankNumerals.size(130f, false) < 130f * 1.5f); assertTrue(app.ember.tv.ui.RankNumerals.size(220f, true) < 220f * 9f / 16f)
-        assertTrue(app.ember.tv.ui.RankNumerals.TUCK > 0f && app.ember.tv.ui.RankNumerals.TUCK < .5f)
+        // #202: the rank is on the picture's corner, sized to the card and never tiny or huge.
+        assertTrue(home.contains("if (numbered) RankCorner(index + 1, w, if (wide) w * 9f / 16f else w * m.cardRatio)"))
+        for (width in listOf(60f, 130f, 220f, 400f)) for (wide in listOf(true, false)) assertTrue(app.ember.tv.ui.RankNumerals.size(width, wide) in 26f..52f)
+        assertTrue(app.ember.tv.ui.RankNumerals.size(130f, false) > app.ember.tv.ui.RankNumerals.size(100f, false))
         assertFalse(home.contains("RankBadge"))
     }
 
@@ -277,6 +279,27 @@ class HomeWidgetsTest {
         assertTrue(tv.contains("vm.sections.toggleSource(vm.profiles.profileId, list, source)"))
         // #199
         assertTrue(tv.contains("SwitchChip(\"On Home\", on, modifier"))
+    }
+
+    @Test fun settingsShowPicturesAndDialogsUseTheScreen() {
+        // #203: every option of the picture settings has a diagram of its own.
+        val pictures = app.ember.tv.ui.SettingPictures
+        val groups = mapOf("ui" to InterfaceStyles.options.map { it.first } + InterfaceStyles.EMBER_X, "nav" to NavbarStyles.options.map { it.first },
+            "page" to MediaPageLayouts.options.map { it.first }, "theme" to listOf("night", "day", "auto"), "menu" to listOf("top", "side"),
+            "apps" to listOf("banner", "circle"), "density" to app.ember.tv.ui.SettingDefinitions.density.options.map { it.first })
+        for ((group, options) in groups) for (option in options) assertTrue("$group-$option", pictures.of(group, option) in pictures.known)
+        val drawn = java.io.File("src/main/java/app/ember/tv/ui/SettingPictures.kt").readText()
+        for (picture in pictures.known) assertTrue(picture, drawn.contains("\"$picture\""))
+        assertTrue(pictures.density("comfortable").first < pictures.density("standard").first && pictures.density("standard").first < pictures.density("dense").first)
+        assertTrue(pictures.density("comfortable").second > pictures.density("dense").second)
+        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
+        assertEquals(7, Regex("PictureChoice\\(\"(ui|page|nav|theme|menu|apps|density)\"").findAll(general).count())
+        // #204: editors and pickers take the TV's width; a catalog is one line.
+        assertTrue(app.ember.tv.ui.MenuSizing.WIDE_DIALOG.value > 680f); assertTrue(app.ember.tv.ui.MenuSizing.WIDE_DIALOG_HEIGHT.value > 540f)
+        val editor = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertEquals(3, Regex("wide = true\\) \\{").findAll(editor).count())
+        val catalogs = java.io.File("src/main/java/app/ember/tv/ui/SettingsWatching.kt").readText()
+        assertTrue(catalogs.contains("Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))"))
     }
 
     @Test fun theTraktNoticeUsesTheRequiredWording() {

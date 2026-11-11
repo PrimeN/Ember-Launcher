@@ -186,7 +186,7 @@ internal fun ImportCollectionPreview(vm: HomeViewModel, text: String, revision: 
 internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
     var mode by remember { mutableStateOf("Add-ons") }; var query by remember { mutableStateOf("") }; var expanded by remember { mutableStateOf<String?>(null) }
     var collect by remember { mutableStateOf<CollectionSource?>(null) }; var filters by remember { mutableStateOf<CatalogDef?>(null) }
-    MediaDialog("Organize content", close, resizeForKeyboard = true, scrollBody = false) {
+    MediaDialog("Organize content", close, resizeForKeyboard = true, scrollBody = false, wide = true) {
         ButtonRow { listOf("Add-ons", "Catalogs", "Collections").forEach { value -> Chip(value, mode == value) { mode = value; expanded = null; query = "" } } }
         if (mode == "Collections") CollectionManager(vm) else {
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find ${mode.lowercase()}")

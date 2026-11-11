@@ -30,8 +30,10 @@ fun DialogClose(close: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun MediaDialog(title: String, close: () -> Unit, resizeForKeyboard: Boolean = false, initialFocus: FocusRequester? = null, scrollBody: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
-    TvDialog(close,resizeForKeyboard=resizeForKeyboard) {
+fun MediaDialog(title: String, close: () -> Unit, resizeForKeyboard: Boolean = false, initialFocus: FocusRequester? = null, scrollBody: Boolean = true,
+    /** #204: editors and pickers with tiles, cards or many choices take the TV's width instead of a narrow column. */
+    wide: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    TvDialog(close,width=if(wide)MenuSizing.WIDE_DIALOG else 680.dp,height=if(wide)MenuSizing.WIDE_DIALOG_HEIGHT else 540.dp,resizeForKeyboard=resizeForKeyboard) {
         val first = remember { FocusRequester() }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DialogHeading(title, Modifier.weight(1f))

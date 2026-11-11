@@ -97,7 +97,7 @@ internal object AppChoices {
         val all=if(home)vm.apps else vm.appAccess.page(true)
         fun shown(pkg:String)=if(home)pkg !in vm.hidden else pkg !in vm.appsPageOff
         fun toggle(pkg:String){if(home)vm.toggleHidden(pkg) else vm.toggleAppsPage(pkg)}
-        MediaDialog(if(home)"Apps on Home" else "Apps on the Apps page",{chooseApps=null}) {
+        MediaDialog(if(home)"Apps on Home" else "Apps on the Apps page",{chooseApps=null}, wide = true) {
             Text(AppChoices.count(all.count {shown(it.pkg)},all.size)+". Highlighted apps are shown; press OK to switch one.",color=Mute,fontSize=13.sp)
             ButtonRow {
                 Chip("Show all"){all.forEach {if(!shown(it.pkg))toggle(it.pkg)}}
