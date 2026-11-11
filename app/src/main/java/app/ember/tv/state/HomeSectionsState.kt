@@ -30,7 +30,7 @@ class HomeSectionsState(
     private val baseSectionInfo: List<SectionInfo>
         get() = buildList {
             add(SectionInfo(HOME_HERO, "Banner", "The large rotating picture at the top, from your Home catalogs."))
-            add(SectionInfo(HOME_APPS, "Your apps", "Apps, filling the row; a second row in Apps on Home below."))
+            add(SectionInfo(HOME_APPS, "Your apps", "A row or two of apps. Choose them in Settings > Apps & folders."))
             add(SectionInfo(HOME_CONTINUE, "In progress", "Part-way through: played in Ember, on your trackers and on your media servers."))
             add(SectionInfo(HOME_RECENT, "Recently watched", "Played in Ember, and your Trakt history."))
             add(SectionInfo(HOME_WATCHLIST, "Your watchlist", "Saved on this TV and on your trackers."))

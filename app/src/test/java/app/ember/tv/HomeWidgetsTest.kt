@@ -160,6 +160,40 @@ class HomeWidgetsTest {
         assertTrue(controller.contains("\"order-widgets\" -> {")); assertTrue(controller.contains("sections.arrange(ordered.map"))
     }
 
+    @Test fun everythingOnHomeIsAWidgetAndAppsLiveWithApps() {
+        // #189: one list for the widgets that come with Ember and your own; only your own can be edited or deleted.
+        val ui = app.ember.tv.ui.WidgetDrafts
+        assertEquals(listOf("Edit", "Hide from Home", "Delete"), ui.actions(own = true, on = true, listStyle = null, catalog = false))
+        assertEquals(listOf("Show on Home"), ui.actions(own = false, on = false, listStyle = null, catalog = false))
+        assertEquals(listOf("Hide from Home", "Show as a button"), ui.actions(false, true, "row", false))
+        assertEquals(listOf("Hide from Home", "Show as a row"), ui.actions(false, true, "button", false))
+        assertEquals(listOf("Hide from Home", "Rename"), ui.actions(false, true, null, catalog = true))
+        assertEquals(HomeWidgets.HERO, ui.picture(app.ember.tv.HomeViewModel.HOME_HERO, null)); assertEquals(ui.APPS, ui.picture(app.ember.tv.HomeViewModel.HOME_APPS, null))
+        assertEquals(HomeWidgets.ROW, ui.picture("continue", null)); assertEquals(HomeWidgets.CAROUSEL, ui.picture("widget:w1", HomeWidgets.CAROUSEL))
+        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertTrue(tv.contains("Section(\"Home widgets\"")); assertTrue(tv.contains("vm.sections.layout.forEach { (section, on) ->"))
+        assertTrue(tv.contains("vm.sections.resetLayout()"))
+        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
+        assertFalse("the order is no longer kept in two places", general.contains("vm.sections.moveSection"))
+        assertFalse(general.contains("vm.toggleHidden"))
+        assertEquals("Banner & lists", app.ember.tv.ui.SettingsTab.HOME_ROWS.label)
+        val index = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.WIDGETS }.second.lowercase()
+        for (word in listOf("home layout", "order", "banner", "your apps")) assertTrue(word, word in index)
+        // #190: Apps on Home and the Apps page are on Apps & folders, each choosing its apps in a dialog.
+        val apps = java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText()
+        assertTrue(apps.contains("Section(\"Apps on Home\"")); assertTrue(apps.contains("Section(\"Apps page\""))
+        assertTrue(apps.contains("vm.sections.toggleSection(HomeViewModel.HOME_APPS)")); assertTrue(apps.contains("vm.updateHomeAppRows(2)"))
+        assertEquals("All 12 apps", app.ember.tv.ui.AppChoices.count(12, 12)); assertEquals("5 of 12 apps", app.ember.tv.ui.AppChoices.count(5, 12)); assertEquals("No apps", app.ember.tv.ui.AppChoices.count(0, 0))
+        assertEquals("Netflix, hidden", app.ember.tv.ui.AppChoices.spoken("Netflix", false))
+        assertTrue("app_icons" in app.ember.tv.ui.lookKeys(app.ember.tv.ui.SettingsTab.HOME_TOOLS, InterfaceStyles.MODERN))
+        assertFalse("app_icons" in app.ember.tv.ui.lookKeys(app.ember.tv.ui.SettingsTab.HOME_ROWS, InterfaceStyles.MODERN))
+        val appsIndex = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.HOME_TOOLS }.second.lowercase()
+        for (word in listOf("apps on home", "rows of apps", "app icons")) assertTrue(word, word in appsIndex)
+        // #188: no line across a marked button; the eye fills instead.
+        val actions = java.io.File("src/main/java/app/ember/tv/ui/DetailsActions.kt").readText()
+        assertFalse(actions.contains("selectionCue")); assertTrue(actions.contains("if(watched)Icons.Filled.Visibility else Icons.Outlined.Visibility"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

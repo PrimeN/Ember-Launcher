@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.testTag
@@ -30,7 +31,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var editing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var removing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var importing by remember { mutableStateOf(false) }
-    var menu by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
+    var menu by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     // #183: Home's "Edit widget" lands here with the editor already open.
     LaunchedEffect(vm.widgetToEdit) {
         val id = vm.widgetToEdit ?: return@LaunchedEffect
@@ -40,13 +41,17 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var message by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
-    Section("Your widgets", "Rows you define for the Ember Home: a numbered Top 10, a cinematic carousel or a hero banner, from a catalog, a list or filters.", id = "home-widgets") {
+    val kids = vm.profiles.profile.kids
+    val info = vm.sections.sectionInfo.associateBy { it.id }
+    fun own(section: String) = if (HomeWidgets.isSection(section)) vm.widgets.list.firstOrNull { HomeWidgets.section(it.id) == section } else null
+    // #189: everything on Home is a widget. The ones that come with Ember and your own share one list, in Home order.
+    Section("Home widgets", "Everything on Home is a widget. The banner, your apps, your lists and your catalogs come with Ember; add your own from a catalog, a list or filters. Home shows them in this order.", id = "home-widgets") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ButtonRow {
-                Chip("Create widget", modifier = Modifier.testTag("widget_create")) { editing = WidgetDrafts.new() }
+                if (!kids) Chip("Create widget", modifier = Modifier.testTag("widget_create")) { editing = WidgetDrafts.new() }
                 // #163: like collections, widgets move between TVs and profiles as a file.
-                Chip("Import") { importing = true }
-                if (vm.widgets.list.isNotEmpty()) Chip("Export all") {
+                if (!kids) Chip("Import") { importing = true }
+                if (!kids && vm.widgets.list.isNotEmpty()) Chip("Export all") {
                     val pack = HomeWidgets.pack(vm.widgets.list)
                     scope.launch {
                         message = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -54,44 +59,56 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                         } }.fold({ "Saved to $it" }, { "Could not save the widget pack." })
                     }
                 }
-            // #168: after a failure (a missing key, no connection) there was no way to try again without leaving Home.
-            if (vm.widgets.errors.isNotEmpty()) Chip("Reload widgets") { vm.refreshWidgets(force = true) }
+                // #168: after a failure (a missing key, no connection) there was no way to try again without leaving Home.
+                if (vm.widgets.errors.isNotEmpty()) Chip("Reload widgets") { vm.refreshWidgets(force = true) }
             }
             message?.let { Text(it, color = Mute, fontSize = 13.sp) }
-            // In Home order, so Move matches what Home shows.
-            val layout = vm.sections.layout
-            val order = layout.map { it.first }
-            vm.widgets.list.sortedBy { w -> order.indexOf(HomeWidgets.section(w.id)).let { if (it < 0) Int.MAX_VALUE else it } }.forEach { w ->
-                val section = HomeWidgets.section(w.id)
-                // #176: one card per widget, with a picture of its style; OK opens its actions.
-                val on = vm.sections.sectionOn(section)
-                Focusable(onClick = { menu = w }, modifier = Modifier.width(640.dp).testTag("widget_card"), radius = TvTokens.Shape.Card, container = PanelHi) {
+            vm.sections.layout.forEach { (section, on) ->
+                val built = info[section] ?: return@forEach
+                val w = own(section)
+                // #176: one card per widget, with a picture of what it is; OK opens its actions.
+                Focusable(onClick = { menu = section }, modifier = Modifier.width(640.dp).testTag("widget_card"), radius = TvTokens.Shape.Card, container = PanelHi) {
                     val ink = androidx.tv.material3.LocalContentColor.current
-                    Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.width(156.dp)) { WidgetStylePreview(w.style, ink) }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(w.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(WidgetDrafts.summary(w, vm.allCatalogs), color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // The editor's picture at 60%, so a long Home still fits a few to the screen.
+                        Box(Modifier.width(94.dp).height(48.dp), contentAlignment = Alignment.Center) {
+                            Box(Modifier.requiredWidth(156.dp).scale(.6f)) { WidgetStylePreview(WidgetDrafts.picture(section, w?.style), ink) }
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(w?.title ?: built.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (w != null) "Yours · " + WidgetDrafts.summary(w, vm.allCatalogs) else "Built in · " + built.note, color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             // #168: why a widget is not on Home, instead of a row that is silently missing.
-                            Text(WidgetDrafts.state(on, WidgetDrafts.status(on, w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)),
+                            Text(WidgetDrafts.state(on, if (w == null) null else WidgetDrafts.status(on, w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)),
                                 color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
             }
-            Note(if (vm.widgets.list.isEmpty()) "No widgets yet. The banner, apps, catalogs and lists that come with Home are arranged in Home layout."
-                else "Press OK on a widget to edit, hide, move or delete it. Moving steps it past every Home section, built-in ones included; Home layout shows the whole order.")
+            Note("Press OK on a widget to show or hide it or move it; your own can also be edited and deleted. Banner and list options are in Settings > Home > Banner & lists, and the apps in Apps & folders.")
+            Chip("Back to the default order") { vm.sections.resetLayout() }
         }
     }
-    menu?.let { w ->
-        val section = HomeWidgets.section(w.id)
+    var renaming by remember { mutableStateOf<String?>(null) }
+    menu?.let { section ->
+        val w = own(section)
         val order = vm.sections.layout.map { it.first }
-        OptionMenu(w.title, buildList {
-            add(MenuOption("Edit") { editing = w })
-            add(MenuOption(if (vm.sections.sectionOn(section)) "Hide from Home" else "Show on Home") { vm.sections.toggleSection(section) })
+        val catalog = app.ember.tv.state.HomeSectionsState.isCatalogSection(section)
+        OptionMenu(w?.title ?: info[section]?.label ?: "Widget", buildList {
+            WidgetDrafts.actions(w != null && !kids, vm.sections.sectionOn(section), if (vm.sections.isList(section)) vm.sections.listStyle(section) else null, catalog).forEach { label ->
+                add(MenuOption(label) { when (label) {
+                    "Edit" -> editing = w
+                    "Delete" -> removing = w
+                    "Rename" -> renaming = app.ember.tv.state.HomeSectionsState.catalogKey(section)
+                    "Show as a button", "Show as a row" -> vm.sections.toggleListStyle(section)
+                    else -> vm.sections.toggleSection(section)
+                } })
+            }
             WidgetDrafts.moves(order.indexOf(section), order.lastIndex).forEach { (label, step) -> add(MenuOption(label) { vm.sections.moveSection(section, step) }) }
-            add(MenuOption("Delete") { removing = w })
         }) { menu = null }
+    }
+    renaming?.let { key ->
+        val original = vm.allCatalogs.firstOrNull { it.key == key }?.originalLabel ?: vm.rows.firstOrNull { it.catalogKey == key }?.title ?: "Catalog"
+        CatalogRenameDialog(vm, key, original) { renaming = null }
     }
     editing?.let { WidgetEditorDialog(vm, it) { editing = null } }
     if (importing) WidgetImportDialog(vm, { importing = false }) { message = it }
@@ -117,6 +134,21 @@ internal object WidgetDrafts {
         loading -> "Loading…"
         error != null -> "Could not load: $error"
         else -> "Nothing to show yet"
+    }
+    /** The picture on a widget's card (#189): your widget's style, or what a built-in one looks like. */
+    fun picture(section: String, style: String?): String = style ?: when (section) {
+        app.ember.tv.HomeViewModel.HOME_HERO -> HomeWidgets.HERO
+        app.ember.tv.HomeViewModel.HOME_APPS -> APPS
+        else -> HomeWidgets.ROW
+    }
+    const val APPS = "apps"
+    /** A widget card's menu (#189), before the moves. Only your own widgets can be edited or deleted. */
+    fun actions(own: Boolean, on: Boolean, listStyle: String?, catalog: Boolean): List<String> = buildList {
+        if (own) add("Edit")
+        add(if (on) "Hide from Home" else "Show on Home")
+        if (listStyle != null) add(if (listStyle == "row") "Show as a button" else "Show as a row")
+        if (catalog) add("Rename")
+        if (own) add("Delete")
     }
     /** The first line of a widget row's menu on Home (#183): the title's own options. */
     fun titleOption(name: String) = "Options for " + name.trim().ifBlank { "this title" }.let { if (it.length > 28) it.take(27).trimEnd() + "…" else it }
@@ -313,6 +345,10 @@ private fun WidgetStylePreview(style: String, ink: Color) {
                         Box(Modifier.size(9.dp).block(ink.copy(alpha = .7f), 5))
                     }
                 }
+            }
+            // The Apps widget: a row of app tiles.
+            WidgetDrafts.APPS -> Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                repeat(4) { Box(Modifier.width(30.dp).height(20.dp).block(soft, 6)) }
             }
             else -> Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 repeat(4) { Box(Modifier.width(30.dp).height(44.dp).block(soft)) }

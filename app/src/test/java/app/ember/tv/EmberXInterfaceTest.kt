@@ -98,6 +98,6 @@ class EmberXInterfaceTest {
         assertEquals(InterfaceStyles.EMBER_X,hit.options.single {it.second=="Ember X"}.first)
         assertEquals("accent_colour",SettingDefinitions.matching("Android TV").single().id)
         assertEquals(listOf("Ember","Ember Light"),SettingDefinitions.interfaceStyle.options.map {it.second})
-        assertTrue("app_icons" in lookKeys(SettingsTab.HOME_ROWS, InterfaceStyles.EMBER_X))
+        assertTrue("app_icons" in lookKeys(SettingsTab.HOME_TOOLS, InterfaceStyles.EMBER_X))
     }
 }

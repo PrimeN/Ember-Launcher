@@ -97,51 +97,12 @@ import java.util.Locale
  */
 @Composable
 internal fun HomeRowsSection(vm: HomeViewModel) {
-    val info = vm.sections.sectionInfo.associateBy { it.id }
-    val layout = vm.sections.layout
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         HeroBannerSettings(vm)
         PersonalListSettings(vm)
-        Section(stringResource(R.string.ui_home_layout), stringResource(R.string.ui_switch_sections_on_or_off_and)) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                layout.forEachIndexed { i, (id, on) ->
-                    val s = info[id] ?: return@forEachIndexed
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { ToggleRow(s.label, s.note, on) { vm.sections.toggleSection(id) } }
-                        if (app.ember.tv.state.HomeSectionsState.isCatalogSection(id)) {
-                            val catalogKey = app.ember.tv.state.HomeSectionsState.catalogKey(id)
-                            val original = vm.allCatalogs.firstOrNull { it.key == catalogKey }?.originalLabel
-                                ?: vm.rows.firstOrNull { it.catalogKey == catalogKey }?.title ?: s.label
-                            CatalogRenameButton(vm, catalogKey, original)
-                        }
-                        // #161: one of your widgets. Created and edited on the phone page; removable here.
-                        if (app.ember.tv.data.HomeWidgets.isSection(id)) {
-                            var removing by remember(id) { mutableStateOf(false) }
-                            Chip("Delete") { removing = true }
-                            if (removing) ConfirmDestructive("Delete ${s.label}?", "This deletes the widget from Home. This can't be undone; its source (a catalog, list or filters) is not affected.",
-                                { removing = false }) { vm.deleteWidget(id.removePrefix("widget:")) }
-                        }
-                        // In progress, Recently watched and the watchlist: a row of titles or a button.
-                        if (vm.sections.isList(id)) Chip(if (vm.sections.listStyle(id) == "row") "As a row" else "As a button") { vm.sections.toggleListStyle(id) }
-                        MoveButton(s.label, i, layout.lastIndex) { step -> vm.sections.moveSection(id, step) }
-                    }
-                }
-                Note("Create, edit, import and export your own widgets, and manage collections, in Settings > Home > Widgets & collections.")
-                Chip(stringResource(R.string.ui_back_to_the_default_banner_and)) { vm.sections.resetLayout() }
-            }
-        }
+        // #189: the order of Home, and switching its widgets on and off, is in Widgets & collections.
+        Note("Home's widgets (the banner, apps, lists, catalogs and your own) are switched on, moved and created in Settings > Home > Widgets & collections.")
         if (vm.hiddenHomeTitleCount > 0) Chip("Restore ${vm.hiddenHomeTitleCount} hidden Home titles") { vm.restoreHomeTitles() }
-        Section(stringResource(R.string.ui_apps_on_home), stringResource(R.string.ui_all_your_apps_show_by_default)) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ButtonRow(spacing = 10.dp) {
-                    Chip(stringResource(R.string.ui_one_row), selected = vm.homeAppRows == 1) { vm.updateHomeAppRows(1) }
-                    Chip(stringResource(R.string.ui_two_rows), selected = vm.homeAppRows == 2) { vm.updateHomeAppRows(2) }
-                }
-                vm.apps.forEach { app ->
-                    ToggleRow(app.label, null, app.pkg !in vm.hidden) { vm.toggleHidden(app.pkg) }
-                }
-            }
-        }
     }
 }
 
@@ -165,9 +126,10 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
         SettingsTab.REMOTE -> listOf("remote_s_settings_button", "remote-sounds", "auto-load")
         SettingsTab.HOME_ROWS -> buildList {
-            if (active == "modern" || active == app.ember.tv.data.InterfaceStyles.EMBER_X) add("app_icons")
             if (active == "modern") add("home_cards")
         }
+        // #190: how app tiles look sits with the other app settings.
+        SettingsTab.HOME_TOOLS -> buildList { if (active == "modern" || active == app.ember.tv.data.InterfaceStyles.EMBER_X) add("app_icons") }
         SettingsTab.LIGHT_HOME -> listOf("wallpaper")
         else -> emptyList()
     }

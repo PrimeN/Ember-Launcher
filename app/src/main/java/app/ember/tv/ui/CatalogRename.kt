@@ -19,16 +19,22 @@ import app.ember.tv.data.CatalogNames
 internal fun CatalogRenameButton(vm: HomeViewModel, key: String, original: String) {
     var open by remember(key) { mutableStateOf(false) }
     Chip(stringResource(R.string.ui_rename)) { open = true }
-    if (open) {
+    if (open) CatalogRenameDialog(vm, key, original) { open = false }
+}
+
+/** The rename dialog on its own, for menus that open it (#189). */
+@Composable
+internal fun CatalogRenameDialog(vm: HomeViewModel, key: String, original: String, close: () -> Unit) {
+    run {
         var name by remember(key) { mutableStateOf(CatalogNames.label(key, original)) }
-        TvDialog({open=false},width=560.dp,resizeForKeyboard=true,scrollContent=true) {
+        TvDialog(close,width=560.dp,resizeForKeyboard=true,scrollContent=true) {
             DialogHeading("Rename catalog")
             Text(original, color = Mute, fontSize = 13.sp)
             TextInput(name, { name = it.take(120) }, "Catalog name", width = 500)
             ButtonRow(spacing=10.dp) {
-                Chip(stringResource(R.string.ui_save)) { vm.renameCatalog(key, name); open = false }
-                Chip(stringResource(R.string.ui_use_original)) { vm.renameCatalog(key, ""); open = false }
-                Chip(stringResource(R.string.ui_cancel)) { open = false }
+                Chip(stringResource(R.string.ui_save)) { vm.renameCatalog(key, name); close() }
+                Chip(stringResource(R.string.ui_use_original)) { vm.renameCatalog(key, ""); close() }
+                Chip(stringResource(R.string.ui_cancel)) { close() }
             }
 
         }

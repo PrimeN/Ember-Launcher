@@ -428,7 +428,7 @@
     <string name="settings_summary_features">Choose which launcher features run and refresh.</string>
     <string name="settings_summary_menu">Choose, hide and reorder navigation tabs.</string>
     <string name="settings_summary_discover">Choose Explore, Collections and Catalogs visibility.</string>
-    <string name="settings_summary_home">Arrange app rows, catalogs and personal sections.</string>
+    <string name="settings_summary_home">The Home banner and what your lists include.</string>
     <string name="settings_summary_appearance">Interface, theme, colours, navbar and labels.</string>
     <string name="settings_summary_posters">Artwork, title logos and ratings on media cards.</string>
     <string name="settings_summary_metadata">Choose sources for descriptions, artwork and episodes.</string>

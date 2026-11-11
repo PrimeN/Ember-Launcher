@@ -31,13 +31,3 @@ internal fun Modifier.focusCue(focused:Boolean,radius:Int,color:Color=ControlSta
         drawRoundRect(color,Offset(inset,inset),edge,corner,style=Stroke(stroke))
     }
 }
-
-/** A saved choice remains distinct after D-pad focus moves elsewhere. No layout changes. */
-internal fun Modifier.selectionCue(selected:Boolean,color:Color)=drawWithContent {
-    drawContent()
-    if(selected) {
-        val w=minOf(16.dp.toPx(),size.width/3)
-        val top=Offset((size.width-w)/2,(size.height-6.dp.toPx()).coerceAtLeast(0f))
-        drawRoundRect(color,top,Size(w,2.dp.toPx()),CornerRadius(1.dp.toPx()))
-    }
-}

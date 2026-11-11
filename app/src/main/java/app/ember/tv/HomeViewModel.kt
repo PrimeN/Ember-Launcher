@@ -1051,6 +1051,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** A widget Home asked to edit (#183): Settings opens on Widgets & collections with its editor up. */
     var widgetToEdit by mutableStateOf<String?>(null)
     fun editWidget(id: String) { widgetToEdit = id; openSettingsPage("WIDGETS") }
+
     /** Imports a widget pack's text (#163); returns the outcome as a message. */
     fun importWidgets(text: String): String = HomeWidgets.unpack(text, profiles.profileId)
         .fold({ widgets.importAll(it).also { refreshWidgets() } }, { it.message ?: "This is not an Ember widget pack." })

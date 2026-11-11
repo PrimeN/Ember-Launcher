@@ -102,7 +102,7 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     SIZE("Size & spacing", "Look"),
     PERFORMANCE("Performance & effects", "Look"),
     // Home: what the Home screen shows and what happens at startup.
-    HOME_ROWS("Home layout", "Home"),
+    HOME_ROWS("Banner & lists", "Home"),
     // #163: what you add to Home yourself, in one place.
     WIDGETS("Widgets & collections", "Home"),
     HOME_TOOLS("Apps & folders", "Home"),
@@ -194,7 +194,7 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.DISCOVER -> item(key = "discover-sections") { DiscoverSettings(vm) }
             SettingsTab.HOME_ROWS -> { item(key = "home") { HomeRowsSection(vm) }; appearancePage(vm, SettingsTab.HOME_ROWS) }
             SettingsTab.WIDGETS -> {
-                if (!vm.profiles.profile.kids) item(key = "widgets") { WidgetsSettings(vm) }
+                item(key = "widgets") { WidgetsSettings(vm) }
                 item(key = "collections") { Section("Collections", "Rows of folder tiles on Home and Discover; each folder opens one or more catalogs.", id = "collections") { CollectionsSettings(vm) } }
             }
             SettingsTab.LIGHT_HOME -> {
@@ -203,7 +203,7 @@ fun SettingsScreen(vm: HomeViewModel) {
                 }
                 appearancePage(vm, SettingsTab.LIGHT_HOME)
             }
-            SettingsTab.HOME_TOOLS -> item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)}
+            SettingsTab.HOME_TOOLS -> { item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)}; appearancePage(vm, SettingsTab.HOME_TOOLS) }
             SettingsTab.HOME_EXTRAS -> { item(key="home-extras"){HomeToolsPage(vm, HomeToolsPart.EXTRAS)}; item(key = "weather") { WeatherSection(vm) } }
             SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE -> appearancePage(vm, tab)
             SettingsTab.POSTERS -> {

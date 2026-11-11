@@ -22,11 +22,33 @@ import kotlinx.coroutines.launch
 /** Home tools are split across Settings > Home: Apps & folders, Startup and Extras. */
 internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
 
+/** Wording for the app pickers on Apps & folders (#190). */
+internal object AppChoices {
+    fun count(shown:Int,all:Int)=when {all==0->"No apps";shown==all->"All $all apps";else->"$shown of $all apps"}
+    fun spoken(name:String,shown:Boolean)="$name, "+if(shown)"shown" else "hidden"
+}
+
 @Composable internal fun HomeToolsPage(vm:HomeViewModel, part:HomeToolsPart) {
     val context=LocalContext.current;val scope=rememberCoroutineScope()
     val opts=vm.launcherExtras.options
     var chooseStartup by remember {mutableStateOf(false)}
+    var chooseApps by remember {mutableStateOf<String?>(null)}
     Column(verticalArrangement=Arrangement.spacedBy(22.dp)) {
+        // #190: the two places apps show, each choosing its apps in a dialog instead of a switch per app down the page.
+        if(part==HomeToolsPart.FOLDERS)Section("Apps on Home","The Apps widget on Home. All your apps show by default, as many as fit; hold OK on an app on Home to move it.",id="apps-on-home") {
+            val on=vm.sections.sectionOn(HomeViewModel.HOME_APPS)
+            SettingToggle("Show apps on Home","The Apps widget. Its place among Home's widgets is set in Widgets & collections.",on){vm.sections.toggleSection(HomeViewModel.HOME_APPS)}
+            SettingValueRow("Apps on Home",AppChoices.count(vm.apps.count {it.pkg !in vm.hidden},vm.apps.size)){chooseApps="home"}
+            Text("Rows of apps",fontSize=15.sp)
+            ButtonRow(spacing=10.dp) {
+                Chip("One row",selected=vm.homeAppRows==1){vm.updateHomeAppRows(1)}
+                Chip("Two rows",selected=vm.homeAppRows==2){vm.updateHomeAppRows(2)}
+            }
+        }
+        if(part==HomeToolsPart.FOLDERS)Section("Apps page","The page that lists every app.",id="apps-page") {
+            val all=vm.appAccess.page(true)
+            SettingValueRow("Apps on the Apps page",AppChoices.count(all.count {it.pkg !in vm.appsPageOff},all.size)){chooseApps="page"}
+        }
         if(part==HomeToolsPart.FOLDERS)Section("Personal Home", "App order, visibility, folders, artwork and Light choices are saved separately for each profile.") {
             Chip("New app folder"){vm.homeFeatureAction="edit:folder-new"}
             vm.personalHomes.current.folders.forEachIndexed {index,f->ButtonRow {
@@ -67,6 +89,23 @@ internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
                     Chip("Remove") {vm.launcherExtras.update {it.copy(slides=it.slides.filterNot {s->s.id==item.id})};scope.launch(Dispatchers.IO){PresentationMedia.removeUpload(context,item)}}
                 }
             }
+        }
+    }
+    chooseApps?.let {where->
+        val home=where=="home"
+        val all=if(home)vm.apps else vm.appAccess.page(true)
+        fun shown(pkg:String)=if(home)pkg !in vm.hidden else pkg !in vm.appsPageOff
+        fun toggle(pkg:String){if(home)vm.toggleHidden(pkg) else vm.toggleAppsPage(pkg)}
+        MediaDialog(if(home)"Apps on Home" else "Apps on the Apps page",{chooseApps=null}) {
+            Text(AppChoices.count(all.count {shown(it.pkg)},all.size)+". Highlighted apps are shown; press OK to switch one.",color=Mute,fontSize=13.sp)
+            ButtonRow {
+                Chip("Show all"){all.forEach {if(!shown(it.pkg))toggle(it.pkg)}}
+                Chip("Hide all"){all.forEach {if(shown(it.pkg))toggle(it.pkg)}}
+                Chip("Done"){chooseApps=null}
+            }
+            ButtonRow {all.sortedBy {it.label.lowercase()}.forEach {a->
+                Chip(a.label,selected=shown(a.pkg),maxLines=1,modifier=Modifier.semantics {contentDescription=AppChoices.spoken(a.label,shown(a.pkg))}){toggle(a.pkg)}
+            }}
         }
     }
     if(chooseStartup)MediaDialog("Startup destination",{chooseStartup=false}) {

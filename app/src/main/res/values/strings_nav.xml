@@ -12,7 +12,7 @@
     <string name="tab_quick">Quick settings</string>
     <string name="settings_features">Features</string>
     <string name="settings_top_menu">Top menu</string>
-    <string name="settings_home_rows">Home layout</string>
+    <string name="settings_home_rows">Banner &amp; lists</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_metadata">Metadata</string>
     <string name="settings_weather">Weather</string>
@@ -65,10 +65,10 @@
     <string name="settings_summary_performance">Device profile, image quality, frosted glass and focus effects.</string>
     <string name="settings_summary_remote">The remote\'s Settings button and remote sounds.</string>
     <string name="settings_summary_light_home">Background, carousel, apps\' recommendations and idle timing.</string>
-    <string name="settings_summary_apps_folders">App folders, custom artwork and app PIN locks for each profile.</string>
+    <string name="settings_summary_apps_folders">Apps on Home and the Apps page, folders, artwork and PIN locks.</string>
     <string name="settings_summary_startup">Ember as Home, the Home button and what opens when the TV starts.</string>
     <string name="settings_summary_extras">Now Playing and presentation slideshows.</string>
-    <string name="settings_summary_widgets">Your own Home rows, banners and collections.</string>
+    <string name="settings_summary_widgets">Everything on Home, in order: show, hide, move and add your own.</string>
     <string name="settings_summary_extras_weather">Now Playing, presentation slideshows and weather.</string>
     <string name="settings_summary_artwork_metadata">Posters, ratings and where title details come from.</string>
     <string name="settings_summary_storage_diagnostics">Cache sizes and durations, crash log and build details.</string>

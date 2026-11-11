@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -89,7 +90,7 @@ internal fun DetailsActionButton(
     val fill=if(primary && enabled)(if(focused)Color.White else Color.White.copy(alpha=.74f)) else detailsActionFill(enabled,focused,selected,PillColor,WashHi)
     val shape=if(isEmberX)androidx.compose.foundation.shape.RoundedCornerShape(14.dp) else CircleShape
     Focusable(onClick={if(enabled)onClick()},enabled=enabled,modifier=modifier.width(width).then(when {inline->Modifier.height(inlineHeight);compact->Modifier.height(compactHeight);else->Modifier.heightIn(min=minHeight)})
-        .onFocusChanged {focused=it.isFocused}.selectionCue(selected,Fg).semantics {
+        .onFocusChanged {focused=it.isFocused}.semantics {
             contentDescription=label
             if(selected)this.selected=true
             if(!enabled)disabled()
@@ -163,7 +164,9 @@ internal fun DetailsActions(
             modifier=if(playback.enabled)Modifier.focusRequester(first) else Modifier,onClick=onPlay)
         if(trailer)DetailsActionButton("Play trailer",text="Trailer",width=trailerWidth,minHeight=actionHeight,inline=true,
             modifier=Modifier.onFocusChanged {trailerFocused=it.isFocused},onClick=onTrailer)
-        DetailsActionButton(if(!canMarkWatched)"Select an episode before marking watched" else if(watched)"Mark as unwatched" else "Mark as watched",Icons.Outlined.Visibility,
+        DetailsActionButton(if(!canMarkWatched)"Select an episode before marking watched" else if(watched)"Mark as unwatched" else "Mark as watched",
+            // #188: watched shows as a filled eye on a filled button; the line that used to mark it is gone.
+            if(watched)Icons.Filled.Visibility else Icons.Outlined.Visibility,
             selected=watched,enabled=canMarkWatched,width=actionHeight,minHeight=actionHeight,inline=true,onClick=onWatched)
         DetailsActionButton(if(saved)"Remove from watchlist" else "Add to watchlist",if(saved)Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
             selected=saved,width=actionHeight,minHeight=actionHeight,inline=true,
