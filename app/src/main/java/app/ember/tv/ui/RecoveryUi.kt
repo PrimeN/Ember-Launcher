@@ -5,6 +5,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.*
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -81,9 +83,26 @@ fun SourceStatusButton(label: String, statuses: Collection<SourceStatus>, retry:
 }
 
 /** Stable, silent loading shapes: they occupy space but never enter the remote focus chain. */
+/** A slow pulse for loading placeholders (#184); steady with Reduce motion. Read it in a draw phase, not composition. */
+@Composable
+internal fun loadingPulse(): androidx.compose.runtime.State<Float> {
+    if (LocalReduceMotion.current || LocalRenderOptions.current.lowPower) return remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
+    return androidx.compose.animation.core.rememberInfiniteTransition(label = "loading").animateFloat(initialValue = .55f, targetValue = 1f, animationSpec =
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse), label = "loadingPulse")
+}
+
+/** The placeholder for a Hero banner or Cinematic carousel widget (#184): one panel of the height the widget will have. */
+@Composable
+internal fun LoadingPanel(height: androidx.compose.ui.unit.Dp) {
+    val pulse = loadingPulse()
+    Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).graphicsLayer { alpha = pulse.value }
+        .background(PanelHi, RoundedCornerShape(TvTokens.Shape.Panel.dp)).clearAndSetSemantics { contentDescription = "Loading titles" })
+}
+
 @Composable
 fun LoadingCards(wide:Boolean=true) {
-    BoxWithConstraints(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = "Loading titles" }) {
+    val pulse = loadingPulse()
+    BoxWithConstraints(Modifier.fillMaxWidth().graphicsLayer { alpha = pulse.value }.clearAndSetSemantics { contentDescription = "Loading titles" }) {
         val count=LocalRenderOptions.current.count(wide)
         val width=CardSizes.width(maxWidth,count,14.dp,4.dp)
         Row(horizontalArrangement=Arrangement.spacedBy(14.dp),modifier=Modifier.padding(vertical=12.dp)) {

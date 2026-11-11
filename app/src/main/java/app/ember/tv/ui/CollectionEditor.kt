@@ -6,7 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
@@ -79,6 +81,30 @@ internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, clo
     }
 }
 
+/** The folder editor's parts (#185). */
+internal object FolderSteps {
+    const val LOOK = "look"; const val SOURCES = "sources"; const val ARTWORK = "artwork"
+    val all = listOf(LOOK to "Look", SOURCES to "Sources", ARTWORK to "Artwork")
+    val shapes = listOf("SQUARE" to "Square", "LANDSCAPE" to "Wide", "POSTER" to "Poster")
+    /** The tile's picture in the shape picker, width to height in dp. */
+    fun size(shape: String): Pair<Int, Int> = when (shape) { "LANDSCAPE" -> 80 to 45; "POSTER" -> 36 to 54; else -> 50 to 50 }
+}
+
+/** A folder tile shape as a small picture of itself (#185). */
+@Composable
+private fun ShapeTile(shape: String, name: String, selected: Boolean, onClick: () -> Unit) {
+    Focusable(onClick = onClick, modifier = Modifier.width(132.dp).testTag("folder_shape_$shape"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
+        val ink = androidx.tv.material3.LocalContentColor.current
+        Column(Modifier.fillMaxWidth().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(Modifier.height(56.dp), contentAlignment = Alignment.Center) {
+                val (w, h) = FolderSteps.size(shape)
+                Box(Modifier.width(w.dp).height(h.dp).background(ink.copy(alpha = .45f), RoundedCornerShape(5.dp)))
+            }
+            Text(if (selected) "$name  ✓" else name, fontSize = 14.sp, maxLines = 1)
+        }
+    }
+}
+
 @Composable
 private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder, onSave: (CollectionFolder) -> Unit, close: () -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
@@ -87,6 +113,8 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
     var message by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf(false) }
     var discard by remember { mutableStateOf(false) }
+    // #185: one part at a time, as the widget editor works.
+    var step by remember(initial.id) { mutableStateOf(FolderSteps.LOOK) }
     fun dismiss() { if (draft != initial) discard = true else close() }
     if (editingSource != null) CollectionSourceEditor(vm, draft.allSources[editingSource!!], close = { editingSource = null }) { edited ->
         val index = editingSource!!
@@ -98,32 +126,31 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
         picker = false
     }, close = { picker = false })
     else MediaDialog("Edit folder", ::dismiss, resizeForKeyboard = true) {
+        ButtonRow { FolderSteps.all.forEachIndexed { i, (id, name) ->
+            Chip("${i + 1}  $name" + if (id == FolderSteps.SOURCES) " (${draft.allSources.size})" else "", step == id, modifier = Modifier.testTag("folder_step_$id")) { step = id }
+        } }
+        if (step == FolderSteps.LOOK) {
         TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Folder name")
-        ButtonRow {
-            Chip("Save folder") {
-                val check = Collections.inspect(Collections.encode(listOf(MediaCollection("draft", "Draft", folders = listOf(draft)))))
-                message = check.error
-                if (message == null) onSave(draft)
-            }
-            Chip("Add source") { picker = true }
-            Chip("Preview cover") { preview = !preview }
-        }
-        message?.let { Text(it, color = Mute, fontSize = 13.sp) }
+        Text("Tile shape", color = Mute, fontSize = 13.sp)
+        ButtonRow { FolderSteps.shapes.forEach { (shape, name) -> ShapeTile(shape, name, draft.tileShape == shape) { draft = draft.copy(tileShape = shape) } } }
+        TvTextField(draft.coverEmoji.orEmpty(), { draft = draft.copy(coverEmoji = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover emoji (optional)")
+        SwitchChip("Hide folder title", draft.hideTitle) { draft = draft.copy(hideTitle = !draft.hideTitle) }
+        ButtonRow { Chip("Preview cover") { preview = !preview } }
         if (preview) Box(Modifier.size(150.dp).background(PanelHi, RoundedCornerShape(12.dp))) {
             if (!draft.coverImageUrl.isNullOrBlank()) CollectionImage(draft.coverImageUrl!!, draft.title, Modifier.fillMaxSize(), animate = vm.collections.heroPreviews && !vm.profiles.profile.kids)
             else Text(draft.coverEmoji ?: draft.title, Modifier.padding(12.dp), fontSize = 24.sp)
         }
-        ButtonRow { listOf("SQUARE" to "Square", "LANDSCAPE" to "Wide", "POSTER" to "Poster").forEach { (shape, name) ->
-            Chip(name, draft.tileShape == shape) { draft = draft.copy(tileShape = shape) }
-        } }
-        TvTextField(draft.coverEmoji.orEmpty(), { draft = draft.copy(coverEmoji = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover emoji (optional)")
+        }
+        if (step == FolderSteps.ARTWORK) {
         TvTextField(draft.coverImageUrl.orEmpty(), { draft = draft.copy(coverImageUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover image URL (optional)")
         TvTextField(draft.focusGifUrl.orEmpty(), { draft = draft.copy(focusGifUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Focus video/GIF URL (optional)")
         SwitchChip("Animate cover when focused", draft.focusGifEnabled != false) { draft = draft.copy(focusGifEnabled = draft.focusGifEnabled == false) }
-        SwitchChip("Hide folder title", draft.hideTitle) { draft = draft.copy(hideTitle = !draft.hideTitle) }
         TvTextField(draft.heroBackdropUrl.orEmpty(), { draft = draft.copy(heroBackdropUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Folder backdrop URL (optional)")
         TvTextField(draft.heroVideoUrl.orEmpty(), { draft = draft.copy(heroVideoUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Hero video/GIF URL (optional, Animated collections must be on)")
         TvTextField(draft.titleLogoUrl.orEmpty(), { draft = draft.copy(titleLogoUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Title logo URL (optional)")
+        }
+        if (step == FolderSteps.SOURCES) {
+        ButtonRow { Chip("Add source") { picker = true } }
         if (draft.allSources.isEmpty()) Text("Add a catalog or search to this folder.", color = Mute)
         draft.allSources.forEachIndexed { index, source ->
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -134,6 +161,18 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
                     Chip("Remove source") { draft = draft.copy(sources = draft.allSources.filterIndexed { i, _ -> i != index }, catalogSources = emptyList()) }
                 }
             }
+        }
+        }
+        message?.let { Text(it, color = Mute, fontSize = 13.sp) }
+        ButtonRow {
+            Chip("Save folder") {
+                val check = Collections.inspect(Collections.encode(listOf(MediaCollection("draft", "Draft", folders = listOf(draft)))))
+                message = check.error
+                if (message == null) onSave(draft)
+                // A folder with nothing in it is the usual reason; show where to fix it.
+                else if (draft.allSources.isEmpty()) step = FolderSteps.SOURCES
+            }
+            Chip("Cancel") { dismiss() }
         }
     }
     if (discard) MediaDialog("Discard folder changes?", { discard = false }) {

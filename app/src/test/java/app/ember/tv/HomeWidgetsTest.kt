@@ -106,6 +106,60 @@ class HomeWidgetsTest {
         assertFalse(home.contains("RankBadge"))
     }
 
+    @Test fun homeActionsFiltersPreviewAndPlaceholders() {
+        // #183: the title's own options lead the widget row's menu; long names are cut.
+        assertEquals("Options for Heat", app.ember.tv.ui.WidgetDrafts.titleOption(" Heat "))
+        assertEquals("Options for this title", app.ember.tv.ui.WidgetDrafts.titleOption(""))
+        assertTrue(app.ember.tv.ui.WidgetDrafts.titleOption("The Lord of the Rings: The Fellowship of the Ring").length <= 40)
+        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
+        assertTrue(home.contains("is HomeViewModel.HomeBlock.Row -> WidgetActions(vm, b.widget) {"))
+        assertTrue(home.contains("add(MenuOption(\"Edit widget\") { vm.editWidget(widget.id) })"))
+        // #181: filters built in the editor become a source owned by the profile, named after what they ask for.
+        val query = app.ember.tv.discover.ExploreQuery(kind = app.ember.tv.discover.ExploreKind.MOVIE, genres = setOf("crime"), fromYear = 1990, toYear = 1999)
+        val built = app.ember.tv.ui.WidgetDrafts.filters(query, "me")
+        assertEquals("ember", built.provider); assertEquals(query, built.exploreQuery); assertEquals("me", built.ownerProfile)
+        assertTrue(built.title.orEmpty().contains("Crime")); assertTrue(built.title.orEmpty().contains("1990"))
+        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertTrue(tv.contains("else if (filters) ExploreFilters(")); assertFalse(tv.contains("save a search in Discover, then pick it"))
+        // #182
+        assertEquals(1, app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.CAROUSEL, wide = false)); assertEquals(1, app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.HERO, true))
+        assertTrue(app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.ROW, false) > app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.ROW, true))
+        assertTrue(tv.contains("WidgetPreview(vm, draft)"))
+        // #184: a loading banner or carousel holds its own height; rows pulse.
+        assertTrue(home.contains("app.ember.tv.data.HomeWidgets.CAROUSEL -> LoadingPanel(maxHeight * WidgetLook.CAROUSEL_HEIGHT)"))
+        val loading = java.io.File("src/main/java/app/ember/tv/ui/RecoveryUi.kt").readText()
+        assertTrue(loading.contains("if (LocalReduceMotion.current || LocalRenderOptions.current.lowPower) return remember"))
+        // #187
+        assertTrue(home.contains("label = \"widgetHeroArt\", transitionSpec"))
+        // #185
+        assertEquals(listOf("Look", "Sources", "Artwork"), app.ember.tv.ui.FolderSteps.all.map { it.second })
+        for ((shape, _) in app.ember.tv.ui.FolderSteps.shapes) { val (w, h) = app.ember.tv.ui.FolderSteps.size(shape); assertTrue(shape, w in 30..90 && h in 30..56) }
+        assertTrue(app.ember.tv.ui.FolderSteps.size("LANDSCAPE").let { it.first > it.second }); assertTrue(app.ember.tv.ui.FolderSteps.size("POSTER").let { it.first < it.second })
+    }
+
+    @Test fun thePhoneReordersWidgetsInOneApproval() {
+        // #186: only the sections named move, into the places they hold between them.
+        val layout = listOf("hero" to true, "widget:a" to true, "apps" to true, "widget:b" to false, "widget:c" to true)
+        assertEquals(listOf("hero" to true, "widget:c" to true, "apps" to true, "widget:a" to true, "widget:b" to false),
+            app.ember.tv.state.HomeSectionsState.arranged(layout, listOf("widget:c", "widget:a", "widget:b")))
+        assertEquals(layout, app.ember.tv.state.HomeSectionsState.arranged(layout, listOf("widget:c", "widget:c")))
+        assertEquals(layout, app.ember.tv.state.HomeSectionsState.arranged(layout, listOf("widget:c", "widget:gone")))
+        assertEquals(layout, app.ember.tv.state.HomeSectionsState.arranged(layout, emptyList()))
+        val two = PhoneContent(emptyList(), emptyList(), emptyList(), widgets = listOf(
+            PhoneWidget("w-1", "Top", HomeWidgets.NUMBERED, "poster", 10, "Trakt list 42", "10 titles", canMoveUp = false),
+            PhoneWidget("w-2", "Comedies", HomeWidgets.CAROUSEL, "default", 20, "Filters: Movies", "Loading", canMoveDown = false)))
+        val page = ContentPhone.render(two, "lease")
+        assertTrue(page.contains("<div id=worder><div class=row data-id=\"w-1\">")); assertTrue(page.contains("<span class=\"thumb wt\"><i class=\"w-numbered\"></i></span>"))
+        assertTrue(page.contains("<form id=wsend class=flat method=post action=\"/content?k=lease\" hidden><input type=hidden name=action value=order-widgets>"))
+        assertTrue(page.contains(ContentPhone.REORDER)); assertFalse("no secrets or links in the script", ContentPhone.REORDER.contains("http"))
+        assertEquals(2, Regex("<noscript>").findAll(page).count())
+        assertEquals("widgets", ContentPhone.partOf("order-widgets"))
+        val one = ContentPhone.render(two.copy(widgets = two.widgets.take(1)), "lease")
+        assertFalse("one widget has nothing to reorder", one.contains("id=wsend"))
+        val controller = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetupController.kt").readText()
+        assertTrue(controller.contains("\"order-widgets\" -> {")); assertTrue(controller.contains("sections.arrange(ordered.map"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

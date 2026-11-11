@@ -423,7 +423,8 @@ fun ModernHome(
                         HomeFolderLinks(vm)
                         AppsGrid(vm, circles = vm.look.appIcons == "circle", onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
                     }
-                    is HomeViewModel.HomeBlock.Row -> if (b.widget?.style == app.ember.tv.data.HomeWidgets.HERO) ModernSection(b.row.displayTitle) {
+                    // #183: holding OK on a title in a widget row also offers the widget's own actions.
+                    is HomeViewModel.HomeBlock.Row -> WidgetActions(vm, b.widget) { if (b.widget?.style == app.ember.tv.data.HomeWidgets.HERO) ModernSection(b.row.displayTitle) {
                         // #161: a banner of its own, with its own artwork; the main hero keeps the page backdrop.
                         WidgetHero(b.key, b.row.items, minOf(heroHeight * .82f, maxHeight * .7f), vm::isSaved, vm::toggleWatchlist, onOpenTitle,
                             rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
@@ -439,12 +440,19 @@ fun ModernHome(
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
                             numbered = look.numbered,
                         )
-                    }
+                    } }
                     is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
                         onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(b.collection, f, delta) }),
                         onDelete = if (vm.profiles.profile.kids) null else ({ f -> if (f == null) vm.collections.remove(b.collection.id) else vm.collections.removeFolder(b.collection.id, f.id) })) { f -> vm.collections.openFolder(b.collection, f) }
                     is HomeViewModel.HomeBlock.Shortcuts -> ListButtons(vm, b.ids, onList)
-                    is HomeViewModel.HomeBlock.Loading -> ModernSection(b.title) {LoadingCards(wide)}
+                    // #184: a loading widget holds the room its style will take.
+                    is HomeViewModel.HomeBlock.Loading -> ModernSection(b.title) {
+                        when (b.widget?.style) {
+                            app.ember.tv.data.HomeWidgets.CAROUSEL -> LoadingPanel(maxHeight * WidgetLook.CAROUSEL_HEIGHT)
+                            app.ember.tv.data.HomeWidgets.HERO -> LoadingPanel(minOf(heroHeight * .82f, maxHeight * .7f))
+                            else -> LoadingCards(WidgetLook.of(b.widget, wide).wide)
+                        }
+                    }
                     // #177: a widget that could not load says so here instead of going missing.
                     is HomeViewModel.HomeBlock.Notice -> ModernSection(b.title) {
                         RecoveryPanel("This widget couldn't load", b.text, "Widget settings") { vm.openSettingsPage("WIDGETS") }
@@ -656,9 +664,13 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
     CompositionLocalProvider(LocalNight provides true) {
     MaterialTheme(colorScheme = emberColorScheme(LocalAccentIndex.current, false, Ui.isOled)) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).clip(RoundedCornerShape(TvTokens.Shape.Panel.dp)).background(PanelHi).testTag("widget_hero")) {
-        Crossfade(targetState = meta, animationSpec = tween(if (reduceMotion) 0 else 320), label = "widgetHeroArt") { shown ->
-            LandscapeImage(shown, Modifier.fillMaxSize())
-        }
+        // #187: the artwork slides the way you go, as the carousel's does.
+        val millis = if (reduceMotion) 0 else 420
+        AnimatedContent(targetState = safe, modifier = Modifier.fillMaxSize(), label = "widgetHeroArt", transitionSpec = {
+            val fromEnd = WidgetLook.carouselForward(initialState, targetState, items.size) != rtl
+            (slideInHorizontally(tween(millis)) { full -> if (reduceMotion) 0 else if (fromEnd) full else -full } + fadeIn(tween(millis)))
+                .togetherWith(slideOutHorizontally(tween(millis)) { full -> if (reduceMotion) 0 else if (fromEnd) -full / 3 else full / 3 } + fadeOut(tween(millis)))
+        }) { at -> LandscapeImage(items.getOrNull(at) ?: meta, Modifier.fillMaxSize()) }
         // Text sits on the left and bottom, so the shade is strongest there.
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xE6000000), .55f to Color(0x66000000), 1f to Color.Transparent)))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.5f to Color.Transparent, 1f to Color(0xB3000000))))
@@ -714,6 +726,30 @@ internal data class WidgetLook(val wide: Boolean, val numbered: Boolean) {
         fun carouselForward(from: Int, to: Int, count: Int): Boolean = if (from == count - 1 && to == 0 && count > 2) true else if (from == 0 && to == count - 1 && count > 2) false else to > from
         /** Stepping from [index] by a left or right press; null at either end, where the press leaves the carousel. */
         fun carouselStep(index: Int, count: Int, forward: Boolean): Int? = (if (forward) index + 1 else index - 1).takeIf { it in 0 until count }
+    }
+}
+
+/**
+ * A widget row's own actions on Home (#183). Holding OK on one of its titles opens a menu with that
+ * title's options first, then Move, Edit and Hide for the widget, so arranging Home needs no trip to
+ * Settings. Rows that are not widgets, and Kids profiles, keep the plain title options.
+ */
+@Composable
+private fun WidgetActions(vm: HomeViewModel, widget: app.ember.tv.data.HomeWidget?, content: @Composable () -> Unit) {
+    if (widget == null || vm.profiles.profile.kids) { content(); return }
+    val titleActions = LocalTitleActions.current
+    var asked by remember(widget.id) { mutableStateOf<Meta?>(null) }
+    val ask: ((Meta) -> Unit)? = { meta -> asked = meta }
+    CompositionLocalProvider(LocalTitleActions provides ask) { content() }
+    asked?.let { meta ->
+        val section = app.ember.tv.data.HomeWidgets.section(widget.id)
+        val order = vm.sections.layout.map { it.first }
+        OptionMenu(widget.title, buildList {
+            if (titleActions != null) add(MenuOption(WidgetDrafts.titleOption(meta.name)) { titleActions(meta) })
+            WidgetDrafts.moves(order.indexOf(section), order.lastIndex).forEach { (label, step) -> add(MenuOption(label.replaceFirst("Move ", "Move widget ")) { vm.sections.moveSection(section, step) }) }
+            add(MenuOption("Edit widget") { vm.editWidget(widget.id) })
+            add(MenuOption("Hide widget from Home") { vm.sections.toggleSection(section) })
+        }) { asked = null }
     }
 }
 

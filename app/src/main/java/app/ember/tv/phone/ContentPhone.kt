@@ -35,6 +35,21 @@ object ContentPhone {
     private fun esc(value: String) = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
     /** A collection with more folders than this starts collapsed. */
     const val FOLDERS_OPEN = 6
+    /**
+     * Reordering the widget list on the page (#186). Arrows and the drag handle move rows locally;
+     * the Send form appears once the order differs and carries the opaque row ids, comma separated.
+     */
+    internal const val REORDER = "(function(){var L=document.getElementById('worder'),F=document.getElementById('wsend');if(!L||!F)return;L.classList.add('live');" +
+        "function ids(){return [].map.call(L.querySelectorAll('.row[data-id]'),function(r){return r.getAttribute('data-id')}).join(',')}" +
+        "var start=ids(),drag=null;function changed(){var now=ids();F.hidden=now===start;F.elements.order.value=now}" +
+        "L.addEventListener('click',function(e){var b=e.target.closest('.up,.down');if(!b)return;var r=b.closest('.row');" +
+        "if(b.classList.contains('up')){var p=r.previousElementSibling;if(p)L.insertBefore(r,p)}else{var n=r.nextElementSibling;if(n)L.insertBefore(n,r)}changed();b.focus()});" +
+        "L.addEventListener('pointerdown',function(e){var g=e.target.closest('.grip');if(!g)return;drag=g.closest('.row');drag.classList.add('drag');e.preventDefault()});" +
+        "document.addEventListener('pointermove',function(e){if(!drag)return;var p=drag.previousElementSibling,n=drag.nextElementSibling,b;" +
+        "if(p){b=p.getBoundingClientRect();if(e.clientY<b.top+b.height/2){L.insertBefore(drag,p);return}}" +
+        "if(n){b=n.getBoundingClientRect();if(e.clientY>b.top+b.height/2)L.insertBefore(n,drag)}});" +
+        "function end(){if(!drag)return;drag.classList.remove('drag');drag=null;changed()}" +
+        "document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end)})();"
     private const val BIND = "function bind(id,attribute){const source=document.getElementById(id);function filters(){document.querySelectorAll('['+attribute+']').forEach(box=>{const on=box.getAttribute(attribute)===source.value;box.hidden=!on;box.querySelectorAll('input,select').forEach(input=>input.disabled=!on);});}source.addEventListener('change',filters);filters();}"
     /** Search-as-you-type for the widget editor: people, studios and services become chips; a Trakt list fills its number. */
     private const val FINDERS = "(function(){var K=(location.search.match(/[?&]k=([^&]+)/)||[])[1]||'';" +
@@ -79,17 +94,27 @@ object ContentPhone {
     private fun StringBuilder.widgets(content: PhoneContent, auth: String) {
         append("<section class=\"card lib wide\"><div class=head><h2>Home widgets</h2><span class=m>").append(content.widgets.size).append(if (content.widgets.size == 1) " widget" else " widgets").append("</span></div>")
         append("<p class=m>Your own rows on the Ember Home. The banner, apps, catalogs and collections keep their place in Settings &gt; Home on the TV, where widgets can also be switched off.</p>")
+        // #186: a picture of each widget's style; drag (or the arrows) reorders here, then one approval sends the order.
+        append("<div id=worder>")
         content.widgets.forEach { w ->
             val name = w.title.ifBlank { "Widget" }
-            append("<div class=row><span class=\"thumb st-").append(esc(w.style)).append("\">").append(when (w.style) { app.ember.tv.data.HomeWidgets.NUMBERED -> "1"; app.ember.tv.data.HomeWidgets.CAROUSEL -> "&#9645;"; else -> "&#9776;" }).append("</span>")
+            append("<div class=row data-id=\"").append(esc(w.id)).append("\"><button type=button class=\"ib grip js\" aria-label=\"Drag ").append(esc(name)).append(" to reorder\" title=\"Drag to reorder\">&#8645;</button>")
+            append("<span class=\"thumb wt\"><i class=\"w-").append(esc(w.style)).append("\"></i></span>")
             append("<div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(esc(app.ember.tv.data.HomeWidgets.styleName(w.style))).append("</span>")
                 .append(esc(w.source)).append(" · ").append(esc(w.status)).append("</small></div><div class=acts>")
+            append("<button type=button class=\"ib up js\" aria-label=\"Move ").append(esc(name)).append(" up\">&uarr;</button><button type=button class=\"ib down js\" aria-label=\"Move ").append(esc(name)).append(" down\">&darr;</button>")
+            // Without scripts, the one-place moves still work.
+            append("<noscript>")
             post(auth, "move-widget", w.id, "<input type=hidden name=dir value=up>", "Move $name up on Home", "&uarr;", disabled = !w.canMoveUp)
             post(auth, "move-widget", w.id, "<input type=hidden name=dir value=down>", "Move $name down on Home", "&darr;", disabled = !w.canMoveDown)
+            append("</noscript>")
             append("<a class=ib href=\"/content?k=$auth&amp;widget=").append(esc(w.id)).append("\" aria-label=\"Edit ").append(esc(name)).append("\" title=\"Edit ").append(esc(name)).append("\">&#9998;</a>")
             post(auth, "delete-widget", w.id, "", "Delete $name", "&#10005;", danger = true)
             append("</div></div>")
         }
+        append("</div>")
+        if (content.widgets.size > 1) append("<form id=wsend class=flat method=post action=\"/content?k=$auth\" hidden><input type=hidden name=action value=order-widgets><input type=hidden name=target value=\"\"><input type=hidden name=order value=\"\">")
+            .append("<p class=m>The order changed. Send it to the TV and approve it there.</p><button>Send new order to the TV</button></form><script>").append(REORDER).append("</script>")
         append("<a class=btn href=\"/content?k=$auth&amp;widget=new\">Add a widget</a>")
         // #163: move widgets between TVs and profiles as a file, like collections.
         append("<details><summary>Import or export widgets</summary>")
@@ -220,7 +245,7 @@ object ContentPhone {
     fun title(part: String) = when (part) { "widgets" -> "Home widgets"; "collections" -> "Collections"; else -> "Sources and addon tools" }
     /** The page a change belongs to, so the answer to a form shows the page it was sent from. */
     fun partOf(action: String?) = when (action) {
-        "save-widget", "move-widget", "delete-widget" -> "widgets"
+        "save-widget", "move-widget", "order-widgets", "delete-widget" -> "widgets"
         "save-folder", "move-folder", "delete" -> "collections"
         else -> "tools"
     }

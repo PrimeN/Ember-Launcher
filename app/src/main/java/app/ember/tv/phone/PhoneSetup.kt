@@ -762,11 +762,14 @@ details.fold{border-top:0;padding:0}details.fold>summary{color:var(--mute);font-
 .ib.danger{background:#3a2222;color:#ffb4ab}.ib:disabled{opacity:.3}
 .btn.quiet,button.quiet{background:#2c2d32;color:var(--fg)}
 .card.wide{margin:14px 0}.thumb.st-numbered{font-size:26px;color:var(--fg)}
-.shapes .w-row{width:68px;height:36px;border-radius:0;background:repeating-linear-gradient(90deg,#5b5d63 0 14px,transparent 14px 18px)}
-.shapes .w-numbered{width:72px;height:36px;border-radius:0;font:900 20px/36px ui-monospace,Menlo,Consolas,monospace;font-style:normal;color:var(--fg);text-align:left;white-space:pre;overflow:hidden;background:repeating-linear-gradient(90deg,transparent 0 13px,#5b5d63 13px 23px,transparent 23px 24px)}
-.shapes .w-numbered::before{content:"1 2 3"}
-.shapes .w-carousel{width:60px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 50% 78%/26px 4px no-repeat,#5b5d63;box-shadow:-9px 0 0 -5px #45474c,9px 0 0 -5px #45474c}
-.shapes .w-hero{width:68px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 8px 14px/26px 4px no-repeat,linear-gradient(#a9adb3,#a9adb3) 8px 21px/18px 3px no-repeat,linear-gradient(#d5d8dc,#d5d8dc) 8px 27px/12px 5px no-repeat,#5b5d63}
+.thumb.wt{width:56px}.wt i{display:block;flex:none;height:36px;border-radius:5px;background:#5b5d63;transform:scale(.62)}
+.js{display:none}#worder.live .js{display:grid}#worder.live+form{margin-top:10px}
+.grip{background:none;color:var(--mute);cursor:grab;touch-action:none;width:28px}.row.drag{background:var(--bg);border-radius:10px;opacity:.85}
+.shapes .w-row,.wt .w-row{width:68px;height:36px;border-radius:0;background:repeating-linear-gradient(90deg,#5b5d63 0 14px,transparent 14px 18px)}
+.shapes .w-numbered,.wt .w-numbered{width:72px;height:36px;border-radius:0;font:900 20px/36px ui-monospace,Menlo,Consolas,monospace;font-style:normal;color:var(--fg);text-align:left;white-space:pre;overflow:hidden;background:repeating-linear-gradient(90deg,transparent 0 13px,#5b5d63 13px 23px,transparent 23px 24px)}
+.shapes .w-numbered::before,.wt .w-numbered::before{content:"1 2 3"}
+.shapes .w-carousel,.wt .w-carousel{width:60px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 50% 78%/26px 4px no-repeat,#5b5d63;box-shadow:-9px 0 0 -5px #45474c,9px 0 0 -5px #45474c}
+.shapes .w-hero,.wt .w-hero{width:68px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 8px 14px/26px 4px no-repeat,linear-gradient(#a9adb3,#a9adb3) 8px 21px/18px 3px no-repeat,linear-gradient(#d5d8dc,#d5d8dc) 8px 27px/12px 5px no-repeat,#5b5d63}
 .shapes.styles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.shapes small{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--mute)}
 .tabs2{display:flex;gap:8px}.tabs2 button{flex:1;margin-top:4px;padding:9px;background:#2c2d32;color:var(--fg);font-size:14px}
 button.res{background:#2c2d32;color:var(--fg);text-align:left;border-radius:12px;padding:10px 12px;margin-top:6px;font-size:14px}

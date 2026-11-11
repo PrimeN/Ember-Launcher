@@ -346,6 +346,16 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             sections.moveSection(app.ember.tv.data.HomeWidgets.section(w.id), if (up) -1 else 1); null
                         }
                     }
+                    "order-widgets" -> {
+                        // #186: the whole order in one approval. The page sends opaque row ids; anything unknown is refused.
+                        val byKey = widgets.list.associateBy { widgetKey(it.id) }
+                        val keys = fields["order"].orEmpty().split(',').filter { it.isNotBlank() }
+                        val ordered = keys.mapNotNull { byKey[it] }
+                        if (ordered.size != keys.size || ordered.size != byKey.size || ordered.toSet().size != ordered.size) return@onPhoneMain "The widgets changed. Reload the page and try again."
+                        stage("Put your ${ordered.size} Home widgets in this order: ${ordered.joinToString(", ") { it.title }.take(200)}.") {
+                            sections.arrange(ordered.map { app.ember.tv.data.HomeWidgets.section(it.id) }); null
+                        }
+                    }
                     "delete-widget" -> {
                         val w = widgets.list.firstOrNull { widgetKey(it.id) == fields["target"] } ?: return@onPhoneMain "That widget no longer exists. Reload the page."
                         stage("Delete the Home widget ${w.title}. This can't be undone.") { deleteWidget(w.id); null }

@@ -154,6 +154,15 @@ class HomeSectionsState(
         onChanged()
     }
 
+    /** Puts these sections in this order, in the places they hold between them (#186); the rest of Home stays put. */
+    fun arrange(ordered: List<String>) {
+        materializeLayout()
+        val next = arranged(layout, ordered)
+        if (next == layout) return
+        saveLayout(next)
+        onChanged()
+    }
+
     fun resetLayout() {
         materializeLayout()
         homeLayout = emptyList()
@@ -162,6 +171,13 @@ class HomeSectionsState(
     }
 
     companion object {
+        /** [ordered] sections take, in that order, the slots they already occupy; unknown or repeated ids change nothing. */
+        fun arranged(layout: List<Pair<String, Boolean>>, ordered: List<String>): List<Pair<String, Boolean>> {
+            val on = layout.toMap()
+            if (ordered.toSet().size != ordered.size || ordered.any { it !in on }) return layout
+            val moving = ordered.toSet(); val queue = ArrayDeque(ordered)
+            return layout.map { if (it.first in moving) queue.removeFirst().let { id -> id to on.getValue(id) } else it }
+        }
         // Home layout uses commas/colons as delimiters; addon keys can contain both.
         fun catalogSection(key: String) = "catalog:" + java.util.Base64.getUrlEncoder().withoutPadding()
             .encodeToString(key.toByteArray(Charsets.UTF_8))

@@ -31,6 +31,12 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var removing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var importing by remember { mutableStateOf(false) }
     var menu by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
+    // #183: Home's "Edit widget" lands here with the editor already open.
+    LaunchedEffect(vm.widgetToEdit) {
+        val id = vm.widgetToEdit ?: return@LaunchedEffect
+        vm.widgets.list.firstOrNull { it.id == id }?.let { editing = it }
+        vm.widgetToEdit = null
+    }
     var message by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -112,6 +118,13 @@ internal object WidgetDrafts {
         error != null -> "Could not load: $error"
         else -> "Nothing to show yet"
     }
+    /** The first line of a widget row's menu on Home (#183): the title's own options. */
+    fun titleOption(name: String) = "Options for " + name.trim().ifBlank { "this title" }.let { if (it.length > 28) it.take(27).trimEnd() + "…" else it }
+    /** #181: filters built in the editor become a source named after what they ask for. */
+    fun filters(query: app.ember.tv.discover.ExploreQuery, profile: String): CollectionSource =
+        CollectionDrafts.discover(HomeWidgets.summary(query).ifBlank { "Filters" }, query, profile)
+    /** How many titles the editor's preview draws (#182): posters fit more than wide cards; a panel style shows one. */
+    fun previewCount(style: String, wide: Boolean) = when (style) { HomeWidgets.CAROUSEL, HomeWidgets.HERO -> 1; else -> if (wide) 4 else 7 }
     /** The last line of a widget's card (#176): what is wrong, or simply whether it is on Home. */
     fun state(on: Boolean, status: String?) = status ?: if (on) "On Home" else "Hidden from Home"
     /** "Move up", "Move to the top"… for a widget at [index] of the Home layout; none when it has no place there. */
@@ -143,6 +156,7 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var picker by remember { mutableStateOf(false) }
     var trakt by remember { mutableStateOf(false) }
+    var filters by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val existing = vm.widgets.list.any { it.id == initial.id }
     var step by remember(initial.id) { mutableStateOf(WidgetSteps.first(existing)) }
@@ -150,6 +164,9 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
     fun chosen(source: CollectionSource, label: String? = null) { draft = WidgetDrafts.withSource(draft, source, label); message = null; if (!existing) step = WidgetSteps.DETAILS }
     if (picker) CollectionSourcePicker(vm, onChoose = { source -> chosen(source); picker = false }, close = { picker = false })
     else if (trakt) TraktListPicker(vm, onChoose = { source -> chosen(source); trakt = false }, close = { trakt = false })
+    // #181: Discover's own filter panel, opened in place; no saved search needed first.
+    else if (filters) ExploreFilters(draft.source.exploreQuery ?: app.ember.tv.discover.ExploreQuery(), vm.watch.watchRegion, vm.exploreRepository,
+        onApply = { query -> chosen(WidgetDrafts.filters(query, vm.profiles.profileId)); filters = false }, onClose = { filters = false })
     else MediaDialog((if (existing) "Edit widget" else "New widget") + " · " + WidgetSteps.heading(step), close, resizeForKeyboard = true) {
         ButtonRow { WidgetSteps.all.forEachIndexed { i, (id, name) -> Chip("${i + 1}  $name", step == id, modifier = Modifier.testTag("widget_step_$id")) { step = id; message = null } } }
         when (step) {
@@ -162,6 +179,7 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
             WidgetSteps.SOURCE -> {
                 Text("Now: " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "nothing chosen yet", fontSize = 15.sp)
                 ButtonRow {
+                    Chip("Build filters", modifier = Modifier.testTag("widget_filters")) { filters = true }
                     Chip("Catalog, saved search or TMDB") { picker = true }
                     Chip("Browse Trakt lists") { trakt = true }
                 }
@@ -179,7 +197,7 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
                     val (problem, source) = WidgetDrafts.mdblist(mdb, ApiKeys.get("MDBLIST_API_KEY").isNotBlank())
                     if (source != null) chosen(source) else message = problem
                 } }
-                Note("Filters: save a search in Discover, then pick it under Catalog, saved search or TMDB.")
+                Note("Build filters picks titles by kind, genre, years, rating, people, studios and services. Searches you saved in Discover are under Catalog, saved search or TMDB.")
             }
             else -> {
                 TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Widget title")
@@ -190,6 +208,8 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
                 Text("Titles to show", color = Mute, fontSize = 13.sp)
                 ButtonRow { WidgetDrafts.limits.forEach { n -> Chip("$n", draft.limit == n) { draft = draft.copy(limit = n) } } }
                 Text(HomeWidgets.styleName(draft.style) + " · " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "no source yet", color = Mute, fontSize = 13.sp)
+                // #182: what will land on Home, with the source's real titles.
+                WidgetPreview(vm, draft)
             }
         }
         message?.let { Text(it, color = Mute, fontSize = 13.sp) }
@@ -203,6 +223,50 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
                 else if (!WidgetDrafts.hasSource(draft)) step = WidgetSteps.SOURCE
             }
             Chip("Cancel") { close() }
+        }
+    }
+}
+
+/**
+ * The editor's preview (#182): the chosen source's first titles drawn in the chosen style, so an
+ * empty or wrong source shows before saving. Nothing here takes focus.
+ */
+@Composable
+private fun WidgetPreview(vm: HomeViewModel, draft: HomeWidget) {
+    if (!WidgetDrafts.hasSource(draft)) return
+    var titles by remember { mutableStateOf<List<Meta>?>(null) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(draft.source) {
+        titles = null; problem = null
+        if (draft.source.provider == HomeWidgets.LIST) titles = vm.widgetItems(draft)
+        else vm.previewWidget(draft.source).fold({ titles = it }, { problem = app.ember.tv.state.WidgetsState.reason(it) })
+    }
+    Text("Preview", color = Mute, fontSize = 13.sp)
+    val shown = titles?.take(draft.limit)
+    when {
+        problem != null -> Text("Could not load: $problem", fontSize = 13.sp)
+        shown == null -> Text("Loading…", color = Mute, fontSize = 13.sp)
+        shown.isEmpty() -> Text("This source has no titles right now.", fontSize = 13.sp)
+        else -> {
+            val wide = draft.shape == "wide"
+            val few = shown.take(WidgetDrafts.previewCount(draft.style, wide))
+            when (draft.style) {
+                HomeWidgets.CAROUSEL, HomeWidgets.HERO -> Box(Modifier.width(360.dp).height(202.dp).clip(RoundedCornerShape(10.dp)).background(PanelHi).testTag("widget_preview")) {
+                    LandscapeImage(few.first(), Modifier.fillMaxSize())
+                    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(.5f to Color.Transparent, 1f to Color(0xE6000000))))
+                    Text(few.first().name, Modifier.align(if (draft.style == HomeWidgets.HERO) Alignment.BottomStart else Alignment.BottomCenter).padding(12.dp),
+                        fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                else -> Row(Modifier.testTag("widget_preview"), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+                    few.forEachIndexed { i, meta ->
+                        if (draft.style == HomeWidgets.NUMBERED) Text("${i + 1}", fontSize = 30.sp, lineHeight = 30.sp, fontWeight = FontWeight.Black, color = Mute)
+                        val shape = Modifier.clip(RoundedCornerShape(8.dp)).background(PanelHi)
+                        if (wide) LandscapeImage(meta, Modifier.width(132.dp).height(74.dp).then(shape))
+                        else PosterImage(meta, Modifier.width(70.dp).height(105.dp).then(shape))
+                    }
+                }
+            }
+            Text(if (shown.size == 1) "1 title" else "${shown.size} titles, the first ${few.size} shown", color = Mute, fontSize = 12.sp)
         }
     }
 }

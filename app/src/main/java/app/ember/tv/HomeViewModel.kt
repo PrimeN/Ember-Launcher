@@ -1044,6 +1044,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val widgets = WidgetsState(prefs, viewModelScope, { profiles.profileId }, { !profiles.profile.kids },
         page = { source -> collections.firstPage(source) }, onChanged = { sections.reloadLayout(); saveSnapshot() })
     fun refreshWidgets(force: Boolean = false) = widgets.refresh(force) { sections.sectionOn(it) }
+    /** The first titles of a source, for the editor's preview (#182); nothing is saved. */
+    internal suspend fun previewWidget(source: CollectionSource): Result<List<Meta>> =
+        try { collections.firstPage(source).map { it.items } } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
+    /** A widget Home asked to edit (#183): Settings opens on Widgets & collections with its editor up. */
+    var widgetToEdit by mutableStateOf<String?>(null)
+    fun editWidget(id: String) { widgetToEdit = id; openSettingsPage("WIDGETS") }
     /** Imports a widget pack's text (#163); returns the outcome as a message. */
     fun importWidgets(text: String): String = HomeWidgets.unpack(text, profiles.profileId)
         .fold({ widgets.importAll(it).also { refreshWidgets() } }, { it.message ?: "This is not an Ember widget pack." })
@@ -1191,7 +1197,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         /** Buttons opening In progress, Recently watched or the watchlist ([ids] are their sections). */
         data class Shortcuts(override val key: String, val ids: List<String>) : HomeBlock
         data class Pinned(val items:List<app.ember.tv.data.HomeShortcut>):HomeBlock {override val key="pinned-shortcuts"}
-        data class Loading(override val key:String,val title:String):HomeBlock
+        /** [widget] is set for one of your widgets, so its placeholder takes the widget's shape (#184). */
+        data class Loading(override val key:String,val title:String,val widget:HomeWidget?=null):HomeBlock
         /** One of your widgets that could not load (#177): Home says so where its row would be. */
         data class Notice(override val key: String, val title: String, val text: String) : HomeBlock
         /** [widget] is set for one of your own widgets (#161); the Ember interface draws it in its style. */
@@ -1243,7 +1250,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                         widgets.list.firstOrNull { HomeWidgets.section(it.id) == id }?.let { w ->
                             val items = widgetItems(w)
                             if (items.isNotEmpty()) add(HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
-                            else if (w.id in widgets.loading && count { it is HomeBlock.Loading } < 3) add(HomeBlock.Loading(id, w.title))
+                            else if (w.id in widgets.loading && count { it is HomeBlock.Loading } < 3) add(HomeBlock.Loading(id, w.title, w))
                             else widgets.errors[w.id]?.let { add(HomeBlock.Notice(id, w.title, it)) }
                         }
                     } else if (id.startsWith("explore:") && !profile.kids) {
