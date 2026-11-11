@@ -88,7 +88,7 @@ object ApiKeys {
         ),
         Service(
             "MDBList",
-            "Ratings: IMDb, TMDB, Trakt, Metacritic and Rotten Tomatoes in one request (Settings > Ratings). Free: 1,000 a day.",
+            "Ratings: IMDb, TMDB, Trakt, Metacritic and Rotten Tomatoes (critics and the Popcornmeter) in one request (Settings > Ratings). Free: 1,000 a day.",
             "mdblist.com > sign in > Preferences > API key.",
             listOf(Field("MDBLIST_API_KEY", "API key")),
         ),

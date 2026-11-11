@@ -56,6 +56,13 @@ object Ratings {
             R.drawable.rating_tomatoes,
             needs = "Needs an MDBList or OMDb key (API keys).",
         ),
+        // #200: Rotten Tomatoes' audience score. Its icon is bundled, so it shows without a download.
+        RatingSource(
+            "popcorn", "Popcornmeter",
+            "",
+            R.drawable.rating_popcorn,
+            needs = "Rotten Tomatoes audience score. Needs an MDBList key (API keys).",
+        ),
         RatingSource(
             "tmdb", "TMDB",
             "",
@@ -99,22 +106,29 @@ object Ratings {
         if ("tmdb" in wanted) (m["tmdb"] ?: tmdb.await())?.let { out["tmdb"] = it }
         if ("metacritic" in wanted) (m["metacritic"] ?: o["metacritic"])?.let { out["metacritic"] = it }
         if ("tomatoes" in wanted) (m["tomatoes"] ?: o["tomatoes"])?.let { out["tomatoes"] = it }
+        // OMDb has no audience score, so the Popcornmeter comes from MDBList alone.
+        if ("popcorn" in wanted) m["popcorn"]?.let { out["popcorn"] = it }
         if ("anilist" in wanted) anilist.await()?.let { out["anilist"] = it }
         out
     }
 
     private fun needsMdb(wanted: Set<String>, addonImdb: String?) =
-        "metacritic" in wanted || "tomatoes" in wanted || ("imdb" in wanted && addonImdb == null) || "tmdb" in wanted
+        "metacritic" in wanted || "tomatoes" in wanted || "popcorn" in wanted || ("imdb" in wanted && addonImdb == null) || "tmdb" in wanted
 
     private fun one(v: Double) = String.format(Locale.US, "%.1f", v)
 
-    /** MDBList: one call for IMDb, TMDB, Trakt, Metacritic and Rotten Tomatoes. Free plan: 1,000 calls a day. */
+    /** MDBList: one call for IMDb, TMDB, Trakt, Metacritic and Rotten Tomatoes (critics and audience). Free plan: 1,000 calls a day. */
     private suspend fun mdbList(movie: Boolean, imdb: String?, tmdbId: Long?): Map<String, String>? {
         val key = ApiKeys.get("MDBLIST_API_KEY").takeIf { it.isNotBlank() } ?: return null
         val type = if (movie) "movie" else "show"
         val path = imdb?.let { "imdb/$type/$it" } ?: tmdbId?.let { "tmdb/$type/$it" } ?: return null
         return runCatching {
-            val j = Http.metadata("https://api.mdblist.com/$path?apikey=${enc(key)}")
+            parseMdb(Http.metadata("https://api.mdblist.com/$path?apikey=${enc(key)}"))
+        }.getOrNull()
+    }
+
+    /** MDBList's "ratings" list as display text by source id. */
+    internal fun parseMdb(j: kotlinx.serialization.json.JsonElement?): Map<String, String> {
             val out = HashMap<String, String>()
             j.arr("ratings").list().forEach { r ->
                 val value = r.dbl("value")
@@ -125,10 +139,11 @@ object Ratings {
                     "trakt" -> (score ?: value)?.takeIf { it > 0 }?.let { out["trakt"] = "${(if (it <= 10) it * 10 else it).toInt()}%" }
                     "metacritic" -> (value ?: score)?.takeIf { it > 0 }?.let { out["metacritic"] = it.toInt().toString() }
                     "tomatoes" -> (value ?: score)?.takeIf { it > 0 }?.let { out["tomatoes"] = "${it.toInt()}%" }
+                    // #200: the audience score; MDBList has named it both ways.
+                    "popcorn", "tomatoesaudience", "audience" -> (value ?: score)?.takeIf { it > 0 }?.let { out["popcorn"] = "${it.toInt()}%" }
                 }
             }
-            out
-        }.getOrNull()
+            return out
     }
 
     /** OMDb: IMDb, Rotten Tomatoes and Metacritic. Free key: 1,000 calls a day. Used when there is no MDBList key. */

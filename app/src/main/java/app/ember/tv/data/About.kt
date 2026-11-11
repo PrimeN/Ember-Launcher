@@ -99,7 +99,7 @@ object About {
                 "API keys entered on the TV, stored encrypted, for every service that needs one.",
                 "Backup and restore of everything (settings, addons, sign-ins and keys), with an optional passphrase, to the TV, a file or a link.",
                 "Posters with ratings from RPDB or BetterPosters, each with its own options and a live preview.",
-                "Ratings on title screens from IMDb, Trakt, TMDB, Metacritic, Rotten Tomatoes and AniList, in the order you choose.",
+                "Ratings on title screens from IMDb, Trakt, TMDB, Metacritic, Rotten Tomatoes (critics and audience) and AniList, in the order you choose.",
                 "Richer details from AniList for anime and TVDB for TV shows.",
                 "Remote-friendly text fields that never trap the D-pad.",
             ),

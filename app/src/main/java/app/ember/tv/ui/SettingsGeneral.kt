@@ -447,6 +447,7 @@ internal fun LazyListScope.ratingsPage(vm: HomeViewModel, openKeys: () -> Unit) 
             val ready = when (s.id) {
                 "trakt" -> ApiKeys.get("TRAKT_CLIENT_ID").isNotBlank() || ApiKeys.get("MDBLIST_API_KEY").isNotBlank()
                 "metacritic", "tomatoes" -> ApiKeys.get("MDBLIST_API_KEY").isNotBlank() || ApiKeys.get("OMDB_API_KEY").isNotBlank()
+                "popcorn" -> ApiKeys.get("MDBLIST_API_KEY").isNotBlank()
                 "tmdb" -> ApiKeys.get("TMDB_API_KEY").isNotBlank() || ApiKeys.get("MDBLIST_API_KEY").isNotBlank()
                 else -> true
             }
