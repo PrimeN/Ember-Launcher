@@ -106,6 +106,25 @@ class HomeWidgetsTest {
         assertFalse(home.contains("RankBadge"))
     }
 
+    @Test fun widgetCardsTheHomeNoticeAndTraktCards() {
+        // #176: one card per widget; its last line is what is wrong, or whether it is on Home.
+        assertEquals("On Home", app.ember.tv.ui.WidgetDrafts.state(true, null)); assertEquals("Hidden from Home", app.ember.tv.ui.WidgetDrafts.state(false, null))
+        assertEquals("Could not load: gone", app.ember.tv.ui.WidgetDrafts.state(true, "Could not load: gone"))
+        assertEquals(listOf("Move up" to -1, "Move down" to 1, "Move to the bottom" to 3), app.ember.tv.ui.WidgetDrafts.moves(1, 4))
+        assertTrue(app.ember.tv.ui.WidgetDrafts.moves(-1, 4).isEmpty())
+        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertTrue(tv.contains("testTag(\"widget_card\")")); assertFalse(tv.contains("SwitchChip(\"On Home\""))
+        // #177
+        val model = java.io.File("src/main/java/app/ember/tv/HomeViewModel.kt").readText()
+        assertTrue(model.contains("widgets.errors[w.id]?.let { add(HomeBlock.Notice(id, w.title, it)) }"))
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText().contains("is HomeViewModel.HomeBlock.Notice ->"))
+        // #178
+        val list = CollectionRequests.ListRef(1, "Best of", "ann", 1, 12, "")
+        assertEquals("@ann · 1 title · 12 likes", app.ember.tv.ui.WidgetDrafts.traktLine(list))
+        assertEquals("40 titles", app.ember.tv.ui.WidgetDrafts.traktLine(list.copy(by = "", items = 40, likes = 0)))
+        assertTrue(tv.contains("testTag(\"trakt_list\")"))
+    }
+
     @Test fun aWidgetSavedWhileOthersLoadIsLoadedWhenTheyFinish() {
         // #168: it used to be skipped and stay empty until Home was opened again.
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

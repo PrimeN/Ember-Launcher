@@ -30,6 +30,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var editing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var removing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var importing by remember { mutableStateOf(false) }
+    var menu by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var message by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -56,24 +57,35 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
             val order = layout.map { it.first }
             vm.widgets.list.sortedBy { w -> order.indexOf(HomeWidgets.section(w.id)).let { if (it < 0) Int.MAX_VALUE else it } }.forEach { w ->
                 val section = HomeWidgets.section(w.id)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Column(Modifier.width(340.dp)) {
-                        Text(w.title, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(WidgetDrafts.summary(w, vm.allCatalogs), color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        // #168: why a widget is not on Home, instead of a row that is silently missing.
-                        WidgetDrafts.status(vm.sections.sectionOn(section), w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)?.let {
-                            Text(it, color = Mute, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                // #176: one card per widget, with a picture of its style; OK opens its actions.
+                val on = vm.sections.sectionOn(section)
+                Focusable(onClick = { menu = w }, modifier = Modifier.width(640.dp).testTag("widget_card"), radius = TvTokens.Shape.Card, container = PanelHi) {
+                    val ink = androidx.tv.material3.LocalContentColor.current
+                    Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.width(156.dp)) { WidgetStylePreview(w.style, ink) }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(w.title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(WidgetDrafts.summary(w, vm.allCatalogs), color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            // #168: why a widget is not on Home, instead of a row that is silently missing.
+                            Text(WidgetDrafts.state(on, WidgetDrafts.status(on, w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)),
+                                color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                    SwitchChip("On Home", vm.sections.sectionOn(section)) { vm.sections.toggleSection(section) }
-                    MoveButton(w.title, order.indexOf(section), order.lastIndex) { step -> vm.sections.moveSection(section, step) }
-                    Chip("Edit") { editing = w }
-                    Chip("Delete") { removing = w }
                 }
             }
             Note(if (vm.widgets.list.isEmpty()) "No widgets yet. The banner, apps, catalogs and lists that come with Home are arranged in Home layout."
-                else "Move steps a widget past every Home section, built-in ones included; Home layout shows the whole order.")
+                else "Press OK on a widget to edit, hide, move or delete it. Moving steps it past every Home section, built-in ones included; Home layout shows the whole order.")
         }
+    }
+    menu?.let { w ->
+        val section = HomeWidgets.section(w.id)
+        val order = vm.sections.layout.map { it.first }
+        OptionMenu(w.title, buildList {
+            add(MenuOption("Edit") { editing = w })
+            add(MenuOption(if (vm.sections.sectionOn(section)) "Hide from Home" else "Show on Home") { vm.sections.toggleSection(section) })
+            WidgetDrafts.moves(order.indexOf(section), order.lastIndex).forEach { (label, step) -> add(MenuOption(label) { vm.sections.moveSection(section, step) }) }
+            add(MenuOption("Delete") { removing = w })
+        }) { menu = null }
     }
     editing?.let { WidgetEditorDialog(vm, it) { editing = null } }
     if (importing) WidgetImportDialog(vm, { importing = false }) { message = it }
@@ -100,6 +112,14 @@ internal object WidgetDrafts {
         error != null -> "Could not load: $error"
         else -> "Nothing to show yet"
     }
+    /** The last line of a widget's card (#176): what is wrong, or simply whether it is on Home. */
+    fun state(on: Boolean, status: String?) = status ?: if (on) "On Home" else "Hidden from Home"
+    /** "Move up", "Move to the top"… for a widget at [index] of the Home layout; none when it has no place there. */
+    fun moves(index: Int, lastIndex: Int): List<Pair<String, Int>> =
+        if (index < 0) emptyList() else moveOptions(index, lastIndex).map { (label, step) -> "Move " + label.replaceFirstChar { it.lowercase() } to step }
+    /** A Trakt list's card (#178): who made it, how long it is and how well liked. */
+    fun traktLine(list: CollectionRequests.ListRef) = listOfNotNull(list.by.takeIf { it.isNotBlank() }?.let { "@$it" },
+        "${list.items} title" + if (list.items == 1) "" else "s", list.likes.takeIf { it > 0 }?.let { "$it like" + if (it == 1) "" else "s" }).joinToString(" · ")
     /** #171: an MDBList list typed on the TV; the error to show, or the source. */
     fun mdblist(text: String, hasKey: Boolean): Pair<String?, CollectionSource?> {
         val path = HomeWidgets.mdblistPath(text) ?: return "Enter an MDBList list link, user/list-name or number." to null
@@ -299,11 +319,17 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
             lists == null -> Text("Loading…", color = Mute)
             failed != null -> Text(failed.orEmpty(), color = Mute)
             lists.isEmpty() -> Text("No lists found.", color = Mute)
-            else -> lists.take(30).forEach { l ->
-                Chip(l.name + listOfNotNull(l.by.takeIf { it.isNotBlank() }?.let { " · @$it" }, " · ${l.items} titles").joinToString(""), modifier = Modifier.fillMaxWidth(), maxLines = 1) {
-                    onChoose(WidgetDrafts.trakt(l, media))
+            // #178: cards, two across, instead of thirty full-width buttons.
+            else -> ButtonRow { lists.take(30).forEach { l ->
+                Focusable(onClick = { onChoose(WidgetDrafts.trakt(l, media)) }, modifier = Modifier.width(340.dp).testTag("trakt_list"), radius = TvTokens.Shape.Card, container = PanelHi) {
+                    val ink = androidx.tv.material3.LocalContentColor.current
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(l.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(WidgetDrafts.traktLine(l), fontSize = 12.sp, color = ink.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(l.description, fontSize = 11.sp, lineHeight = 14.sp, color = ink.copy(alpha = .6f), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-            }
+            } }
         }
     }
 }

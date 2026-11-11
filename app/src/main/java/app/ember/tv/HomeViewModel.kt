@@ -1192,6 +1192,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         data class Shortcuts(override val key: String, val ids: List<String>) : HomeBlock
         data class Pinned(val items:List<app.ember.tv.data.HomeShortcut>):HomeBlock {override val key="pinned-shortcuts"}
         data class Loading(override val key:String,val title:String):HomeBlock
+        /** One of your widgets that could not load (#177): Home says so where its row would be. */
+        data class Notice(override val key: String, val title: String, val text: String) : HomeBlock
         /** [widget] is set for one of your own widgets (#161); the Ember interface draws it in its style. */
         data class Row(override val key: String, val row: CatalogRow, val saved: Boolean = false, val widget: HomeWidget? = null) : HomeBlock
         /** A Collection: a row of folder tiles. */
@@ -1242,6 +1244,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                             val items = widgetItems(w)
                             if (items.isNotEmpty()) add(HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
                             else if (w.id in widgets.loading && count { it is HomeBlock.Loading } < 3) add(HomeBlock.Loading(id, w.title))
+                            else widgets.errors[w.id]?.let { add(HomeBlock.Notice(id, w.title, it)) }
                         }
                     } else if (id.startsWith("explore:") && !profile.kids) {
                         explore.homeRows.firstOrNull { it.catalogKey == id }?.let { add(HomeBlock.Row(id, it)) }

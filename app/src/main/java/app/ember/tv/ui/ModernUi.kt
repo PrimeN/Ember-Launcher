@@ -445,6 +445,10 @@ fun ModernHome(
                         onDelete = if (vm.profiles.profile.kids) null else ({ f -> if (f == null) vm.collections.remove(b.collection.id) else vm.collections.removeFolder(b.collection.id, f.id) })) { f -> vm.collections.openFolder(b.collection, f) }
                     is HomeViewModel.HomeBlock.Shortcuts -> ListButtons(vm, b.ids, onList)
                     is HomeViewModel.HomeBlock.Loading -> ModernSection(b.title) {LoadingCards(wide)}
+                    // #177: a widget that could not load says so here instead of going missing.
+                    is HomeViewModel.HomeBlock.Notice -> ModernSection(b.title) {
+                        RecoveryPanel("This widget couldn't load", b.text, "Widget settings") { vm.openSettingsPage("WIDGETS") }
+                    }
                     is HomeViewModel.HomeBlock.Pinned -> ModernSection("Your shortcuts") {
                         LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(6.dp)) {
                             items(b.items,key={it.id}) {shortcut->
