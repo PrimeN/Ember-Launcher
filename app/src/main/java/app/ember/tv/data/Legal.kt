@@ -3,6 +3,8 @@ package app.ember.tv.data
 /** Text for Settings > Legal. Kept in one place so it is easy to review and update. */
 object Legal {
     const val APP = "Ember"
+    /** Trakt's required wording, word for word. */
+    const val TRAKT_NOTICE = "Ember uses Trakt but is not endorsed or certified by Trakt"
     const val UPDATED = "4 November 2026"
 
     data class Item(val title: String, val text: String, val link: String? = null, val licenseAsset: String? = null)
@@ -195,7 +197,7 @@ object Legal {
         Group(
             "Tracking",
             listOf(
-                Item("Trakt", "Watch history, progress and lists. $APP uses the Trakt API but is not endorsed or certified by Trakt.", "https://trakt.tv"),
+                Item("Trakt", "$TRAKT_NOTICE. Watch history, progress and lists.", "https://trakt.tv"),
                 Item("Simkl", "Watch history and lists. Not endorsed by Simkl.", "https://simkl.com"),
                 Item("WeTrakr", "Watch history and lists. Not endorsed by WeTrakr.", "https://wetrakr.com"),
                 Item("MyAnimeList", "Anime lists by username. Not endorsed by MyAnimeList.", "https://myanimelist.net"),

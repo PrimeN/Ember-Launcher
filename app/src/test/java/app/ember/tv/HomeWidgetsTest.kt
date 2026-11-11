@@ -106,6 +106,11 @@ class HomeWidgetsTest {
         assertFalse(home.contains("RankBadge"))
     }
 
+    @Test fun theTraktNoticeUsesTheRequiredWording() {
+        assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
+        assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))
+    }
+
     @Test fun widgetCardsTheHomeNoticeAndTraktCards() {
         // #176: one card per widget; its last line is what is wrong, or whether it is on Home.
         assertEquals("On Home", app.ember.tv.ui.WidgetDrafts.state(true, null)); assertEquals("Hidden from Home", app.ember.tv.ui.WidgetDrafts.state(false, null))
