@@ -215,7 +215,7 @@ private fun WidgetStyleTile(style: String, name: String, selected: Boolean, onCl
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             WidgetStylePreview(style, ink)
             Text(if (selected) "$name  ✓" else name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(HomeWidgets.about(style), fontSize = 11.sp, lineHeight = 14.sp, color = ink.copy(alpha = .7f), minLines = 3, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text(HomeWidgets.about(style), fontSize = 12.sp, lineHeight = 15.sp, color = ink.copy(alpha = .7f), minLines = 3, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -326,7 +326,7 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(l.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(WidgetDrafts.traktLine(l), fontSize = 12.sp, color = ink.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(l.description, fontSize = 11.sp, lineHeight = 14.sp, color = ink.copy(alpha = .6f), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(l.description, fontSize = 12.sp, lineHeight = 15.sp, color = ink.copy(alpha = .6f), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
             } }
