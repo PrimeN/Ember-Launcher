@@ -255,7 +255,7 @@ class HomeWidgetsTest {
         prefs.homeRowShapes = mapOf("continue" to "poster", "catalog:https://a.test/manifest.json:movie:top" to "wide")
         assertEquals(mapOf("continue" to "poster", "catalog:https://a.test/manifest.json:movie:top" to "wide"), prefs.homeRowShapes)
         prefs.homeRowShapes = emptyMap(); assertTrue(prefs.homeRowShapes.isEmpty())
-        assertEquals("string", PreferenceKeys.expectedType("homeRowShapes"))
+        assertEquals("s", PreferenceKeys.expectedType("homeRowShapes"))
         val model = java.io.File("src/main/java/app/ember/tv/HomeViewModel.kt").readText()
         assertTrue(model.contains("sections.shape(id)?.let { shape -> for (i in before until size)"))
         // #196: banner and carousel widgets carry their own artwork choice; anything else reads as Standard.
