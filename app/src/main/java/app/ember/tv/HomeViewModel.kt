@@ -1,5 +1,6 @@
 package app.ember.tv
 
+import app.ember.tv.data.CollectionSource
 import app.ember.tv.data.HomeWidget
 import app.ember.tv.data.HomeWidgets
 import app.ember.tv.state.WidgetsState
