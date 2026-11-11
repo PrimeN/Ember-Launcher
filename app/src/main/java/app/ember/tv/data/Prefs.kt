@@ -366,6 +366,10 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.DETAILED_BADGE_CATEGORIES_OFF)
         set(v) = sp.edit { putStringSet(PreferenceKeys.DETAILED_BADGE_CATEGORIES_OFF.name, v.toSet()) }
 
+    var badgesOff: Set<String>
+        get() = sp.read(PreferenceKeys.BADGES_OFF)
+        set(v) = sp.edit { putStringSet(PreferenceKeys.BADGES_OFF.name, v.toSet()) }
+
     var streamFormatOn: Boolean
         get() = sp.read(PreferenceKeys.STREAM_FORMAT_ON)
         set(v) = sp.edit { putBoolean(PreferenceKeys.STREAM_FORMAT_ON.name, v) }

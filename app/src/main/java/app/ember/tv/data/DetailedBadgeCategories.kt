@@ -1,6 +1,22 @@
 package app.ember.tv.data
 
 /** Stable group IDs make category choices portable without modifying the bundled/custom packs. */
+/**
+ * Single badges switched off in the badge preview (#194). A badge that is off stays in a source's
+ * list, marked not enabled: it is not drawn, but it still counts as covering its category, so its
+ * format does not come back as a plain text tag.
+ */
+internal object BadgeChoices {
+    /** Packs keep their own choices; a badge without an id goes by its name. */
+    fun key(mode: String, badge: BadgeFilter): String = mode + "|" + badge.id.ifBlank { badge.name }
+    fun toggle(off: Set<String>, key: String): Set<String> = if (key in off) off - key else off + key
+    fun mark(mode: String, off: Set<String>, badges: List<BadgeFilter>): List<BadgeFilter> =
+        if (off.isEmpty()) badges else badges.map { if (key(mode, it) in off) it.copy(isEnabled = false) else it }
+    /** How many of this pack's badges are off. */
+    fun count(mode: String, off: Set<String>): Int = off.count { it.startsWith("$mode|") }
+    fun clear(mode: String, off: Set<String>): Set<String> = off.filterNot { it.startsWith("$mode|") }.toSet()
+}
+
 internal object DetailedBadgeCategories {
     val groups = listOf(
         "gq" to "Release quality", "gr" to "Resolution", "gv" to "Visual",

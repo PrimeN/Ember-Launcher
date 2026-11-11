@@ -199,6 +199,47 @@ class HomeWidgetsTest {
         assertFalse(actions.contains("selectionCue")); assertTrue(actions.contains("if(watched)Icons.Filled.Visibility else Icons.Outlined.Visibility"))
     }
 
+    @Test fun singleBadgesSwitchOffWithoutComingBackAsText() {
+        // #194
+        val hdr = BadgeFilter(id = "hdr10", name = "HDR10", groupId = "gv"); val atmos = BadgeFilter(name = "Atmos", groupId = "ga")
+        assertEquals("modern|hdr10", BadgeChoices.key(Badges.MODERN, hdr)); assertEquals("custom|Atmos", BadgeChoices.key(Badges.CUSTOM, atmos))
+        val off = BadgeChoices.toggle(emptySet(), BadgeChoices.key(Badges.MODERN, hdr))
+        val marked = BadgeChoices.mark(Badges.MODERN, off, listOf(hdr, atmos))
+        assertEquals(listOf(false, true), marked.map { it.isEnabled })
+        assertEquals("a custom pack keeps its own choices", listOf(true, true), BadgeChoices.mark(Badges.CUSTOM, off, listOf(hdr, atmos)).map { it.isEnabled })
+        assertTrue(BadgeChoices.toggle(off, "modern|hdr10").isEmpty())
+        assertEquals(1, BadgeChoices.count(Badges.MODERN, off + "custom|x")); assertEquals(setOf("custom|x"), BadgeChoices.clear(Badges.MODERN, off + "custom|x"))
+        // The badge that is off still covers its category: no plain "HDR10" tag in its place.
+        val source = StreamOption("Addon", "Source", "Film", "https://example.test/a", null, null, "", "HDR10", "", "", "", "", null, null, true)
+        assertFalse(DetailedBadgeCategories.textTags(source, emptySet(), badges = marked).contains("HDR10"))
+        assertTrue(DetailedBadgeCategories.textTags(source, emptySet(), badges = emptyList()).contains("HDR10"))
+        val rows = java.io.File("src/main/java/app/ember/tv/ui/DetailsScreen.kt").readText()
+        assertEquals(2, Regex("allBadges\\.filter *\\{ *it\\.isEnabled *\\}").findAll(rows).count())
+        assertEquals("set", PreferenceKeys.expectedType("badgesOff")); assertTrue(PreferenceKeys.BADGES_OFF.portable)
+    }
+
+    @Test fun catalogsAreListedUnderTheirAddonByType() {
+        // #193
+        fun addon(url: String, name: String) = AddonInfo(url, url, name, emptyList(), null, emptyList(), emptyList())
+        fun catalog(a: AddonInfo, type: String, id: String) = CatalogDef(a, type, id, id, emptyList(), false, false, false, false)
+        val one = addon("https://one.test/manifest.json", "One"); val two = addon("https://two.test/manifest.json", "Two")
+        val list = listOf(catalog(one, "movie", "top"), catalog(two, "series", "new"), catalog(one, "series", "hot"), catalog(one, "movie", "old"))
+        val browse = app.ember.tv.ui.CatalogBrowse
+        val home = setOf("top", "new")
+        val all = browse.groups(list, browse.ALL, browse.ALL, { it.id in home }, { false }, { it.id == "hot" })
+        assertEquals(listOf("One", "Two"), all.map { it.name })
+        assertEquals(listOf("movie" to listOf(0, 3), "series" to listOf(2)), all[0].byType.map { (t, rows) -> t to rows.map { it.index } })
+        assertEquals("3 catalogs · 1 on Home · 1 in Discover", all[0].line()); assertEquals("1 catalog · 1 on Home", all[1].line())
+        val onHome = browse.groups(list, browse.HOME, browse.ALL, { it.id in home }, { false }, { it.id == "hot" })
+        assertEquals(listOf(1, 1), onHome.map { it.shown }); assertEquals("1 of 3 catalogs · 1 on Home · 1 in Discover", onHome[0].line())
+        val unused = browse.groups(list, browse.OFF, browse.ALL, { it.id in home }, { false }, { it.id == "hot" })
+        assertEquals(listOf("old"), unused.single().byType.single().second.map { it.catalog.id })
+        assertEquals(listOf("Two"), browse.groups(list, browse.ALL, "series", { false }, { false }, { false }).filter { it.id == two.url }.map { it.name })
+        assertEquals(listOf("movie", "series"), browse.types(list)); assertEquals("Movies", browse.typeName("movie")); assertEquals("Live TV", browse.typeName("tv")); assertEquals("Anime", browse.typeName("anime"))
+        assertTrue("a short list is simply open", browse.isOpen("x", browse.SMALL)); assertFalse(browse.isOpen("never-opened-addon", 200))
+        assertEquals("4 catalogs from 2 addons", browse.summary(4, 4, 2)); assertEquals("1 of 4 catalogs from 1 addon", browse.summary(1, 4, 1))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

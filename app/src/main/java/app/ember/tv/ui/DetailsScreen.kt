@@ -713,15 +713,17 @@ private fun EpisodeCard(ep: Episode, selected: Boolean, width: androidx.compose.
 private fun SourceRow(
     s: StreamOption,
     formatted: Pair<String, String>?,
-    images: List<app.ember.tv.data.BadgeFilter>,
+    /** Every badge the source matches; ones switched off singly (#194) are not drawn but still cover their category. */
+    allBadges: List<app.ember.tv.data.BadgeFilter>,
     runtime: String?,
     hiddenCategories: Set<String>,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    val images = allBadges.filter { it.isEnabled }
     val accent = MaterialTheme.colorScheme.primary
     if(isEmberX) {
-        EmberXSourceRow(s,formatted,images,runtime,hiddenCategories,onClick,onLongClick)
+        EmberXSourceRow(s,formatted,allBadges,runtime,hiddenCategories,onClick,onLongClick)
         return
     }
     if (formatted != null) {
@@ -744,7 +746,7 @@ private fun SourceRow(
                 )
                 // Keep only metadata not already represented by the selected badge pack.
                 val badges = listOfNotNull(runtime?.let { "⏱ $it" }) +
-                    app.ember.tv.data.DetailedBadgeCategories.textTags(s, hiddenCategories, languageLimit = 3, badges = images) +
+                    app.ember.tv.data.DetailedBadgeCategories.textTags(s, hiddenCategories, languageLimit = 3, badges = allBadges) +
                     listOfNotNull(s.sizeGb?.let { "%.1f GB".format(it) })
                 if (badges.isNotEmpty() || images.isNotEmpty()) {
                     // One row (wrapping when a source has many details): image badges first, then the
@@ -766,15 +768,16 @@ private fun SourceRow(
 /** Fixed quality column, title, and two badge lines; provider details live in More. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,images:List<app.ember.tv.data.BadgeFilter>,
+private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,allBadges:List<app.ember.tv.data.BadgeFilter>,
     runtime:String?,hiddenCategories:Set<String>,onClick:()->Unit,onLongClick:()->Unit) {
+    val images=allBadges.filter {it.isEnabled}
     val title=app.ember.tv.data.Badges.clean(formatted?.first ?: s.title.lineSequence().firstOrNull()?.takeIf {it.isNotBlank()} ?: s.name)
     // Duration and file size lead even when image badges or a custom formatter are enabled.
     val primaryPills=emberXSourcePrimaryPills(s,runtime)
     val tags=app.ember.tv.data.DetailedBadgeCategories.textTags(s,emptySet())
     val description=app.ember.tv.data.Badges.clean(formatted?.second ?: (primaryPills+tags).joinToString(" · "))
     val pills=if(formatted!=null && images.isEmpty() && hiddenCategories.isEmpty())listOf(description.replace(Regex("\\s+")," ").trim()).filter(String::isNotBlank)
-        else app.ember.tv.data.DetailedBadgeCategories.textTags(s,hiddenCategories,badges=images)
+        else app.ember.tv.data.DetailedBadgeCategories.textTags(s,hiddenCategories,badges=allBadges)
     var info by remember(s) {mutableStateOf(false)}
     val density=LocalDensity.current
     val nameHeight=maxOf(28.dp,with(density){18.sp.toDp()})

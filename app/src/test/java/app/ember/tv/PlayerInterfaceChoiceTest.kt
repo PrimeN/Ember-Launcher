@@ -53,8 +53,10 @@ class PlayerInterfaceChoiceTest {
         }
     }
     @Test fun settingsSearchReachesTheFourChoicesAtThePlayerSection() {
-        assertEquals(listOf("Basic", "Ember Modern", "Ember X", "Streaming"), SettingDefinitions.playerInterface.options.map { it.second })
-        for (query in listOf("Basic", "Ember Modern", "Ember X", "Streaming", "player interface")) {
+        // #192: Basic became Ember, Ember Modern became Glass, Ember X became Basic. The stored values did not change.
+        assertEquals(listOf("Ember", "Glass", "Basic", "Streaming"), SettingDefinitions.playerInterface.options.map { it.second })
+        assertEquals(listOf(PlayerInterfaces.BASIC, PlayerInterfaces.MODERN, PlayerInterfaces.EMBER_X, PlayerInterfaces.STREAMING), PlayerInterfaces.options.map { it.first })
+        for (query in listOf("Ember", "Glass", "Basic", "Streaming", "Ember Modern", "Ember X", "player interface")) {
             val hit = SettingDefinitions.matching(query).single { it.id == "player_look" }
             assertEquals(SettingsTab.PLAYER, hit.tab)
             assertTrue(hit.id in PLAYER_KEYS)

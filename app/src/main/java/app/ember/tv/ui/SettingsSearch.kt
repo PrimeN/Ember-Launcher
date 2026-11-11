@@ -31,7 +31,7 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.POSTERS to "Posters and ratings: RPDB, Better Posters, textless, landscape cards, title logo, ratings IMDb Rotten Tomatoes Metacritic, MDBList",
     SettingsTab.METADATA to "Metadata: AniList, TVDB, descriptions, artwork, episodes, anime",
     SettingsTab.WEATHER to "Weather: location, city, units, Celsius, Fahrenheit, provider fallback saved forecast Open-Meteo MET Norway wttr.in",
-    SettingsTab.PLAYER to "Player: player interface GUI look Basic Ember Modern Ember X Streaming cinema advanced simple, default player, external player, skip intro IntroDB, resume, leaving the player, confirm exit, back to last video, autoplay next episode, countdown, picture-in-picture, trailers, info at start",
+    SettingsTab.PLAYER to "Player: player interface GUI look Ember Glass Basic Streaming (formerly Basic, Ember Modern, Ember X) cinema advanced simple, default player, external player, skip intro IntroDB, resume, leaving the player, confirm exit, back to last video, autoplay next episode, countdown, picture-in-picture, trailers, info at start",
     SettingsTab.AUDIO_VIDEO to "Audio and video: passthrough, bitstream, Dolby Atmos TrueHD DTS, receiver soundbar, FFmpeg sound video decoding, software, MPEG-H, deinterlacing, playback engine compatibility, tunneled playback, frame rate matching, resolution, buffer, Dolby Vision HDR10, sound timing lip sync",
     SettingsTab.PLAY_BUTTON to "Play button: best source, 4K, HDR, Dolby Vision, codecs, file size, cached only, server first",
     SettingsTab.ADDONS to "Addons: add, remove, rename, Stremio, manifest, time limit, slow addons",

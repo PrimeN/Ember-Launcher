@@ -9,7 +9,8 @@ object PlayerInterfaces {
     const val EMBER_X = "ember_x"
     /** Streaming-app layout: transport top left, title top right, logo on the left, tracks under the bar. */
     const val STREAMING = "streaming"
-    val options = listOf(BASIC to "Basic", MODERN to "Ember Modern", EMBER_X to "Ember X", STREAMING to "Streaming")
+    /** #192: the names changed (Basic, Ember Modern, Ember X before); the stored values did not, so a saved choice keeps its layout. */
+    val options = listOf(BASIC to "Ember", MODERN to "Glass", EMBER_X to "Basic", STREAMING to "Streaming")
 
     fun normalize(value: String?): String = when (value) {
         BASIC, "simple" -> BASIC

@@ -24,6 +24,13 @@ class SourceFormatState(
     var badgeMode by mutableStateOf(prefs.badgeMode); private set
     var detailedBadgeCategoriesOff by mutableStateOf(prefs.detailedBadgeCategoriesOff); private set
     val activeBadgeCategoriesOff: Set<String> get() = if (badgeMode == app.ember.tv.data.Badges.MODERN) detailedBadgeCategoriesOff else emptySet()
+    /** #194: single badges switched off in the preview. */
+    var badgesOff by mutableStateOf(prefs.badgesOff); private set
+    fun toggleBadge(mode: String, badge: app.ember.tv.data.BadgeFilter) {
+        badgesOff = app.ember.tv.data.BadgeChoices.toggle(badgesOff, app.ember.tv.data.BadgeChoices.key(mode, badge))
+        prefs.badgesOff = badgesOff
+    }
+    fun showAllBadges(mode: String) { badgesOff = app.ember.tv.data.BadgeChoices.clear(mode, badgesOff); prefs.badgesOff = badgesOff }
     var badgeBusy by mutableStateOf(false); private set
     var badgeNote by mutableStateOf<String?>(null); private set
 
@@ -68,8 +75,8 @@ class SourceFormatState(
     /** Badges for a source; empty with legacy, or while the pack loads. */
     fun badgesFor(s: StreamOption): List<app.ember.tv.data.BadgeFilter> {
         @Suppress("UNUSED_VARIABLE") val r = app.ember.tv.data.Badges.rev
-        return if (badgeMode == app.ember.tv.data.Badges.LEGACY) emptyList() else app.ember.tv.data.DetailedBadgeCategories.filter(
-            badgeMode, detailedBadgeCategoriesOff, app.ember.tv.data.Badges.forSource(s))
+        return if (badgeMode == app.ember.tv.data.Badges.LEGACY) emptyList() else app.ember.tv.data.BadgeChoices.mark(badgeMode, badgesOff,
+            app.ember.tv.data.DetailedBadgeCategories.filter(badgeMode, detailedBadgeCategoriesOff, app.ember.tv.data.Badges.forSource(s)))
     }
 
     var streamFormatOn by mutableStateOf(prefs.streamFormatOn); private set

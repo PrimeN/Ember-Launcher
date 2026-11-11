@@ -47,6 +47,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import app.ember.tv.screensaver.Photos
 import app.ember.tv.screensaver.ScreensaverFeed
 import app.ember.tv.HomeViewModel
+import app.ember.tv.data.CatalogDef
+import androidx.compose.ui.platform.testTag
 import app.ember.tv.data.NavTabs
 import app.ember.tv.data.Prefs
 import app.ember.tv.tracker.SmartRows
@@ -488,10 +490,70 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
             }
         }
     }
+    // #193: grouped by addon, closed until opened, and by type inside; not one flat list of hundreds.
     val list = vm.allCatalogs
-    itemsIndexed(list, key = { _, c -> "cat:${c.key}" }) { i, c ->
+    if (list.isEmpty()) return
+    val groups = CatalogBrowse.groups(list, CatalogBrowse.show, CatalogBrowse.type, vm::isOnHome, vm::isOnLive, vm::isInDiscover)
+    item(key = "catfilters") { CatalogFilters(list, groups) }
+    if (groups.isEmpty()) item(key = "catnone") { Text("No catalogs match these filters.", color = Mute, fontSize = 14.sp) }
+    groups.forEach { g ->
+        val open = CatalogBrowse.isOpen(g.id, list.size)
+        item(key = "catgroup:${g.id}") { CatalogGroupHeader(vm, g, open) }
+        if (open) g.byType.forEach { (type, entries) ->
+            if (g.byType.size > 1) item(key = "cattype:${g.id}:$type") {
+                Text("${CatalogBrowse.typeName(type)} · ${entries.size}", color = Mute, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, top = 4.dp))
+            }
+            items(entries, key = { "cat:${it.catalog.key}" }) { e -> CatalogCard(vm, e.index, e.catalog, list.lastIndex) }
+        }
+    }
+}
+
+/** What the catalog list shows (#193): the Show and Type filters, and opening or closing every addon. */
+@Composable
+private fun CatalogFilters(list: List<CatalogDef>, groups: List<CatalogBrowse.Group>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ButtonRow(spacing = 8.dp) { CatalogBrowse.shows.forEach { (id, name) -> Chip(name, selected = CatalogBrowse.show == id) { CatalogBrowse.show = id } } }
+        val types = CatalogBrowse.types(list)
+        if (types.size > 1) ButtonRow(spacing = 8.dp) {
+            Chip("All types", selected = CatalogBrowse.type == CatalogBrowse.ALL) { CatalogBrowse.type = CatalogBrowse.ALL }
+            types.forEach { type -> Chip(CatalogBrowse.typeName(type), selected = CatalogBrowse.type == type) { CatalogBrowse.type = type } }
+        }
+        if (list.size > CatalogBrowse.SMALL && groups.size > 1) ButtonRow(spacing = 8.dp) {
+            Chip("Open all") { CatalogBrowse.open = groups.map { it.id }.toSet() }
+            Chip("Close all") { CatalogBrowse.open = emptySet() }
+        }
+        Text(CatalogBrowse.summary(groups.sumOf { it.shown }, list.size, groups.size), color = Mute, fontSize = 13.sp)
+    }
+}
+
+/** One addon's catalogs (#193): OK opens or closes it. Open, it can switch all of its listed catalogs at once. */
+@Composable
+private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Focusable(onClick = { CatalogBrowse.toggle(g.id) }, modifier = Modifier.fillMaxWidth().testTag("catalog_group"), radius = TvTokens.Shape.Card, container = PanelHi) {
+            val ink = androidx.tv.material3.LocalContentColor.current
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (open) "▾" else "▸", fontSize = 18.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(g.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(g.line(), color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        if (open && g.shown > 1) ButtonRow(spacing = 8.dp) {
+            val all = g.byType.flatMap { it.second }.map { it.catalog }
+            fun home(on: Boolean) = all.forEach { c -> if (c.homeable && vm.isOnHome(c) != on) vm.toggleCatalogHome(c) }
+            fun discover(on: Boolean) = all.forEach { c -> if (c.browsable && vm.isInDiscover(c) != on) vm.toggleCatalogDiscover(c) }
+            Chip("All on Home") { home(true) }; Chip("None on Home") { home(false) }
+            Chip("All in Discover") { discover(true) }; Chip("None in Discover") { discover(false) }
+        }
+    }
+}
+
+@Composable
+private fun CatalogCard(vm: HomeViewModel, i: Int, c: CatalogDef, lastIndex: Int) {
         Column(
-            modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
           Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -513,10 +575,57 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
             SwitchChip(stringResource(R.string.ui_discover), vm.isInDiscover(c), locked = !c.browsable) {
                 if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover"))
             }
-            MoveButton(c.label, i, list.lastIndex) { step -> vm.moveCatalog(c, step) }
+            MoveButton(c.label, i, lastIndex) { step -> vm.moveCatalog(c, step) }
           }
         }
+}
+
+/**
+ * How Settings > Addons & catalogs lists catalogs (#193): under their addon, by type, filtered.
+ * The state lives here because the list is built outside composition; it lasts while Ember runs.
+ */
+internal object CatalogBrowse {
+    const val ALL = "all"; const val HOME = "home"; const val LIVE = "live"; const val DISCOVER = "discover"; const val OFF = "off"
+    val shows = listOf(ALL to "All", HOME to "On Home", LIVE to "On Live TV", DISCOVER to "In Discover", OFF to "Not shown")
+    /** Up to this many catalogs, every addon is simply open. */
+    const val SMALL = 12
+    var open by mutableStateOf<Set<String>>(emptySet())
+    var show by mutableStateOf(ALL)
+    var type by mutableStateOf(ALL)
+
+    /** [index] is the catalog's place in the shared order, which Move changes. */
+    data class Entry(val index: Int, val catalog: CatalogDef)
+    data class Group(val id: String, val name: String, val total: Int, val onHome: Int, val inDiscover: Int, val byType: List<Pair<String, List<Entry>>>) {
+        val shown: Int get() = byType.sumOf { it.second.size }
+        fun line(): String = listOfNotNull(if (shown == total) count(total) else "$shown of ${count(total)}",
+            "$onHome on Home".takeIf { onHome > 0 }, "$inDiscover in Discover".takeIf { inDiscover > 0 }).joinToString(" · ")
     }
+    private fun count(n: Int) = if (n == 1) "1 catalog" else "$n catalogs"
+
+    fun typeName(type: String): String = when (type.lowercase()) {
+        "movie" -> "Movies"; "series" -> "Series"; "tv", "channel" -> "Live TV"; "anime" -> "Anime"
+        else -> type.replaceFirstChar { it.uppercase() }.ifBlank { "Other" }
+    }
+    fun types(list: List<CatalogDef>): List<String> = list.map { it.type }.distinct()
+
+    /** Addons in the order their first catalog holds; inside, types in the order they first appear. */
+    fun groups(list: List<CatalogDef>, show: String, type: String, onHome: (CatalogDef) -> Boolean, onLive: (CatalogDef) -> Boolean, inDiscover: (CatalogDef) -> Boolean): List<Group> =
+        list.withIndex().groupBy { it.value.addon.url }.mapNotNull { (id, all) ->
+            val kept = all.filter { (_, c) ->
+                (type == ALL || c.type == type) && when (show) {
+                    HOME -> onHome(c); LIVE -> onLive(c); DISCOVER -> inDiscover(c)
+                    OFF -> !onHome(c) && !onLive(c) && !inDiscover(c)
+                    else -> true
+                }
+            }
+            if (kept.isEmpty()) null else Group(id, all.first().value.addon.name, all.size, all.count { onHome(it.value) }, all.count { inDiscover(it.value) },
+                kept.groupBy { it.value.type }.map { (t, rows) -> t to rows.map { Entry(it.index, it.value) } })
+        }
+
+    fun isOpen(id: String, total: Int): Boolean = total <= SMALL || id in open
+    fun toggle(id: String) { open = if (id in open) open - id else open + id }
+    fun summary(shown: Int, total: Int, addons: Int): String =
+        (if (shown == total) count(total) else "$shown of ${count(total)}") + " from " + if (addons == 1) "1 addon" else "$addons addons"
 }
 
 // ---------------------------------------------------------------- Live TV (IPTV)
@@ -1015,10 +1124,17 @@ private fun BadgesSection(vm: HomeViewModel) {
                     Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) f.importBadges(url) }
                 }
             }
+            // #194: single badges are switched in the preview (the info button beside each option).
+            if (f.badgeMode != app.ember.tv.data.Badges.LEGACY) {
+                val hidden = app.ember.tv.data.BadgeChoices.count(f.badgeMode, f.badgesOff)
+                Note(if (hidden == 0) "To hide a single badge, open the preview (the info button) and press OK on it."
+                    else "$hidden ${if (hidden == 1) "badge is" else "badges are"} switched off. Open the preview to switch them one by one.")
+                if (hidden > 0) Chip("Show all badges again") { f.showAllBadges(f.badgeMode) }
+            }
             (f.badgeNote ?: app.ember.tv.data.Badges.message)?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
         }
     }
-    preview?.let { (mode, label) -> BadgePreview(mode, label, hiddenCategories = f.detailedBadgeCategoriesOff) { preview = null } }
+    preview?.let { (mode, label) -> BadgePreview(mode, label, hiddenCategories = f.detailedBadgeCategoriesOff, off = f.badgesOff, onToggle = { f.toggleBadge(mode, it) }) { preview = null } }
 }
 
 /** The addon's logo from its manifest, or its initial when it has none or it does not load. */
