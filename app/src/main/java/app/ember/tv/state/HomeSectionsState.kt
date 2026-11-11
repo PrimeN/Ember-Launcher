@@ -60,7 +60,19 @@ class HomeSectionsState(
         onChanged()
     }
 
-    fun reloadHome() {homeLayout=prefs.homeLayout;listStyles=prefs.homeListStyle}
+    fun reloadHome() {homeLayout=prefs.homeLayout;listStyles=prefs.homeListStyle;rowShapes=prefs.homeRowShapes}
+
+    /** #195: a built-in row's own card shape, "poster" or "wide"; null follows the default for all rows. */
+    var rowShapes by mutableStateOf(prefs.homeRowShapes); private set
+    fun shape(id: String): String? = rowShapes[id]
+    fun setShape(id: String, shape: String?) {
+        if (!hasShape(id)) return
+        rowShapes = if (shape == "poster" || shape == "wide") rowShapes + (id to shape) else rowShapes - id
+        prefs.homeRowShapes = rowShapes
+        onChanged()
+    }
+    /** Back to one shape for every built-in row. */
+    fun clearShapes() { if (rowShapes.isEmpty()) return; rowShapes = emptyMap(); prefs.homeRowShapes = rowShapes; onChanged() }
 
     fun listStyle(id: String): String = listStyles[id] ?: if (id == HOME_CONTINUE) "row" else "button"
     fun isList(id: String) = id == HOME_CONTINUE || id == HOME_RECENT || id == HOME_WATCHLIST
@@ -171,6 +183,9 @@ class HomeSectionsState(
     }
 
     companion object {
+        /** Built-in sections that are rows of titles, so Poster or Wide applies (#195). The banner, apps and your own widgets are not. */
+        fun hasShape(id: String): Boolean = id == HOME_CONTINUE || id == HOME_RECENT || id == HOME_WATCHLIST || id == HOME_UPNEXT || id == HOME_SERVERS ||
+            id.startsWith("smart:") || id.startsWith("explore:") || isCatalogSection(id)
         /** [ordered] sections take, in that order, the slots they already occupy; unknown or repeated ids change nothing. */
         fun arranged(layout: List<Pair<String, Boolean>>, ordered: List<String>): List<Pair<String, Boolean>> {
             val on = layout.toMap()

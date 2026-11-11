@@ -178,7 +178,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                                     w.id in widgets.loading -> "Loading"
                                     w.id in widgets.failed -> "Could not load"
                                     else -> "Nothing to show yet"
-                                }, canMoveUp = at > 0, canMoveDown = at in 0 until order.lastIndex)
+                                }, canMoveUp = at > 0, canMoveDown = at in 0 until order.lastIndex, art = w.art)
                         }
                     },
                     library = folderSources().let { ids -> collections.list.map { c -> app.ember.tv.phone.PhoneCollection(targetKey(c.id), c.title, c.folders.map { f ->
@@ -331,7 +331,8 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         val widget = app.ember.tv.data.HomeWidgets.normalize(app.ember.tv.data.HomeWidget(
                             id = old?.id ?: java.util.UUID.randomUUID().toString(), title = title,
                             style = fields["style"] ?: old?.style ?: app.ember.tv.data.HomeWidgets.ROW, shape = fields["shape"] ?: old?.shape ?: "default",
-                            source = source, limit = fields["limit"]?.trim()?.toIntOrNull() ?: old?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT))
+                            source = source, limit = fields["limit"]?.trim()?.toIntOrNull() ?: old?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT,
+                            art = fields["art"] ?: old?.art ?: app.ember.tv.data.HeroArtworkMode.STANDARD))
                         app.ember.tv.data.HomeWidgets.error(widget)?.let { return@onPhoneMain it }
                         if (widget.source.provider != app.ember.tv.data.HomeWidgets.LIST && !collectionSourceAllowed(widget.source)) return@onPhoneMain "That source is unavailable for this profile."
                         stage((if (old == null) "Add the Home widget " else "Save the Home widget ") + "$title: ${app.ember.tv.data.HomeWidgets.styleName(widget.style)}, " +

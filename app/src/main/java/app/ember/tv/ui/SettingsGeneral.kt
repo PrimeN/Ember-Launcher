@@ -91,21 +91,6 @@ import java.util.Locale
 
 // ---------------------------------------------------------------- General
 
-/**
- * Settings > Home layout: every Home section with On/Off and its place, then which apps show on
- * Home and in how many rows. By default Home is the banner and your apps.
- */
-@Composable
-internal fun HomeRowsSection(vm: HomeViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
-        HeroBannerSettings(vm)
-        PersonalListSettings(vm)
-        // #189: the order of Home, and switching its widgets on and off, is in Widgets & collections.
-        Note("Home's widgets (the banner, apps, lists, catalogs and your own) are switched on, moved and created in Settings > Home > Widgets & collections.")
-        if (vm.hiddenHomeTitleCount > 0) Chip("Restore ${vm.hiddenHomeTitleCount} hidden Home titles") { vm.restoreHomeTitles() }
-    }
-}
-
 /** One setting per line: name (and a note) on the left, On/Off on the right. */
 @Composable
 internal fun ToggleRow(label: String, note: String?, on: Boolean, onToggle: () -> Unit) {
@@ -125,9 +110,6 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
         SettingsTab.REMOTE -> listOf("remote_s_settings_button", "remote-sounds", "auto-load")
-        SettingsTab.HOME_ROWS -> buildList {
-            if (active == "modern") add("home_cards")
-        }
         // #190: how app tiles look sits with the other app settings.
         SettingsTab.HOME_TOOLS -> buildList { if (active == "modern" || active == app.ember.tv.data.InterfaceStyles.EMBER_X) add("app_icons") }
         SettingsTab.LIGHT_HOME -> listOf("wallpaper")

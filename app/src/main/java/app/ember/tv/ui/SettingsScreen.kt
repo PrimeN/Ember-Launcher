@@ -102,7 +102,8 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     SIZE("Size & spacing", "Look"),
     PERFORMANCE("Performance & effects", "Look"),
     // Home: what the Home screen shows and what happens at startup.
-    HOME_ROWS("Banner & lists", "Home"),
+    // #197: the banner and the lists are edited on their widgets; old links to this page open Widgets & collections.
+    HOME_ROWS("Banner & lists", "Home", "WIDGETS"),
     // #163: what you add to Home yourself, in one place.
     WIDGETS("Widgets & collections", "Home"),
     HOME_TOOLS("Apps & folders", "Home"),
@@ -192,8 +193,7 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.FEATURES -> item(key = "features") { FeaturesPage(vm) }
             SettingsTab.TOP_MENU -> item(key = "topmenu") { TopMenuSection(vm) }
             SettingsTab.DISCOVER -> item(key = "discover-sections") { DiscoverSettings(vm) }
-            SettingsTab.HOME_ROWS -> { item(key = "home") { HomeRowsSection(vm) }; appearancePage(vm, SettingsTab.HOME_ROWS) }
-            SettingsTab.WIDGETS -> {
+            SettingsTab.HOME_ROWS, SettingsTab.WIDGETS -> {
                 item(key = "widgets") { WidgetsSettings(vm) }
                 item(key = "collections") { Section("Collections", "Rows of folder tiles on Home and Discover; each folder opens one or more catalogs.", id = "collections") { CollectionsSettings(vm) } }
             }

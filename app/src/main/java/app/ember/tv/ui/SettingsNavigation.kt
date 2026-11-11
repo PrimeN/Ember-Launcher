@@ -7,7 +7,7 @@ internal object SettingsMerges {
 
 /** Categories keep the sidebar short while every existing page remains addressable. */
 internal enum class SettingsCategory(val representative:SettingsTab) {
-    SEARCH(SettingsTab.SEARCH), LOOK(SettingsTab.APPEARANCE), HOME(SettingsTab.HOME_ROWS), PLAYBACK(SettingsTab.PLAYER),
+    SEARCH(SettingsTab.SEARCH), LOOK(SettingsTab.APPEARANCE), HOME(SettingsTab.WIDGETS), PLAYBACK(SettingsTab.PLAYER),
     SOURCES(SettingsTab.ADDONS), ACCOUNTS(SettingsTab.PROFILES), SYSTEM(SettingsTab.DEVICE_TOOLS), ABOUT(SettingsTab.ABOUT);
     /** A category's pages in the order SettingsTab declares them. */
     val pages:List<SettingsTab> get()=SettingsTab.entries.filter {it.group==representative.group && it!=SettingsTab.SEARCH && !it.merged}

@@ -57,7 +57,8 @@ class HomeWidgetsTest {
         assertEquals(WidgetLook(wide = false, numbered = true), WidgetLook.of(widget(), homeWide = true))
         assertEquals(WidgetLook(wide = true, numbered = false), WidgetLook.of(widget(style = HomeWidgets.ROW).copy(shape = "default"), homeWide = true))
         // #167: the cinematic carousel is one giant panel, a title at a time, not a row of cards.
-        assertTrue(WidgetLook.CAROUSEL_HEIGHT >= .6f && WidgetLook.CAROUSEL_HEIGHT <= .8f)
+        // #198: bigger; nearly the whole screen under its title.
+        assertTrue(WidgetLook.CAROUSEL_HEIGHT >= .82f && WidgetLook.CAROUSEL_HEIGHT <= .9f)
         assertEquals(1, WidgetLook.carouselStep(0, 3, forward = true)); assertEquals(1, WidgetLook.carouselStep(2, 3, forward = false))
         assertNull("left on the first title leaves the carousel", WidgetLook.carouselStep(0, 3, forward = false))
         assertNull("right on the last title leaves the carousel", WidgetLook.carouselStep(2, 3, forward = true))
@@ -168,11 +169,13 @@ class HomeWidgetsTest {
     @Test fun everythingOnHomeIsAWidgetAndAppsLiveWithApps() {
         // #189: one list for the widgets that come with Ember and your own; only your own can be edited or deleted.
         val ui = app.ember.tv.ui.WidgetDrafts
-        assertEquals(listOf("Edit", "Hide from Home", "Delete"), ui.actions(own = true, on = true, listStyle = null, catalog = false))
-        assertEquals(listOf("Show on Home"), ui.actions(own = false, on = false, listStyle = null, catalog = false))
-        assertEquals(listOf("Hide from Home", "Show as a button"), ui.actions(false, true, "row", false))
-        assertEquals(listOf("Hide from Home", "Show as a row"), ui.actions(false, true, "button", false))
-        assertEquals(listOf("Hide from Home", "Rename"), ui.actions(false, true, null, catalog = true))
+        assertEquals(listOf("Edit", "Hide from Home", "Delete"), ui.actions(own = true, editable = false, on = true))
+        // #195: a built-in widget is never deleted, but is edited where a setting applies to it.
+        assertEquals(listOf("Edit", "Show on Home"), ui.actions(own = false, editable = true, on = false))
+        assertEquals(listOf("Hide from Home"), ui.actions(own = false, editable = false, on = true))
+        for (section in listOf("hero", "apps", "continue", "recent", "watchlist", "upnext", "servers", "smart:recommended")) assertTrue(section, ui.editable(section))
+        assertFalse(ui.editable("pinned-shortcuts")); assertFalse("your own widgets have their own editor", ui.editable("widget:w1"))
+        assertEquals("watchlist", ui.personalList("watchlist")); assertEquals("continue", ui.personalList("continue")); assertNull(ui.personalList("hero"))
         assertEquals(HomeWidgets.HERO, ui.picture(app.ember.tv.HomeViewModel.HOME_HERO, null)); assertEquals(ui.APPS, ui.picture(app.ember.tv.HomeViewModel.HOME_APPS, null))
         assertEquals(HomeWidgets.ROW, ui.picture("continue", null)); assertEquals(HomeWidgets.CAROUSEL, ui.picture("widget:w1", HomeWidgets.CAROUSEL))
         val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
@@ -240,6 +243,42 @@ class HomeWidgetsTest {
         assertEquals("4 catalogs from 2 addons", browse.summary(4, 4, 2)); assertEquals("1 of 4 catalogs from 1 addon", browse.summary(1, 4, 1))
     }
 
+    @Test fun rowsChooseTheirShapeAndPanelsTheirArtwork() {
+        // #195: a built-in row's own shape wins over the default; your widgets keep their own setting.
+        assertEquals(WidgetLook(wide = false, numbered = false), WidgetLook.of(null, homeWide = true, shape = "poster"))
+        assertEquals(WidgetLook(wide = true, numbered = false), WidgetLook.of(null, homeWide = false, shape = "wide"))
+        assertEquals(WidgetLook(wide = true, numbered = false), WidgetLook.of(null, homeWide = true, shape = null))
+        val sections = app.ember.tv.state.HomeSectionsState
+        for (id in listOf("continue", "recent", "watchlist", "upnext", "servers", "smart:x", "explore:x")) assertTrue(id, sections.hasShape(id))
+        for (id in listOf("hero", "apps", "widget:w1", "pinned-shortcuts")) assertFalse(id, sections.hasShape(id))
+        val prefs = memoryPrefs()
+        prefs.homeRowShapes = mapOf("continue" to "poster", "catalog:https://a.test/manifest.json:movie:top" to "wide")
+        assertEquals(mapOf("continue" to "poster", "catalog:https://a.test/manifest.json:movie:top" to "wide"), prefs.homeRowShapes)
+        prefs.homeRowShapes = emptyMap(); assertTrue(prefs.homeRowShapes.isEmpty())
+        assertEquals("string", PreferenceKeys.expectedType("homeRowShapes"))
+        val model = java.io.File("src/main/java/app/ember/tv/HomeViewModel.kt").readText()
+        assertTrue(model.contains("sections.shape(id)?.let { shape -> for (i in before until size)"))
+        // #196: banner and carousel widgets carry their own artwork choice; anything else reads as Standard.
+        assertEquals(HeroArtworkMode.STANDARD, HomeWidgets.normalize(widget().copy(art = "nonsense")).art)
+        assertEquals(HeroArtworkMode.FANART, HomeWidgets.normalize(widget().copy(art = HeroArtworkMode.FANART)).art)
+        assertEquals(HeroArtworkMode.FANART, HomeWidgets.decode(HomeWidgets.encode(listOf(widget().copy(art = HeroArtworkMode.FANART)))).single().art)
+        assertEquals("a widget saved before this keeps Standard", HeroArtworkMode.STANDARD, widget().art)
+        assertTrue(HomeWidgets.isPanel(HomeWidgets.HERO)); assertTrue(HomeWidgets.isPanel(HomeWidgets.CAROUSEL)); assertFalse(HomeWidgets.isPanel(HomeWidgets.NUMBERED))
+        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
+        assertTrue(home.contains("LocalHeroArtworkMode provides app.ember.tv.data.HeroArtworkMode.normalize(widget.art)"))
+        assertEquals(2, Regex("WidgetArt\\((shown|items\\.getOrNull\\(at\\) \\?: meta), Modifier\\.fillMaxSize\\(\\)\\)").findAll(home).count())
+        val phone = ContentPhone.widgetEditor(PhoneContent(emptyList(), emptyList(), emptyList()), "lease", "new")
+        assertTrue(phone.contains("<select id=art name=art>")); assertTrue(phone.contains("<option value=fanart>Fanart</option>"))
+        // #197: the banner and the lists are edited on their widgets; the old page folds into Widgets & collections.
+        assertEquals(app.ember.tv.ui.SettingsTab.WIDGETS, app.ember.tv.ui.SettingsTab.HOME_ROWS.host)
+        assertFalse(java.io.File("src/main/java/app/ember/tv/ui/HeroBannerSettings.kt").exists())
+        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
+        assertTrue(tv.contains("CatalogSourcePicker(vm, \"Banner catalog\", vm.look.heroCatalog, vm.look::updateHeroCatalog)"))
+        assertTrue(tv.contains("vm.sections.toggleSource(vm.profiles.profileId, list, source)"))
+        // #199
+        assertTrue(tv.contains("SwitchChip(\"On Home\", on, modifier"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))
@@ -252,7 +291,7 @@ class HomeWidgetsTest {
         assertEquals(listOf("Move up" to -1, "Move down" to 1, "Move to the bottom" to 3), app.ember.tv.ui.WidgetDrafts.moves(1, 4))
         assertTrue(app.ember.tv.ui.WidgetDrafts.moves(-1, 4).isEmpty())
         val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertTrue(tv.contains("testTag(\"widget_card\")")); assertFalse(tv.contains("SwitchChip(\"On Home\""))
+        assertTrue(tv.contains("testTag(\"widget_card\")")); assertTrue(tv.contains("OptionMenu(w?.title"))
         // #177
         val model = java.io.File("src/main/java/app/ember/tv/HomeViewModel.kt").readText()
         assertTrue(model.contains("widgets.errors[w.id]?.let { add(HomeBlock.Notice(id, w.title, it)) }"))

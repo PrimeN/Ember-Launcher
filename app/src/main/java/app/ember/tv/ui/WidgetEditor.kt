@@ -11,11 +11,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
+import app.ember.tv.updateHomeAppRows
 import app.ember.tv.data.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -61,13 +64,23 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                 }
                 // #168: after a failure (a missing key, no connection) there was no way to try again without leaving Home.
                 if (vm.widgets.errors.isNotEmpty()) Chip("Reload widgets") { vm.refreshWidgets(force = true) }
+                if (vm.hiddenHomeTitleCount > 0) Chip("Restore ${vm.hiddenHomeTitleCount} hidden Home titles") { vm.restoreHomeTitles() }
+            }
+            // #195: one press sets every built-in row; a row can still be given its own shape in its Edit.
+            Text("Rows that come with Ember", color = Mute, fontSize = 13.sp)
+            ButtonRow {
+                val own = vm.sections.rowShapes.size
+                Chip("All wide", selected = own == 0 && vm.look.modernCards != "poster") { vm.look.updateModernCards("wide"); vm.sections.clearShapes() }
+                Chip("All posters", selected = own == 0 && vm.look.modernCards == "poster") { vm.look.updateModernCards("poster"); vm.sections.clearShapes() }
+                if (own > 0) Text(if (own == 1) "1 row has its own shape" else "$own rows have their own shape", color = Mute, fontSize = 13.sp)
             }
             message?.let { Text(it, color = Mute, fontSize = 13.sp) }
             vm.sections.layout.forEach { (section, on) ->
                 val built = info[section] ?: return@forEach
                 val w = own(section)
                 // #176: one card per widget, with a picture of what it is; OK opens its actions.
-                Focusable(onClick = { menu = section }, modifier = Modifier.width(640.dp).testTag("widget_card"), radius = TvTokens.Shape.Card, container = PanelHi) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Focusable(onClick = { menu = section }, modifier = Modifier.width(600.dp).testTag("widget_card"), radius = TvTokens.Shape.Card, container = PanelHi) {
                     val ink = androidx.tv.material3.LocalContentColor.current
                     Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         // The editor's picture at 60%, so a long Home still fits a few to the screen.
@@ -83,29 +96,32 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                         }
                     }
                 }
+                // #199: hide or show in one press, without the menu.
+                SwitchChip("On Home", on, modifier = Modifier.semantics { contentDescription = (w?.title ?: built.label) + ", on Home" }) { vm.sections.toggleSection(section) }
+                }
             }
-            Note("Press OK on a widget to show or hide it or move it; your own can also be edited and deleted. Banner and list options are in Settings > Home > Banner & lists, and the apps in Apps & folders.")
+            Note("The switch beside a widget hides or shows it. Press OK on a widget to edit or move it: the banner's catalog and artwork, what each list includes, a row's card shape. Your own can also be deleted.")
             Chip("Back to the default order") { vm.sections.resetLayout() }
         }
     }
     var renaming by remember { mutableStateOf<String?>(null) }
+    var adjusting by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     menu?.let { section ->
         val w = own(section)
         val order = vm.sections.layout.map { it.first }
-        val catalog = app.ember.tv.state.HomeSectionsState.isCatalogSection(section)
         OptionMenu(w?.title ?: info[section]?.label ?: "Widget", buildList {
-            WidgetDrafts.actions(w != null && !kids, vm.sections.sectionOn(section), if (vm.sections.isList(section)) vm.sections.listStyle(section) else null, catalog).forEach { label ->
+            WidgetDrafts.actions(w != null && !kids, w == null && WidgetDrafts.editable(section), vm.sections.sectionOn(section)).forEach { label ->
                 add(MenuOption(label) { when (label) {
-                    "Edit" -> editing = w
+                    // #195: built-in widgets can't be deleted, but what applies to them can be adjusted.
+                    "Edit" -> if (w != null) editing = w else adjusting = section
                     "Delete" -> removing = w
-                    "Rename" -> renaming = app.ember.tv.state.HomeSectionsState.catalogKey(section)
-                    "Show as a button", "Show as a row" -> vm.sections.toggleListStyle(section)
                     else -> vm.sections.toggleSection(section)
                 } })
             }
             WidgetDrafts.moves(order.indexOf(section), order.lastIndex).forEach { (label, step) -> add(MenuOption(label) { vm.sections.moveSection(section, step) }) }
         }) { menu = null }
     }
+    adjusting?.let { section -> BuiltInWidgetDialog(vm, section, info[section]?.label ?: "Widget", rename = { renaming = it }) { adjusting = null } }
     renaming?.let { key ->
         val original = vm.allCatalogs.firstOrNull { it.key == key }?.originalLabel ?: vm.rows.firstOrNull { it.catalogKey == key }?.title ?: "Catalog"
         CatalogRenameDialog(vm, key, original) { renaming = null }
@@ -142,14 +158,17 @@ internal object WidgetDrafts {
         else -> HomeWidgets.ROW
     }
     const val APPS = "apps"
-    /** A widget card's menu (#189), before the moves. Only your own widgets can be edited or deleted. */
-    fun actions(own: Boolean, on: Boolean, listStyle: String?, catalog: Boolean): List<String> = buildList {
-        if (own) add("Edit")
+    /** A widget card's menu (#189, #195), before the moves. Built-in widgets are edited where a setting applies, never deleted. */
+    fun actions(own: Boolean, editable: Boolean, on: Boolean): List<String> = buildList {
+        if (own || editable) add("Edit")
         add(if (on) "Hide from Home" else "Show on Home")
-        if (listStyle != null) add(if (listStyle == "row") "Show as a button" else "Show as a row")
-        if (catalog) add("Rename")
         if (own) add("Delete")
     }
+    /** Built-in widgets with something to adjust: the banner, apps, the three lists and every row of titles. */
+    fun editable(section: String): Boolean = section == app.ember.tv.HomeViewModel.HOME_HERO || section == app.ember.tv.HomeViewModel.HOME_APPS ||
+        app.ember.tv.state.HomeSectionsState.hasShape(section)
+    /** The list a built-in list widget draws on, as list sources name it; null for any other widget. */
+    fun personalList(section: String): String? = PersonalListSources.lists.firstOrNull { it.first == section }?.first
     /** The first line of a widget row's menu on Home (#183): the title's own options. */
     fun titleOption(name: String) = "Options for " + name.trim().ifBlank { "this title" }.let { if (it.length > 28) it.take(27).trimEnd() + "…" else it }
     /** #181: filters built in the editor become a source named after what they ask for. */
@@ -205,8 +224,18 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
             WidgetSteps.STYLE -> {
                 // #172: each style as a small picture of itself.
                 ButtonRow { HomeWidgets.styles.forEach { (value, name) ->
-                    WidgetStyleTile(value, name, draft.style == value) { draft = draft.copy(style = value); if (!existing) step = WidgetSteps.SOURCE }
+                    WidgetStyleTile(value, name, draft.style == value) { draft = draft.copy(style = value) }
                 } }
+                // #195: a row is posters or wide cards, your choice, shown as pictures. #196: a panel chooses its artwork.
+                if (HomeWidgets.isPanel(draft.style)) {
+                    Text("Artwork", color = Mute, fontSize = 13.sp)
+                    ButtonRow { HomeWidgets.arts.forEach { (value, name) -> Chip(name, draft.art == value) { draft = draft.copy(art = value) } } }
+                    Note(if (draft.art == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos. Add TMDB and Fanart API keys in Settings > Accounts > API keys; missing images fall back to standard artwork."
+                        else "Standard TMDB and catalog backgrounds and logos.")
+                } else {
+                    Text("Card shape", color = Mute, fontSize = 13.sp)
+                    ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> CardShapeTile(value, name, draft.shape == value) { draft = draft.copy(shape = value) } } }
+                }
             }
             WidgetSteps.SOURCE -> {
                 Text("Now: " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "nothing chosen yet", fontSize = 15.sp)
@@ -233,10 +262,6 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
             }
             else -> {
                 TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Widget title")
-                if (draft.style == HomeWidgets.ROW || draft.style == HomeWidgets.NUMBERED) {
-                    Text("Card shape", color = Mute, fontSize = 13.sp)
-                    ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> Chip(name, draft.shape == value) { draft = draft.copy(shape = value) } } }
-                }
                 Text("Titles to show", color = Mute, fontSize = 13.sp)
                 ButtonRow { WidgetDrafts.limits.forEach { n -> Chip("$n", draft.limit == n) { draft = draft.copy(limit = n) } } }
                 Text(HomeWidgets.styleName(draft.style) + " · " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "no source yet", color = Mute, fontSize = 13.sp)
@@ -300,6 +325,77 @@ private fun WidgetPreview(vm: HomeViewModel, draft: HomeWidget) {
             }
             Text(if (shown.size == 1) "1 title" else "${shown.size} titles, the first ${few.size} shown", color = Mute, fontSize = 12.sp)
         }
+    }
+}
+
+/** Poster, wide, or whatever Home's rows use, as a small picture (#195). */
+@Composable
+private fun CardShapeTile(shape: String, name: String, selected: Boolean, onClick: () -> Unit) {
+    Focusable(onClick = onClick, modifier = Modifier.width(132.dp).testTag("card_shape_$shape"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
+        val ink = androidx.tv.material3.LocalContentColor.current
+        Column(Modifier.fillMaxWidth().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.height(56.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                fun Modifier.block() = clip(RoundedCornerShape(4.dp)).background(ink.copy(alpha = .45f))
+                when (shape) {
+                    "poster" -> repeat(2) { Box(Modifier.width(34.dp).height(51.dp).block()) }
+                    "wide" -> Box(Modifier.width(84.dp).height(47.dp).block())
+                    else -> { Box(Modifier.width(26.dp).height(39.dp).block()); Box(Modifier.width(52.dp).height(29.dp).block()) }
+                }
+            }
+            Text(if (selected) "$name  ✓" else name, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/**
+ * Adjusting a widget that comes with Ember (#195, #197): the banner's catalog and artwork, how
+ * many rows of apps, what a list includes and whether it is a row or a button, a row's card shape,
+ * a catalog's name. Nothing here deletes it.
+ */
+@Composable
+private fun BuiltInWidgetDialog(vm: HomeViewModel, section: String, label: String, rename: (String) -> Unit, close: () -> Unit) {
+    var catalogs by remember { mutableStateOf(false) }
+    if (catalogs) { CatalogSourcePicker(vm, "Banner catalog", vm.look.heroCatalog, vm.look::updateHeroCatalog) { catalogs = false }; return }
+    MediaDialog(label, close) {
+        when {
+            section == HomeViewModel.HOME_HERO -> {
+                SettingValueRow("Catalog", catalogSourceLabel(vm, vm.look.heroCatalog)) { catalogs = true }
+                Note("Any addon catalog, or a mix of the Home catalogs. Up to ten titles with artwork are shown, with Watch now and watchlist.")
+                Text("Artwork", color = Mute, fontSize = 13.sp)
+                ButtonRow { HomeWidgets.arts.forEach { (value, name) -> Chip(name, vm.look.heroArtworkMode == value) { vm.look.updateHeroArtworkMode(value) } } }
+                Note(if (vm.look.heroArtworkMode == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos; missing images fall back to standard artwork."
+                    else "Standard TMDB and catalog backgrounds and logos.")
+                if (vm.look.heroArtworkMode == HeroArtworkMode.FANART) Chip("Fanart API key") { close(); vm.openSettingsPage("KEYS") }
+            }
+            section == HomeViewModel.HOME_APPS -> {
+                Text("Rows of apps", color = Mute, fontSize = 13.sp)
+                ButtonRow {
+                    Chip("One row", selected = vm.homeAppRows == 1) { vm.updateHomeAppRows(1) }
+                    Chip("Two rows", selected = vm.homeAppRows == 2) { vm.updateHomeAppRows(2) }
+                }
+                Chip("Choose the apps") { close(); vm.openSettingsPage("HOME_TOOLS") }
+            }
+        }
+        WidgetDrafts.personalList(section)?.let { list ->
+            Text("Show as", color = Mute, fontSize = 13.sp)
+            ButtonRow { listOf("row" to "A row of titles", "button" to "A button") .forEach { (value, name) ->
+                Chip(name, vm.sections.listStyle(section) == value) { if (vm.sections.listStyle(section) != value) vm.sections.toggleListStyle(section) }
+            } }
+            // #197: what the list includes, for this profile; it used to be on a page of its own.
+            Text("Include from", color = Mute, fontSize = 13.sp)
+            ButtonRow { PersonalListSources.sources.forEach { (source, name) ->
+                SwitchChip(name, vm.sections.sourceEnabled(vm.profiles.profileId, list, source)) { vm.sections.toggleSource(vm.profiles.profileId, list, source) }
+            } }
+            Note("Applies to ${vm.profile.name}, on Home and on the list's own page. A source left out keeps its own data.")
+            if (list != "recent") Chip("Restore hidden items") { LocalLibrary.restoreList(list) }
+        }
+        if (app.ember.tv.state.HomeSectionsState.hasShape(section) && (WidgetDrafts.personalList(section) == null || vm.sections.listStyle(section) == "row")) {
+            Text("Card shape", color = Mute, fontSize = 13.sp)
+            val now = vm.sections.shape(section) ?: "default"
+            ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> CardShapeTile(value, name, now == value) { vm.sections.setShape(section, value.takeIf { it != "default" }) } } }
+        }
+        if (app.ember.tv.state.HomeSectionsState.isCatalogSection(section)) Chip("Rename") { close(); rename(app.ember.tv.state.HomeSectionsState.catalogKey(section)) }
+        ButtonRow { Chip("Done") { close() } }
     }
 }
 

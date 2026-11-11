@@ -446,6 +446,14 @@ class Prefs(context: Context) {
         }
         set(v) = sp.edit { putString(PreferenceKeys.HOME_LAYOUT.name, v.joinToString(",") { "${it.first}:${if (it.second) 1 else 0}" }) }
 
+    /** #195: built-in rows with a card shape of their own, by section id. Catalog section ids hold ':' so the shape is the last part. */
+    var homeRowShapes: Map<String, String>
+        get() = sp.read(PreferenceKeys.HOME_ROW_SHAPES)!!.split('\n').mapNotNull { e ->
+            val i = e.lastIndexOf(':')
+            if (i <= 0) null else e.substring(0, i) to e.substring(i + 1)
+        }.toMap()
+        set(v) = sp.edit { putString(PreferenceKeys.HOME_ROW_SHAPES.name, v.entries.joinToString("\n") { "${it.key}:${it.value}" }) }
+
     /** How In progress, Recently watched and the watchlist show on For You: "row" or "button", by section id. */
     var homeListStyle: Map<String, String>
         get() = sp.read(PreferenceKeys.HOME_LIST_STYLE)!!.split(',').mapNotNull { e ->

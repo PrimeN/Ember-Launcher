@@ -434,7 +434,7 @@ fun ModernHome(
                             rotating = interactive && LocalSceneInteractive.current, onFocus = { onAmbient(null) })
                     } else ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
                         // #161: one of your widgets draws in its own style and card shape.
-                        val look = WidgetLook.of(b.widget, wide)
+                        val look = WidgetLook.of(b.widget, wide, b.shape)
                         MediaRow(
                             b.row.items, look.wide, isSaved = { b.saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle,
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
@@ -670,7 +670,7 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
             val fromEnd = WidgetLook.carouselForward(initialState, targetState, items.size) != rtl
             (slideInHorizontally(tween(millis)) { full -> if (reduceMotion) 0 else if (fromEnd) full else -full } + fadeIn(tween(millis)))
                 .togetherWith(slideOutHorizontally(tween(millis)) { full -> if (reduceMotion) 0 else if (fromEnd) -full / 3 else full / 3 } + fadeOut(tween(millis)))
-        }) { at -> LandscapeImage(items.getOrNull(at) ?: meta, Modifier.fillMaxSize()) }
+        }) { at -> WidgetArt(items.getOrNull(at) ?: meta, Modifier.fillMaxSize()) }
         // Text sits on the left and bottom, so the shade is strongest there.
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xE6000000), .55f to Color(0x66000000), 1f to Color.Transparent)))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.5f to Color.Transparent, 1f to Color(0xB3000000))))
@@ -710,13 +710,14 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
 internal data class WidgetLook(val wide: Boolean, val numbered: Boolean) {
     companion object {
         /** For Row and Numbered row widgets; the carousel and hero banner draw their own panels. */
-        fun of(widget: app.ember.tv.data.HomeWidget?, homeWide: Boolean): WidgetLook = when {
-            widget == null -> WidgetLook(homeWide, numbered = false)
+        fun of(widget: app.ember.tv.data.HomeWidget?, homeWide: Boolean, shape: String? = null): WidgetLook = when {
+            // #195: a built-in row may have a shape of its own.
+            widget == null -> WidgetLook(when (shape) { "poster" -> false; "wide" -> true; else -> homeWide }, numbered = false)
             else -> WidgetLook(when (widget.shape) { "poster" -> false; "wide" -> true; else -> homeWide },
                 numbered = widget.style == app.ember.tv.data.HomeWidgets.NUMBERED)
         }
-        /** The cinematic carousel's share of the screen's height (#167): giant, with the next row's title still in view. */
-        const val CAROUSEL_HEIGHT = .72f
+        /** The cinematic carousel's share of the screen's height (#167, #198): giant, nearly the whole screen under its title. */
+        const val CAROUSEL_HEIGHT = .86f
         /** The line under the carousel's logo: kind, year and up to two genres. */
         fun carouselLine(meta: Meta): String = listOfNotNull(meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() },
             meta.releaseInfo?.takeIf { it.isNotBlank() }, meta.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() }).joinToString("  ·  ")
@@ -740,7 +741,8 @@ private fun WidgetActions(vm: HomeViewModel, widget: app.ember.tv.data.HomeWidge
     val titleActions = LocalTitleActions.current
     var asked by remember(widget.id) { mutableStateOf<Meta?>(null) }
     val ask: ((Meta) -> Unit)? = { meta -> asked = meta }
-    CompositionLocalProvider(LocalTitleActions provides ask) { content() }
+    // #196: a banner or carousel widget chooses its own artwork, Standard or Fanart.
+    CompositionLocalProvider(LocalTitleActions provides ask, LocalHeroArtworkMode provides app.ember.tv.data.HeroArtworkMode.normalize(widget.art)) { content() }
     asked?.let { meta ->
         val section = app.ember.tv.data.HomeWidgets.section(widget.id)
         val order = vm.sections.layout.map { it.first }
@@ -751,6 +753,15 @@ private fun WidgetActions(vm: HomeViewModel, widget: app.ember.tv.data.HomeWidge
             add(MenuOption("Hide widget from Home") { vm.sections.toggleSection(section) })
         }) { asked = null }
     }
+}
+
+/**
+ * A banner or carousel widget's picture (#196): the title's background in the widget's artwork mode
+ * (Standard, or Fanart when chosen and available), falling back to the card's own picture.
+ */
+@Composable
+private fun WidgetArt(meta: Meta, modifier: Modifier) {
+    LandscapeImage(rememberHeroDecoration(meta).applyTo(meta), modifier)
 }
 
 /**
@@ -823,7 +834,7 @@ internal fun WidgetCarousel(id: String, items: List<Meta>, height: Dp, isSaved: 
                     }) { at ->
                         val shown = items.getOrNull(at) ?: meta
                         Box(Modifier.fillMaxSize()) {
-                            LandscapeImage(shown, Modifier.fillMaxSize())
+                            WidgetArt(shown, Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.45f to Color.Transparent, 1f to Color(0xEB000000))))
                             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(.7f).padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 HeroTitle(shown, centered = true)

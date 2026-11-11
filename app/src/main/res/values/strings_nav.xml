@@ -68,7 +68,7 @@
     <string name="settings_summary_apps_folders">Apps on Home and the Apps page, folders, artwork and PIN locks.</string>
     <string name="settings_summary_startup">Ember as Home, the Home button and what opens when the TV starts.</string>
     <string name="settings_summary_extras">Now Playing and presentation slideshows.</string>
-    <string name="settings_summary_widgets">Everything on Home, in order: show, hide, move and add your own.</string>
+    <string name="settings_summary_widgets">Everything on Home, in order: show, hide, move, edit and add your own.</string>
     <string name="settings_summary_extras_weather">Now Playing, presentation slideshows and weather.</string>
     <string name="settings_summary_artwork_metadata">Posters, ratings and where title details come from.</string>
     <string name="settings_summary_storage_diagnostics">Cache sizes and durations, crash log and build details.</string>

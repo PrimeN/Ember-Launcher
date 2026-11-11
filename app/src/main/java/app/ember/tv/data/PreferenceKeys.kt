@@ -65,6 +65,8 @@ internal object PreferenceKeys {
     val HOME_HIDDEN_TITLES = PreferenceKey<Set<String>>("homeHiddenTitles", PreferenceType.SET, emptySet())
     val HOME_LAYOUT = PreferenceKey<String?>("homeLayout", PreferenceType.STRING, "")
     val HOME_LIST_STYLE = PreferenceKey<String?>("homeListStyle", PreferenceType.STRING, "")
+    /** A built-in Home row's own card shape (#195), "section:poster" or "section:wide"; unset rows follow the default. */
+    val HOME_ROW_SHAPES = PreferenceKey<String?>("homeRowShapes", PreferenceType.STRING, "")
     val PERSONAL_LIST_SOURCES_OFF = PreferenceKey<Set<String>>("personalListSourcesOff", PreferenceType.SET, emptySet())
     val HOME_OVERRIDE = PreferenceKey<Boolean>("homeOverride", PreferenceType.BOOLEAN, true)
     val HOME_OVERRIDE_MODE = PreferenceKey<String?>("homeOverrideMode", PreferenceType.STRING, "screen")
@@ -154,7 +156,7 @@ internal object PreferenceKeys {
         COLLECTION_AUTO_PAGE, COLLECTION_FOCUS_BACKGROUND, COLLECTION_FOLDERS_OFF, COLLECTION_HERO_PREVIEWS, COLLECTIONS_DISCOVER, COLLECTIONS_OFF,
         CONTENT_DENSITY, COUNTDOWN, CURRENT_PROFILE, CUSTOM_PERFORMANCE, DETAILED_BADGE_CATEGORIES_OFF, BADGES_OFF, DEVICE_PERFORMANCE, DISCOVER_SECTIONS,
         EMBER_X_INTERFACE_MIGRATED, FAHRENHEIT, FEATURES_OFF, HERO_ARTWORK_MODE, HERO_CATALOG, HERO_ON,
-        HIDDEN, HOME_APP_ROWS, HOME_AT_BOOT, HOME_HIDDEN_TITLES, HOME_LAYOUT, HOME_LIST_STYLE, PERSONAL_LIST_SOURCES_OFF,
+        HIDDEN, HOME_APP_ROWS, HOME_AT_BOOT, HOME_HIDDEN_TITLES, HOME_LAYOUT, HOME_LIST_STYLE, HOME_ROW_SHAPES, PERSONAL_LIST_SOURCES_OFF,
         HOME_OVERRIDE, HOME_OVERRIDE_MODE, IPTV_FAVOURITES, IPTV_RECENT, IPTV_VIEW, LIGHT_WALLPAPER, LIGHT_HOME, PERSONAL_HOMES, LAUNCHER_EXTRAS,
         LISTS_ON_HOME_SET, MEDIA_FOCUS_BACKGROUND, MENU_POSITION, META_CONFIG, MODERN_CARDS, NAV,
         NAV_DEFAULTS2, NAVIGATION_GLASS, NAVIGATION_GLASS_METHOD, NAVBAR_STYLE, OLED, ORDER, PAUSED_ADDON_KEYS,

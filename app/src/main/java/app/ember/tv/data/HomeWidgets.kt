@@ -19,6 +19,8 @@ data class HomeWidget(
     val shape: String = "default",
     val source: CollectionSource = CollectionSource(),
     val limit: Int = HomeWidgets.DEFAULT_LIMIT,
+    /** #196: a Hero banner or Cinematic carousel's artwork, [HeroArtworkMode.STANDARD] or [HeroArtworkMode.FANART]. */
+    val art: String = HeroArtworkMode.STANDARD,
 )
 
 object HomeWidgets {
@@ -69,7 +71,11 @@ object HomeWidgets {
         style = w.style.takeIf { s -> styles.any { it.first == s } } ?: ROW,
         shape = w.shape.takeIf { s -> shapes.any { it.first == s } } ?: "default",
         limit = w.limit.coerceIn(LIMITS.first, LIMITS.last),
+        art = HeroArtworkMode.normalize(w.art),
     )
+    /** Styles that are one large panel: they choose artwork (#196), not a card shape. */
+    fun isPanel(style: String) = style == CAROUSEL || style == HERO
+    val arts = listOf(HeroArtworkMode.STANDARD to "Standard", HeroArtworkMode.FANART to "Fanart")
 
     fun error(w: HomeWidget): String? = when {
         w.id.isBlank() -> "The widget has no id."

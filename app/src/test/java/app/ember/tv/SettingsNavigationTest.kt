@@ -10,7 +10,7 @@ class SettingsNavigationTest {
         val pages=SettingsCategory.entries.flatMap {it.pages}+SettingsTab.SEARCH
         // #164: pages that joined another are reached through the page that holds them.
         assertEquals(SettingsTab.entries.filterNot {it.merged}.toSet(),pages.toSet())
-        assertEquals(setOf(SettingsTab.SCREENSAVER,SettingsTab.WEATHER,SettingsTab.CATALOGS,SettingsTab.METADATA,SettingsTab.REMOTE,SettingsTab.CACHE),SettingsTab.entries.filter {it.merged}.toSet())
+        assertEquals(setOf(SettingsTab.HOME_ROWS,SettingsTab.SCREENSAVER,SettingsTab.WEATHER,SettingsTab.CATALOGS,SettingsTab.METADATA,SettingsTab.REMOTE,SettingsTab.CACHE),SettingsTab.entries.filter {it.merged}.toSet())
         SettingsTab.entries.filter {it.merged}.forEach {page->assertFalse(page.host.merged);assertEquals(page.group,page.host.group)}
         assertEquals(pages.size,pages.distinct().size)
         assertEquals(8,SettingsCategory.entries.size)
@@ -46,7 +46,7 @@ class SettingsNavigationTest {
     @Test fun relatedSettingsShareACategory() {
         assertEquals(listOf(SettingsTab.APPEARANCE,SettingsTab.SIZE,SettingsTab.PERFORMANCE),SettingsCategory.LOOK.pages)
         // #164: the regrouped menu.
-        assertEquals(listOf(SettingsTab.HOME_ROWS,SettingsTab.WIDGETS,SettingsTab.HOME_TOOLS,SettingsTab.TOP_MENU,SettingsTab.LIGHT_HOME,SettingsTab.DEFAULT_HOME,SettingsTab.HOME_EXTRAS),SettingsCategory.HOME.pages)
+        assertEquals(listOf(SettingsTab.WIDGETS,SettingsTab.HOME_TOOLS,SettingsTab.TOP_MENU,SettingsTab.LIGHT_HOME,SettingsTab.DEFAULT_HOME,SettingsTab.HOME_EXTRAS),SettingsCategory.HOME.pages)
         assertEquals(listOf(SettingsTab.ADDONS,SettingsTab.STREMIO,SettingsTab.LIVE,SettingsTab.STREAMING,SettingsTab.POSTERS,SettingsTab.DISCOVER),SettingsCategory.SOURCES.pages)
         assertEquals(listOf(SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.UPDATES,SettingsTab.DEBUG,SettingsTab.FEATURES),SettingsCategory.SYSTEM.pages)
         assertEquals(SettingsTab.DEVICE_TOOLS,SettingsLocation.jump("REMOTE")!!.page);assertEquals(SettingsTab.ADDONS,SettingsLocation.open(SettingsTab.CATALOGS).page)

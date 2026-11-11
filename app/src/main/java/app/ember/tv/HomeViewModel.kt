@@ -1204,7 +1204,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         /** One of your widgets that could not load (#177): Home says so where its row would be. */
         data class Notice(override val key: String, val title: String, val text: String) : HomeBlock
         /** [widget] is set for one of your own widgets (#161); the Ember interface draws it in its style. */
-        data class Row(override val key: String, val row: CatalogRow, val saved: Boolean = false, val widget: HomeWidget? = null) : HomeBlock
+        data class Row(override val key: String, val row: CatalogRow, val saved: Boolean = false, val widget: HomeWidget? = null,
+            /** #195: a built-in row's own card shape ("poster" or "wide"); null follows the default. */
+            val shape: String? = null) : HomeBlock
         /** A Collection: a row of folder tiles. */
         data class Collection(override val key: String, val collection: app.ember.tv.data.MediaCollection) : HomeBlock
     }
@@ -1217,6 +1219,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             fun addCollections(list: List<app.ember.tv.data.MediaCollection>) = list.forEach { add(HomeBlock.Collection("collection:${it.id}", it)) }
             for ((id, on) in layout) {
                 if (!on) continue
+                val before = size
                 when (id) {
                     HOME_HERO -> if (heroItems.isNotEmpty()) add(HomeBlock.Hero)
                     HOME_APPS -> if (homeApps.isNotEmpty() || personalHomes.current.folders.any {f->f.packages.any(appAccess::canLaunch)}) add(HomeBlock.Apps)
@@ -1263,6 +1266,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                             .forEach { r -> add(HomeBlock.Row(r.catalogKey ?: "$id:${r.addonName}:${r.title}", r)) }
                     }
                 }
+                // #195: every row this section added takes the section's own card shape, when it has one.
+                sections.shape(id)?.let { shape -> for (i in before until size) (this[i] as? HomeBlock.Row)?.let { this[i] = it.copy(shape = shape) } }
             }
             // A Kids profile's Home is its allowed catalogs, even with the section off.
             if (profile.kids) rows.filter { it.catalogKey !in catalogsShown }.forEachIndexed { i, r ->

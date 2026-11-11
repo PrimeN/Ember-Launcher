@@ -23,7 +23,7 @@ data class PhoneContent(
 data class PhoneLookup(val id: String, val name: String, val note: String = "")
 /** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
 data class PhoneWidget(val id: String, val title: String, val style: String, val shape: String, val limit: Int, val source: String, val status: String,
-    val canMoveUp: Boolean = true, val canMoveDown: Boolean = true)
+    val canMoveUp: Boolean = true, val canMoveDown: Boolean = true, val art: String = app.ember.tv.data.HeroArtworkMode.STANDARD)
 data class PhoneCollection(val id: String, val title: String, val folders: List<PhoneFolder>)
 /** [shape] is "poster", "wide" or "square"; [sources] are opaque ids with their labels, in order. */
 data class PhoneFolder(val id: String, val title: String, val shape: String, val hideTitle: Boolean, val cover: String?, val sources: List<Pair<String, String>>)
@@ -143,6 +143,10 @@ object ContentPhone {
         append("</div><label for=shape>Card shape</label><select id=shape name=shape>")
         app.ember.tv.data.HomeWidgets.shapes.forEach { (value, name) -> append("<option value=").append(value).append(if ((widget?.shape ?: "default") == value) " selected" else "").append(">").append(name).append("</option>") }
         append("</select><p class=m>Card shape applies to rows. The cinematic carousel and hero banner are one large panel showing a title at a time.</p>")
+        // #196
+        append("<label for=art>Banner and carousel artwork</label><select id=art name=art>")
+        app.ember.tv.data.HomeWidgets.arts.forEach { (value, name) -> append("<option value=").append(value).append(if ((widget?.art ?: app.ember.tv.data.HeroArtworkMode.STANDARD) == value) " selected" else "").append(">").append(name).append("</option>") }
+        append("</select><p class=m>Fanart prefers Fanart backgrounds and logos; it needs TMDB and Fanart API keys and falls back to standard artwork.</p>")
         append("<label for=limit>Titles to show</label><input id=limit name=limit type=number inputmode=numeric min=").append(app.ember.tv.data.HomeWidgets.LIMITS.first).append(" max=").append(app.ember.tv.data.HomeWidgets.LIMITS.last)
             .append(" value=").append(widget?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT).append(">")
         append("<h3>Content source</h3>")
