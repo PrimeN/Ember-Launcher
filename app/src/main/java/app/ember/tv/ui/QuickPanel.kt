@@ -111,8 +111,8 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                             .verticalScroll(rememberMenuScrollState())
                             .padding(bottom = 20.dp),
                     ) {
-                        // ---- header: date and time on the left; Ember, the TV's settings and the
-                        // profile on the right, like the TV's own panel (#59) ----
+                        // ---- header: date and time on the left; Ember's and the TV's settings on the
+                        // right (#59). No profile button (#206): the Profile section below switches. ----
                         Row(
                             Modifier.fillMaxWidth().background(FloatingPanelStyle.header).padding(start = 26.dp, end = 22.dp, top = 24.dp, bottom = 20.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -122,19 +122,11 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                                 Text(info.date, fontSize = 15.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(info.time, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             }
-                            val p = vm.profiles.profile
                             HeaderButton(stringResource(R.string.ui_ember_settings), if (onReturn == null) Modifier.focusRequester(first) else Modifier,
                                 onClick = { onClose(); onSettings() }) { EmberMark(26.dp) }
                             HeaderButton(stringResource(R.string.ui_qs_tv_settings), onClick = {
                                 onClose(); vm.openSettingsGuarded { QuickActions.open(context, Settings.ACTION_SETTINGS) }
                             }) { androidx.tv.material3.Icon(IcSettings, contentDescription = null, modifier = Modifier.size(24.dp)) }
-                            HeaderButton(if (vm.profiles.all.size > 1) "${p.name} · switch" else p.name, onClick = {
-                                onClose()
-                                if (vm.profiles.all.size > 1) vm.profiles.showProfilePicker = true
-                                else vm.openSettingsPage(SettingsTab.PROFILES.name)
-                            }, filled = Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })) {
-                                Text(p.name.take(1).uppercase(), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
-                            }
                         }
 
                         // The TV's own settings need the PIN from a Kids profile, like Ember's.

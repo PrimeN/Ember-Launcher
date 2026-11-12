@@ -302,6 +302,14 @@ class HomeWidgetsTest {
         assertTrue(catalogs.contains("Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))"))
     }
 
+    @Test fun theQuickPanelHeaderHasNoProfileButton() {
+        // #206: Ember settings and TV settings only; profiles switch in the panel's Profile section.
+        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
+        assertTrue(panel.contains("HeaderButton(stringResource(R.string.ui_ember_settings)")); assertTrue(panel.contains("HeaderButton(stringResource(R.string.ui_qs_tv_settings)"))
+        assertEquals(2, Regex("HeaderButton\\(").findAll(panel.substringBefore("fun tv(action: String)")).count())
+        assertFalse(panel.contains("· switch"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

@@ -23,7 +23,7 @@ internal fun profileMenuActions(profile: Profile, libraryVisible: Boolean): List
         add(ProfileMenuAction.CONTINUE)
         add(ProfileMenuAction.RECENT)
     }
-    // #205: no "Manage profiles" row; the Add button beside the avatars opens it.
+    add(ProfileMenuAction.PROFILES)
 }
 
 /** Anchor to the actual avatar in every navigation style, keeping the panel in the viewport. */
