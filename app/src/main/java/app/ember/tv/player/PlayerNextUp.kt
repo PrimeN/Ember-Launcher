@@ -20,10 +20,11 @@ internal fun PlayerActivity.readNextEpisodes() {
     val seasons = intent.getIntArrayExtra(PlayRequest.EXTRA_NEXT_SEASONS) ?: return
     val numbers = intent.getIntArrayExtra(PlayRequest.EXTRA_NEXT_NUMBERS) ?: return
     val titles = intent.getStringArrayExtra(PlayRequest.EXTRA_NEXT_TITLES) ?: emptyArray()
+    val thumbs = intent.getStringArrayExtra(PlayRequest.EXTRA_NEXT_THUMBS) ?: emptyArray()
     for (i in ids.indices) {
         val s = seasons.getOrNull(i) ?: continue
         val n = numbers.getOrNull(i) ?: continue
-        nextEpisodes += Episode(ids[i], s, n, titles.getOrNull(i) ?: getString(R.string.pl_episode_n, n), null, null)
+        nextEpisodes += Episode(ids[i], s, n, titles.getOrNull(i) ?: getString(R.string.pl_episode_n, n), null, thumbs.getOrNull(i)?.takeIf { it.isNotBlank() })
     }
 }
 
@@ -62,18 +63,38 @@ internal fun PlayerActivity.onEpisodeEnded() {
         return
     }
     view.useController = false
+    // #227: already counting down since the credits began; let it finish.
+    if (upNextUi.visible) return
+    showUpNext(next)
+}
+
+/** Shows the Up next card and starts its countdown (#225, #227): at the credits, near the end, or when the video ends. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.showUpNext(next: Episode) {
     controls.visible = false
     controls.sheet = null
     closeMenu()
     upNextUi.apply {
         series = seriesName; season = next.season; episode = next.episode; title = next.title
-        thumbnail = next.thumbnail; rating = intent.getStringExtra(PlayRequest.EXTRA_AGE_RATING)
+        // #228: the episode's own picture, else the show's.
+        thumbnail = next.thumbnail ?: controls.details?.backdrop; rating = intent.getStringExtra(PlayRequest.EXTRA_AGE_RATING)
         seconds = prefs.countdown; finding = false; visible = true
     }
     upNext.visibility = View.VISIBLE
     upNext.requestFocus()
     secondsLeft = prefs.countdown
+    handler.removeCallbacks(tick)
     handler.post(tick)
+}
+
+/** Back on a card shown before the end (#227): hide it and keep watching the credits; it returns when the video ends. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.dismissUpNext() {
+    handler.removeCallbacks(tick)
+    upNextUi.visible = false
+    upNext.visibility = View.GONE
+    upNextDismissed = true
+    view.requestFocus()
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])

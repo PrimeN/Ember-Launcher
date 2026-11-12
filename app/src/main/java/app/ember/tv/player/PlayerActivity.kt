@@ -113,6 +113,8 @@ class PlayerActivity : ComponentActivity() {
     /** #225: the Up next card, drawn in Compose over the video. */
     internal lateinit var upNext: android.view.View
     internal val upNextUi = UpNextUi()
+    /** Back hid the card during the credits (#227); it stays hidden until playback leaves them. */
+    internal var upNextDismissed = false
     internal var secondsLeft = 0
 
     // Debrid and addon links often redirect, sometimes from http to https. High-bitrate
@@ -1289,7 +1291,14 @@ class PlayerActivity : ComponentActivity() {
             handler.removeCallbacks(hideInfo)
             return super.dispatchKeyEvent(event)
         }
-        if (::upNext.isInitialized && upNext.isVisible) return super.dispatchKeyEvent(event)
+        if (::upNext.isInitialized && upNext.isVisible) {
+            // #227: during the credits, Back hides the card and keeps watching.
+            if (event.keyCode == KeyEvent.KEYCODE_BACK && !ended && player != null) {
+                if (event.action == KeyEvent.ACTION_UP) dismissUpNext()
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
         if (advanced) advancedKey(event)?.let { return it }
         // Settings > Player > Leaving the player: Back asks before the video closes.
         if (event.keyCode == KeyEvent.KEYCODE_BACK && config.confirmExit && !trailer && player != null && !ended) {
@@ -1476,6 +1485,7 @@ class PlayerActivity : ComponentActivity() {
     internal val itemInitialized: Boolean get() = ::item.isInitialized
     internal val panelInitialized: Boolean get() = ::panel.isInitialized
     internal val skipButtonInitialized: Boolean get() = ::skipButton.isInitialized
+    internal val upNextInitialized: Boolean get() = ::upNext.isInitialized
     internal val soundLabelInitialized: Boolean get() = ::soundLabel.isInitialized
     internal val subListInitialized: Boolean get() = ::subList.isInitialized
     internal val subsInitialized: Boolean get() = ::subs.isInitialized

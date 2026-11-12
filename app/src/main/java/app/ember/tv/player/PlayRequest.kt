@@ -88,6 +88,8 @@ data class PlayRequest(
             .putExtra(EXTRA_NEXT_SEASONS, nextEpisodes.map { it.season }.toIntArray())
             .putExtra(EXTRA_NEXT_NUMBERS, nextEpisodes.map { it.episode }.toIntArray())
             .putExtra(EXTRA_NEXT_TITLES, nextEpisodes.map { it.title }.toTypedArray())
+            // #228: the Up next card's picture; the first few only, so a long series can't make the intent too large.
+            .putExtra(EXTRA_NEXT_THUMBS, nextThumbnails(nextEpisodes))
             .putExtra(EXTRA_SERVER_REF, privatePlayback?.ref?.value ?: serverRef)
             .putExtra(EXTRA_START_OVER, startOver)
     }
@@ -133,6 +135,10 @@ data class PlayRequest(
         const val EXTRA_NEXT_SEASONS = "nextSeasons"
         const val EXTRA_NEXT_NUMBERS = "nextNumbers"
         const val EXTRA_NEXT_TITLES = "nextTitles"
+        const val EXTRA_NEXT_THUMBS = "nextThumbs"
+        const val NEXT_THUMBS = 30
+        /** Pictures for the next episodes, "" where there is none or past the first [NEXT_THUMBS]. */
+        fun nextThumbnails(next: List<Episode>): Array<String> = next.mapIndexed { i, e -> if (i < NEXT_THUMBS) e.thumbnail.orEmpty() else "" }.toTypedArray()
         const val EXTRA_SERVER_REF = "serverRef"
 
         /**

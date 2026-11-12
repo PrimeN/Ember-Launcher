@@ -53,10 +53,18 @@ internal fun PlayerActivity.checkMarkers() {
                 release = item.title, hash = null, size = null), part.subtitles, preserve = true)
         }
     }
+    // #227: with automatic play on, Up next shows by itself at the credits, or near the end without them.
+    val credits = if (markers.isEmpty() || markersFromIntroDb && !config.introDb) null
+        else (if (markersFromIntroDb) IntroDbSegments.forRuntime(markers, p.duration) else markers).firstOrNull { it.kind == "credits" }
+    val due = UpNextTiming.due(p.currentPosition, p.duration, credits?.startMs, credits?.endMs, prefs.countdown)
+    if (!due) upNextDismissed = false
+    val autoNext = prefs.autoplay && fileQueue == null && nextEpisodes.isNotEmpty() && liveSession == null && !trailer
+    if (autoNext && due && !ended && !upNextDismissed && upNextInitialized && !upNextUi.visible) nextEpisodes.firstOrNull()?.let { showUpNext(it) }
     if (markers.isEmpty() || ended || config.skipIntro == "off" || markersFromIntroDb && !config.introDb) return showSkip(null)
     val pos = p.currentPosition
     val eligible = if (markersFromIntroDb) IntroDbSegments.forRuntime(markers, p.duration) else markers
-    val m = eligible.firstOrNull { pos >= it.startMs && pos < it.endMs - 1_000 }
+    // The card replaces the credits' Next episode button when automatic play is on.
+    val m = eligible.firstOrNull { pos >= it.startMs && pos < it.endMs - 1_000 }?.takeUnless { it.kind == "credits" && autoNext }
     if (m != null && m.kind != "credits" && config.skipIntro == "auto" && m !in autoSkipped) {
         autoSkipped += m
         p.seekTo(m.endMs)
@@ -64,6 +72,17 @@ internal fun PlayerActivity.checkMarkers() {
         return showSkip(null)
     }
     showSkip(m)
+}
+
+/** When the Up next card is due by itself (#227). */
+internal object UpNextTiming {
+    /** Without credit markers, this long before the end on top of the countdown. */
+    const val MARGIN_MS = 5_000L
+    fun due(position: Long, duration: Long, creditsStart: Long?, creditsEnd: Long?, countdownSeconds: Int): Boolean {
+        if (duration <= 0 || position < 0) return false
+        if (creditsStart != null) return position >= creditsStart && (creditsEnd == null || position < creditsEnd + 60_000)
+        return duration - position <= countdownSeconds * 1000L + MARGIN_MS
+    }
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])

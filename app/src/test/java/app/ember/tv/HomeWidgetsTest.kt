@@ -445,7 +445,22 @@ class HomeWidgetsTest {
         val layout = java.io.File("src/main/java/app/ember/tv/player/PlayerLayout.kt").readText()
         assertTrue(layout.contains("setContent { UpNextCard(upNextUi) { playNext() } }"))
         val next = java.io.File("src/main/java/app/ember/tv/player/PlayerNextUp.kt").readText()
-        assertTrue(next.contains("thumbnail = next.thumbnail; rating = intent.getStringExtra(PlayRequest.EXTRA_AGE_RATING)"))
+        assertTrue(next.contains("thumbnail = next.thumbnail ?: controls.details?.backdrop"))
+        // #226: about a third of the area of the first card (560 × 150).
+        val area = app.ember.tv.player.UpNextUi.WIDTH * app.ember.tv.player.UpNextUi.HEIGHT
+        assertTrue(area in (560 * 150 * 30 / 100)..(560 * 150 * 38 / 100))
+        // #228: the pictures travel with the episodes, but only for the first few.
+        val eps = (1..40).map { Episode("e$it", 1, it, "E$it", null, if (it == 3) null else "https://img.test/$it.jpg") }
+        val thumbs = app.ember.tv.player.PlayRequest.nextThumbnails(eps)
+        assertEquals(40, thumbs.size); assertEquals("https://img.test/1.jpg", thumbs[0]); assertEquals("", thumbs[2]); assertEquals("", thumbs[35])
+        // #227: at the credits; without them, the countdown plus a little before the end.
+        val timing = app.ember.tv.player.UpNextTiming
+        assertTrue(timing.due(position = 2_500_000, duration = 2_700_000, creditsStart = 2_400_000, creditsEnd = 2_700_000, countdownSeconds = 10))
+        assertFalse(timing.due(2_300_000, 2_700_000, 2_400_000, 2_700_000, 10))
+        assertTrue(timing.due(2_686_000, 2_700_000, null, null, 10)); assertFalse(timing.due(2_680_000, 2_700_000, null, null, 10))
+        assertFalse(timing.due(10, 0, null, null, 10))
+        val overlays = java.io.File("src/main/java/app/ember/tv/player/PlayerOverlays.kt").readText()
+        assertTrue(overlays.contains("takeUnless { it.kind == \"credits\" && autoNext }"))
     }
 
     @Test fun theTraktNoticeUsesTheRequiredWording() {
