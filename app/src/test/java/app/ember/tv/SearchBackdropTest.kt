@@ -45,9 +45,10 @@ class SearchBackdropTest {
         file.outputStream().use {ember.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
     }
 
-    @Test fun aBlueAccentGivesABlueGlow() {
-        val blue=render(2).getPixel(120,12)
-        assertTrue(android.graphics.Color.blue(blue)>android.graphics.Color.red(blue)+20)
+    @Test fun aGreenAccentGivesAGreenGlow() {
+        // Blue (2) is no longer offered (#208); Green shows the glow takes the accent's colour.
+        val green=render(3).getPixel(120,12)
+        assertTrue(android.graphics.Color.green(green)>android.graphics.Color.red(green)+20)
     }
 
     @Test fun theNeighbourHueIsCloseAndTheStrengthSuitsEachTheme() {

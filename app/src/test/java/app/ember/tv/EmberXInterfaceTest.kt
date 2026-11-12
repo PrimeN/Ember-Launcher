@@ -64,10 +64,10 @@ class EmberXInterfaceTest {
         } finally {scope.cancel()}
     }
     @Test fun selectedThemeRoundTripsThroughExistingEncryptedBackupStores() {
-        val source=PersistenceContext(temp.newFolder());Prefs(source).apply {uiStyle=InterfaceStyles.EMBER_X;accent=2}
+        val source=PersistenceContext(temp.newFolder());Prefs(source).apply {uiStyle=InterfaceStyles.EMBER_X;accent=3}
         val payload=BackupPersistence(source,FixtureSecrets()).snapshot()
         val target=PersistenceContext(temp.newFolder());BackupPersistence(target,FixtureSecrets()).restore(payload)
-        assertEquals(2,Prefs(target).accent)
+        assertEquals(3,Prefs(target).accent)
         assertEquals(InterfaceStyles.MODERN,Prefs(target).uiStyle)
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
         try {LookState(Prefs(target),scope);assertFalse(Ui.emberX)} finally {scope.cancel()}

@@ -211,7 +211,8 @@ class PlaybackAndColourThemeTest {
 
     @Test fun glassTakesATouchOfTheAccentOnlyInTheAccentThemes() {
         // #155
-        for(index in listOf(0,2,3,4))for(oled in listOf(false,true)) {
+        // Blue (2) is no longer offered (#208).
+        for(index in listOf(0,3,4))for(oled in listOf(false,true)) {
             val glass=AccentTones.glass(index,oled)!!
             assertTrue(glass.luminance()<.03f)
             val turn=kotlin.math.abs(hsv(glass)[0]-hsv(Accents[index].second)[0]).let {minOf(it,360f-it)}
