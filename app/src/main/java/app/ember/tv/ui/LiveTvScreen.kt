@@ -445,7 +445,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     if (guideTools) EpgTools(iptv, guideChannel) { guideTools = false }
     if (displayOptions) LiveDialog("Guide display", { displayOptions = false }) {
         Text("Target row count; larger text keeps a readable minimum row height.", color = Mute)
-        ButtonRow { (5..7).forEach { rows -> Chip("$rows rows", selected = iptv.library.guideRows == rows) { iptv.guideDisplay(rows = rows) } } }
+        StepSlider("Guide rows", (5..7).toList(), iptv.library.guideRows, { "$it rows" }) { rows -> iptv.guideDisplay(rows = rows) }
         SwitchChip("Channel logos", iptv.library.guideLogos) { iptv.guideDisplay(logos = !iptv.library.guideLogos) }
         SwitchChip("Show programme panel", iptv.library.showProgrammePanel) { iptv.guideDisplay(panel = !iptv.library.showProgrammePanel) }
         SwitchChip("Compact programme panel", iptv.library.compactProgramme) { iptv.guideDisplay(compact = !iptv.library.compactProgramme) }

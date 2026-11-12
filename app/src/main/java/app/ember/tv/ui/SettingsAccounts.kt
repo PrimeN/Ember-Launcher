@@ -25,6 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -100,6 +105,86 @@ internal fun ApiKeysHeader(vm: HomeViewModel) {
             )
             vm.keysMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
         }
+    }
+}
+
+/**
+ * Settings > API keys as a grid of services (#214): each tile shows whether its key is there and
+ * whether it is Required or Optional; OK opens the service's dialog to read about it and enter keys.
+ */
+@Composable
+internal fun ApiKeysGrid(vm: HomeViewModel) {
+    @Suppress("UNUSED_VARIABLE")
+    val rev = vm.keysRev // read so the tiles redraw after a save
+    var open by remember { mutableStateOf<ApiKeys.Service?>(null) }
+    val services = ApiKeys.SERVICES.sortedWith(compareBy({ !ApiKeys.required(it) }, { it.name.lowercase() }))
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        services.chunked(4).forEach { line ->
+            Row(Modifier.width(960.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                line.forEach { s -> ApiKeyTile(s, Modifier.weight(1f)) { open = s } }
+                repeat(4 - line.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+    open?.let { s -> ApiKeyDialog(vm, s) { open = null } }
+}
+
+@Composable
+private fun ApiKeyTile(s: ApiKeys.Service, modifier: Modifier, onClick: () -> Unit) {
+    val required = ApiKeys.required(s)
+    val status = ApiKeys.status(ApiKeys.ready(s), required)
+    Focusable(onClick = onClick, modifier = modifier.testTag("api_key_tile").semantics {
+        contentDescription = "${s.name}, ${if (required) "required" else "optional"}, " + when (status) { ApiKeys.Status.SET -> "key set"; else -> "no key" }
+    }, radius = TvTokens.Shape.Card, container = PanelHi) {
+        val ink = androidx.tv.material3.LocalContentColor.current
+        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            KeyStatusMark(status)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(s.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = if (status == ApiKeys.Status.MISSING_OPTIONAL) ink.copy(alpha = .6f) else ink)
+                KeyTag(required)
+            }
+        }
+    }
+}
+
+/** Green tick when the key is there; red cross when a required one is missing; grey when an optional one is. */
+@Composable
+private fun KeyStatusMark(status: ApiKeys.Status) {
+    val (fill, mark) = when (status) {
+        ApiKeys.Status.SET -> Color(0xFF2E9E5B) to "✓"
+        ApiKeys.Status.MISSING_REQUIRED -> Color(0xFFD64545) to "✕"
+        ApiKeys.Status.MISSING_OPTIONAL -> Color(0xFF6B7078) to "–"
+    }
+    Box(Modifier.size(26.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
+        Text(mark, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+    }
+}
+
+@Composable
+private fun KeyTag(required: Boolean) {
+    Text(if (required) "Required" else "Optional", fontSize = 12.sp, fontWeight = FontWeight.Medium,
+        color = if (required) Color(0xFF1F1F1F) else Fg,
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(if (required) Color(0xFFF2C14E) else Fg.copy(alpha = .14f)).padding(horizontal = 7.dp, vertical = 2.dp))
+}
+
+/** A service's dialog (#214): what it's for, its limits, where to get a key, and the fields. */
+@Composable
+private fun ApiKeyDialog(vm: HomeViewModel, s: ApiKeys.Service, close: () -> Unit) {
+    @Suppress("UNUSED_VARIABLE")
+    val rev = vm.keysRev
+    MediaDialog(s.name, close, resizeForKeyboard = true, wide = true) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            KeyStatusMark(ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s)))
+            KeyTag(ApiKeys.required(s))
+            Text(if (ApiKeys.ready(s)) "Key set" else "No key yet", fontSize = 14.sp)
+        }
+        Text(s.usedFor, fontSize = 14.sp)
+        ApiKeys.LIMITS[s.name]?.let { Text("Limits: $it", color = Mute, fontSize = 13.sp) }
+        Text(stringResource(R.string.ui_get_one, s.where), color = Mute, fontSize = 13.sp)
+        vm.keysMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
+        s.fields.forEach { f -> KeyField(vm, f) }
+        ButtonRow { Chip("Done") { close() } }
     }
 }
 

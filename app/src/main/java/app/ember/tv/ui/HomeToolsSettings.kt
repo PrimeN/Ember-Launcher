@@ -122,7 +122,7 @@ internal object AppChoices {
             Text("Small photos and videos can also be sent through the existing 15-minute Phone setup session, with approval on the TV.",color=Mute,fontSize=13.sp)
             SettingToggle("Keep screen awake","Applies only while the presentation is open.",opts.keepAwake){vm.launcherExtras.update {it.copy(keepAwake=!it.keepAwake)}}
             Text("Photo duration",fontSize=15.sp)
-            ButtonRow {listOf(5,10,20,30,60).forEach {seconds->Chip("${seconds}s",selected=opts.slideSeconds==seconds){vm.launcherExtras.update {it.copy(slideSeconds=seconds)}}}}
+            StepSlider("Seconds per slide",listOf(5,10,20,30,60),opts.slideSeconds,{"${it}s"}){seconds->vm.launcherExtras.update {it.copy(slideSeconds=seconds)}}
             opts.slides.forEachIndexed {index,item->
                 Text("${index+1}. ${item.name}",fontSize=14.sp,maxLines=2)
                 ButtonRow {

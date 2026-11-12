@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.material.icons.outlined.Info
 import app.ember.tv.R
 
@@ -1035,7 +1036,23 @@ internal fun PlayButtonPage(vm: HomeViewModel) {
 }
 
 
-/** Settings > System > Updates: new versions from the GitHub repository, installed after Android asks. */
+/** A labelled progress bar for downloading and installing an update (#212). */
+@Composable
+internal fun UpdateProgressBar(stage: String, progress: Float) {
+    val p = progress.coerceIn(0f, 1f)
+    Column(Modifier.width(560.dp).semantics(mergeDescendants = true) { contentDescription = "$stage the update, ${(p * 100).toInt()} percent" },
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Text(stage, fontSize = 14.sp, color = Fg, modifier = Modifier.weight(1f))
+            Text("${(p * 100).toInt()}%", fontSize = 14.sp, color = Fg)
+        }
+        Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(Fg.copy(alpha = .18f))) {
+            Box(Modifier.fillMaxWidth(p).fillMaxHeight().clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.primary))
+        }
+    }
+}
+
+/** Settings > System > Updates: new versions from the GitHub repository; Ember installs them and restarts. */
 @Composable
 internal fun UpdatesSection(vm: HomeViewModel) {
     Section(stringResource(R.string.ui_updates), "Ember ${app.ember.tv.BuildConfig.VERSION_NAME} · build ${app.ember.tv.BuildConfig.VERSION_CODE}",id="updates") {
@@ -1046,10 +1063,13 @@ internal fun UpdatesSection(vm: HomeViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Chip(stringResource(R.string.ui_check_now)) { vm.updates.checkForUpdate(manual = true) }
                 vm.updates.update?.let { u ->
-                    Chip(if (vm.updates.updateProgress != null) "Downloading ${((vm.updates.updateProgress ?: 0f) * 100).toInt()}%" else "Install ${u.name}", selected = true) { vm.updates.installUpdate() }
+                    if (vm.updates.updateProgress == null && vm.updates.installProgress == null) Chip("Install ${u.name}", selected = true) { vm.updates.installUpdate() }
                     if (vm.updates.updateProgress != null) Chip("Cancel") { vm.updates.cancelUpdate() }
                 }
             }
+            // #212: one bar through downloading and installing.
+            vm.updates.updateProgress?.let { UpdateProgressBar("Downloading", it) }
+            vm.updates.installProgress?.let { UpdateProgressBar("Installing", it) }
             vm.updates.updateMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
             vm.updates.update?.notes?.takeIf { it.isNotBlank() }?.let { Note(it.take(600)) }
             ToggleRow(

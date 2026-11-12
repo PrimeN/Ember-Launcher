@@ -36,6 +36,8 @@ class UpdatesState(
     var updateMessage by mutableStateOf<String?>(null); private set
     /** 0..1 while downloading, null otherwise. */
     var updateProgress by mutableStateOf<Float?>(null); private set
+    /** 0..1 while Android installs the update (#212), null otherwise. Ember usually restarts before it clears. */
+    var installProgress by mutableStateOf<Float?>(null); private set
     private var checkJob: Job? = null
     private var checkRevision = 0L
     internal var checkRelease: suspend (String) -> Result<Updater.Release?> = Updater::check
@@ -44,12 +46,13 @@ class UpdatesState(
     internal var requestInstallPermission: () -> Boolean = { Updater.openInstallPermission(app) }
     internal var downloadRelease: suspend (Updater.Release, (Float) -> Unit) -> Result<File> = { release, progress -> Updater.download(app, release, progress) }
     /** Copies the APK into Android's installer, so it runs off the main thread (#99). */
-    internal var installRelease: suspend (File) -> Unit = { file -> withContext(Dispatchers.IO) { Updater.install(app, file) } }
+    internal var installRelease: suspend (File, (Float) -> Unit) -> Boolean = { file, progress -> withContext(Dispatchers.IO) { Updater.install(app, file, progress) } }
     private var downloadRevision = 0L
 
     init {
         // What Android's installer reports (confirmation needed, failed, cancelled) shows here (#99).
-        Updater.statusListener = { message -> scope.launch { updateMessage = message } }
+        // Any word from the installer ends the installing bar; success restarts Ember anyway.
+        Updater.statusListener = { message -> scope.launch { updateMessage = message; installProgress = null } }
     }
 
     fun updateUpdateChannel(v: String) {
@@ -131,7 +134,7 @@ class UpdatesState(
             else "Open Android Settings and allow Ember to install apps, then press Install again. This device has no permission shortcut."
             return
         }
-        if (updateProgress != null) return
+        if (updateProgress != null || installProgress != null) return
         updateProgress = 0f
         updateMessage = "Downloading..."
         val revision = ++downloadRevision
@@ -148,8 +151,14 @@ class UpdatesState(
                 ensureActive()
                 if (revision != downloadRevision || channel != activeChannel) return@launch
                 file.onSuccess {
-                    installRelease(it)
-                    updateMessage = "Android will ask to install the update."
+                    // #212: on most TVs Ember updates itself and restarts without Android asking.
+                    updateProgress = null
+                    installProgress = 0f
+                    updateMessage = INSTALLING
+                    val session = try {
+                        installRelease(it) { p -> scope.launch { if (revision == downloadRevision && installProgress != null) installProgress = maxOf(installProgress ?: 0f, p) } }
+                    } catch (e: Throwable) { installProgress = null; throw e }
+                    if (!session) { installProgress = null; updateMessage = ASKS }
                 }.onFailure { e -> updateMessage = e.message ?: "The download failed." }
             } catch (_: ActivityNotFoundException) {
                 updateMessage = "No Android package installer is available on this device. The downloaded update was not installed."
@@ -170,4 +179,9 @@ class UpdatesState(
     /** Stops a running download (the partial file is removed). */
     private fun stopDownload() { downloadRevision++; downloadJob?.cancel(); updateProgress = null }
     fun cancelUpdate() { stopDownload(); updateMessage = "Download cancelled." }
+
+    companion object {
+        const val INSTALLING = "Installing the update. Ember restarts by itself when it's done."
+        const val ASKS = "Android will ask to install the update."
+    }
 }

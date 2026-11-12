@@ -329,6 +329,24 @@ class HomeWidgetsTest {
         assertTrue(picker.contains("chunked(AppChoices.PER_ROW)")); assertTrue(picker.contains("AppChoiceTile(a,shown(a.pkg),Modifier.weight(1f))"))
     }
 
+    @Test fun slidersAndTheApiKeyGrid() {
+        // #213
+        val sliders = app.ember.tv.ui.StepSliders
+        assertEquals(1, sliders.step(0, 5, forward = true)); assertEquals(3, sliders.step(4, 5, forward = false))
+        assertNull("left at the start moves focus on", sliders.step(0, 5, forward = false)); assertNull(sliders.step(4, 5, forward = true))
+        assertEquals(2, sliders.nearest(listOf(0, 30, 60, 90), 55)); assertEquals(0, sliders.nearest(listOf(0, 30), -5))
+        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
+        assertTrue(panel.contains("StepSlider(stringResource(R.string.ui_sleep_timer)")); assertFalse(panel.contains("listOf(0, 30, 60, 90, 120).forEach"))
+        for (file in listOf("LightUi.kt", "HomeToolsSettings.kt", "WidgetEditor.kt", "LiveTvScreen.kt")) assertTrue(file, java.io.File("src/main/java/app/ember/tv/ui/$file").readText().contains("StepSlider("))
+        // #214: every service has a tag and a line on its limits; the status follows the key.
+        assertEquals(setOf("TMDB"), ApiKeys.SERVICES.filter(ApiKeys::required).map { it.name }.toSet())
+        for (s in ApiKeys.SERVICES) assertTrue(s.name, !ApiKeys.LIMITS[s.name].isNullOrBlank())
+        assertEquals(ApiKeys.Status.SET, ApiKeys.status(ready = true, required = true))
+        assertEquals(ApiKeys.Status.MISSING_REQUIRED, ApiKeys.status(ready = false, required = true))
+        assertEquals(ApiKeys.Status.MISSING_OPTIONAL, ApiKeys.status(ready = false, required = false))
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText().contains("item(key = \"keysgrid\") { ApiKeysGrid(vm) }"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

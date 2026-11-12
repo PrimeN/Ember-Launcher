@@ -263,7 +263,7 @@ private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: ()
             else -> {
                 TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Widget title")
                 Text("Titles to show", color = Mute, fontSize = 13.sp)
-                ButtonRow { WidgetDrafts.limits.forEach { n -> Chip("$n", draft.limit == n) { draft = draft.copy(limit = n) } } }
+                StepSlider("Titles to show", WidgetDrafts.limits, draft.limit, { "$it" }) { n -> draft = draft.copy(limit = n) }
                 Text(HomeWidgets.styleName(draft.style) + " · " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "no source yet", color = Mute, fontSize = 13.sp)
                 // #182: what will land on Home, with the source's real titles.
                 WidgetPreview(vm, draft)

@@ -582,7 +582,7 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
         LightCarouselCatalog(vm)
         SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
         Text("Full-screen carousel when idle", fontSize = 15.sp)
-        ButtonRow { listOf(0, 15, 30, 60, 120).forEach { seconds -> Chip(if (seconds == 0) "Off" else "${seconds}s", selected = options.idleSeconds == seconds) { vm.look.updateLightHome { it.copy(idleSeconds = seconds) } } } }
+        StepSlider("Idle time", listOf(0, 15, 30, 60, 120), options.idleSeconds, { if (it == 0) "Off" else "${it}s" }) { seconds -> vm.look.updateLightHome { it.copy(idleSeconds = seconds) } }
     }
 }
 

@@ -236,12 +236,21 @@ object Updater {
      * itself this way, Android 12+ can apply later updates without the extra prompt. If a session
      * can't be created, the plain intent is used. Writes the file: call off the main thread.
      */
-    fun install(context: Context, apk: File) {
-        val sessionStarted = runCatching { installWithSession(context.applicationContext, apk) }.isSuccess
+    /**
+     * Hands [apk] to Android. True when it went through an install session (which can finish by itself and
+     * restart Ember); false when Android's installer screen was opened instead, which always asks (#212).
+     * [progress] runs from 0 to 1 as the file is handed over and installed.
+     */
+    fun install(context: Context, apk: File, progress: (Float) -> Unit = {}): Boolean {
+        val sessionStarted = runCatching { installWithSession(context.applicationContext, apk, progress) }.isSuccess
         if (!sessionStarted) installWithIntent(context, apk)
+        return sessionStarted
     }
 
-    private fun installWithSession(context: Context, apk: File) {
+    /** Copying into the session is the first part of the bar; Android's own installing is the rest (#212). */
+    internal const val COPY_SHARE = .6f
+
+    private fun installWithSession(context: Context, apk: File, progress: (Float) -> Unit) {
         val installer = context.packageManager.packageInstaller
         val params = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
@@ -249,10 +258,30 @@ object Updater {
             if (android.os.Build.VERSION.SDK_INT >= 31) setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         }
         val id = installer.createSession(params)
+        // Android reports its own progress through the install (#212); Ember is replaced at the end.
+        val watch = object : android.content.pm.PackageInstaller.SessionCallback() {
+            override fun onCreated(sessionId: Int) {}
+            override fun onBadgingChanged(sessionId: Int) {}
+            override fun onActiveChanged(sessionId: Int, active: Boolean) {}
+            override fun onProgressChanged(sessionId: Int, p: Float) { if (sessionId == id) progress(COPY_SHARE + (1f - COPY_SHARE) * p.coerceIn(0f, 1f)) }
+            override fun onFinished(sessionId: Int, success: Boolean) { if (sessionId == id) runCatching { installer.unregisterSessionCallback(this) } }
+        }
+        runCatching { installer.registerSessionCallback(watch, android.os.Handler(android.os.Looper.getMainLooper())) }
         try {
             installer.openSession(id).use { session ->
                 session.openWrite("base.apk", 0, apk.length()).use { out ->
-                    apk.inputStream().use { it.copyTo(out, 256 * 1024) }
+                    val total = apk.length().coerceAtLeast(1)
+                    var copied = 0L
+                    apk.inputStream().use { input ->
+                        val buffer = ByteArray(256 * 1024)
+                        while (true) {
+                            val n = input.read(buffer); if (n < 0) break
+                            out.write(buffer, 0, n); copied += n
+                            val part = copied.toFloat() / total
+                            session.setStagingProgress(part)
+                            progress(COPY_SHARE * part)
+                        }
+                    }
                     session.fsync(out)
                 }
                 val callback = Intent(context, UpdateInstallReceiver::class.java).setPackage(context.packageName)
@@ -261,6 +290,7 @@ object Updater {
                 session.commit(android.app.PendingIntent.getBroadcast(context, id, callback, flags).intentSender)
             }
         } catch (e: Exception) {
+            runCatching { installer.unregisterSessionCallback(watch) }
             runCatching { installer.abandonSession(id) }
             throw e
         }

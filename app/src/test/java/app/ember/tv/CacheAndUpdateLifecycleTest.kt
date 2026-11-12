@@ -71,7 +71,7 @@ class CacheAndUpdateLifecycleTest {
             state.checkRelease = { Result.success(release(it)) }
             state.installerAllowed = { true }
             state.downloadRelease = { _, _ -> Result.success(File("fixture.apk")) }
-            state.installRelease = { installed++ }
+            state.installRelease = { _, _ -> installed++; true }
             state.checkForUpdate(true)
         }
         fun close() { scope.cancel(); assertTrue(failures.toString(), failures.isEmpty()) }
@@ -79,7 +79,7 @@ class CacheAndUpdateLifecycleTest {
     @Test fun aMissingAndroidInstallerShowsRecoveryInsteadOfCrashing() {
         val f = UpdateFixture()
         try {
-            f.state.installRelease = { throw ActivityNotFoundException("fixture") }
+            f.state.installRelease = { _, _ -> throw ActivityNotFoundException("fixture") }
             f.state.installUpdate()
             assertTrue(f.state.updateMessage.orEmpty().contains("No Android package installer"))
             assertNull(f.state.updateProgress)
@@ -89,14 +89,24 @@ class CacheAndUpdateLifecycleTest {
     @Test fun anInstallerPermissionDenialShowsRecoveryAndAllowsRetry() {
         val f = UpdateFixture()
         try {
-            f.state.installRelease = { throw SecurityException("fixture") }
+            f.state.installRelease = { _, _ -> throw SecurityException("fixture") }
             f.state.installUpdate()
             assertTrue(f.state.updateMessage.orEmpty().contains("blocked"))
             assertNull(f.state.updateProgress)
-            f.state.installRelease = { f.installed++ }
+            // #212: an install session usually finishes by itself and restarts Ember, so it says so and shows a bar.
+            lateinit var report: (Float) -> Unit
+            f.state.installRelease = { _, progress -> report = progress; f.installed++; true }
             f.state.installUpdate()
             assertEquals(1, f.installed)
-            assertEquals("Android will ask to install the update.", f.state.updateMessage)
+            assertEquals(UpdatesState.INSTALLING, f.state.updateMessage)
+            assertNull(f.state.updateProgress); assertEquals(0f, f.state.installProgress)
+            report(.3f); assertEquals(.3f, f.state.installProgress); report(.2f); assertEquals("never backwards", .3f, f.state.installProgress)
+            f.state.installUpdate(); assertEquals("no second download while installing", 1, f.installed)
+            app.ember.tv.data.Updater.report("The update wasn't installed."); assertNull(f.state.installProgress)
+            // When only Android's installer screen could open, it does ask.
+            f.state.installRelease = { _, _ -> f.installed++; false }
+            f.state.installUpdate()
+            assertEquals(UpdatesState.ASKS, f.state.updateMessage); assertNull(f.state.installProgress)
         } finally { f.close() }
     }
     @Test fun deniedPermissionQueriesAndMissingPermissionPagesDoNotStartADownload() {

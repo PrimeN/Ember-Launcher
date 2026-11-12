@@ -250,7 +250,7 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.PROFILES -> item(key = "profiles") { ProfilesPage(vm) }
             SettingsTab.KEYS -> {
                 item(key = "keyshead") { ApiKeysHeader(vm) }
-                items(ApiKeys.SERVICES, key = { "key:${it.name}" }) { s -> ApiKeyCard(vm, s) }
+                item(key = "keysgrid") { ApiKeysGrid(vm) }
             }
             SettingsTab.DEFAULT_HOME -> {
                 item(key = "defaulthome") { DefaultHomePage() }

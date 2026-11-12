@@ -130,6 +130,39 @@ object ApiKeys {
 
     val ALL_IDS: List<String> = SERVICES.flatMap { s -> s.fields.map { it.id } }
 
+    /**
+     * #214: the services most of Ember leans on are tagged Required; every other one adds a feature
+     * and is Optional. Nothing stops working entirely without a key.
+     */
+    val REQUIRED = setOf("TMDB")
+    fun required(s: Service): Boolean = s.name in REQUIRED
+
+    /** What a free key allows, in a line, shown in the service's dialog (#214). */
+    val LIMITS = mapOf(
+        "Streaming Availability" to "Set by your RapidAPI plan; the free plan has a small allowance.",
+        "Mistral AI" to "Set by your Mistral plan; requests may be charged.",
+        "TMDB" to "Free for personal use, with generous rate limits.",
+        "Fanart.tv" to "Free personal key.",
+        "Trakt" to "Free; Trakt limits how often an app can call it.",
+        "WeTrakr" to "Set by WeTrakr for your application.",
+        "Simkl" to "Free for personal apps.",
+        "AniList" to "Free; limited to a number of requests a minute.",
+        "MyAnimeList" to "Free.",
+        "RPDB" to "Paid tiers (t1 to t4) decide the poster styles and how many requests.",
+        "MDBList" to "Free: 1,000 requests a day; more with a supporter plan.",
+        "OMDb" to "Free: 1,000 requests a day.",
+        "TVDB" to "Project keys are free for personal use; some data needs a subscriber PIN.",
+        "OpenSubtitles.com" to "A few downloads a day without signing in; more with an account or VIP.",
+        "SubDL" to "Free key, rate limited.",
+        "Watchmode" to "Free: about 1,000 requests a month.",
+    )
+
+    /** Ready when every field that isn't optional has a key, entered here or built in. */
+    fun ready(s: Service): Boolean = s.fields.filterNot { it.optional }.all { get(it.id).isNotBlank() }
+    /** How a service's tile shows (#214): set, missing and needed, or missing and optional. */
+    enum class Status { SET, MISSING_REQUIRED, MISSING_OPTIONAL }
+    fun status(ready: Boolean, required: Boolean): Status = if (ready) Status.SET else if (required) Status.MISSING_REQUIRED else Status.MISSING_OPTIONAL
+
     private const val PREFIX = "apikey."
     private var app: Context? = null
     var revision by mutableIntStateOf(0); private set
