@@ -54,11 +54,11 @@ class PhoneSetupTest {
         }finally{server.stop()}
     }
 
-    @Test fun accessIsExactlyFifteenMinutesAndRequestsDoNotExtendIt() {
+    @Test fun accessIsExactlyThirtyMinutesAndRequestsDoNotExtendIt() {
         val now = AtomicLong(1000)
         val access = PhoneSetupAccess(nowMillis = now::get)
-        assertEquals(900_000L, access.remainingMillis)
-        now.addAndGet(899_999)
+        assertEquals(1_800_000L, access.remainingMillis)
+        now.addAndGet(1_799_999)
         assertTrue(access.accepts(access.code))
         assertEquals(1L, access.remainingMillis)
         now.incrementAndGet()
@@ -101,7 +101,7 @@ class PhoneSetupTest {
         now.incrementAndGet()
         assertTrue(access.accepts(access.code))
         assertFalse(access.throttled)
-        assertEquals(870_000L, access.remainingMillis)
+        assertEquals(1_770_000L, access.remainingMillis)
     }
 
     @Test fun successfulRequestsDoNotResetTheIncorrectLinkBudget() {
@@ -175,7 +175,7 @@ class PhoneSetupTest {
             assertNotNull(first)
             now.addAndGet(2000)
             assertEquals(first, setup.start())
-            assertEquals(898_000L, setup.remainingMillis)
+            assertEquals(1_798_000L, setup.remainingMillis)
         } finally { setup.stop() }
         assertNull(setup.url)
         assertEquals(0L, setup.remainingMillis)

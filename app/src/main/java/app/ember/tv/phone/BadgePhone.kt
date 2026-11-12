@@ -27,7 +27,7 @@ internal object BadgePhone {
     internal fun picture(f: BadgeFilter, auth: String): String? {
         val url = f.imageURL?.takeIf { it.isNotBlank() } ?: return null
         return if (url.startsWith("https://", true) || url.startsWith("http://", true)) url
-        else "$ICON_PATH$auth&amp;id=" + java.net.URLEncoder.encode(f.id, "UTF-8")
+        else "$ICON_PATH$auth&id=" + java.net.URLEncoder.encode(f.id, "UTF-8")
     }
 
     /** The badge as the TV draws it: a 24-pixel tag, a picture or text. */
@@ -53,7 +53,7 @@ internal object BadgePhone {
 
     fun render(badges: PhoneBadges?, auth: String): String = buildString {
         append("<h2>Source badges</h2>")
-        if (badges == null) { append("<p class=m>Badge editing is unavailable on this TV.</p>"); return@buildString }
+        if (badges == null) { append("<p class=m>Badge editing is unavailable on this TV.</p>"); importForm(auth); return@buildString }
         val modeName = when (badges.mode) { Badges.LEGACY -> "Basic"; Badges.MODERN -> "Detailed"; else -> "Custom" }
         append("<p class=m>The TV shows <b>$modeName</b> badges. ")
         append(if (badges.mode == Badges.CUSTOM) "Changes here apply on the TV straight away." else "Changing your own badges here switches the TV to them.")
@@ -72,10 +72,14 @@ internal object BadgePhone {
             badges.filters.forEachIndexed { i, f -> filter(f, i, badges.filters.lastIndex, auth) }
             append("</div>")
         }
+        importForm(auth)
+        append("<script>").append(SCRIPT).append("</script>")
+    }
+
+    private fun StringBuilder.importForm(auth: String) {
         append("<details class=card><summary>Import a badge pack</summary><div class=in>")
         append("<form class=flat method=post action=\"/badges$auth\" enctype=multipart/form-data><p class=m>A badge pack (JSON). It replaces your custom badges. Pick the file, or paste its contents.</p>")
         append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><button>Use these badges</button></form></div></details>")
-        append("<script>").append(SCRIPT).append("</script>")
     }
 
     private fun StringBuilder.filter(f: BadgeFilter, index: Int, last: Int, auth: String) {
