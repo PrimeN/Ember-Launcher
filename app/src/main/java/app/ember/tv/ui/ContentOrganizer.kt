@@ -61,28 +61,20 @@ internal fun CollectionManager(vm: HomeViewModel) {
         cs.message?.let { Text(it, color = Mute, fontSize = 12.sp) }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, contentPadding = PaddingValues(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(matches, key = { it.id }) { c ->
-                Column(Modifier.fillMaxWidth().background(PanelHi, RoundedCornerShape(12.dp)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Chip(c.title + " · ${c.folders.size} folders", expanded == c.id, Modifier.fillMaxWidth().then(if (restore == c.id) Modifier.focusRequester(focus) else Modifier)) { expanded = if (expanded == c.id) null else c.id }
-                    if (expanded == c.id) {
-                        ButtonRow(spacing = 6.dp) {
-                            Chip("Edit") { original = c; editing = true }
-                            Chip("Duplicate") { scope.launch { cs.duplicateCollection(c.id) } }
-                            Chip("Export") { exporting = c.id }
-                            SwitchChip("Home", c.id !in cs.hidden) { cs.toggle(c.id) }
-                            SwitchChip("Discover", c.id in cs.inDiscover) { cs.toggleDiscover(c.id) }
-                            MoveButton(c.title, cs.list.indexOfFirst { it.id == c.id }, cs.list.lastIndex) { step -> cs.move(c.id, step) }
-                            Chip("Delete", modifier = Modifier.testTag("collection_delete")) { removing = c.id }
-                        }
-                        c.folders.forEach { f -> ButtonRow(spacing = 6.dp) {
-                            Text(f.title, color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            SwitchChip("Visible", cs.folderOn(c, f)) { cs.toggleFolder(c, f) }
-                            Chip("Duplicate folder") { scope.launch { cs.duplicateFolder(c.id, f.id) } }
-                            Chip("Delete folder") { removingFolder = c.id to f.id }
-                        } }
-                    }
-                }
+                // #231: a picture of each collection; OK opens its contents in a dialog.
+                CollectionPreviewCard(vm, c, query, if (restore == c.id) Modifier.focusRequester(focus) else Modifier) { expanded = c.id }
             }
         }
+    }
+    expanded?.let { id ->
+        val c = cs.list.firstOrNull { it.id == id }
+        if (c == null) expanded = null else CollectionContentDialog(vm, c, { restore = id; expanded = null; scope.launch { delay(80); runCatching { focus.requestFocus() } } },
+            onEdit = { original = c; editing = true },
+            onDuplicate = { scope.launch { cs.duplicateCollection(c.id) } },
+            onExport = { exporting = c.id },
+            onDelete = { removing = c.id },
+            onDuplicateFolder = { f -> scope.launch { cs.duplicateFolder(c.id, f.id) } },
+            onDeleteFolder = { f -> removingFolder = c.id to f.id })
     }
     if (editing) CollectionEditor(vm, original) { editing = false }
     if (importing) CollectionImportDialog(vm) { importing = false }

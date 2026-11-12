@@ -9,6 +9,7 @@ import app.ember.tv.discover.*
 import app.ember.tv.phone.*
 import app.ember.tv.state.WidgetsState
 import app.ember.tv.ui.WidgetLook
+import app.ember.tv.ui.CollectionPreviews
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -367,7 +368,7 @@ class HomeWidgetsTest {
         assertTrue(pictures.of("info", "start") in pictures.known && pictures.of("info", "ask") in pictures.known)
         // #216
         val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
-        assertTrue(panel.contains("ReturnTile(title, Modifier.focusRequester(first))")); assertTrue(panel.contains("screenHeightDp / 3"))
+        assertTrue(panel.contains("ReturnTile(title, Modifier.focusRequester(first))")); assertTrue(panel.contains("screenHeightDp / 12"))
     }
 
     @Test fun subtitleLooksAndFonts() {
@@ -473,6 +474,22 @@ class HomeWidgetsTest {
         }
         assertEquals(170.dp, tiles.width(2000.dp))
         for (f in listOf("SettingPictures.kt", "SubtitlePictures.kt", "LightUi.kt")) assertTrue(f, java.io.File("src/main/java/app/ember/tv/ui/$f").readText().contains("PictureRow { tile ->"))
+    }
+
+    @Test fun collectionPreviewsPutFoundFoldersFirst() {
+        // #231
+        val folders = (1..7).map { CollectionFolder(id = "f$it", title = if (it == 6) "Horror nights" else "Folder $it", tileShape = if (it == 1) "LANDSCAPE" else "POSTER") }
+        val c = MediaCollection(id = "c", title = "Movie nights", folders = folders)
+        assertEquals("Folder 1", CollectionPreviews.folders(c, "").first().title)
+        assertEquals("Horror nights", CollectionPreviews.folders(c, "horror").first().title)
+        assertEquals(5, CollectionPreviews.folders(c, "").size); assertEquals(2, CollectionPreviews.more(c))
+        assertEquals(16f / 9f, CollectionPreviews.aspect(folders[0])); assertEquals(2f / 3f, CollectionPreviews.aspect(folders[1]))
+        assertEquals("MN", CollectionPreviews.mark("Movie nights", null)); assertEquals("🎬", CollectionPreviews.mark("x", "🎬"))
+        assertEquals("7 folders · On Home · In Discover", CollectionPreviews.status(c, onHome = true, inDiscover = true))
+        assertEquals(null, CollectionPreviews.cover(c))
+        assertEquals("b.jpg", CollectionPreviews.cover(c.copy(folders = folders.take(1).map { it.copy(coverImageUrl = "b.jpg") })))
+        val organizer = java.io.File("src/main/java/app/ember/tv/ui/ContentOrganizer.kt").readText()
+        assertTrue(organizer.contains("CollectionPreviewCard(") && organizer.contains("CollectionContentDialog("))
     }
 
     @Test fun theTraktNoticeUsesTheRequiredWording() {

@@ -252,19 +252,19 @@ private class Tile(
 @Composable
 private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
     val accent = FloatingPanelStyle.accent
-    val height = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 3).dp
+    // #230: a quarter of the earlier third of the screen, one line.
+    val height = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 12).coerceAtLeast(44).dp
     var focused by remember { mutableStateOf(false) }
-    Focusable(onClick = onClick, modifier = modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.testTag("quick_return"),
+    val soft = if (focused) OnPillColor.copy(alpha = .75f) else Mute
+    Focusable(onClick = onClick, modifier = modifier.padding(horizontal = 18.dp, vertical = 4.dp).fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.testTag("quick_return"),
         radius = TvTokens.Shape.Control, container = WashHi, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Box(Modifier.size(56.dp).clip(CircleShape).background(if (focused) OnPillColor.copy(alpha = .14f) else accent.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
-                MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else accent, 30.dp)
+        Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(28.dp).clip(CircleShape).background(if (focused) OnPillColor.copy(alpha = .14f) else accent.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+                MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else accent, 16.dp)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Back to", fontSize = 14.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute)
-                Text(title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("Continue where you stopped", fontSize = 13.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute, maxLines = 1)
-            }
+            Text("Back to", fontSize = 13.sp, color = soft, maxLines = 1)
+            Text(title, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Continue", fontSize = 12.sp, color = soft, maxLines = 1)
         }
     }
 }
