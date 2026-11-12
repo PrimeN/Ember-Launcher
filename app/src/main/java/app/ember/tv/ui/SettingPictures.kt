@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -32,6 +33,14 @@ internal object SettingPictures {
         "density-comfortable", "density-standard", "density-dense", "apps-square",
         "player-basic", "player-modern", "player-ember_x", "player-streaming",
         "info-start", "info-ask",
+        // #223
+        "perf-auto", "perf-low", "perf-medium", "perf-high", "perf-ultra", "perf-custom",
+        "glass-live", "glass-solid", "glass-tint", "glass-cached", "glass-liquid",
+        "focusbg-colors", "focusbg-artwork", "focusbg-glow", "focusbg-off",
+        "cardfocus-subtle", "cardfocus-lift", "cardfocus-glow", "cardfocus-pulse", "cardfocus-off",
+        // #224
+        "start-home", "start-app", "start-input", "start-presentation",
+        "saver-home", "saver-art", "saver-space", "saver-photos",
     ) + UiSizes.LABELS.flatMap { (id, _) -> listOf("uisize-$id", "textsize-$id") }
     /** How many cards the density pictures show, and the gap between them in dp: looser to tighter. */
     fun density(option: String): Pair<Int, Int> = when (option) { "comfortable" -> 3 to 9; "dense" -> 5 to 3; else -> 4 to 6 }
@@ -72,6 +81,25 @@ private fun PlayerPicture(style: String, ink: Color) {
                     Box(Modifier.width(34.dp).height(4.dp).block(white))
                     Box(Modifier.fillMaxWidth().height(2.dp).block(dim)) { Box(Modifier.fillMaxWidth(.55f).fillMaxHeight().block(white)) }
                     Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { repeat(6) { i -> Box(Modifier.size(5.dp).clip(CircleShape).background(if (i == 1) white else dim)) } }
+                }
+            }
+        }
+    }
+}
+
+/** Several of these can be on at once (#224): each tile switches itself, ticked when on. */
+@Composable
+internal fun PictureToggles(group: String, options: List<Pair<String, String>>, on: Set<String>, onToggle: (String) -> Unit) {
+    ButtonRow(Modifier.padding(vertical = 4.dp)) {
+        options.forEach { (id, label) ->
+            val picture = SettingPictures.of(group, id)
+            val chosen = id in on
+            Focusable(onClick = { onToggle(id) }, modifier = Modifier.width(170.dp).semantics { this.selected = chosen }.testTag("picture_$picture"),
+                radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
+                val ink = androidx.tv.material3.LocalContentColor.current
+                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.alpha(if (chosen) 1f else .45f)) { SettingPicture(picture, ink) }
+                    Text((if (chosen) "✓  " else "") + label, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -177,8 +205,9 @@ private fun SettingPicture(picture: String, ink: Color) {
                     }
                 }
             }
-            // #215: the same panel at each interface size, and "Aa" at each text size.
-            else -> if (picture.startsWith("uisize-")) SizePicture(UiSizes.screen(picture.removePrefix("uisize-")) / UiSizes.screen("xlarge"), ink)
+            // #223 and #224 have their own drawings.
+            else -> if (picture.substringBefore('-') in EffectPictures.groups) EffectPicture(picture, ink)
+                else if (picture.startsWith("uisize-")) SizePicture(UiSizes.screen(picture.removePrefix("uisize-")) / UiSizes.screen("xlarge"), ink)
                 else if (picture.startsWith("textsize-")) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Aa", fontSize = (30f * UiSizes.text(picture.removePrefix("textsize-"))).sp, fontWeight = FontWeight.SemiBold, color = strong, maxLines = 1)
                 }

@@ -213,5 +213,6 @@ private object FocusColors {
 }
 @Composable private fun TextBackgroundChoice(label: String, value: String, onChange: (String) -> Unit) {
     androidx.tv.material3.Text(label, color = Fg)
-    ButtonRow { FocusBackground.choices.forEach { (id, name) -> Chip(name, selected = id == value) { onChange(id) } } }
+    // #223: the page behind a focused card in each mode.
+    PictureChoice("focusbg", FocusBackground.choices, FocusBackground.normalize(value), onChange)
 }

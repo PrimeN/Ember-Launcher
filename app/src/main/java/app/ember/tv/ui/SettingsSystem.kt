@@ -472,12 +472,9 @@ internal fun ScreensaverSection(vm: HomeViewModel) {
                 Chip(stringResource(R.string.ui_screensaver_now)) { QuickActions.screensaver(context) }
                 Chip(stringResource(R.string.screensaver_tv_settings)) { QuickActions.open(context, android.provider.Settings.ACTION_DREAM_SETTINGS) }
             }
-            // One switch per source, in a column so every source fits on screen.
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ScreensaverFeed.ALL.forEach { (id, label) ->
-                    ToggleRow(label, null, id in vm.screensaverSources) { vm.toggleScreensaverSource(id) }
-                }
-            }
+            // #224: each source as a picture; any number can be on.
+            PictureToggles("saver", ScreensaverFeed.ALL.map { (id, label) -> id to label.substringBefore(" (") }, vm.screensaverSources.toSet()) { vm.toggleScreensaverSource(it) }
+            Note("Paintings come from the Cleveland Museum of Art and Space from NASA.")
             if (ScreensaverFeed.PHOTOS in vm.screensaverSources) {
                 if (!vm.photosAllowed) {
                     Text(stringResource(R.string.ui_ember_needs_permission_to_read_pictures), color = Mute, fontSize = 13.sp)

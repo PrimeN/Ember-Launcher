@@ -415,6 +415,26 @@ class HomeWidgetsTest {
         assertNull(Profile.usablePhoto("file:///sdcard/p.jpg")); assertNull(Profile.usablePhoto("http://a.test/p.jpg")); assertNull(Profile(id = "a", name = "A").photo)
     }
 
+    @Test fun performanceStartupAndScreensaverPictures() {
+        val pictures = app.ember.tv.ui.SettingPictures
+        // #223
+        val groups = mapOf("perf" to DevicePerformance.options.map { it.first }, "glass" to GlassStyle.choices.map { it.first },
+            "focusbg" to FocusBackground.choices.map { it.first }, "cardfocus" to CardFocusStyle.choices.map { it.first },
+            // #224
+            "start" to app.ember.tv.ui.StartupChoices.options.map { it.first }, "saver" to app.ember.tv.screensaver.ScreensaverFeed.ALL.map { it.first })
+        for ((group, options) in groups) for (option in options) {
+            assertTrue("$group-$option", pictures.of(group, option) in pictures.known)
+            assertTrue(group in app.ember.tv.ui.EffectPictures.groups)
+        }
+        assertEquals(listOf(1, 2, 3, 4), listOf("low", "medium", "high", "ultra").map(app.ember.tv.ui.EffectPictures::bars))
+        assertEquals("home", app.ember.tv.ui.StartupChoices.normalize("satellite")); assertEquals("input", app.ember.tv.ui.StartupChoices.normalize("input"))
+        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
+        for (g in listOf("perf", "glass", "cardfocus")) assertTrue(g, general.contains("PictureChoice(\"$g\""))
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/FocusBackdrop.kt").readText().contains("PictureChoice(\"focusbg\""))
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsSystem.kt").readText().contains("PictureToggles(\"saver\""))
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText().contains("PictureChoice(\"start\""))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

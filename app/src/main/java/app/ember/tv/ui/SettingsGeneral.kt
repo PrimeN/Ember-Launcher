@@ -154,7 +154,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             }
         }
         "card-focus" -> Section("Card focus effects","For apps and media cards. Low-performance devices and reduced motion keep a static focus cue.",id="card-focus") {
-            ButtonRow {app.ember.tv.data.CardFocusStyle.choices.forEach {(id,label)->Chip(label,selected=vm.look.cardFocusStyle==id){vm.look.updateCardFocusStyle(id)}}}
+            PictureChoice("cardfocus",app.ember.tv.data.CardFocusStyle.choices,app.ember.tv.data.CardFocusStyle.normalize(vm.look.cardFocusStyle),vm.look::updateCardFocusStyle)
         }
         "focus-backgrounds" -> Section("Focused backgrounds", "Tile colors use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.", id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
         "interface" -> Section(
@@ -221,9 +221,8 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             }
         }
         "device-performance" -> Section(SettingDefinitions.performance.title,"One choice sets image quality, effects and glass together. Auto picks Low, Medium or High from this TV's memory and lightens effects if navigation is slow.",id="device-performance") {
-            ButtonRow(spacing=10.dp) {app.ember.tv.data.DevicePerformance.choices(Art.display4K).forEach {(value,label)->
-                Chip(label,selected=vm.look.devicePerformance==value,maxLines=1) {vm.look.updateDevicePerformance(value)}
-            }}
+            // #223: each profile as a picture: a meter for Low to Ultra, Auto choosing, Custom as sliders.
+            PictureChoice("perf",app.ember.tv.data.DevicePerformance.choices(Art.display4K),vm.look.devicePerformance,vm.look::updateDevicePerformance)
             val effective=LocalRenderOptions.current
             Text(when(effective.profile) {
                 "low"->"Low: Economy images, no frosted blur, minimal motion. For low-memory TVs."
@@ -256,12 +255,11 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         "artwork" -> Section(SettingDefinitions.artwork.title, "Navigation, dock, menus and media buttons share one glass material. Labels and focus indicators stay sharp.", id = "artwork") {
         ToggleRow("Glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
         // Google TV works with Glass on or off; the see-through styles turn it on (#147).
-        ButtonRow { app.ember.tv.data.GlassStyle.choices.forEach {(value,label)->
-            Chip(label,selected=vm.look.navigationGlassMethod==value,maxLines=1){
-                vm.look.updateNavigationGlassMethod(value)
-                if(value!=app.ember.tv.data.GlassStyle.SOLID && !vm.look.navigationGlass)vm.look.updateNavigationGlass(true)
-            }
-        } }
+        // #223: the same panel over a colourful page in each glass style.
+        PictureChoice("glass",app.ember.tv.data.GlassStyle.choices,app.ember.tv.data.GlassStyle.normalize(vm.look.navigationGlassMethod)) {value->
+            vm.look.updateNavigationGlassMethod(value)
+            if(value!=app.ember.tv.data.GlassStyle.SOLID && !vm.look.navigationGlass)vm.look.updateNavigationGlass(true)
+        }
         if(vm.look.navigationGlass || vm.look.navigationGlassMethod==app.ember.tv.data.GlassStyle.SOLID) {
             Note("Google TV draws solid panels and buttons, like stock Android TV: no blur, highlight or edge, and the lightest on the TV.")
             Note("Auto follows the performance profile. Choose a glass style independently of image quality. Low uses tint only; Medium caps effects at prepared blur. Liquid needs Android 13+ and falls back to Frosted on older devices. Colour separation stays off.")

@@ -61,6 +61,12 @@ private fun AppChoiceTile(app:AppEntry,shown:Boolean,modifier:Modifier,onClick:(
     }
 }
 
+/** Where the TV opens (#224). */
+internal object StartupChoices {
+    val options=listOf("home" to "Home","app" to "An app","input" to "A TV input","presentation" to "Presentation")
+    fun normalize(value:String?)=value?.takeIf {v->options.any {it.first==v}} ?: "home"
+}
+
 internal object AppChoices {
     /** Six apps across, at the wide dialog's width. */
     const val PER_ROW=6
@@ -73,6 +79,7 @@ internal object AppChoices {
     val context=LocalContext.current;val scope=rememberCoroutineScope()
     val opts=vm.launcherExtras.options
     var chooseStartup by remember {mutableStateOf(false)}
+    var startupKind by remember {mutableStateOf("app")}
     var chooseApps by remember {mutableStateOf<String?>(null)}
     Column(verticalArrangement=Arrangement.spacedBy(22.dp)) {
         // #190: the two places apps show, each choosing its apps in a dialog instead of a switch per app down the page.
@@ -101,8 +108,15 @@ internal object AppChoices {
         }
         if(part==HomeToolsPart.FOLDERS)HiddenAppsSection(vm)
         if(part==HomeToolsPart.STARTUP)Section("Start with the TV", "Choose Home, an app, an input or a presentation. Child profiles stay on Home.") {
-            val name=when(opts.destination){"app"->vm.apps.firstOrNull {it.pkg==opts.target}?.label ?: "App";"input"->"TV input";"presentation"->"Presentation";else->"Home"}
-            SettingValueRow("Destination",name){chooseStartup=true}
+            // #224: where the TV opens, as pictures; an app or an input is then picked from its own list.
+            val now=when(opts.destination){"app"->vm.apps.firstOrNull {it.pkg==opts.target}?.label;"input"->"TV input";else->null}
+            PictureChoice("start",StartupChoices.options,StartupChoices.normalize(opts.destination)) {kind->
+                when(kind) {
+                    "app","input"->chooseStartup=true.also {startupKind=kind}
+                    else->vm.launcherExtras.update {it.copy(destination=kind,target="")}
+                }
+            }
+            now?.let {Text("Opens $it",color=Mute,fontSize=13.sp)}
             SettingToggle("At startup",null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
             SettingToggle("After standby","Wake launching requires Ember to be the active Home, or its Home button service to be enabled.",opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
         }
@@ -155,12 +169,21 @@ internal object AppChoices {
             }
         }
     }
-    if(chooseStartup)MediaDialog("Startup destination",{chooseStartup=false}) {
+    if(chooseStartup)MediaDialog(if(startupKind=="input")"Start on a TV input" else "Start with an app",{chooseStartup=false},wide=true) {
         fun choose(kind:String,target:String=""){vm.launcherExtras.update {it.copy(destination=kind,target=target)};chooseStartup=false}
-        Chip("Home"){choose("home")};Chip("Presentation"){choose("presentation")}
-        val inputs=rememberLightInputs(0)
-        inputs.forEach {input->Chip(input.label){choose("input",input.id)}}
-        vm.appAccess.page(false).forEach {app->Chip(app.label){choose("app",app.pkg)}}
+        if(startupKind=="input") {
+            val inputs=rememberLightInputs(0)
+            if(inputs.isEmpty())Text("This TV has no inputs to start on.",color=Mute,fontSize=13.sp)
+            ButtonRow {inputs.forEach {input->Chip(input.label,selected=vm.launcherExtras.options.target==input.id){choose("input",input.id)}}}
+        } else Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            // The app picker's icons, one press to choose.
+            vm.appAccess.page(false).sortedBy {it.label.lowercase()}.chunked(AppChoices.PER_ROW).forEach {line->
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                    line.forEach {a->AppChoiceTile(a,vm.launcherExtras.options.target==a.pkg,Modifier.weight(1f)){choose("app",a.pkg)}}
+                    repeat(AppChoices.PER_ROW-line.size){Spacer(Modifier.weight(1f))}
+                }
+            }
+        }
     }
 }
 
