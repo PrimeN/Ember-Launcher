@@ -110,10 +110,9 @@ class PlayerActivity : ComponentActivity() {
     internal var servers: MediaServers? = null
 
     // "Up next" card
-    internal lateinit var upNext: LinearLayout
-    internal lateinit var upNextTitle: TextView
-    internal lateinit var upNextCount: TextView
-    internal lateinit var playNowButton: Button
+    /** #225: the Up next card, drawn in Compose over the video. */
+    internal lateinit var upNext: android.view.View
+    internal val upNextUi = UpNextUi()
     internal var secondsLeft = 0
 
     // Debrid and addon links often redirect, sometimes from http to https. High-bitrate
@@ -742,7 +741,7 @@ class PlayerActivity : ComponentActivity() {
                 playNext()
                 return
             }
-            upNextCount.text = getString(R.string.pl_playing_in, secondsLeft)
+            upNextUi.seconds = secondsLeft
             secondsLeft--
             handler.postDelayed(this, 1000)
         }

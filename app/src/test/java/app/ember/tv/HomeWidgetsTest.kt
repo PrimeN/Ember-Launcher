@@ -435,6 +435,19 @@ class HomeWidgetsTest {
         assertTrue(java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText().contains("PictureChoice(\"start\""))
     }
 
+    @Test fun upNextCardReadsLikeAStreamingApp() {
+        // #225
+        assertEquals("S1:E4 Malware", app.ember.tv.player.UpNextUi.line(1, 4, " Malware "))
+        assertEquals("S2:E10", app.ember.tv.player.UpNextUi.line(2, 10, ""))
+        assertEquals("UP NEXT IN 6", app.ember.tv.player.UpNextUi.heading(6, finding = false))
+        assertEquals("UP NEXT IN 0", app.ember.tv.player.UpNextUi.heading(-1, false))
+        assertEquals("FINDING A SOURCE…", app.ember.tv.player.UpNextUi.heading(3, finding = true))
+        val layout = java.io.File("src/main/java/app/ember/tv/player/PlayerLayout.kt").readText()
+        assertTrue(layout.contains("setContent { UpNextCard(upNextUi) { playNext() } }"))
+        val next = java.io.File("src/main/java/app/ember/tv/player/PlayerNextUp.kt").readText()
+        assertTrue(next.contains("thumbnail = next.thumbnail; rating = intent.getStringExtra(PlayRequest.EXTRA_AGE_RATING)"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

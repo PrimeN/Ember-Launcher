@@ -65,9 +65,13 @@ internal fun PlayerActivity.onEpisodeEnded() {
     controls.visible = false
     controls.sheet = null
     closeMenu()
-    upNextTitle.text = getString(R.string.pl_next_episode_title, next.season, next.episode, next.title)
+    upNextUi.apply {
+        series = seriesName; season = next.season; episode = next.episode; title = next.title
+        thumbnail = next.thumbnail; rating = intent.getStringExtra(PlayRequest.EXTRA_AGE_RATING)
+        seconds = prefs.countdown; finding = false; visible = true
+    }
     upNext.visibility = View.VISIBLE
-    playNowButton.requestFocus()
+    upNext.requestFocus()
     secondsLeft = prefs.countdown
     handler.post(tick)
 }
@@ -77,8 +81,7 @@ internal fun PlayerActivity.playNext() {
     fileQueue?.let {q->q.next()?.let { playFile(it) };return}
     handler.removeCallbacks(tick)
     val next = nextEpisodes.firstOrNull() ?: return finish()
-    upNextCount.text = getString(R.string.pl_finding_a_source)
-    playNowButton.isEnabled = false
+    upNextUi.finding = true
     lifecycleScope.launch {
         val found = runCatching { NextEpisodeLoader(this@playNext, servers).load(next, prevAddon, prevQuality, serverPlayback?.quality ?: app.ember.tv.mediaserver.ServerQuality.ORIGINAL, prevBingeGroup) }.getOrNull()
         // Leaving the player cancels the lookup; that is not a missing source.
@@ -115,7 +118,7 @@ internal fun PlayerActivity.playNext() {
         subsTouched = false
 
         upNext.visibility = View.GONE
-        playNowButton.isEnabled = true
+        upNextUi.visible = false; upNextUi.finding = false
         view.useController = !advanced
         controls.details = controls.details?.copy(episodeTitle = next.title.takeIf { it.isNotBlank() }, synopsis = null)
         refreshControlsTitle()

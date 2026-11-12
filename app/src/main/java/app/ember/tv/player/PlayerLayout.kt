@@ -42,36 +42,11 @@ internal fun PlayerActivity.buildLayout(): View {
         )
     }
 
-    upNextTitle = TextView(this).apply {
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-        setTextColor(Color.WHITE)
-    }
-    upNextCount = TextView(this).apply {
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        setTextColor(0xFFB7C0C9.toInt())
-        setPadding(0, dp(6), 0, dp(12))
-    }
-    playNowButton = styled(Button(this)).apply {
-        text = getString(R.string.pl_play_now)
-        setOnClickListener { playNext() }
-    }
-    val cancel = styled(Button(this)).apply {
-        text = getString(R.string.ui_cancel)
-        setOnClickListener { finish() }
-    }
-    val buttons = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        addView(playNowButton)
-        addView(cancel)
-    }
-    upNext = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(24), dp(20), dp(24), dp(20))
-        setBackgroundColor(0xE6141820.toInt())
+    // #225: the Up next card in the corner, as streaming apps show it.
+    upNext = androidx.compose.ui.platform.ComposeView(this).apply {
         visibility = View.GONE
-        addView(upNextTitle)
-        addView(upNextCount)
-        addView(buttons)
+        isFocusable = true
+        setContent { UpNextCard(upNextUi) { playNext() } }
     }
     info = TextView(this).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
@@ -175,14 +150,7 @@ internal fun PlayerActivity.buildLayout(): View {
         FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.END)
             .apply { setMargins(dp(48), dp(48), dp(56), dp(110)) },
     )
-    root.addView(
-        upNext,
-        FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            Gravity.BOTTOM or Gravity.END,
-        ).apply { setMargins(dp(48), dp(48), dp(48), dp(48)) },
-    )
+    root.addView(upNext, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     return root
 }
 
