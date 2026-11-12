@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
 
 /**
  * Set up from your phone: a small web page served by the TV on your home network while
- * Settings > Phone setup is explicitly enabled (for at most 15 minutes). The phone opens it by QR code and sends addon links, API keys
+ * Settings > Phone setup is explicitly enabled (for at most 30 minutes). The phone opens it by QR code and sends addon links, API keys
  * and IPTV logins, so nothing has to be typed with the remote. Every request needs the one-time
  * code in the link, and the server stops when the page closes.
  */
@@ -60,6 +60,12 @@ class PhoneSetup(
         /** Crash log entries, newest first (#48). */
         fun crashLog(): List<String>? = null
         fun clearCrashLog(): String = "The crash log is unavailable."
+        /** #236: the badge option in use and your custom badges; null when unavailable. */
+        fun badges(): PhoneBadges? = null
+        /** #236: one badge edit from the phone; [picture] is an uploaded file, if any. Returns what happened. */
+        fun changeBadge(fields: Map<String, String>, picture: ByteArray?): String = "Badge editing is unavailable."
+        /** #236: a badge picture kept on the TV, with its media type, for the phone's preview. */
+        fun badgeIcon(id: String): Pair<ByteArray, String>? = null
     }
 
     private class Session(val socket: ServerSocket, val access: PhoneSetupAccess, val handler: Handler) {
@@ -178,7 +184,7 @@ class PhoneSetup(
             return respond(c, 403, page("Link expired",
                 "<p>Turn on <b>Settings &gt; Phone setup</b> on the TV and scan the new code.</p>"))
         }
-        val maxBody = if (path == "/restore" || path == "/badges" || path == "/collections" || path=="/presentation") 8_000_000 else if (path == "/widgets") 2_000_000 else 64_000
+        val maxBody = if (path == "/restore" || path == "/badges" || path == "/badge" || path == "/collections" || path=="/presentation") 8_000_000 else if (path == "/widgets") 2_000_000 else 64_000
         val length = headers["content-length"]?.toLongOrNull() ?: if ("content-length" in headers) -1 else 0
         if (length < 0 || "transfer-encoding" in headers) return respond(c, 400, page("Invalid request", ""))
         if (length > maxBody) return respond(c, 413, page("File too large", ""))
@@ -247,6 +253,16 @@ class PhoneSetup(
             method == "POST" && path == "/crash-log-clear" -> shell(Tab.BACKUP,
                 if (form["confirm"] != "on") "Tick the box to confirm, then clear the log."
                 else runCatching { handler.clearCrashLog() }.getOrElse { it.message ?: "Could not clear the crash log." }, "crash")
+            // #236: one badge edit (add, save, move, delete, copy); the page returns to the badge list.
+            method == "POST" && path == "/badge" -> {
+                val picture = multipart["file"]?.takeIf { it.isNotEmpty() }
+                val msg = runCatching { handler.changeBadge(form, picture) }.getOrElse { it.message ?: "Could not change the badge." }
+                shell(Tab.ADDONS, msg, "badges")
+            }
+            path == BadgePhone.ICON_PATH -> {
+                val icon = query["id"]?.let { id -> runCatching { handler.badgeIcon(id) }.getOrNull() }
+                if (icon == null) respond(c, 404, page("Not found", "")) else respondImage(c, icon.first, icon.second)
+            }
             method == "POST" && path == "/badges" -> {
                 val text = multipart["file"]?.toString(Charsets.UTF_8)?.takeIf { it.isNotBlank() } ?: form["json"].orEmpty()
                 val msg = if (text.isBlank()) "Choose a badge pack file, or paste its JSON." else handler.importBadges(text)
@@ -341,6 +357,17 @@ class PhoneSetup(
         out.write(
             ("HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${bytes.size}\r\n" +
                 "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n").toByteArray(),
+        )
+        out.write(bytes)
+        out.flush()
+    }
+
+    /** A badge picture shown in the page (#236), only the image types the TV recognised. */
+    private fun respondImage(c: Socket, bytes: ByteArray, type: String) {
+        val out = c.getOutputStream()
+        out.write(
+            ("HTTP/1.1 200 OK\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n" +
+                "Cache-Control: private, max-age=300\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'\r\nConnection: close\r\n\r\n").toByteArray(),
         )
         out.write(bytes)
         out.flush()
@@ -621,16 +648,15 @@ class PhoneSetup(
             }
             "badges" -> {
                 back(auth, Tab.ADDONS)
-                append("<form method=post action=\"/badges$auth\" enctype=multipart/form-data>")
-                append("<h2>Source badges</h2><p class=m>A badge pack (JSON) for Settings &gt; Sources &gt; Stream results &amp; badges. Pick the file, or paste its contents.</p>")
-                append("<input type=file name=file accept=\".json,application/json\"><textarea name=json rows=3 placeholder=\"Or paste the JSON here\"></textarea><button>Use these badges</button></form>")
+                // #236: edit your badges here; importing a whole pack stays at the end.
+                append(BadgePhone.render(runCatching { handler.badges() }.getOrNull(), auth))
             }
             else -> menu(auth, Tab.ADDONS, listOf(
                 MenuItem("add", "Add addons", "Paste Stremio-compatible manifest links."),
                 MenuItem("catalogs", "Catalogs", if (catalogs.isEmpty()) "Where each catalog shows." else "Where each catalog shows · " + count(catalogs.map { it.note.orEmpty() }.distinct().size, "addon")),
                 MenuItem("/content$auth&amp;part=tools", "Sources and addon tools", "Add catalogs to folders, edit filters, export, pause addons."),
                 MenuItem("iptv", "Add Live TV", "An M3U playlist or Xtream Codes account."),
-                MenuItem("badges", "Source badges", "Import a badge pack for stream results."),
+                MenuItem("badges", "Source badges", "Edit badge patterns, colours and pictures, or import a pack."),
             ))
         }
     }
@@ -881,6 +907,7 @@ details.fold[open]>summary .strip{display:none}details.fold>summary{display:flex
 .pf{display:grid;place-items:center;box-sizing:border-box;border-radius:7px;background:#2c2d32;overflow:hidden;font-weight:700;color:var(--mute)}.pf img{width:100%;height:100%;object-fit:cover}
 .ft .t{min-width:0}.ft .t b,.ft .t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ft .t b{font-size:14px}.ft .t small{color:var(--mute);font-size:12px;margin-top:3px}
 .ft .acts{margin:0;justify-content:space-between}.ft .ib{width:34px;height:34px;font-size:14px}
+${BadgePhone.CSS}
 [hidden]{display:none!important}</style></head>
 <body><main><h1><i></i>${esc(title)}</h1><p class="m intro">Sent straight to your TV on this network. Nothing goes through the internet.</p>$body</main><script>$SCRIPT</script></body></html>"""
 

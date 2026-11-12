@@ -92,7 +92,7 @@ object Legal {
                 ),
                 Item(
                     "Phone setup",
-                    "Phone setup is off by default. Turning it on in Settings starts a local setup session protected by a temporary code. It turns off after 15 minutes, when you leave the page or when Ember leaves the foreground; each new session has a new code. What you send from your phone goes straight to the TV. Backups downloaded there hold your sign-ins and keys, encrypted only when you give a passphrase.",
+                    "Phone setup is off by default. Turning it on in Settings starts a local setup session protected by a temporary code. It turns off after 30 minutes, when you leave the page or when Ember leaves the foreground; each new session has a new code. What you send from your phone goes straight to the TV. Backups downloaded there hold your sign-ins and keys, encrypted only when you give a passphrase.",
                 ),
                 Item(
                     "Screensaver",

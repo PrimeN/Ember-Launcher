@@ -677,7 +677,7 @@ internal fun PhoneSetupPage(vm: HomeViewModel) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         Section(stringResource(R.string.ui_set_up_from_your_phone), stringResource(R.string.ui_no_typing_with_the_remote_add)) {
-            ToggleRow("Phone setup", "Off by default. Automatically turns off after 15 minutes, when you leave this page, or when Ember leaves the foreground.", link != null) {
+            ToggleRow("Phone setup", "Off by default. Automatically turns off after 30 minutes, when you leave this page, or when Ember leaves the foreground.", link != null) {
                 if (link != null) disable("Phone setup is off. The previous link no longer works.")
                 else {
                     val started = runCatching { setup.start() }.getOrNull()

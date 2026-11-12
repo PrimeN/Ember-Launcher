@@ -423,6 +423,73 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                 }
             }
 
+            // #236: badge editing from the phone. Like badge packs and settings, edits apply at once.
+            override fun badges(): PhoneBadges? = onPhoneMain {
+                PhoneBadges(sourceFormat.badgeMode, app.ember.tv.data.Badges.customPack(getApplication<Application>())?.filters.orEmpty())
+            }
+
+            override fun badgeIcon(id: String): Pair<ByteArray, String>? = onPhoneMain {
+                val context = getApplication<Application>()
+                val f = app.ember.tv.data.Badges.customPack(context)?.filters?.firstOrNull { it.id == id }
+                withContext(Dispatchers.IO) { app.ember.tv.data.Badges.iconBytes(context, f?.imageURL) }
+            }
+
+            override fun changeBadge(fields: Map<String, String>, picture: ByteArray?): String {
+                val context = getApplication<Application>()
+                val action = fields["action"].orEmpty()
+                val id = fields["id"].orEmpty()
+                val result = onPhoneMain {
+                    val f = sourceFormat
+                    val editor = app.ember.tv.data.BadgeEditor
+                    when (action) {
+                        "add" -> {
+                            val pattern = fields["pattern"].orEmpty()
+                            editor.check(pattern)?.let { return@onPhoneMain it }
+                            f.editBadges { editor.add(it, fields["name"].orEmpty(), pattern) } ?: "Added ${fields["name"].orEmpty().ifBlank { "the badge" }}."
+                        }
+                        "copy" -> if (fields["confirm"] != "on") "Tick the box to confirm." else {
+                            val err = app.ember.tv.data.Badges.copyDetailed(context)
+                            if (err == null) { f.readCustomBadges().join(); f.updateBadgeMode(app.ember.tv.data.Badges.CUSTOM) }
+                            err ?: "Your badges are now a copy of the Detailed badges."
+                        }
+                        "up", "down" -> f.editBadges { editor.move(it, id, if (action == "up") -1 else 1) } ?: "Moved."
+                        "delete" -> f.editBadges { editor.delete(it, id) } ?: "Badge deleted."
+                        "save" -> {
+                            val pattern = fields["pattern"].orEmpty()
+                            editor.check(pattern)?.let { return@onPhoneMain it }
+                            val icon = if (picture == null) null else {
+                                if (picture.size > editor.MAX_ICON_BYTES) return@onPhoneMain "That picture is too large (at most ${editor.MAX_ICON_BYTES / 1000} KB)."
+                                val type = editor.imageType(picture) ?: return@onPhoneMain "Send a PNG, JPEG, WebP or GIF picture."
+                                app.ember.tv.data.Badges.saveIcon(context, picture, type).getOrElse { return@onPhoneMain "Could not keep that picture on the TV." }
+                            }
+                            val link = fields["image"].orEmpty().trim()
+                            if (link.isNotEmpty() && !(link.startsWith("https://", true) || link.startsWith("http://", true))) return@onPhoneMain "A picture link starts with https://."
+                            fun colour(name: String) = fields[name]?.takeIf { app.ember.tv.data.Badges.color(it) != null }
+                            val width = fields["borderWidth"]?.toIntOrNull()?.coerceIn(0, 6) ?: 0
+                            f.editBadges {
+                                editor.update(it, id) { b ->
+                                    val tag = if (fields["tagNone"] == "on") null else colour("tag")?.let { c -> editor.withOpacity(c, fields["opacity"]?.toIntOrNull() ?: 100) }
+                                    editor.border(b.copy(
+                                        name = fields["name"].orEmpty().trim().take(60).ifBlank { b.name },
+                                        pattern = pattern,
+                                        isEnabled = fields["enabled"] == "true",
+                                        tagColor = tag,
+                                        textColor = if (fields["textNone"] == "on") null else colour("text"),
+                                        imageTint = if (fields["tintNone"] == "on") null else colour("tint"),
+                                        borderColor = if (width > 0) colour("border") ?: b.borderColor else b.borderColor,
+                                        borderRadius = fields["radius"]?.toIntOrNull()?.coerceIn(0, 12)?.toFloat() ?: b.borderRadius,
+                                        imageURL = when { fields["imageNone"] == "on" -> null; icon != null -> icon; link.isNotEmpty() -> link; else -> b.imageURL },
+                                    ), width)
+                                }
+                            } ?: "Saved ${fields["name"].orEmpty().ifBlank { "the badge" }}."
+                        }
+                        else -> "That badge change is not available."
+                    }
+                }
+                onPhoneMain { phoneNote("Badges: $result") }
+                return result
+            }
+
             override fun importBadges(text: String): String {
                 val err = onPhoneMain { sourceFormat.importBadgesText(text) }
                 onPhoneMain { phoneNote(if (err == null) "Badge pack received" else "Badge pack not used: $err") }

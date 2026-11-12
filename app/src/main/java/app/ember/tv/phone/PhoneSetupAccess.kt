@@ -39,7 +39,8 @@ class PhoneSetupAccess internal constructor(
     fun requireActive() { check(active) { "Phone setup is off or its session has expired." } }
 
     companion object {
-        const val DURATION_MILLIS = 15 * 60 * 1000L
+        /** #235: half an hour, so a longer edit (badges, collections) fits in one session. */
+        const val DURATION_MILLIS = 30 * 60 * 1000L
         internal const val MAX_FAILURES = 10
         internal const val FAILURE_WINDOW_MILLIS = 30_000L
         private const val ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"

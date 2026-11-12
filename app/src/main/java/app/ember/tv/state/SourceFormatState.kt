@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import app.ember.tv.data.Prefs
 import app.ember.tv.DetailsUi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import app.ember.tv.data.StreamFormatDefaults
 import app.ember.tv.data.StreamFormatter
 import app.ember.tv.data.StreamOption
@@ -58,7 +59,7 @@ class SourceFormatState(
             val err = app.ember.tv.data.Badges.importUrl(context, url)
             badgeBusy = false
             badgeNote = err ?: "Loaded."
-            if (err == null) updateBadgeMode(app.ember.tv.data.Badges.CUSTOM).also { badgeNote = "Loaded." }
+            if (err == null) updateBadgeMode(app.ember.tv.data.Badges.CUSTOM).also { readCustomBadges(); badgeNote = "Loaded." }
         }
     }
 
@@ -67,9 +68,62 @@ class SourceFormatState(
         val err = app.ember.tv.data.Badges.importText(context, text)
         if (err == null) {
             updateBadgeMode(app.ember.tv.data.Badges.CUSTOM)
+            readCustomBadges()
             badgeNote = "Loaded from your phone."
         }
         return err
+    }
+
+    // ---- #236/#237: editing the custom pack, from the TV or the phone page
+    /** Your custom pack as saved; null until read, or when there is none. */
+    var customBadges by mutableStateOf<app.ember.tv.data.BadgePack?>(null); private set
+    var customBadgesRead by mutableStateOf(false); private set
+    private val badgeEdits = kotlinx.coroutines.sync.Mutex()
+
+    fun readCustomBadges(): kotlinx.coroutines.Job = scope.launch {
+        customBadges = app.ember.tv.data.Badges.customPack(context); customBadgesRead = true
+    }
+
+    /**
+     * One edit of the custom pack: read, change, save, then use it. Edits are queued so fast taps
+     * (colour after colour) never lose one. Returns an error message, or null.
+     */
+    suspend fun editBadges(note: String? = null, change: (app.ember.tv.data.BadgePack) -> app.ember.tv.data.BadgePack): String? = badgeEdits.withLock {
+        val current = app.ember.tv.data.Badges.customPack(context) ?: app.ember.tv.data.BadgePack()
+        val next = change(current)
+        if (next == current) return@withLock null
+        app.ember.tv.data.Badges.saveCustom(context, next)?.let { return@withLock it }
+        customBadges = next; customBadgesRead = true
+        if (badgeMode == app.ember.tv.data.Badges.CUSTOM) loadBadges().join() else updateBadgeMode(app.ember.tv.data.Badges.CUSTOM)
+        badgeNote = note
+        null
+    }
+
+    fun editBadge(id: String, change: (app.ember.tv.data.BadgeFilter) -> app.ember.tv.data.BadgeFilter) {
+        scope.launch { editBadges { app.ember.tv.data.BadgeEditor.update(it, id, change) }?.let { badgeNote = it } }
+    }
+
+    /** Returns the pattern's problem at once; otherwise adds it. */
+    fun addBadge(name: String, pattern: String): String? {
+        app.ember.tv.data.BadgeEditor.check(pattern)?.let { return it }
+        scope.launch { editBadges("Added ${name.ifBlank { "the badge" }}.") { app.ember.tv.data.BadgeEditor.add(it, name, pattern) }?.let { badgeNote = it } }
+        return null
+    }
+
+    fun deleteBadge(id: String) { scope.launch { editBadges("Badge deleted.") { app.ember.tv.data.BadgeEditor.delete(it, id) }?.let { badgeNote = it } } }
+    fun moveBadge(id: String, step: Int) { scope.launch { editBadges { app.ember.tv.data.BadgeEditor.move(it, id, step) }?.let { badgeNote = it } } }
+
+    /** Replaces the custom pack with the Detailed badges, to edit them. */
+    fun copyDetailedBadges() {
+        scope.launch {
+            badgeEdits.withLock {
+                val err = app.ember.tv.data.Badges.copyDetailed(context)
+                if (err != null) { badgeNote = err; return@withLock }
+                customBadges = app.ember.tv.data.Badges.customPack(context); customBadgesRead = true
+                updateBadgeMode(app.ember.tv.data.Badges.CUSTOM)
+                badgeNote = "The Detailed badges are now your custom badges. Edit them below."
+            }
+        }
     }
 
     /** Badges for a source; empty with legacy, or while the pack loads. */

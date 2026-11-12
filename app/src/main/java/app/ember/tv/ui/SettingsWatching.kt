@@ -1128,65 +1128,6 @@ internal fun UpdatesSection(vm: HomeViewModel) {
     }
 }
 
-/** Settings > Stremio > Badges: bundled Detailed images, default Basic text, or a custom pack. */
-@Composable
-private fun BadgesSection(vm: HomeViewModel) {
-    val f = vm.sourceFormat
-    var url by remember { mutableStateOf("") }
-    var preview by remember { mutableStateOf<Pair<String, String>?>(null) }
-    Section(stringResource(R.string.ui_badges), stringResource(R.string.ui_badges_note)) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ButtonRow(spacing = 12.dp) {
-                listOf(
-                    app.ember.tv.data.Badges.LEGACY to stringResource(R.string.ui_badges_legacy),
-                    app.ember.tv.data.Badges.MODERN to stringResource(R.string.ui_badges_modern),
-                    app.ember.tv.data.Badges.CUSTOM to stringResource(R.string.ui_badges_custom),
-                ).forEach { (mode, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Chip(label, selected = f.badgeMode == mode) { f.updateBadgeMode(mode) }
-                        ToolbarIcon("Preview $label badges", androidx.compose.material.icons.Icons.Outlined.Info) { preview = mode to label }
-                    }
-                }
-            }
-            Note(
-                stringResource(
-                    when (f.badgeMode) {
-                        app.ember.tv.data.Badges.LEGACY -> R.string.ui_badges_legacy_note
-                        app.ember.tv.data.Badges.CUSTOM -> R.string.ui_badges_custom_note
-                        else -> R.string.ui_badges_modern_note
-                    },
-                ),
-            )
-            if (f.badgeMode == app.ember.tv.data.Badges.MODERN) {
-                Note(stringResource(R.string.ui_badges_categories_note))
-                ButtonRow(spacing = 8.dp) {
-                    app.ember.tv.data.DetailedBadgeCategories.groups.forEach { (id, label) ->
-                        val on = id !in f.detailedBadgeCategoriesOff
-                        Chip(label, selected = on, maxLines = 1, modifier = Modifier.semantics {
-                            stateDescription = if (on) "On" else "Off"
-                        }) { f.toggleDetailedBadgeCategory(id) }
-                    }
-                }
-            }
-            if (f.badgeMode == app.ember.tv.data.Badges.CUSTOM) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextInput(url, { url = it }, "https://.../badges.json", width = 560)
-                    Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) f.importBadges(url) }
-                }
-            }
-            // #194: single badges are switched in the preview (the info button beside each option).
-            if (f.badgeMode != app.ember.tv.data.Badges.LEGACY) {
-                val hidden = app.ember.tv.data.BadgeChoices.count(f.badgeMode, f.badgesOff)
-                Note(if (hidden == 0) "To hide a single badge, open the preview (the info button) and press OK on it."
-                    else "$hidden ${if (hidden == 1) "badge is" else "badges are"} switched off. Open the preview to switch them one by one.")
-                if (hidden > 0) Chip("Show all badges again") { f.showAllBadges(f.badgeMode) }
-            }
-            (f.badgeNote ?: app.ember.tv.data.Badges.message)?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
-        }
-    }
-    preview?.let { (mode, label) -> BadgePreview(mode, label, hiddenCategories = f.detailedBadgeCategoriesOff, off = f.badgesOff, onToggle = { f.toggleBadge(mode, it) }) { preview = null } }
-}
-
 /** The addon's logo from its manifest, or its initial when it has none or it does not load. */
 @Composable
 private fun AddonLogo(logo: String?, name: String) {

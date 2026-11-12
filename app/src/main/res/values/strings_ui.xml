@@ -302,7 +302,7 @@
     <string name="ui_textless_artwork">Textless artwork</string>
     <string name="ui_the_large_picture_at_the_top">The large picture at the top of Home.</string>
     <string name="ui_the_order_is_shared_home_rows">The order is shared: Home rows and the Discover list both follow it. Catalogs that need a search term or a genre can be used in Discover but not as Home rows.</string>
-    <string name="ui_the_page_works_only_while_this">Only this session\'s code works. Phone setup turns off after 15 minutes or when you leave this screen. Switch it off when you finish.</string>
+    <string name="ui_the_page_works_only_while_this">Only this session\'s code works. Phone setup turns off after 30 minutes or when you leave this screen. Switch it off when you finish.</string>
     <string name="ui_the_video_s_own_subtitle_in">The video\'s own subtitle in your language is used first (perfect timing); otherwise the best-ranked download. Forced subtitles in the video still show.</string>
     <string name="ui_theme">Theme</string>
     <string name="ui_this_is_a_debug_build_updates">This is a debug build. Updates are signed release builds, which install over it only after you uninstall this one (set up the signing key, see BUILDING.md).</string>

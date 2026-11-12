@@ -100,7 +100,8 @@ object Badges {
         }
         message = when {
             ok || mode == LEGACY -> null
-            mode == CUSTOM && text == null -> "No custom badge pack yet. Enter a link to a badge pack JSON file, or send one from the phone page."
+            mode == CUSTOM && text == null -> "No custom badges yet. Add a pattern, copy the Detailed badges, load a pack from a link, or send one from the phone page."
+            mode == CUSTOM && parse(text!!)?.filters?.none { it.isEnabled && it.pattern.isNotBlank() } == true -> "No custom badge is switched on yet. Add a pattern or switch one on."
             else -> "The badge pack could not be read; text tags are shown instead."
         }
     }
@@ -120,6 +121,56 @@ object Badges {
     }
 
     fun hasCustom(context: Context) = file(context).exists()
+
+    /** #236/#237: your custom pack as saved, with an id on every filter, or null when there is none. */
+    suspend fun customPack(context: Context): BadgePack? = withContext(Dispatchers.IO) {
+        file(context).takeIf { it.exists() }?.readText()?.let(::parse)?.let(BadgeEditor::withIds)
+    }
+
+    /** Keeps an edited custom pack. Returns an error message, or null when it worked. */
+    suspend fun saveCustom(context: Context, pack: BadgePack): String? {
+        val text = BadgeEditor.encode(pack)
+        withContext(Dispatchers.IO) { AtomicFile.write(file(context), text) }.onFailure { return "Could not save the badges on this TV." }
+        return null
+    }
+
+    /** Starts the custom pack from the Detailed badges, so they can be edited. */
+    suspend fun copyDetailed(context: Context): String? {
+        val text = withContext(Dispatchers.IO) { runCatching { context.assets.open(MODERN_ASSET).use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull() }
+            ?: return "The Detailed badges could not be read."
+        val pack = parse(text) ?: return "The Detailed badges could not be read."
+        return saveCustom(context, BadgeEditor.withIds(pack))
+    }
+
+    /** A picture sent from the phone for a badge, kept on the TV. Returns its file link. */
+    suspend fun saveIcon(context: Context, bytes: ByteArray, type: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val dir = File(context.filesDir, ICON_DIR).apply { mkdirs() }
+            val name = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).take(10).joinToString("") { "%02x".format(it) } + "." + type
+            val out = File(dir, name)
+            if (!out.exists()) AtomicFile.write(out, bytes).getOrThrow()
+            out.toURI().toString()
+        }
+    }
+
+    /** The bytes of a badge picture kept on the TV (uploaded or bundled), for the phone page's preview. */
+    fun iconBytes(context: Context, url: String?): Pair<ByteArray, String>? {
+        val shown = local(context, url) ?: return null
+        val bytes = runCatching {
+            when {
+                shown.startsWith("file:///android_asset/") -> context.assets.open(shown.removePrefix("file:///android_asset/")).use { it.readBytes() }
+                shown.startsWith("file:") -> File(java.net.URI(shown)).takeIf { it.canonicalPath.startsWith(File(context.filesDir, ICON_DIR).canonicalPath + File.separator) }?.readBytes()
+                else -> null
+            }
+        }.getOrNull() ?: return null
+        val type = when (BadgeEditor.imageType(bytes)) { "png" -> "image/png"; "jpg" -> "image/jpeg"; "webp" -> "image/webp"; "gif" -> "image/gif"; else -> if (shown.endsWith(".svg")) "image/svg+xml" else return null }
+        return bytes to type
+    }
+
+    /** Where a badge picture is shown from: bundled pictures from the APK, others as linked. */
+    internal fun shownUrl(context: Context, url: String?): String? = local(context, url)
+
+    private const val ICON_DIR = "badge-icons"
 
     /** Read a settings preview without replacing or recompiling the selected playback pack. */
     suspend fun preview(context: Context, mode: String): List<BadgeFilter> = withContext(Dispatchers.IO) {
