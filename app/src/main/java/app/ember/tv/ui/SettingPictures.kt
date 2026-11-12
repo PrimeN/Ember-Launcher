@@ -87,14 +87,30 @@ private fun PlayerPicture(style: String, ink: Color) {
     }
 }
 
+/** Picture tiles size themselves so five fit across the page (#229); most settings have five choices. */
+internal object PictureTiles {
+    const val PER_ROW = 5
+    val GAP = 10.dp
+    fun width(available: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+        ((available - GAP * (PER_ROW - 1)) / PER_ROW).coerceIn(96.dp, 170.dp)
+}
+
+/** A wrapping row of picture tiles, each [PictureTiles.width] wide. */
+@Composable
+internal fun PictureRow(content: @Composable (androidx.compose.ui.unit.Dp) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val tile = PictureTiles.width(maxWidth)
+        ButtonRow(Modifier.padding(vertical = 4.dp), spacing = PictureTiles.GAP) { content(tile) }
+    }
+}
+
 /** Several of these can be on at once (#224): each tile switches itself, ticked when on. */
 @Composable
-internal fun PictureToggles(group: String, options: List<Pair<String, String>>, on: Set<String>, onToggle: (String) -> Unit) {
-    ButtonRow(Modifier.padding(vertical = 4.dp)) {
+internal fun PictureToggles(group: String, options: List<Pair<String, String>>, on: Set<String>, onToggle: (String) -> Unit) = PictureRow { tile ->
         options.forEach { (id, label) ->
             val picture = SettingPictures.of(group, id)
             val chosen = id in on
-            Focusable(onClick = { onToggle(id) }, modifier = Modifier.width(170.dp).semantics { this.selected = chosen }.testTag("picture_$picture"),
+            Focusable(onClick = { onToggle(id) }, modifier = Modifier.width(tile).semantics { this.selected = chosen }.testTag("picture_$picture"),
                 radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
                 val ink = androidx.tv.material3.LocalContentColor.current
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -103,16 +119,14 @@ internal fun PictureToggles(group: String, options: List<Pair<String, String>>, 
                 }
             }
         }
-    }
 }
 
 /** A row of picture tiles for one setting; the selected one is filled and ticked. */
 @Composable
-internal fun PictureChoice(group: String, options: List<Pair<String, String>>, selected: String, onPick: (String) -> Unit) {
-    ButtonRow(Modifier.padding(vertical = 4.dp)) {
+internal fun PictureChoice(group: String, options: List<Pair<String, String>>, selected: String, onPick: (String) -> Unit) = PictureRow { tile ->
         options.forEach { (id, label) ->
             val picture = SettingPictures.of(group, id)
-            Focusable(onClick = { onPick(id) }, modifier = Modifier.width(150.dp).semantics { this.selected = selected == id }.testTag("picture_$picture"),
+            Focusable(onClick = { onPick(id) }, modifier = Modifier.width(tile).semantics { this.selected = selected == id }.testTag("picture_$picture"),
                 radius = TvTokens.Shape.Card, container = if (selected == id) WashHi else PanelHi) {
                 val ink = androidx.tv.material3.LocalContentColor.current
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -121,7 +135,6 @@ internal fun PictureChoice(group: String, options: List<Pair<String, String>>, s
                 }
             }
         }
-    }
 }
 
 @Composable

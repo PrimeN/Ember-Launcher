@@ -78,9 +78,9 @@ internal fun SubtitleSample(c: SubtitleConfig, modifier: Modifier, text: String 
 @Composable
 internal fun SubtitleChoice(title: String, options: List<Pair<String, String>>, selected: String, c: SubtitleConfig, apply: (SubtitleConfig, String) -> SubtitleConfig, onPick: (String) -> Unit) {
     Text(title, fontSize = 15.sp)
-    ButtonRow(Modifier.padding(vertical = 4.dp)) {
+    PictureRow { tile ->
         options.forEach { (id, label) ->
-            Focusable(onClick = { onPick(id) }, modifier = Modifier.width(170.dp).semantics { this.selected = selected == id }.testTag("subtitle_${title.lowercase()}_$id"),
+            Focusable(onClick = { onPick(id) }, modifier = Modifier.width(tile).semantics { this.selected = selected == id }.testTag("subtitle_${title.lowercase()}_$id"),
                 radius = TvTokens.Shape.Card, container = if (selected == id) WashHi else PanelHi) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     SubtitleSample(apply(c, id), Modifier.fillMaxWidth().height(74.dp), text = "Subtitles", base = 13f)

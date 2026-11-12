@@ -3,6 +3,7 @@ package app.ember.tv
 import android.content.ContextWrapper
 import android.content.SharedPreferences
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.dp
 import app.ember.tv.data.*
 import app.ember.tv.discover.*
 import app.ember.tv.phone.*
@@ -461,6 +462,17 @@ class HomeWidgetsTest {
         assertFalse(timing.due(10, 0, null, null, 10))
         val overlays = java.io.File("src/main/java/app/ember/tv/player/PlayerOverlays.kt").readText()
         assertTrue(overlays.contains("takeUnless { it.kind == \"credits\" && autoNext }"))
+    }
+
+    @Test fun pictureTilesFitFiveAcross() {
+        // #229
+        val tiles = app.ember.tv.ui.PictureTiles
+        for (page in listOf(640, 760, 900, 1100)) {
+            val w = tiles.width(page.dp)
+            assertTrue("$page", w * 5 + tiles.GAP * 4 <= page.dp || w == 96.dp)
+        }
+        assertEquals(170.dp, tiles.width(2000.dp))
+        for (f in listOf("SettingPictures.kt", "SubtitlePictures.kt", "LightUi.kt")) assertTrue(f, java.io.File("src/main/java/app/ember/tv/ui/$f").readText().contains("PictureRow { tile ->"))
     }
 
     @Test fun theTraktNoticeUsesTheRequiredWording() {

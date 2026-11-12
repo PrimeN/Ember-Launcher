@@ -541,10 +541,10 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
     Section("Light Home") {
         Text(stringResource(R.string.ui_wallpaper), fontSize = 15.sp)
         // #209: each wallpaper shows its own colours.
-        ButtonRow { LightLayout.backgrounds.forEach { (id, label) ->
+        PictureRow { tile -> LightLayout.backgrounds.forEach { (id, label) ->
             val title = when (id) { "art" -> stringResource(R.string.ui_title_art); "black" -> stringResource(R.string.ui_black); "ember" -> stringResource(R.string.ui_ember_glow); else -> label }
             val chosen = vm.look.lightWallpaper == id
-            Focusable(onClick = { vm.look.updateLightWallpaper(id) }, modifier = Modifier.width(150.dp).semantics { selected = chosen }.testTag("wallpaper_$id"),
+            Focusable(onClick = { vm.look.updateLightWallpaper(id) }, modifier = Modifier.width(tile).semantics { selected = chosen }.testTag("wallpaper_$id"),
                 radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Box(Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(lightWallpaperColors(id)))) {
