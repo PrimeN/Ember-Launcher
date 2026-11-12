@@ -207,8 +207,8 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         }
         "wallpaper" -> LightHomeSettings(vm)
         "app_icons" -> Section(stringResource(R.string.ui_app_icons), stringResource(R.string.ui_how_your_apps_looks_on_home)) {
-            PictureChoice("apps", listOf("banner" to stringResource(R.string.ui_banners), "circle" to stringResource(R.string.ui_circles)),
-                if (vm.look.appIcons == "circle") "circle" else "banner", vm.look::updateAppIcons)
+            PictureChoice("apps", listOf("banner" to stringResource(R.string.ui_banners), "circle" to stringResource(R.string.ui_circles), "square" to "Squares"),
+                AppShapes.normalize(vm.look.appIcons), vm.look::updateAppIcons)
         }
         "home_cards" -> Section(stringResource(R.string.ui_home_cards), stringResource(R.string.ui_wide_uses_each_title_s_backdrop)) {
             ButtonRow(spacing = 10.dp) {

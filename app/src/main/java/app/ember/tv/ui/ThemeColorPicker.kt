@@ -40,7 +40,7 @@ internal fun ThemePaletteSwatch(index: Int) {
 @Composable
 internal fun ThemeColorPicker(selected: Int, onSelect: (Int) -> Unit) {
     ButtonRow(Modifier.selectableGroup(), spacing = 10.dp) {
-        Accents.forEachIndexed { index, (label, _) ->
+        Accents.forEachIndexed { index, (label, _) -> if (ColorThemes.offered(index)) {
             var focused by remember(index) { mutableStateOf(false) }
             val chosen = index == selected
             val resting = themeChoiceColors(index, chosen, false, Panel)
@@ -56,6 +56,6 @@ internal fun ThemeColorPicker(selected: Int, onSelect: (Int) -> Unit) {
                     ThemePaletteSwatch(index)
                 }
             }
-        }
+        } }
     }
 }

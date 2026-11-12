@@ -67,7 +67,11 @@ class PlaybackAndColourThemeTest {
     @Test fun modernPaletteIsAppendedWithoutChangingSavedColoursOrBrandAliases() {
         assertEquals(listOf("Ember","Charcoal","Blue","Green","Rose"),Accents.take(5).map{it.first})
         assertEquals("Android TV",Accents[ColorThemes.MODERN_EMBER].first)
-        for(i in 0..4)assertEquals(i,ColorThemes.artworkIndex(i))
+        for(i in listOf(0,1,3,4))assertEquals(i,ColorThemes.artworkIndex(i))
+        // #208: Blue is no longer offered; it keeps its place and reads as Ember.
+        assertEquals(0,ColorThemes.normalize(ColorThemes.RETIRED_BLUE));assertEquals(0,ColorThemes.artworkIndex(ColorThemes.RETIRED_BLUE))
+        assertFalse(ColorThemes.offered(2));assertTrue((0..ColorThemes.LAST).filter {it!=2}.all(ColorThemes::offered))
+        assertFalse(app.ember.tv.ui.SettingDefinitions.colourTheme.options.any {it.second=="Blue"})
         assertEquals(2,ColorThemes.artworkIndex(ColorThemes.MODERN_EMBER))
         // #150: the page keeps Ember's near-black with only a faint touch of its orange.
         val page=emberColorScheme(0,false,false).background

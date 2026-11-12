@@ -422,7 +422,7 @@ fun ModernHome(
                     },onFocusState={heroHasFocus=it})
                     is HomeViewModel.HomeBlock.Apps -> ModernSection(stringResource(R.string.ui_your_apps)) {
                         HomeFolderLinks(vm)
-                        AppsGrid(vm, circles = vm.look.appIcons == "circle", onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
+                        AppsGrid(vm, shape = vm.look.appIcons, onLaunch = onLaunch, onAppOptions = onAppOptions, onFocus = { onAmbient(null) })
                     }
                     // #183: holding OK on a title in a widget row also offers the widget's own actions.
                     is HomeViewModel.HomeBlock.Row -> WidgetActions(vm, b.widget) { if (b.widget?.style == app.ember.tv.data.HomeWidgets.HERO) ModernSection(b.row.displayTitle) {
@@ -964,7 +964,10 @@ fun AppBanner(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongCl
  * drawn edge to edge, so the circle is filled), falling back to the banner. Name under the focused one.
  */
 @Composable
-fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFocus: () -> Unit = {}, width: androidx.compose.ui.unit.Dp = 112.dp) {
+fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFocus: () -> Unit = {}, width: androidx.compose.ui.unit.Dp = 112.dp,
+    /** #211: a rounded square instead of a circle. */
+    square: Boolean = false) {
+    val clip = if (square) RoundedCornerShape(AppShapes.squareRadius(width.value).dp) else CircleShape
     val bitmap=rememberAppArtwork(app,circle=true)
     val backdrop = rememberAppFocus(app, bitmap, kind = "circle")
     var focused by remember { mutableStateOf(false) }
@@ -976,12 +979,12 @@ fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFoc
                 focused = it.isFocused || it.hasFocus
                 if (focused) onFocus()
             },
-            radius = TvTokens.Shape.Pill,
+            radius = if (square) AppShapes.squareRadius(width.value) else TvTokens.Shape.Pill,
             container = Color(0xFFF1F3F4),
             focusedScale = TvTokens.Focus.Round,
             card=true,
         ) {
-            if(bitmap!=null)Image(bitmap.asImageBitmap(), contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+            if(bitmap!=null)Image(bitmap.asImageBitmap(), contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(clip))
             else ArtworkPlaceholder(app.label,Modifier.fillMaxSize())
         }
         if (tileLabelShown(TileLabels.APPS)) Text(
@@ -993,6 +996,14 @@ fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFoc
             modifier = Modifier.height(16.dp),
         )
     }
+}
+
+/** App icon shapes on Home (#211). */
+internal object AppShapes {
+    val options = listOf("banner" to "Banners", "circle" to "Circles", "square" to "Squares")
+    fun normalize(value: String?): String = value?.takeIf { v -> options.any { it.first == v } } ?: "circle"
+    /** A square's corner, in dp: about a fifth of its side, like a phone's app icons. */
+    fun squareRadius(width: Float): Int = (width * .22f).toInt().coerceIn(8, 28)
 }
 
 // ---------------------------------------------------------------- Live
@@ -1188,11 +1199,13 @@ private val tmdbSized = Regex("""image\.tmdb\.org/t/p/w\d+/""")
 @Composable
 fun AppsGrid(
     vm: HomeViewModel,
-    circles: Boolean,
+    /** "banner", "circle" or "square" (#211). */
+    shape: String,
     onLaunch: (AppEntry) -> Unit,
     onAppOptions: (AppEntry) -> Unit,
     onFocus: () -> Unit = {},
 ) {
+    val circles = shape != "banner"
     val apps = vm.homeApps
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         val gap = if (circles) 10.dp else 16.dp
@@ -1208,7 +1221,7 @@ fun AppsGrid(
                 ) {
                     items(line, key = { it.pkg }) { app ->
                         when {
-                            circles -> AppCircle(app, onClick = { onLaunch(app) }, onLongClick = { onAppOptions(app) }, onFocus = onFocus, width = w)
+                            circles -> AppCircle(app, onClick = { onLaunch(app) }, onLongClick = { onAppOptions(app) }, onFocus = onFocus, width = w, square = shape == "square")
                             else -> AppBanner(app, onClick = { onLaunch(app) }, onLongClick = { onAppOptions(app) }, onFocus = onFocus, width = w)
                         }
                     }

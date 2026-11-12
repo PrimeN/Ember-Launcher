@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -539,9 +540,20 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
     val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
     Section("Light Home") {
         Text(stringResource(R.string.ui_wallpaper), fontSize = 15.sp)
+        // #209: each wallpaper shows its own colours.
         ButtonRow { LightLayout.backgrounds.forEach { (id, label) ->
             val title = when (id) { "art" -> stringResource(R.string.ui_title_art); "black" -> stringResource(R.string.ui_black); "ember" -> stringResource(R.string.ui_ember_glow); else -> label }
-            Chip(title, selected = vm.look.lightWallpaper == id) { vm.look.updateLightWallpaper(id) }
+            val chosen = vm.look.lightWallpaper == id
+            Focusable(onClick = { vm.look.updateLightWallpaper(id) }, modifier = Modifier.width(150.dp).semantics { selected = chosen }.testTag("wallpaper_$id"),
+                radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
+                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(lightWallpaperColors(id)))) {
+                        // Title art changes with your titles; a hint of a picture says so.
+                        if (id == "art") Box(Modifier.align(Alignment.Center).fillMaxWidth(.6f).fillMaxHeight(.5f).clip(RoundedCornerShape(5.dp)).background(Color.White.copy(alpha = .18f)))
+                    }
+                    Text(if (chosen) "$title  ✓" else title, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         } }
         Text(stringResource(R.string.ui_title_art_slowly_changes_between_your), color = Mute, fontSize = 13.sp)
         val options = vm.look.lightHome

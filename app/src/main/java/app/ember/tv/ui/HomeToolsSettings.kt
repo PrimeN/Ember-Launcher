@@ -5,6 +5,21 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.tv.material3.MaterialTheme
+import app.ember.tv.data.AppEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -24,7 +39,32 @@ import kotlinx.coroutines.launch
 internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
 
 /** Wording for the app pickers on Apps & folders (#190). */
+/** One app in the picker (#210): its icon with the name underneath; dimmed when it is hidden. */
+@Composable
+private fun AppChoiceTile(app:AppEntry,shown:Boolean,modifier:Modifier,onClick:()->Unit) {
+    val bitmap=rememberAppArtwork(app,circle=true)
+    Focusable(onClick=onClick,modifier=modifier.semantics {contentDescription=AppChoices.spoken(app.label,shown);selected=shown}.testTag("app_choice"),
+        radius=TvTokens.Shape.Card,container=if(shown)WashHi else Color.Transparent) {
+        val ink=androidx.tv.material3.LocalContentColor.current
+        Column(Modifier.fillMaxWidth().padding(vertical=8.dp,horizontal=4.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(AppChoices.ICON.dp)) {
+                Box(Modifier.fillMaxSize().alpha(if(shown)1f else .3f).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF1F3F4))) {
+                    if(bitmap!=null)androidx.compose.foundation.Image(bitmap.asImageBitmap(),contentDescription=null,contentScale=ContentScale.Crop,modifier=Modifier.fillMaxSize())
+                    else ArtworkPlaceholder(app.label,Modifier.fillMaxSize())
+                }
+                if(shown)Box(Modifier.align(Alignment.TopEnd).offset(x=5.dp,y=(-5).dp).size(20.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),contentAlignment=Alignment.Center) {
+                    Text("✓",fontSize=12.sp,color=Color.White,fontWeight=FontWeight.Bold)
+                }
+            }
+            Text(app.label,fontSize=12.sp,color=if(shown)ink else ink.copy(alpha=.55f),maxLines=1,overflow=TextOverflow.Ellipsis)
+        }
+    }
+}
+
 internal object AppChoices {
+    /** Six apps across, at the wide dialog's width. */
+    const val PER_ROW=6
+    const val ICON=64
     fun count(shown:Int,all:Int)=when {all==0->"No apps";shown==all->"All $all apps";else->"$shown of $all apps"}
     fun spoken(name:String,shown:Boolean)="$name, "+if(shown)"shown" else "hidden"
 }
@@ -104,9 +144,15 @@ internal object AppChoices {
                 Chip("Hide all"){all.forEach {if(shown(it.pkg))toggle(it.pkg)}}
                 Chip("Done"){chooseApps=null}
             }
-            ButtonRow {all.sortedBy {it.label.lowercase()}.forEach {a->
-                Chip(a.label,selected=shown(a.pkg),maxLines=1,modifier=Modifier.semantics {contentDescription=AppChoices.spoken(a.label,shown(a.pkg))}){toggle(a.pkg)}
-            }}
+            // #210: icons, six to a row; a hidden app is dimmed and unticked.
+            Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                all.sortedBy {it.label.lowercase()}.chunked(AppChoices.PER_ROW).forEach {line->
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                        line.forEach {a->AppChoiceTile(a,shown(a.pkg),Modifier.weight(1f)){toggle(a.pkg)}}
+                        repeat(AppChoices.PER_ROW-line.size){Spacer(Modifier.weight(1f))}
+                    }
+                }
+            }
         }
     }
     if(chooseStartup)MediaDialog("Startup destination",{chooseStartup=false}) {

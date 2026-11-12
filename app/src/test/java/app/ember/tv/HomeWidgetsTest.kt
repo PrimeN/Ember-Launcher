@@ -310,6 +310,25 @@ class HomeWidgetsTest {
         assertFalse(panel.contains("· switch"))
     }
 
+    @Test fun playerPicturesSquareIconsWallpapersAndTheAppPicker() {
+        val pictures = app.ember.tv.ui.SettingPictures
+        // #207
+        for ((id, _) in app.ember.tv.player.PlayerInterfaces.options) assertTrue(id, pictures.of("player", id) in pictures.known)
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsWatching.kt").readText().contains("PictureChoice(\"player\", SettingDefinitions.playerInterface.options"))
+        // #211
+        val shapes = app.ember.tv.ui.AppShapes
+        assertEquals(listOf("banner", "circle", "square"), shapes.options.map { it.first }); assertTrue(pictures.of("apps", "square") in pictures.known)
+        assertEquals("square", shapes.normalize("square")); assertEquals("circle", shapes.normalize(null)); assertEquals("circle", shapes.normalize("hexagon"))
+        assertTrue(shapes.squareRadius(112f) in 8..28); assertTrue(shapes.squareRadius(400f) == 28)
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText().contains("square = shape == \"square\")"))
+        // #209
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/LightUi.kt").readText().contains("background(Brush.linearGradient(lightWallpaperColors(id)))"))
+        // #210
+        assertEquals(6, app.ember.tv.ui.AppChoices.PER_ROW); assertTrue(app.ember.tv.ui.AppChoices.ICON in 48..72)
+        val picker = java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText()
+        assertTrue(picker.contains("chunked(AppChoices.PER_ROW)")); assertTrue(picker.contains("AppChoiceTile(a,shown(a.pkg),Modifier.weight(1f))"))
+    }
+
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
         assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))

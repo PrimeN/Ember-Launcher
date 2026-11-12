@@ -140,7 +140,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             }
         }
         "player_look" -> Section(stringResource(R.string.ui_player_look), stringResource(R.string.ui_advanced_ember_s_controls_with_the), id = "player_look") {
-        Choice(SettingDefinitions.playerInterface.options, app.ember.tv.player.PlayerInterfaces.resolve(c, vm.look.uiStyle)) { v ->
+        // #207: each layout as a small picture.
+        PictureChoice("player", SettingDefinitions.playerInterface.options, app.ember.tv.player.PlayerInterfaces.resolve(c, vm.look.uiStyle)) { v ->
             vm.playerSettings.updatePlaybackConfig { it.copy(playerInterface = v) }
         }
     }

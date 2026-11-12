@@ -70,7 +70,7 @@ class PlayerInterfaceChoiceTest {
             val dark = minOf(a.luminance(), b.luminance())
             return (light + .05f) / (dark + .05f)
         }
-        for (index in Accents.indices) {
+        for (index in Accents.indices.filter(app.ember.tv.data.ColorThemes::offered)) {
             assertEquals(Accents[index].second, themePreviewSwatches(index).first())
             for (current in Accents.indices) for (day in listOf(false, true)) {
                 val surface = emberColorScheme(current, day, false).surface

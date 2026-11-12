@@ -29,10 +29,52 @@ internal object SettingPictures {
     val known = setOf(
         "ui-modern", "ui-light", "ui-ember_x", "theme-night", "theme-day", "theme-auto", "menu-top", "menu-side",
         "nav-ember", "nav-ember_collapsed", "nav-cinema_bar", "page-modern", "page-ember_x", "apps-banner", "apps-circle",
-        "density-comfortable", "density-standard", "density-dense",
+        "density-comfortable", "density-standard", "density-dense", "apps-square",
+        "player-basic", "player-modern", "player-ember_x", "player-streaming",
     )
     /** How many cards the density pictures show, and the gap between them in dp: looser to tighter. */
     fun density(option: String): Pair<Int, Int> = when (option) { "comfortable" -> 3 to 9; "dense" -> 5 to 3; else -> 4 to 6 }
+}
+
+/**
+ * A player layout in miniature (#207): Ember is a solid panel at the foot of the picture, Glass the
+ * same panel frosted, Basic a cinema bar with the controls centred, Streaming small icons at the top
+ * with the title opposite and a thin bar below.
+ */
+@Composable
+private fun PlayerPicture(style: String, ink: Color) {
+    val white = Color.White; val dim = Color.White.copy(alpha = .5f)
+    fun Modifier.block(color: Color, corner: Int = 2) = clip(RoundedCornerShape(corner.dp)).background(color)
+    Box(Modifier.fillMaxSize().clip(RoundedCornerShape(5.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF3A4150), Color(0xFF151820)))).padding(5.dp)) {
+        when (style) {
+            app.ember.tv.player.PlayerInterfaces.STREAMING -> {
+                Row(Modifier.align(Alignment.TopStart), horizontalArrangement = Arrangement.spacedBy(3.dp)) { repeat(3) { i -> Box(Modifier.size(5.dp).clip(CircleShape).background(if (i == 0) white else dim)) } }
+                Column(Modifier.align(Alignment.TopEnd), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) { Box(Modifier.width(30.dp).height(4.dp).block(white)); Box(Modifier.width(20.dp).height(3.dp).block(dim)) }
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Box(Modifier.width(30.dp).height(7.dp).block(white))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(white))
+                        Box(Modifier.weight(1f).height(2.dp).block(dim)) }
+                }
+            }
+            app.ember.tv.player.PlayerInterfaces.EMBER_X -> Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(Modifier.fillMaxWidth().height(3.dp).block(dim)) { Box(Modifier.fillMaxWidth(.4f).fillMaxHeight().block(white)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(dim)); Box(Modifier.size(11.dp).clip(CircleShape).background(white)); Box(Modifier.size(6.dp).clip(CircleShape).background(dim))
+                }
+            }
+            else -> {
+                val glass = style == app.ember.tv.player.PlayerInterfaces.MODERN
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(30.dp)
+                    .block(if (glass) Color.White.copy(alpha = .22f) else Color(0xE6101012), if (glass) 6 else 2).padding(horizontal = 5.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Box(Modifier.width(34.dp).height(4.dp).block(white))
+                    Box(Modifier.fillMaxWidth().height(2.dp).block(dim)) { Box(Modifier.fillMaxWidth(.55f).fillMaxHeight().block(white)) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { repeat(6) { i -> Box(Modifier.size(5.dp).clip(CircleShape).background(if (i == 1) white else dim)) } }
+                }
+            }
+        }
+    }
 }
 
 /** A row of picture tiles for one setting; the selected one is filled and ticked. */
@@ -115,6 +157,9 @@ private fun SettingPicture(picture: String, ink: Color) {
             }
             // App icons: banners or circles.
             "apps-banner" -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) { repeat(3) { Box(Modifier.weight(1f).height(24.dp).block(soft, 5)) } }
+            "apps-square" -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) { repeat(4) { Box(Modifier.size(24.dp).block(soft, 6)) } }
+            // Player interfaces (#207), over a dark frame of video.
+            "player-basic", "player-modern", "player-ember_x", "player-streaming" -> PlayerPicture(picture.removePrefix("player-"), ink)
             "apps-circle" -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) { repeat(4) { Box(Modifier.size(24.dp).clip(CircleShape).background(soft)) } }
             // Card density: fewer, roomier cards to more, tighter ones.
             "density-comfortable", "density-standard", "density-dense" -> {

@@ -94,7 +94,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         choice("look.margins", LOOK, "Screen margins", listOf("0" to "None", "2.5" to "2.5%", "5" to "5%"), read = { look.screenMargin }, write = look::updateScreenMargin)
         choice("look.density", LOOK, "Media card density", SettingDefinitions.density.options, read = { look.contentDensity }, write = look::updateContentDensity)
         if(app.ember.tv.data.NavbarStyles.available(look.uiStyle) && look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)choice("look.menu", LOOK, "Menu position (Ember)", listOf("top" to "Top", "side" to "Side"), read = { look.menuPosition }, write = look::updateMenuPosition)
-        choice("look.appIcons", LOOK, "App icons", listOf("banner" to "Banners", "circle" to "Circles"), read = { look.appIcons }, write = look::updateAppIcons)
+        choice("look.appIcons", LOOK, "App icons", app.ember.tv.ui.AppShapes.options, read = { look.appIcons }, write = look::updateAppIcons)
         choice("look.cards", LOOK, "Home cards (Ember)", listOf("wide" to "Wide", "poster" to "Poster"), read = { look.modernCards }, write = look::updateModernCards)
         choice("look.wallpaper", LOOK, "Light Home wallpaper", LightLayout.backgrounds, read = { look.lightWallpaper }, write = look::updateLightWallpaper)
         TileLabels.choices.forEach { (kind, label) ->

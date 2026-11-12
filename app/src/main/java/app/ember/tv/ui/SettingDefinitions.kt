@@ -21,7 +21,7 @@ internal object SettingDefinitions {
     val navbarStyle=SettingDefinition("navbar-style",SettingsTab.APPEARANCE,"Navbar style",
         "navigation header collapsed cinema bar black independent menu",app.ember.tv.data.NavbarStyles.options)
     val colourTheme = SettingDefinition("accent_colour", SettingsTab.APPEARANCE, "Colour theme", "color palette accent charcoal dark grey dark gray blue navy green rose pink red google tv app icon",
-        Accents.mapIndexed { index, (label, _) -> index.toString() to label },
+        Accents.mapIndexed { index, (label, _) -> index.toString() to label }.filter { app.ember.tv.data.ColorThemes.offered(it.first.toInt()) },
         formerly = listOf("Shadow Ember", "Blue ember", "Green flame", "Rose ember", "Modern Ember", "Cinema red"))
     val playerInterface = SettingDefinition("player_look", SettingsTab.PLAYER, "Player interface", "player look GUI controls basic simple advanced Ember Modern Ember Glass Ember X cinema streaming layout independent",
         app.ember.tv.player.PlayerInterfaces.options,
