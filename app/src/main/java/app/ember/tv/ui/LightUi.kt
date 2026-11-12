@@ -525,7 +525,7 @@ private fun LightWallpaper(style: String) {
     Box(Modifier.fillMaxSize().background(Brush.linearGradient(lightWallpaperColors(style))))
 }
 
-private fun lightWallpaperColors(style: String): List<Color> = when (style) {
+internal fun lightWallpaperColors(style: String): List<Color> = when (style) {
         "aurora" -> listOf(Color(0xFF111838), Color(0xFF384F70), Color(0xFF372A56))
         "ocean" -> listOf(Color(0xFF071C32), Color(0xFF235F70), Color(0xFF0A2D43))
         "ember" -> listOf(Color(0xFF17121B), Color(0xFF674039), Color(0xFF251820))

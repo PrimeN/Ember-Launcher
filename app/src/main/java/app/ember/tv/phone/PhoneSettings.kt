@@ -91,7 +91,9 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         choice("look.accent", LOOK, "Colour theme", SettingDefinitions.colourTheme.options, read = { look.accent.toString() }, write = { look.updateAccent(it.toInt()) })
         choice("look.size", LOOK, "Interface size", UiSizes.LABELS, read = { look.uiSize }, write = look::updateUiSize)
         choice("look.text", LOOK, "Text size", UiSizes.LABELS, read = { look.textSize }, write = look::updateTextSize)
-        choice("look.margins", LOOK, "Screen margins", listOf("0" to "None", "2.5" to "2.5%", "5" to "5%"), read = { look.screenMargin }, write = look::updateScreenMargin)
+        // #232: the TV's margin steps (#209), so the phone slides through the same values.
+        choice("look.margins", LOOK, "Screen margins", app.ember.tv.ui.MarginSteps.values.map { app.ember.tv.ui.MarginSteps.text(it) to if (it == 0) "None" else app.ember.tv.ui.MarginSteps.label(it) },
+            read = { app.ember.tv.ui.MarginSteps.text(app.ember.tv.ui.MarginSteps.of(look.screenMargin)) }, write = look::updateScreenMargin)
         choice("look.density", LOOK, "Media card density", SettingDefinitions.density.options, read = { look.contentDensity }, write = look::updateContentDensity)
         if(app.ember.tv.data.NavbarStyles.available(look.uiStyle) && look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)choice("look.menu", LOOK, "Menu position (Ember)", listOf("top" to "Top", "side" to "Side"), read = { look.menuPosition }, write = look::updateMenuPosition)
         choice("look.appIcons", LOOK, "App icons", app.ember.tv.ui.AppShapes.options, read = { look.appIcons }, write = look::updateAppIcons)
@@ -141,8 +143,12 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         choice("play.interface", PLAY, "Player interface", PlayerInterfaces.options,
             read = { PlayerInterfaces.resolve(vm.playerSettings.playbackConfig, look.uiStyle) },
             write = { v -> vm.playerSettings.updatePlaybackConfig { it.copy(playerInterface = v) } })
-        toggle("play.autoplay", PLAY, "Play the next episode automatically", read = { vm.playing.autoplay }, write = vm.playing::updateAutoplay)
-        choice("play.countdown", PLAY, "Next episode countdown", listOf(5, 10, 15, 30).map { "$it" to "$it seconds" }, read = { vm.playing.countdown.toString() }, write = { vm.playing.updateCountdown(it.toInt()) })
+        // #232: one control as on the TV (#210): Off, or the countdown before the next episode plays.
+        choice("play.next", PLAY, "Play the next episode automatically", app.ember.tv.ui.NextEpisodeSteps.values.map { "$it" to app.ember.tv.ui.NextEpisodeSteps.label(it) },
+            read = { app.ember.tv.ui.NextEpisodeSteps.of(vm.playing.autoplay, vm.playing.countdown).toString() },
+            write = { v -> val secs = v.toInt()
+                if (secs == 0) { if (vm.playing.autoplay) vm.playing.updateAutoplay(false) }
+                else { if (!vm.playing.autoplay) vm.playing.updateAutoplay(true); vm.playing.updateCountdown(secs) } })
         toggle("play.combined", PLAY, "Combine sources from all addons", read = { vm.playerSettings.sourcesCombined }, write = vm.playerSettings::updateSourcesCombined)
         out.config(serializer<app.ember.tv.player.PlaybackConfig>(), "play.config", PLAY, "", { vm.playerSettings.playbackConfig }, vm.playerSettings::updatePlaybackConfig, mapOf(
             "passthrough" to Field("Passthrough (bitstream)", note = "Off decodes everything to PCM"),

@@ -185,7 +185,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         app.ember.tv.phone.PhoneFolder(targetKey(c.id, f.id), f.title, f.shape, f.hideTitle, f.coverImageUrl,
                             ids.filter { it.second.first.id == c.id && it.second.second.id == f.id }.sortedBy { it.second.third }
                                 .map { it.first to app.ember.tv.data.Collections.label(f.allSources[it.second.third], collectionCatalogs) })
-                    }) } },
+                    }, c.backdropImageUrl) } },
                     existingExtras = folderSources().mapNotNull { (id, target) ->
                         val source = target.second.allSources[target.third]
                         collectionCatalogs.firstOrNull { app.ember.tv.data.Collections.matches(it, source) }?.let { def ->

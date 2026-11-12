@@ -87,7 +87,7 @@ class PhonePageTabsTest {
             assertTrue(ui.contains("href=\"/content?${uri.rawQuery}&amp;part=widgets\"") && ui.contains("href=\"/content?${uri.rawQuery}&amp;part=collections\""))
             assertFalse("the menu holds no settings", ui.contains("role=switch"))
             val settings = request(uri, "/?${uri.rawQuery}&tab=ui&s=interface")
-            assertTrue(settings.contains("<option value=\"night\" selected>Night</option>"))
+            assertTrue(settings.contains("name=value value=\"night\" id=\"v-look.theme\" checked>")); assertTrue(settings.contains("class=pics"))
             assertTrue(settings.contains("role=switch"))
             assertTrue(settings.contains("href=\"/?${uri.rawQuery}&amp;tab=ui\">&lsaquo; UI</a>"))
             assertFalse("catalogs belong under Addons", settings.contains("Popular: Home"))

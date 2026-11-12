@@ -24,7 +24,8 @@ data class PhoneLookup(val id: String, val name: String, val note: String = "")
 /** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
 data class PhoneWidget(val id: String, val title: String, val style: String, val shape: String, val limit: Int, val source: String, val status: String,
     val canMoveUp: Boolean = true, val canMoveDown: Boolean = true, val art: String = app.ember.tv.data.HeroArtworkMode.STANDARD)
-data class PhoneCollection(val id: String, val title: String, val folders: List<PhoneFolder>)
+/** [cover] is the collection backdrop link, shown like a folder cover (#234). */
+data class PhoneCollection(val id: String, val title: String, val folders: List<PhoneFolder>, val cover: String? = null)
 /** [shape] is "poster", "wide" or "square"; [sources] are opaque ids with their labels, in order. */
 data class PhoneFolder(val id: String, val title: String, val shape: String, val hideTitle: Boolean, val cover: String?, val sources: List<Pair<String, String>>)
 data class PhoneCatalogExtras(val id: String, val label: String, val extras: List<app.ember.tv.data.CatalogExtraDef>)
@@ -35,6 +36,8 @@ object ContentPhone {
     private fun esc(value: String) = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
     /** A collection with more folders than this starts collapsed. */
     const val FOLDERS_OPEN = 6
+    /** Folder pictures on a closed collection, as on the TV (#231). */
+    const val STRIP = 5
     /**
      * Reordering the widget list on the page (#186). Arrows and the drag handle move rows locally;
      * the Send form appears once the order differs and carries the opaque row ids, comma separated.
@@ -182,17 +185,38 @@ object ContentPhone {
         append("<script>").append(BIND).append("bind('source','data-source');bind('kind','data-kind');").append(FINDERS).append("</script>")
     }
 
-    /** The collections list (#160): every folder with its cover, shape and sources, and move, edit and delete buttons. */
+    /** Width over height of a folder tile, for its picture (#234). */
+    private fun ratio(shape: String) = when (shape) { "wide" -> "16/9"; "poster" -> "2/3"; else -> "1/1" }
+    private fun StringBuilder.picture(cover: String?, name: String, shape: String) {
+        append("<span class=pf style=\"aspect-ratio:").append(ratio(shape)).append("\">")
+        web(cover)?.let { append("<img loading=lazy referrerpolicy=no-referrer alt=\"\" src=\"").append(esc(it)).append("\">") } ?: append(esc(name.take(1).uppercase()))
+        append("</span>")
+    }
+
+    /**
+     * The collections list (#160): every folder with its cover, shape and sources, and move, edit and
+     * delete buttons. #234: as on the TV, a collection shows its backdrop and folder pictures, and its
+     * folders are picture tiles in their own shapes.
+     */
     private fun StringBuilder.library(content: PhoneContent, auth: String) {
         append("<div class=cols>")
         content.library.forEach { c ->
-            append("<section class=\"card lib\"><div class=head><h2>").append(esc(c.title)).append("</h2><span class=m>").append(c.folders.size).append(if (c.folders.size == 1) " folder" else " folders").append("</span></div>")
-            // #165: a long collection opens on demand instead of filling the page.
-            append("<details class=fold").append(if (c.folders.size <= FOLDERS_OPEN) " open" else "").append("><summary>Folders</summary>")
+            val backdrop = web(c.cover) ?: c.folders.firstNotNullOfOrNull { web(it.cover) }
+            append("<section class=\"card lib\"><div class=\"head ch\"><span class=cv>")
+            backdrop?.let { append("<img loading=lazy referrerpolicy=no-referrer alt=\"\" src=\"").append(esc(it)).append("\">") } ?: append(esc(c.title.take(1).uppercase()))
+            append("</span><h2>").append(esc(c.title)).append("</h2><span class=m>").append(c.folders.size).append(if (c.folders.size == 1) " folder" else " folders").append("</span></div>")
+            // #165: a long collection opens on demand instead of filling the page; closed, it still shows its first folders.
+            append("<details class=fold").append(if (c.folders.size <= FOLDERS_OPEN) " open" else "").append("><summary>")
+            if (c.folders.isNotEmpty()) {
+                append("<span class=strip aria-hidden=true>")
+                c.folders.take(STRIP).forEach { f -> picture(f.cover, f.title.ifBlank { "Folder" }, f.shape) }
+                if (c.folders.size > STRIP) append("<small>+").append(c.folders.size - STRIP).append("</small>")
+                append("</span>")
+            }
+            append("Folders</summary><div class=fgrid>")
             c.folders.forEachIndexed { index, f ->
                 val name = f.title.ifBlank { "Folder" }
-                append("<div class=row><span class=thumb>")
-                web(f.cover)?.let { append("<img loading=lazy referrerpolicy=no-referrer alt=\"\" src=\"").append(esc(it)).append("\">") } ?: append(esc(name.take(1).uppercase()))
+                append("<div class=ft><span class=pic>"); picture(f.cover, name, f.shape)
                 append("</span><div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(shapeName(f.shape)).append("</span>")
                     .append(esc(f.sources.joinToString(" · ") { it.second }.ifBlank { "No sources" })).append("</small></div><div class=acts>")
                 post(auth, "move-folder", f.id, "<input type=hidden name=dir value=up>", "Move $name up", "&uarr;", disabled = index == 0)
@@ -201,7 +225,7 @@ object ContentPhone {
                 post(auth, "delete", f.id, "", "Delete $name", "&#10005;", danger = true)
                 append("</div></div>")
             }
-            append("</details><a class=\"btn quiet\" href=\"/content?k=$auth&amp;edit=new&amp;in=").append(esc(c.id)).append("\">Add a folder</a></section>")
+            append("</div></details><a class=\"btn quiet\" href=\"/content?k=$auth&amp;edit=new&amp;in=").append(esc(c.id)).append("\">Add a folder</a></section>")
         }
         append("<section class=card><h2>New collection</h2><p class=m>A collection is a row on Home and Discover; each folder in it is a tile that opens one or more catalogs.</p>")
         append("<a class=btn href=\"/content?k=$auth&amp;edit=new\">Create a collection</a></section></div>")

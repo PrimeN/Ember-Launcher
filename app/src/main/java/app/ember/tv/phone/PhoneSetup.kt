@@ -638,10 +638,17 @@ class PhoneSetup(
     /** One collapsible form per service, so thirty key fields are not one long page. */
     private fun StringBuilder.accountsTab(auth: String) {
         append("<h2>API keys and logins</h2><p class=m>Open a service to add or replace its keys. Empty fields keep what is on the TV.</p>")
+        // #233: service tiles as on the TV (#214): a green check when ready, red when a required key is missing.
+        append("<div class=svc>")
         ApiKeys.SERVICES.forEach { s ->
             val saved = s.fields.count { ApiKeys.isEntered(it.id) }
-            append("<details class=card><summary><span>${esc(s.name)}</span><small>${if (saved == 0) "Not set" else if (saved == s.fields.size) "Saved" else "$saved of ${s.fields.size} saved"}</small></summary><div class=in>")
-            append("<form class=flat method=post action=\"/save$auth\"><input type=hidden name=action value=keys><p class=m>${esc(s.usedFor)}<br>${esc(s.where)}</p>")
+            val required = ApiKeys.required(s)
+            val (mark, glyph) = when (ApiKeys.status(ApiKeys.ready(s), required)) {
+                ApiKeys.Status.SET -> "ok" to "&#10003;"; ApiKeys.Status.MISSING_REQUIRED -> "bad" to "!"; ApiKeys.Status.MISSING_OPTIONAL -> "off" to "&ndash;"
+            }
+            append("<details class=\"card tile\"><summary><i class=\"mk $mark\" aria-hidden=true>$glyph</i><span><b>${esc(s.name)}</b><small>${if (saved == 0) "Not set" else if (saved == s.fields.size) "Saved" else "$saved of ${s.fields.size} saved"}</small></span>")
+            append("<em class=${if (required) "req" else "opt"}>${if (required) "Required" else "Optional"}</em></summary><div class=in>")
+            append("<form class=flat method=post action=\"/save$auth\"><input type=hidden name=action value=keys><p class=m>${esc(s.usedFor)}<br>${esc(s.where)}${ApiKeys.LIMITS[s.name]?.let { "<br>" + esc(it) }.orEmpty()}</p>")
             s.fields.forEach { fld ->
                 val hint = if (ApiKeys.isEntered(fld.id)) " · saved " + ApiKeys.hint(ApiKeys.get(fld.id)) else ""
                 val type = if (fld.id.contains("PASSWORD") || fld.id.contains("SECRET") || fld.id.contains("TOKEN")) "password" else "text"
@@ -649,6 +656,7 @@ class PhoneSetup(
             }
             append("<button>Save ${esc(s.name)}</button></form></div></details>")
         }
+        append("</div>")
     }
 
     private fun StringBuilder.backupTab(auth: String, handler: Handler, section: String?) {
@@ -705,13 +713,38 @@ class PhoneSetup(
         append("<label for=\"v-$id\">${esc(s.label)}")
         s.note?.let { append("<small>${esc(it)}</small>") }
         append("</label>")
-        when (s.kind) {
-            "toggle" -> append("<input type=hidden name=value value=false><input class=sw id=\"v-$id\" type=checkbox role=switch name=value value=true${if (s.value == "true") " checked" else ""}>")
-            "choice" -> {
+        when {
+            s.kind == "toggle" -> append("<input type=hidden name=value value=false><input class=sw id=\"v-$id\" type=checkbox role=switch name=value value=true${if (s.value == "true") " checked" else ""}>")
+            // #232: the TV's pictures, five to a row.
+            s.kind == "choice" && PhonePictures.has(s.id) -> {
+                append("<div class=pics role=radiogroup aria-label=\"${esc(s.label)}\">")
+                s.options.forEachIndexed { i, (v, l) ->
+                    append("<label><input type=radio name=value value=\"${esc(v)}\"${if (i == 0) " id=\"v-$id\"" else ""}${if (v == s.value) " checked" else ""}>")
+                    append("<span>${PhonePictures.of(s.id, v).orEmpty()}<b>${esc(l)}</b></span></label>")
+                }
+                append("</div>")
+            }
+            // #232: numbers in steps slide; without scripts the list below the slider does the same.
+            s.kind == "choice" && PhonePictures.stepped(s.options) -> {
+                val at = s.options.indexOfFirst { it.first == s.value }.coerceAtLeast(0)
+                val steps = esc(s.options.joinToString(",", "[", "]") { "\"" + it.first + "\"" })
+                val labels = esc(s.options.joinToString(",", "[", "]") { "\"" + it.second.replace("\\", "").replace("\"", "") + "\"" })
+                append("<div class=rw><input type=hidden class=hv name=value value=\"${esc(s.options[at].first)}\"><input class=\"rng wj\" id=\"v-$id\" type=range min=0 max=${s.options.lastIndex} step=1 value=$at data-steps=\"$steps\" data-labels=\"$labels\" aria-label=\"${esc(s.label)}\">")
+                append("<output class=wj>${esc(s.options[at].second)}</output><noscript><select name=value aria-label=\"${esc(s.label)}\">")
+                s.options.forEach { (v, l) -> append("<option value=\"${esc(v)}\"${if (v == s.value) " selected" else ""}>${esc(l)}</option>") }
+                append("</select></noscript></div>")
+            }
+            s.kind == "choice" && PhonePictures.pills(s.options) -> {
+                append("<div class=\"picks wide\" role=radiogroup aria-label=\"${esc(s.label)}\">")
+                s.options.forEachIndexed { i, (v, l) -> append("<label><input type=radio name=value value=\"${esc(v)}\"${if (i == 0) " id=\"v-$id\"" else ""}${if (v == s.value) " checked" else ""}><span>${esc(l)}</span></label>") }
+                append("</div>")
+            }
+            s.kind == "choice" -> {
                 append("<select id=\"v-$id\" name=value>")
                 s.options.forEach { (v, l) -> append("<option value=\"${esc(v)}\"${if (v == s.value) " selected" else ""}>${esc(l)}</option>") }
                 append("</select>")
             }
+            PhonePictures.slides(s.min, s.max) -> append("<div class=rw><input id=\"v-$id\" type=range name=value min=${s.min} max=${s.max} value=\"${esc(s.value)}\" aria-label=\"${esc(s.label)}\"><output class=wj>${esc(s.value)}</output></div>")
             else -> append("<input id=\"v-$id\" type=number inputmode=numeric name=value min=${s.min} max=${s.max} value=\"${esc(s.value)}\">")
         }
         append("<button class=save>Save</button><span class=st role=status aria-live=polite></span></form>")
@@ -819,6 +852,35 @@ main>h1,main>.intro{grid-column:1/-1}
 main>nav{grid-column:1;grid-row:3/span 400;flex-direction:column;gap:6px;top:16px;overflow:visible;padding:8px 0;background:none}
 main>nav a{border-radius:12px;padding:12px 14px;font-size:15px}
 main>*:not(nav):not(h1):not(.intro){grid-column:2;max-width:800px;width:100%;box-sizing:border-box}}
+.pics{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:6px 0 2px}
+@media(max-width:430px){.pics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pics label{position:relative;margin:0;min-width:0}.pics input{position:absolute;opacity:0;width:1px;height:1px}
+.pics span{display:block;padding:6px;border-radius:12px;border:1px solid #3a3b40;background:var(--bg);text-align:center;cursor:pointer}
+.pics svg{display:block;width:100%;height:auto;border-radius:6px}
+.pics b{display:block;margin-top:5px;font-size:12px;font-weight:600;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pics input:checked+span{border-color:var(--accent);background:#2c2d32}.pics input:checked+span b{color:var(--fg)}
+.pics input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.picks.wide{grid-column:1/-1;margin:6px 0 2px}.picks span{cursor:pointer}
+.rw{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin-top:4px}.rw select{width:100%;max-width:none}
+input[type=range]{flex:1;width:auto;margin:0;padding:0;border:0;background:none;accent-color:var(--accent);height:28px}
+.rw output{flex:none;min-width:72px;text-align:right;font-size:14px;font-weight:600}
+.js .rw .wj{display:block}
+.svc{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:12px 0}
+.svc details.card{margin:0}.svc details[open]{grid-column:1/-1}
+.svc summary{gap:10px!important}.svc summary span b{display:block;font-size:15px}.svc summary span small{display:block;color:var(--mute);font-weight:400;font-size:12px;margin-top:2px}
+.svc details.card>summary:after{content:none}
+.mk{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;font-style:normal;font-size:15px;font-weight:700}
+.mk.ok{background:#1e3a2a;color:#8fe3b0}.mk.bad{background:#3a2222;color:#ffb4ab}.mk.off{background:#2c2d32;color:var(--mute)}
+.svc em{flex:none;font-style:normal;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px}.svc em.req{background:#3a2222;color:#ffd9d6}.svc em.opt{background:#2c2d32;color:var(--mute)}
+.ch{align-items:center}.cv{flex:none;width:64px;height:36px;border-radius:8px;background:var(--bg);overflow:hidden;display:grid;place-items:center;font-weight:700;color:var(--mute)}.cv img{width:100%;height:100%;object-fit:cover}
+.strip{display:inline-flex;align-items:center;gap:5px;margin-right:10px;vertical-align:middle}.strip .pf{height:40px;font-size:14px}.strip small{color:var(--mute);font-size:12px}
+details.fold[open]>summary .strip{display:none}details.fold>summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:6px}
+.ft{display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--bg);border-radius:12px;padding:8px}
+.ft .pic{display:grid;place-items:center;height:96px}.ft .pic .pf{height:100%;max-width:100%;font-size:24px}
+.pf{display:grid;place-items:center;box-sizing:border-box;border-radius:7px;background:#2c2d32;overflow:hidden;font-weight:700;color:var(--mute)}.pf img{width:100%;height:100%;object-fit:cover}
+.ft .t{min-width:0}.ft .t b,.ft .t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ft .t b{font-size:14px}.ft .t small{color:var(--mute);font-size:12px;margin-top:3px}
+.ft .acts{margin:0;justify-content:space-between}.ft .ib{width:34px;height:34px;font-size:14px}
 [hidden]{display:none!important}</style></head>
 <body><main><h1><i></i>${esc(title)}</h1><p class="m intro">Sent straight to your TV on this network. Nothing goes through the internet.</p>$body</main><script>$SCRIPT</script></body></html>"""
 
@@ -831,9 +893,18 @@ main>*:not(nav):not(h1):not(.intro){grid-column:2;max-width:800px;width:100%;box
          */
         private const val SCRIPT = """
 document.documentElement.classList.add('js');
-function show(f,v){var i=f.querySelector('[name=value]:not([type=hidden])');if(!i)return;if(i.type==='checkbox')i.checked=v==='true';else i.value=v;}
+function steps(g){return g&&g.dataset.steps?JSON.parse(g.dataset.steps):null;}
+function label(f){var g=f.querySelector('input[type=range]'),o=f.querySelector('output');if(!g)return;var s=steps(g);
+  if(s){var l=JSON.parse(g.dataset.labels);f.querySelector('.hv').value=s[g.value];if(o)o.textContent=l[g.value];}else if(o)o.textContent=g.value;}
+function cur(f){var r=f.querySelectorAll('input[type=radio]');if(r.length){var c=f.querySelector('input[type=radio]:checked');return c?c.value:'';}
+  var w=f.querySelector('input.sw');if(w)return String(w.checked);var h=f.querySelector('.hv');if(h)return h.value;
+  var i=f.querySelector('[name=value]:not([type=hidden])');return i?i.value:'';}
+function show(f,v){var r=f.querySelectorAll('input[type=radio]');if(r.length){r.forEach(function(x){x.checked=x.value===v;});return;}
+  var w=f.querySelector('input.sw');if(w){w.checked=v==='true';return;}
+  var g=f.querySelector('input[type=range]'),s=steps(g);if(s){var k=s.indexOf(v);if(k>=0)g.value=k;label(f);return;}
+  var i=f.querySelector('[name=value]:not([type=hidden])');if(i){i.value=v;label(f);}}
 document.querySelectorAll('form.s').forEach(function(f){
-  var st=f.querySelector('.st'),i=f.querySelector('[name=value]:not([type=hidden])'),last=i.type==='checkbox'?String(i.checked):i.value;
+  var st=f.querySelector('.st'),last=cur(f);
   function send(){
     var d=new URLSearchParams(new FormData(f));d.set('js','1');st.className='st';st.textContent='Saving…';
     fetch(f.action,{method:'POST',body:d}).then(function(r){return r.json();}).then(function(j){
@@ -841,7 +912,9 @@ document.querySelectorAll('form.s').forEach(function(f){
       if(j.value!=null){show(f,j.value);last=j.value;}else show(f,last);
     }).catch(function(){st.textContent='Not saved: the TV did not answer. The session may have ended.';st.className='st bad';show(f,last);});
   }
-  i.addEventListener('change',send);f.addEventListener('submit',function(e){e.preventDefault();send();});
+  f.addEventListener('input',function(e){if(e.target.type==='range')label(f);});
+  f.addEventListener('change',function(e){if(e.target.type==='range')label(f);if(e.target.name==='value'||e.target.classList.contains('rng'))send();});
+  f.addEventListener('submit',function(e){e.preventDefault();send();});
 });
 var find=document.getElementById('find');
 if(find)find.addEventListener('input',function(){
