@@ -240,7 +240,7 @@ fun SettingsScreen(vm: HomeViewModel) {
                 }
                 item(key = "trackerstatus") { SourceStatusButton("Tracker status", vm.trackerHealth, vm::retryTracker) }
                 item(key = "trackersync") { TrackerSyncCard(vm) }
-                items(vm.hub.trackers, key = { "tr:${it.id}" }) { t -> TrackerRow(vm, t, openKeys) }
+                item(key = "trackergrid") { TrackersGrid(vm, openKeys) }
             }
             SettingsTab.SERVERS -> {
                 item(key = "serverstatus") { SourceStatusButton("Media server status", vm.serverHealth, vm::retryServer) }

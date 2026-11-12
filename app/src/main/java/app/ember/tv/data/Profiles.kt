@@ -21,6 +21,8 @@ data class Profile(
     val apps: Set<String>? = null,
     /** Index into [COLORS] for the round avatar. */
     val color: Int = 0,
+    /** #222: a picture for the avatar instead of the letter: a picture on this TV (content://) or a web link. */
+    val photo: String? = null,
     /** Parent-selected content locks; independent of catalog browse filters. */
     val lockedGenre: String? = null,
     val maxTvRating: String? = null,
@@ -31,7 +33,11 @@ data class Profile(
 ) {
     companion object {
         const val MAIN = "main"
-        val COLORS = listOf(0xFFFFB547, 0xFF6CC0FF, 0xFF6FE0B0, 0xFFFF8AA8, 0xFFB39DFF, 0xFFFF8A65)
+        /** Saved by position, so new colours only ever go on the end (#222). Dark text reads on every one. */
+        val COLORS = listOf(0xFFFFB547, 0xFF6CC0FF, 0xFF6FE0B0, 0xFFFF8AA8, 0xFFB39DFF, 0xFFFF8A65,
+            0xFFAED581, 0xFFFFD54F, 0xFFCE93D8, 0xFF90A4AE, 0xFFEF5350, 0xFFECEFF1, 0xFF4DD0E1, 0xFFA1887F)
+        /** A photo Ember will show: a picture on this TV or an https link. */
+        fun usablePhoto(photo: String?): String? = photo?.trim()?.takeIf { it.startsWith("content://") || it.startsWith("https://") }
         /** Apps a Kids profile leaves out by default: settings, app stores, browsers, file managers, launchers. */
         val KIDS_BLOCKED = Regex("""settings|vending|store|browser|chrome|firefox|webview|files|filemanager|explorer|launcher|installer|downloader|terminal|adb""", RegexOption.IGNORE_CASE)
         val KIDS_WORDS = Regex("""kid|family|children|cartoon|animation|junior|disney""", RegexOption.IGNORE_CASE)

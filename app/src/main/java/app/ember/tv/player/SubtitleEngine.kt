@@ -88,10 +88,12 @@ class SubtitleEngine(private val view: SubtitleView) {
         /** Applies Settings > Subtitles > Look to the player's subtitle view (Ember's and the video's own). */
         fun style(view: SubtitleView, c: SubtitleConfig) {
             val fg = if (c.color == "yellow") Color.rgb(255, 230, 80) else Color.WHITE
+            // #219: the chosen font; the default stays bold sans.
+            val face: Typeface = app.ember.tv.data.SubtitleFonts.typeface(view.context, c.font)
             val style = when (c.background) {
-                "box" -> CaptionStyleCompat(fg, Color.argb(190, 0, 0, 0), Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_NONE, Color.BLACK, Typeface.DEFAULT_BOLD)
-                "shadow" -> CaptionStyleCompat(fg, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, Color.BLACK, Typeface.DEFAULT_BOLD)
-                else -> CaptionStyleCompat(fg, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, Typeface.DEFAULT_BOLD)
+                "box" -> CaptionStyleCompat(fg, Color.argb(190, 0, 0, 0), Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_NONE, Color.BLACK, face)
+                "shadow" -> CaptionStyleCompat(fg, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, Color.BLACK, face)
+                else -> CaptionStyleCompat(fg, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, face)
             }
             val system=view.context.getSystemService(android.content.Context.CAPTIONING_SERVICE) as? android.view.accessibility.CaptioningManager
             view.setStyle(if(c.systemStyle && system!=null)CaptionStyleCompat.createFromCaptionStyle(system.userStyle) else style)

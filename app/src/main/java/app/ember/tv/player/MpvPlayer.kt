@@ -318,6 +318,17 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         native.setPropertyString("sub-border-color","#FF000000");native.setPropertyDouble("sub-border-size",if(c.background=="outline")2.5 else 0.0)
         native.setPropertyDouble("sub-shadow-offset",if(c.background=="shadow")2.5 else 0.0)
         native.setPropertyBoolean("sub-bold",false);native.setPropertyBoolean("sub-italic",false)
+        // #219: the chosen font, as far as this player can find it; a custom one is looked up in Ember's font folder.
+        runCatching {
+            when(app.ember.tv.data.SubtitleFonts.normalize(c.font)) {
+                app.ember.tv.data.SubtitleFonts.DEFAULT -> {}
+                app.ember.tv.data.SubtitleFonts.CUSTOM -> if(app.ember.tv.data.SubtitleFonts.hasCustom(context)&&c.customFontName.isNotBlank()) {
+                    native.setPropertyString("sub-fonts-dir",app.ember.tv.data.SubtitleFonts.file(context).parentFile!!.absolutePath)
+                    native.setPropertyString("sub-font",c.customFontName)
+                }
+                else -> app.ember.tv.data.SubtitleFonts.systemFamily(c.font)?.let {native.setPropertyString("sub-font",it)}
+            }
+        }
         if(c.systemStyle) {
             val manager=context.getSystemService(Context.CAPTIONING_SERVICE) as? android.view.accessibility.CaptioningManager
             manager?.let {

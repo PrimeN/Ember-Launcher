@@ -91,6 +91,14 @@ import java.util.Locale
 
 // ---------------------------------------------------------------- General
 
+/** Screen margins as slider steps (#215), in tenths of a percent of the screen. */
+internal object MarginSteps {
+    val values = listOf(0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50)
+    fun of(saved: String): Int = (app.ember.tv.data.ScreenMargins.normalize(saved).toFloat() * 10).let { kotlin.math.round(it).toInt() }
+    fun text(tenths: Int): String = app.ember.tv.data.ScreenMargins.normalize((tenths / 10f).toString())
+    fun label(tenths: Int): String = text(tenths) + "%"
+}
+
 /** One setting per line: name (and a note) on the left, On/Off on the right. */
 @Composable
 internal fun ToggleRow(label: String, note: String?, on: Boolean, onToggle: () -> Unit) {
@@ -173,21 +181,17 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             ToggleRow(stringResource(R.string.ui_oled_mode), stringResource(R.string.ui_true_black_backgrounds_at_night_deeper), vm.look.oled) { vm.look.updateOled(!vm.look.oled) }
         }
         "screen_margins" -> Section(stringResource(R.string.ui_screen_margins), stringResource(R.string.ui_keeps_menus_and_the_clock_clear)) {
-        ButtonRow(spacing = 10.dp) {
-            Chip(stringResource(R.string.ui_none), selected = vm.look.screenMargin == "0") { vm.look.updateScreenMargin("0") }
-            Chip("2.5%", selected = vm.look.screenMargin == "2.5") { vm.look.updateScreenMargin("2.5") }
-            Chip("5%", selected = vm.look.screenMargin == "5") { vm.look.updateScreenMargin("5") }
+        // #215: a slider in half-percent steps; values are tenths of a percent.
+        val none = stringResource(R.string.ui_none)
+        StepSlider(stringResource(R.string.ui_screen_margins), MarginSteps.values, MarginSteps.of(vm.look.screenMargin), { if (it == 0) none else MarginSteps.label(it) }) {
+            vm.look.updateScreenMargin(MarginSteps.text(it))
         }
     }
         "interface-size" -> Section(stringResource(R.string.ui_interface_size), stringResource(R.string.ui_makes_everything_on_screen_smaller_or), id = "interface-size") {
-        ButtonRow(spacing = 10.dp) {
-            UiSizes.LABELS.forEach { (id, label) -> Chip(label, selected = vm.look.uiSize == id) { vm.look.updateUiSize(id) } }
-        }
+        PictureChoice("uisize", UiSizes.LABELS, vm.look.uiSize, vm.look::updateUiSize)
     }
         "text-size" -> Section(stringResource(R.string.ui_text_size), stringResource(R.string.ui_text_only_on_top_of_the), id = "text-size") {
-        ButtonRow(spacing = 10.dp) {
-            UiSizes.LABELS.forEach { (id, label) -> Chip(label, selected = vm.look.textSize == id) { vm.look.updateTextSize(id) } }
-        }
+        PictureChoice("textsize", UiSizes.LABELS, vm.look.textSize, vm.look::updateTextSize)
     }
         "remote_s_settings_button" -> Section(stringResource(R.string.ui_remote_s_settings_button), stringResource(R.string.ui_ember_the_remote_s_settings_or)) {
         Choice(listOf("ember" to "Ember", "tv" to "TV or projector"), vm.look.remoteSettingsKey) { vm.look.updateRemoteSettingsKey(it) }

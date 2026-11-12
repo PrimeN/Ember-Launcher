@@ -118,54 +118,13 @@ internal fun ApiKeysGrid(vm: HomeViewModel) {
     val rev = vm.keysRev // read so the tiles redraw after a save
     var open by remember { mutableStateOf<ApiKeys.Service?>(null) }
     val services = ApiKeys.SERVICES.sortedWith(compareBy({ !ApiKeys.required(it) }, { it.name.lowercase() }))
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        services.chunked(4).forEach { line ->
-            Row(Modifier.width(960.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                line.forEach { s -> ApiKeyTile(s, Modifier.weight(1f)) { open = s } }
-                repeat(4 - line.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
+    ServiceGrid(services.map { s -> ServiceTileInfo(s.name, s.name, keyMark(ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s))),
+        if (ApiKeys.required(s)) "Required" else "Optional", tagStrong = ApiKeys.required(s)) }) { t -> open = services.firstOrNull { it.name == t.id } }
     open?.let { s -> ApiKeyDialog(vm, s) { open = null } }
 }
 
-@Composable
-private fun ApiKeyTile(s: ApiKeys.Service, modifier: Modifier, onClick: () -> Unit) {
-    val required = ApiKeys.required(s)
-    val status = ApiKeys.status(ApiKeys.ready(s), required)
-    Focusable(onClick = onClick, modifier = modifier.testTag("api_key_tile").semantics {
-        contentDescription = "${s.name}, ${if (required) "required" else "optional"}, " + when (status) { ApiKeys.Status.SET -> "key set"; else -> "no key" }
-    }, radius = TvTokens.Shape.Card, container = PanelHi) {
-        val ink = androidx.tv.material3.LocalContentColor.current
-        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            KeyStatusMark(status)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(s.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    color = if (status == ApiKeys.Status.MISSING_OPTIONAL) ink.copy(alpha = .6f) else ink)
-                KeyTag(required)
-            }
-        }
-    }
-}
-
-/** Green tick when the key is there; red cross when a required one is missing; grey when an optional one is. */
-@Composable
-private fun KeyStatusMark(status: ApiKeys.Status) {
-    val (fill, mark) = when (status) {
-        ApiKeys.Status.SET -> Color(0xFF2E9E5B) to "✓"
-        ApiKeys.Status.MISSING_REQUIRED -> Color(0xFFD64545) to "✕"
-        ApiKeys.Status.MISSING_OPTIONAL -> Color(0xFF6B7078) to "–"
-    }
-    Box(Modifier.size(26.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
-        Text(mark, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-    }
-}
-
-@Composable
-private fun KeyTag(required: Boolean) {
-    Text(if (required) "Required" else "Optional", fontSize = 12.sp, fontWeight = FontWeight.Medium,
-        color = if (required) Color(0xFF1F1F1F) else Fg,
-        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(if (required) Color(0xFFF2C14E) else Fg.copy(alpha = .14f)).padding(horizontal = 7.dp, vertical = 2.dp))
+private fun keyMark(status: ApiKeys.Status) = when (status) {
+    ApiKeys.Status.SET -> ServiceMark.OK; ApiKeys.Status.MISSING_REQUIRED -> ServiceMark.PROBLEM; ApiKeys.Status.MISSING_OPTIONAL -> ServiceMark.OFF
 }
 
 /** A service's dialog (#214): what it's for, its limits, where to get a key, and the fields. */
@@ -175,8 +134,8 @@ private fun ApiKeyDialog(vm: HomeViewModel, s: ApiKeys.Service, close: () -> Uni
     val rev = vm.keysRev
     MediaDialog(s.name, close, resizeForKeyboard = true, wide = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            KeyStatusMark(ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s)))
-            KeyTag(ApiKeys.required(s))
+            ServiceStatusMark(keyMark(ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s))))
+            ServiceTag(if (ApiKeys.required(s)) "Required" else "Optional", ApiKeys.required(s))
             Text(if (ApiKeys.ready(s)) "Key set" else "No key yet", fontSize = 14.sp)
         }
         Text(s.usedFor, fontSize = 14.sp)
@@ -240,6 +199,48 @@ internal fun KeyField(vm: HomeViewModel, f: ApiKeys.Field) {
 
 // ---------------------------------------------------------------- Profiles
 
+/** A profile's photo (#222): one of the pictures on this TV, or a link to one. */
+@Composable
+internal fun ProfilePhotoPicker(name: String, close: () -> Unit, onPick: (String) -> Unit) {
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(Photos.granted(context)) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
+    var pictures by remember { mutableStateOf<List<String>?>(null) }
+    var link by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(allowed) {
+        if (allowed) pictures = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Photos.slides(context, null, ProfilePhotos.MAX).map { it.image } }.getOrDefault(emptyList()) }
+    }
+    MediaDialog("Photo for $name", close, resizeForKeyboard = true, wide = true) {
+        Text("From this TV's pictures", fontSize = 15.sp)
+        when {
+            !allowed -> Chip(stringResource(R.string.ui_allow_access_to_pictures)) { ask.launch(Photos.permission) }
+            pictures == null -> Text("Loading…", color = Mute, fontSize = 13.sp)
+            pictures!!.isEmpty() -> Text(stringResource(R.string.ui_no_pictures_found_on_this_tv), color = Mute, fontSize = 13.sp)
+            else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                pictures!!.chunked(ProfilePhotos.PER_ROW).forEach { line ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        line.forEach { uri ->
+                            Focusable(onClick = { onPick(uri) }, modifier = Modifier.size(96.dp).testTag("profile_photo"), radius = TvTokens.Shape.Pill, container = PanelHi, focusedScale = TvTokens.Focus.Round) {
+                                coil.compose.AsyncImage(uri, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text("Or a link to a picture", fontSize = 15.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextInput(link, { link = it.take(500) }, "https://…")
+            Chip("Use this picture") { Profile.usablePhoto(link)?.let(onPick) ?: run { message = "Enter a link that starts with https://." } }
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
+        ButtonRow { Chip("Cancel") { close() } }
+    }
+}
+
+internal object ProfilePhotos { const val MAX = 24; const val PER_ROW = 8 }
+
 /** Settings > Profiles: add, edit and remove profiles, and the PIN that guards Kids profiles. */
 @Composable
 internal fun ProfilesPage(vm: HomeViewModel) {
@@ -248,12 +249,14 @@ internal fun ProfilesPage(vm: HomeViewModel) {
     var kidsSetup by remember {mutableStateOf<Profile?>(null)}
     var newKids by remember {mutableStateOf(false)}
     var deleting by remember {mutableStateOf<Profile?>(null)}
+    var choosingPhoto by remember {mutableStateOf(false)}
     var pendingLockChange by remember {mutableStateOf<(() -> Unit)?>(null)}
     deleting?.let {target->ConfirmDestructive("Delete ${target.name}?","This removes the profile. It does not delete history on connected tracker accounts.",{deleting=null}) {
         vm.profiles.deleteProfile(target.id);editId=vm.profiles.profileId
     }}
     val p = vm.profiles.all.firstOrNull { it.id == editId } ?: vm.profiles.profile
     var name by remember(p.id) { mutableStateOf(p.name) }
+    if (choosingPhoto) ProfilePhotoPicker(p.name, { choosingPhoto = false }) { photo -> vm.profiles.updateProfile(p.id) { it.copy(photo = photo) }; choosingPhoto = false }
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         Section(stringResource(R.string.ui_profiles), stringResource(R.string.ui_each_profile_has_its_own_home)) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -290,6 +293,11 @@ internal fun ProfilesPage(vm: HomeViewModel) {
                 }
                 ProfileColorPicker(p.color) {color->
                     vm.profiles.updateProfile(p.id) {it.copy(color=color)}
+                }
+                // #222: a photo instead of the letter.
+                ButtonRow(spacing = 10.dp) {
+                    Chip(if (p.photo == null) "Use a photo" else "Change photo") { choosingPhoto = true }
+                    if (p.photo != null) Chip("Remove photo") { vm.profiles.updateProfile(p.id) { it.copy(photo = null) } }
                 }
                 ToggleRow(stringResource(R.string.ui_kids_profile), stringResource(R.string.ui_asks_for_the_pin_to_open), p.kids) {
                     if(!p.kids)kidsSetup=p.copy(kids=true,personal=false,kidsSetupRequired=true)

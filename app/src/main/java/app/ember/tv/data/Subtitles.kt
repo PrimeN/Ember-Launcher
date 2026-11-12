@@ -69,6 +69,10 @@ data class SubtitleConfig(
     val position: String = "normal",
     val authoredStyles: Boolean = true,
     val systemStyle: Boolean = false,
+    /** #219: "default", "sans", "serif", "mono", "condensed", or "custom" (a font loaded from a link). */
+    val font: String = "default",
+    /** Where the custom font came from and its family name, for showing which one is loaded. */
+    val customFontName: String = "",
 )
 
 /** One subtitle file Ember can show, with what is known about how well it fits the video. */

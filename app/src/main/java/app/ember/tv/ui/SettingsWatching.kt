@@ -12,6 +12,7 @@ import app.ember.tv.R
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -298,25 +299,29 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "playback_info" -> Section(stringResource(R.string.ui_playback_info)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ToggleRow(stringResource(R.string.ui_show_at_start), null, c.infoOnStart) {
-                vm.playerSettings.updatePlaybackConfig { it.copy(infoOnStart = !it.infoOnStart) }
+            // #218: the two choices as pictures.
+            PictureChoice("info", listOf("start" to stringResource(R.string.ui_show_at_start), "ask" to "Only when I ask"), if (c.infoOnStart) "start" else "ask") { v ->
+                vm.playerSettings.updatePlaybackConfig { it.copy(infoOnStart = v == "start") }
             }
             Note(stringResource(R.string.ui_during_playback_press_info_menu_or))
         }
     }
         "next-episode" -> Section(stringResource(R.string.ui_next_episode), stringResource(R.string.ui_works_in_the_built_in_player)) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
-                item(key = "autoplay") {
-                    SwitchChip(stringResource(R.string.ui_play_next_episode_automatically), vm.playing.autoplay) { vm.playing.updateAutoplay(!vm.playing.autoplay) }
-                }
-                if (vm.playing.autoplay) {
-                    items(listOf(5, 10, 15, 30), key = { "cd$it" }) { secs ->
-                        Chip(stringResource(R.string.ui_countdown_secs, secs), selected = vm.playing.countdown == secs) { vm.playing.updateCountdown(secs) }
-                    }
-                }
+            // #217: one slider: Off, or the countdown before the next episode plays.
+            StepSlider(stringResource(R.string.ui_play_next_episode_automatically), NextEpisodeSteps.values,
+                NextEpisodeSteps.of(vm.playing.autoplay, vm.playing.countdown), NextEpisodeSteps::label, width = 520.dp) { secs ->
+                if (secs == 0) { if (vm.playing.autoplay) vm.playing.updateAutoplay(false) }
+                else { if (!vm.playing.autoplay) vm.playing.updateAutoplay(true); vm.playing.updateCountdown(secs) }
             }
         }
     }
+}
+
+/** Next episode as slider steps (#217): 0 is off; the rest are countdown seconds. */
+internal object NextEpisodeSteps {
+    val values = listOf(0, 5, 10, 15, 20, 30)
+    fun of(autoplay: Boolean, countdown: Int): Int = if (!autoplay) 0 else values.drop(1).minByOrNull { kotlin.math.abs(it - countdown) } ?: 10
+    fun label(secs: Int): String = if (secs == 0) "Off" else "After ${secs}s"
 }
 
 // ---------------------------------------------------------------- Addons
@@ -811,21 +816,53 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OnOff("Preserve authored subtitle styles",c.authoredStyles) {vm.playerSettings.updateSubtitleConfig {it.copy(authoredStyles=!it.authoredStyles)}}
                 OnOff("Use system caption style",c.systemStyle) {vm.playerSettings.updateSubtitleConfig {it.copy(systemStyle=!it.systemStyle)}}
-                Choice(listOf("small" to "Small", "normal" to "Normal", "large" to "Large", "xlarge" to "Extra large"), c.size) { m ->
-                    vm.playerSettings.updateSubtitleConfig { it.copy(size = m) }
-                }
-                Choice(listOf("outline" to "Outline", "shadow" to "Shadow", "box" to "Dark box"), c.background) { m ->
-                    vm.playerSettings.updateSubtitleConfig { it.copy(background = m) }
-                }
-                Choice(listOf("white" to "White", "yellow" to "Yellow"), c.color) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(color = m) } }
-                Text(stringResource(R.string.ui_position), fontSize = 15.sp)
-                Choice(listOf("low" to "Low", "normal" to "Normal", "high" to "Higher (above masking or a scope screen's bar)"), c.position) { m ->
-                    vm.playerSettings.updateSubtitleConfig { it.copy(position = m) }
-                }
+                // #219: a live preview, then every choice as a sample of itself.
+                if (c.systemStyle) Note("Using the TV's caption style: the TV's own colours and outline replace these.")
+                SubtitlePreview(c)
+                SubtitleChoice("Size", SubtitleLooks.sizes, c.size, c, { x, v -> x.copy(size = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(size = m) } }
+                SubtitleChoice("Outline", SubtitleLooks.backgrounds, c.background, c, { x, v -> x.copy(background = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(background = m) } }
+                SubtitleChoice("Colour", SubtitleLooks.colors, c.color, c, { x, v -> x.copy(color = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(color = m) } }
+                SubtitleChoice(stringResource(R.string.ui_position), SubtitleLooks.positions, c.position, c, { x, v -> x.copy(position = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(position = m) } }
+                Note("Higher keeps subtitles above a projector's masking or a scope screen's bar.")
+                SubtitleFontSettings(vm, c)
             }
         }
     }
 }
+
+/** Subtitle fonts (#219): Android's own, or a custom .ttf or .otf from a link. */
+@Composable
+private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.SubtitleConfig) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var link by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val hasCustom = app.ember.tv.data.SubtitleFonts.hasCustom(context)
+    val fonts = app.ember.tv.data.SubtitleFonts.options.map { (id, label) -> id to if (id == app.ember.tv.data.SubtitleFonts.CUSTOM && hasCustom && c.customFontName.isNotBlank()) c.customFontName else label }
+    SubtitleChoice("Font", fonts, app.ember.tv.data.SubtitleFonts.normalize(c.font), c, { x, v -> x.copy(font = v) }) { f ->
+        if (f == app.ember.tv.data.SubtitleFonts.CUSTOM && !hasCustom) message = "Load a font from a link first."
+        else vm.playerSettings.updateSubtitleConfig { it.copy(font = f) }
+    }
+    Text("Custom font", fontSize = 15.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextInput(link, { link = it.take(500) }, "Link to a .ttf or .otf file")
+        Chip(if (busy) "Loading…" else if (hasCustom) "Replace font" else "Load font") {
+            if (busy) return@Chip
+            busy = true; message = null
+            scope.launch {
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.ember.tv.data.SubtitleFonts.save(context, link, subtitleFontClient) }
+                busy = false
+                result.onSuccess { name -> link = ""; message = "Loaded $name."; vm.playerSettings.updateSubtitleConfig { it.copy(font = app.ember.tv.data.SubtitleFonts.CUSTOM, customFontName = name) } }
+                    .onFailure { message = it.message ?: "Couldn't load that font." }
+            }
+        }
+    }
+    message?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
+    Note("Use a direct link to the font file, such as one from Google Fonts' GitHub. The built-in player always uses it; the advanced player uses it when it can read the font.")
+}
+
+private val subtitleFontClient by lazy { okhttp3.OkHttpClient.Builder().callTimeout(30, java.util.concurrent.TimeUnit.SECONDS).build() }
 
 // ---------------------------------------------------------------- Stremio: stream result format
 

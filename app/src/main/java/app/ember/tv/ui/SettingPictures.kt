@@ -31,7 +31,8 @@ internal object SettingPictures {
         "nav-ember", "nav-ember_collapsed", "nav-cinema_bar", "page-modern", "page-ember_x", "apps-banner", "apps-circle",
         "density-comfortable", "density-standard", "density-dense", "apps-square",
         "player-basic", "player-modern", "player-ember_x", "player-streaming",
-    )
+        "info-start", "info-ask",
+    ) + UiSizes.LABELS.flatMap { (id, _) -> listOf("uisize-$id", "textsize-$id") }
     /** How many cards the density pictures show, and the gap between them in dp: looser to tighter. */
     fun density(option: String): Pair<Int, Int> = when (option) { "comfortable" -> 3 to 9; "dense" -> 5 to 3; else -> 4 to 6 }
 }
@@ -161,12 +162,38 @@ private fun SettingPicture(picture: String, ink: Color) {
             // Player interfaces (#207), over a dark frame of video.
             "player-basic", "player-modern", "player-ember_x", "player-streaming" -> PlayerPicture(picture.removePrefix("player-"), ink)
             "apps-circle" -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) { repeat(4) { Box(Modifier.size(24.dp).clip(CircleShape).background(soft)) } }
-            // Card density: fewer, roomier cards to more, tighter ones.
             "density-comfortable", "density-standard", "density-dense" -> {
                 val (count, gap) = SettingPictures.density(picture.removePrefix("density-"))
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap.dp), verticalAlignment = Alignment.CenterVertically) { repeat(count) { Box(Modifier.weight(1f).height(46.dp).block(soft)) } }
             }
-            else -> Box(Modifier.fillMaxSize().block(soft, 4))
+            // Playback info (#218): a card over the picture when playback starts, or just the picture.
+            "info-start", "info-ask" -> Box(Modifier.fillMaxSize().clip(RoundedCornerShape(5.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF3A4150), Color(0xFF151820))))) {
+                if (picture == "info-start") Column(Modifier.align(Alignment.TopStart).padding(6.dp).width(62.dp).block(Color.Black.copy(alpha = .6f), 4).padding(5.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Box(Modifier.width(44.dp).height(5.dp).block(Color.White)); Box(Modifier.width(36.dp).height(3.dp).block(Color.White.copy(alpha = .6f))); Box(Modifier.width(50.dp).height(3.dp).block(Color.White.copy(alpha = .6f)))
+                } else Box(Modifier.align(Alignment.BottomEnd).padding(6.dp).size(12.dp).clip(CircleShape).background(Color.White.copy(alpha = .35f)), contentAlignment = Alignment.Center) {
+                    Text("i", fontSize = 8.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+            // #215: the same panel at each interface size, and "Aa" at each text size.
+            else -> if (picture.startsWith("uisize-")) SizePicture(UiSizes.screen(picture.removePrefix("uisize-")) / UiSizes.screen("xlarge"), ink)
+                else if (picture.startsWith("textsize-")) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Aa", fontSize = (30f * UiSizes.text(picture.removePrefix("textsize-"))).sp, fontWeight = FontWeight.SemiBold, color = strong, maxLines = 1)
+                }
+                else Box(Modifier.fillMaxSize().block(soft, 4))
+        }
+    }
+}
+
+/** A banner over a row of cards, drawn at [scale] of the largest interface size (#215). */
+@Composable
+private fun SizePicture(scale: Float, ink: Color) {
+    val soft = ink.copy(alpha = .4f); val strong = ink.copy(alpha = .9f)
+    fun Modifier.block(color: Color, corner: Int = 3) = clip(RoundedCornerShape(corner.dp)).background(color)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+        Column(Modifier.fillMaxWidth(scale).fillMaxHeight(scale), verticalArrangement = Arrangement.spacedBy((4 * scale).dp)) {
+            Box(Modifier.fillMaxWidth(.5f).height((7 * scale).dp).block(strong))
+            Box(Modifier.fillMaxWidth().weight(1f).block(soft, 4))
+            Row(horizontalArrangement = Arrangement.spacedBy((4 * scale).dp)) { repeat(3) { Box(Modifier.weight(1f).height((14 * scale).dp).block(soft)) } }
         }
     }
 }

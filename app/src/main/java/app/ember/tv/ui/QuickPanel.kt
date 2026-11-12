@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -137,9 +138,10 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
 
                         // ---- settings: Ember's and the TV's, then the TV's pages ----
                         // "Back to …": the video you just left, from where it stopped. It comes first.
-                        val back = onReturn?.let { (title, go) -> Tile("Back to $title", "Continue where you stopped", IcPlayIcon, Modifier.focusRequester(first), highlight = true) { onClose(); go() } }
+                        // #216: across the panel and a third of the screen high, not one tile in the grid.
+                        onReturn?.let { (title, go) -> ReturnTile(title, Modifier.focusRequester(first)) { onClose(); go() } }
                         Tiles(
-                            listOfNotNull(back) + listOf(
+                            listOf(
                                 Tile(stringResource(R.string.ui_network), info.networkShort, if (info.ethernet) IcEthernet else IcWifi) { tv(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) },
                                 Tile(stringResource(R.string.ui_qs_picture), info.displayShort, IcTv) {
                                     val menu = firmwareMenus.firstOrNull { it.kind == app.ember.tv.device.DeviceMenuKind.PICTURE }
@@ -245,6 +247,27 @@ private class Tile(
     val highlight: Boolean = false,
     val onClick: () -> Unit,
 )
+
+/** The video you just left (#216): the panel's width, a third of the screen's height. */
+@Composable
+private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
+    val accent = FloatingPanelStyle.accent
+    val height = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 3).dp
+    var focused by remember { mutableStateOf(false) }
+    Focusable(onClick = onClick, modifier = modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.testTag("quick_return"),
+        radius = TvTokens.Shape.Control, container = WashHi, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            Box(Modifier.size(56.dp).clip(CircleShape).background(if (focused) OnPillColor.copy(alpha = .14f) else accent.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+                MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else accent, 30.dp)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Back to", fontSize = 14.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute)
+                Text(title, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("Continue where you stopped", fontSize = 13.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute, maxLines = 1)
+            }
+        }
+    }
+}
 
 /** Two tiles a row: icon, name and a short line (often what the TV is doing right now). */
 @Composable

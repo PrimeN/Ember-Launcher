@@ -282,6 +282,10 @@ fun ProfileAvatar(p: app.ember.tv.data.Profile, size: androidx.compose.ui.unit.D
     Focusable(onClick = onClick, modifier = modifier.size(size), radius = TvTokens.Shape.Pill, container = color, focusedContainer = color, focusedContent = Color(0xFF1F1F1F), focusedScale = TvTokens.Focus.Round) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(p.name.take(1).uppercase(), fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
+            // #222: the profile's photo over its colour; the letter shows until it loads, or if it can't.
+            app.ember.tv.data.Profile.usablePhoto(p.photo)?.let { photo ->
+                coil.compose.AsyncImage(photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+            }
         }
     }
 }

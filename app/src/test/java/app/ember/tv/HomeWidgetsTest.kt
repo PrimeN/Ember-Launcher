@@ -2,6 +2,7 @@ package app.ember.tv
 
 import android.content.ContextWrapper
 import android.content.SharedPreferences
+import androidx.compose.ui.graphics.luminance
 import app.ember.tv.data.*
 import app.ember.tv.discover.*
 import app.ember.tv.phone.*
@@ -345,6 +346,72 @@ class HomeWidgetsTest {
         assertEquals(ApiKeys.Status.MISSING_REQUIRED, ApiKeys.status(ready = false, required = true))
         assertEquals(ApiKeys.Status.MISSING_OPTIONAL, ApiKeys.status(ready = false, required = false))
         assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText().contains("item(key = \"keysgrid\") { ApiKeysGrid(vm) }"))
+    }
+
+    @Test fun sizesMarginsNextEpisodeAndPlaybackInfo() {
+        val pictures = app.ember.tv.ui.SettingPictures
+        // #215
+        for ((id, _) in app.ember.tv.ui.UiSizes.LABELS) { assertTrue(pictures.of("uisize", id) in pictures.known); assertTrue(pictures.of("textsize", id) in pictures.known) }
+        val margins = app.ember.tv.ui.MarginSteps
+        assertEquals(0, margins.values.first()); assertEquals(50, margins.values.last())
+        assertEquals(25, margins.of("2.5")); assertEquals(50, margins.of("5")); assertEquals(0, margins.of("NaN"))
+        assertEquals("2.5", margins.text(25)); assertEquals("5", margins.text(50)); assertEquals("0.5%", margins.label(5))
+        for (v in margins.values) assertTrue(v.toString(), app.ember.tv.data.ScreenMargins.valid(margins.text(v)))
+        // #217
+        val next = app.ember.tv.ui.NextEpisodeSteps
+        assertEquals(0, next.of(autoplay = false, countdown = 15)); assertEquals(15, next.of(true, 15)); assertEquals(10, next.of(true, 11))
+        assertEquals("Off", next.label(0)); assertEquals("After 10s", next.label(10))
+        // #218
+        assertTrue(pictures.of("info", "start") in pictures.known && pictures.of("info", "ask") in pictures.known)
+        // #216
+        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
+        assertTrue(panel.contains("ReturnTile(title, Modifier.focusRequester(first))")); assertTrue(panel.contains("screenHeightDp / 3"))
+    }
+
+    @Test fun subtitleLooksAndFonts() {
+        // #219
+        val fonts = SubtitleFonts
+        assertEquals(listOf("default", "sans", "serif", "mono", "condensed", "custom"), fonts.options.map { it.first })
+        assertEquals("default", fonts.normalize("comic")); assertEquals("serif", fonts.normalize("serif")); assertEquals("default", SubtitleConfig().font)
+        assertNull(fonts.systemFamily("default")); assertEquals("monospace", fonts.systemFamily("mono"))
+        assertTrue(fonts.looksLikeFont(byteArrayOf(0, 1, 0, 0, 9))); assertTrue(fonts.looksLikeFont("OTTO".toByteArray()))
+        assertFalse(fonts.looksLikeFont("<!DOCTYPE html>".toByteArray())); assertFalse(fonts.looksLikeFont(byteArrayOf(0, 1)))
+        // A minimal font with a name table: family name 1 as UTF-16 on the Windows platform.
+        val family = "Ember Sans".toByteArray(Charsets.UTF_16BE)
+        val buf = java.nio.ByteBuffer.allocate(12 + 16 + 6 + 12 + family.size)
+        buf.putInt(0x00010000); buf.putShort(1); buf.putShort(0); buf.putShort(0); buf.putShort(0)
+        buf.put("name".toByteArray()); buf.putInt(0); buf.putInt(28); buf.putInt(18 + family.size)
+        buf.putShort(0); buf.putShort(1); buf.putShort(18)
+        buf.putShort(3); buf.putShort(1); buf.putShort(0x409); buf.putShort(1); buf.putShort(family.size.toShort()); buf.putShort(0)
+        buf.put(family)
+        assertEquals("Ember Sans", fonts.familyName(buf.array()))
+        assertNull(fonts.familyName(ByteArray(8)))
+        val looks = app.ember.tv.ui.SubtitleLooks
+        assertTrue(looks.scale("small") < looks.scale("normal") && looks.scale("normal") < looks.scale("xlarge"))
+        assertTrue(looks.lift("low") < looks.lift("normal") && looks.lift("normal") < looks.lift("high"))
+        val engine = java.io.File("src/main/java/app/ember/tv/player/SubtitleEngine.kt").readText()
+        assertTrue(engine.contains("SubtitleFonts.typeface(view.context, c.font)")); assertFalse(engine.contains("Color.BLACK, Typeface.DEFAULT_BOLD)"))
+    }
+
+    @Test fun serviceGridsForTrackersServersAndProfiles() {
+        // #220
+        val tiles = app.ember.tv.ui.MediaServerTiles.of(plex = true, plexSignedOut = false, plexUser = null,
+            servers = listOf(app.ember.tv.ui.MediaServerTiles.Server("k1", "Home", "jellyfin", "ann", signedOut = false, failing = false),
+                app.ember.tv.ui.MediaServerTiles.Server("k2", "Den", "emby", "", signedOut = true, failing = false)))
+        assertEquals(listOf("plex", "k1", "k2", "add-server"), tiles.map { it.id })
+        assertEquals(listOf(app.ember.tv.ui.ServiceMark.OK, app.ember.tv.ui.ServiceMark.OK, app.ember.tv.ui.ServiceMark.PROBLEM, app.ember.tv.ui.ServiceMark.ADD), tiles.map { it.mark })
+        assertEquals("Account owner", tiles[0].line); assertEquals("Emby · signed out", tiles[2].tag)
+        assertEquals(app.ember.tv.ui.ServiceMark.OFF, app.ember.tv.ui.MediaServerTiles.of(false, false, null, emptyList()).first().mark)
+        // #221
+        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText().contains("item(key = \"trackergrid\") { TrackersGrid(vm, openKeys) }"))
+        assertEquals("Home, Jellyfin, ann", app.ember.tv.ui.ServiceTiles.spoken(tiles[1]))
+        // #222: colours only ever added on the end; a name for each; dark text reads on all of them.
+        assertEquals(14, Profile.COLORS.size); assertEquals(0xFFFFB547, Profile.COLORS[0]); assertEquals(0xFFFF8A65, Profile.COLORS[5])
+        val strings = java.io.File("src/main/res/values/strings.xml").readText()
+        assertEquals(Profile.COLORS.size, Regex("<item>").findAll(strings.substringAfter("profile_color_names").substringBefore("</string-array>")).count())
+        for (c in Profile.COLORS) assertTrue(java.lang.Long.toHexString(c), androidx.compose.ui.graphics.Color(c).luminance() > .2f)
+        assertEquals("content://media/1", Profile.usablePhoto(" content://media/1 ")); assertEquals("https://a.test/p.jpg", Profile.usablePhoto("https://a.test/p.jpg"))
+        assertNull(Profile.usablePhoto("file:///sdcard/p.jpg")); assertNull(Profile.usablePhoto("http://a.test/p.jpg")); assertNull(Profile(id = "a", name = "A").photo)
     }
 
     @Test fun theTraktNoticeUsesTheRequiredWording() {

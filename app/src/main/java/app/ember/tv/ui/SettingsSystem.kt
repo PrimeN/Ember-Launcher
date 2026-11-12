@@ -327,6 +327,19 @@ internal fun StreamingServicesHeader(vm: HomeViewModel, openKeys: () -> Unit) {
     }
 }
 
+/** The tiles on Settings > Media servers (#220). */
+internal object MediaServerTiles {
+    const val PLEX = "plex"; const val ADD = "add-server"
+    data class Server(val key: String, val name: String, val kind: String, val user: String, val signedOut: Boolean, val failing: Boolean)
+    fun of(plex: Boolean, plexSignedOut: Boolean, plexUser: String?, servers: List<Server>): List<ServiceTileInfo> = buildList {
+        add(ServiceTileInfo(PLEX, "Plex", when { !plex -> ServiceMark.OFF; plexSignedOut -> ServiceMark.PROBLEM; else -> ServiceMark.OK },
+            tag = when { !plex -> "Not connected"; plexSignedOut -> "Signed out"; else -> "Connected" }, line = if (plex) plexUser ?: "Account owner" else null))
+        servers.forEach { s -> add(ServiceTileInfo(s.key, s.name, if (s.signedOut || s.failing) ServiceMark.PROBLEM else ServiceMark.OK,
+            tag = (if (s.kind == "emby") "Emby" else "Jellyfin") + if (s.signedOut) " · signed out" else "", line = s.user.takeIf { it.isNotBlank() })) }
+        add(ServiceTileInfo(ADD, "Add a server", ServiceMark.ADD, tag = "Jellyfin or Emby"))
+    }
+}
+
 @Composable
 internal fun MediaServersSection(vm: HomeViewModel) {
     var choosingUser by remember { mutableStateOf(false) }
@@ -335,13 +348,21 @@ internal fun MediaServersSection(vm: HomeViewModel) {
     var url by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    @Suppress("UNUSED_VARIABLE") val health = vm.serverHealth.toList() // redraw when a load finishes
     val signedOut = vm.serversSignedOut
 
+    // #220: Plex, each Jellyfin and Emby server, and adding one, as tiles with their status; OK opens the details.
+    var open by remember { mutableStateOf<String?>(null) }
+    val health = vm.serverHealth.associateBy { it.id }
     Section(stringResource(R.string.ui_media_servers), stringResource(R.string.ui_continue_and_recently_added_rows_from)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             vm.serverMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
-
+            ServiceGrid(MediaServerTiles.of(vm.plexConnected, "plex" in signedOut, vm.plexUserName,
+                vm.serverAccounts.map { MediaServerTiles.Server(it.key, it.name, it.kind, it.userName, it.key in signedOut, health[it.key]?.failed == true) })) { open = it.id }
+        }
+    }
+    when (val id = open) {
+        null -> {}
+        MediaServerTiles.PLEX -> MediaDialog("Plex", { open = null }, wide = true) {
             // Plex: one sign-in covers every server on the account.
             Column(
                 modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
@@ -366,31 +387,10 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 } else Chip(stringResource(R.string.ui_connect_plex)) { vm.startPlexLink() }
             }
 
-            // Jellyfin and Emby: one entry per server.
-            vm.serverAccounts.forEach { a ->
-                Row(
-                    modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(a.name, fontSize = 18.sp)
-                        if (a.userName.isNotBlank()) Note("User: ${a.userName}")
-                        Text("${a.kind.replaceFirstChar { it.uppercase() }} · ${a.url}", color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (a.key in signedOut) Text("This server signed Ember out (device removed or password changed).",
-                            color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
-                    }
-                    // #94: fills in the form below with this server, ready for the password or Quick Connect.
-                    if (a.key in signedOut) Chip("Sign in again") { kind = a.kind; url = a.url; user = a.userName; password = "" }
-                    Chip("Switch user") { userAccount = a; choosingUser = true }
-                    var removing by remember(a.key) { mutableStateOf(false) }
-                    Chip(stringResource(R.string.ui_remove)) { removing = true }
-                    if (removing) ConfirmDestructive("Remove ${a.name}?",
-                        "Ember signs out of this server and stops showing its libraries. Nothing is deleted on the server.",
-                        { removing = false }, stringResource(R.string.ui_remove)) { vm.removeServer(a.key) }
-                }
-            }
-
+            ButtonRow { Chip("Done") { open = null } }
+        }
+        MediaServerTiles.ADD -> MediaDialog("Add a Jellyfin or Emby server", { open = null }, resizeForKeyboard = true, wide = true) {
+            vm.serverMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
             Column(
                 modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -428,6 +428,34 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 }
                 if (kind == "jellyfin") Text("Quick Connect: enter the address, then approve the code in the Jellyfin app or web (Profile › Quick Connect). No username or password needed.",
                     color = Mute, fontSize = 12.sp)
+            }
+            ButtonRow { Chip("Done") { open = null } }
+        }
+        else -> vm.serverAccounts.firstOrNull { it.key == id }?.let { a ->
+            MediaDialog(a.name, { open = null }, wide = true) {
+                Row(
+                    modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(a.name, fontSize = 18.sp)
+                        if (a.userName.isNotBlank()) Note("User: ${a.userName}")
+                        Text("${a.kind.replaceFirstChar { it.uppercase() }} · ${a.url}", color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (a.key in signedOut) Text("This server signed Ember out (device removed or password changed).",
+                            color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+                    }
+                    // #94: fills in the form below with this server, ready for the password or Quick Connect.
+                    if (a.key in signedOut) Chip("Sign in again") { kind = a.kind; url = a.url; user = a.userName; password = ""; open = MediaServerTiles.ADD }
+                    Chip("Switch user") { userAccount = a; choosingUser = true }
+                    var removing by remember(a.key) { mutableStateOf(false) }
+                    Chip(stringResource(R.string.ui_remove)) { removing = true }
+                    if (removing) ConfirmDestructive("Remove ${a.name}?",
+                        "Ember signs out of this server and stops showing its libraries. Nothing is deleted on the server.",
+                        { removing = false }, stringResource(R.string.ui_remove)) { vm.removeServer(a.key) }
+                }
+            
+                ButtonRow { Chip("Done") { open = null } }
             }
         }
     }
@@ -534,6 +562,31 @@ internal fun TrackerSyncCard(vm: HomeViewModel) {
         Text("Not synced: Simkl watchlist removals (Simkl would delete the history too) and anime, whose episode numbers differ between services.",
             color = Mute, fontSize = 12.sp)
     }
+}
+
+/** Settings > Trackers as tiles with their status (#221); OK opens a tracker's details. */
+@Composable
+internal fun TrackersGrid(vm: HomeViewModel, openKeys: () -> Unit) {
+    @Suppress("UNUSED_VARIABLE")
+    val rev = vm.trackerRev
+    val health = vm.trackerHealth.associateBy { it.id }
+    var open by remember { mutableStateOf<String?>(null) }
+    ServiceGrid(vm.hub.trackers.map { t -> trackerTile(t, health[t.id]?.failed == true, t.id in vm.trackersOff) }) { open = it.id }
+    vm.hub.trackers.firstOrNull { it.id == open }?.let { t ->
+        MediaDialog(t.name, { open = null }, resizeForKeyboard = true, wide = true) {
+            TrackerRow(vm, t) { open = null; openKeys() }
+            ButtonRow { Chip("Done") { open = null } }
+        }
+    }
+}
+
+/** A tracker's tile: connected (or failing), needs a key, or not connected. */
+internal fun trackerTile(t: Tracker, failing: Boolean, hidden: Boolean): ServiceTileInfo {
+    val connected = t.configured && t.isConnected()
+    return ServiceTileInfo(t.id, t.name,
+        when { connected && failing -> ServiceMark.PROBLEM; connected -> ServiceMark.OK; else -> ServiceMark.OFF },
+        tag = when { !t.configured -> "Needs a key"; connected && hidden -> "Hidden on Home"; connected -> "Connected"; else -> "Not connected" },
+        line = if (connected) t.accountLabel() else null)
 }
 
 @Composable
