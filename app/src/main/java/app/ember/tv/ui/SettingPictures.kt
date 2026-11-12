@@ -171,7 +171,10 @@ private fun SettingPicture(picture: String, ink: Color) {
                 if (picture == "info-start") Column(Modifier.align(Alignment.TopStart).padding(6.dp).width(62.dp).block(Color.Black.copy(alpha = .6f), 4).padding(5.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Box(Modifier.width(44.dp).height(5.dp).block(Color.White)); Box(Modifier.width(36.dp).height(3.dp).block(Color.White.copy(alpha = .6f))); Box(Modifier.width(50.dp).height(3.dp).block(Color.White.copy(alpha = .6f)))
                 } else Box(Modifier.align(Alignment.BottomEnd).padding(6.dp).size(12.dp).clip(CircleShape).background(Color.White.copy(alpha = .35f)), contentAlignment = Alignment.Center) {
-                    Text("i", fontSize = 8.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    // An "i" drawn as a dot over a bar: text this small would break the 12 sp rule (#37).
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Box(Modifier.size(2.dp).clip(CircleShape).background(Color.White)); Box(Modifier.width(2.dp).height(4.dp).background(Color.White))
+                    }
                 }
             }
             // #215: the same panel at each interface size, and "Aa" at each text size.

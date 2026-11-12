@@ -290,7 +290,8 @@ class HomeWidgetsTest {
             "apps" to listOf("banner", "circle"), "density" to app.ember.tv.ui.SettingDefinitions.density.options.map { it.first })
         for ((group, options) in groups) for (option in options) assertTrue("$group-$option", pictures.of(group, option) in pictures.known)
         val drawn = java.io.File("src/main/java/app/ember/tv/ui/SettingPictures.kt").readText()
-        for (picture in pictures.known) assertTrue(picture, drawn.contains("\"$picture\""))
+        // Size pictures (#215) are drawn from the size's own scale, not named one by one.
+        for (picture in pictures.known.filterNot { it.startsWith("uisize-") || it.startsWith("textsize-") }) assertTrue(picture, drawn.contains("\"$picture\""))
         assertTrue(pictures.density("comfortable").first < pictures.density("standard").first && pictures.density("standard").first < pictures.density("dense").first)
         assertTrue(pictures.density("comfortable").second > pictures.density("dense").second)
         val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
