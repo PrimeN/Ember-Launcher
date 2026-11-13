@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.ember.tv.data.AddonCast
 import app.ember.tv.data.AddonClient
 import app.ember.tv.data.AddonInfo
 import app.ember.tv.data.ApiKeys
@@ -181,7 +182,9 @@ class TitleState(
         val trailer = m.arr("trailerStreams").list().firstNotNullOfOrNull { it.str("ytId") }
             ?: m.arr("trailers").list().firstOrNull { it.str("type").equals("Trailer", true) }.str("source")
             ?: m.arr("trailers").list().firstNotNullOfOrNull { it.str("source") }
-        val people = directors.map { Person(it, "Director", isCrew = true) } + cast.map { Person(it, null) }
+        // Richer cast some addons send next to the plain names, with photos and characters.
+        val rich = AddonCast.people(m)
+        val people = (rich.ifEmpty { null } ?: (directors.map { Person(it, "Director", isCrew = true) } + cast.map { Person(it, null) }))
         if (people.isEmpty() && trailer == null) return null
         return Credits(people, trailer)
     }
@@ -310,7 +313,8 @@ class TitleState(
                 }
             }
 
-            if (addonFirst && details?.addonCredits == null) loadTmdbCredits(full)
+            // TMDB is still asked when the addon's cast has no photos, for the faces only.
+            if (addonFirst && details?.addonCredits?.people.let { it.isNullOrEmpty() || it.any { p -> p.photo.isNullOrBlank() } }) loadTmdbCredits(full)
             loadRatings(full, addonImdbRating)
             if (meta.playsDirectly || (episodes.isEmpty() && directVideoId != null)) {
                 details = details?.copy(meta = full, loadingEpisodes = false, loadingStreams = true)

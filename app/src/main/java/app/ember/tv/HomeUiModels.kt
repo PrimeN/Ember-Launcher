@@ -194,7 +194,9 @@ data class DetailsUi(
             val addonPeople = addonCredits?.people?.ifEmpty { null }
             val tmdbPeople = tmdbCredits?.people?.ifEmpty { null }
             return Credits(
-                people = (if (app.ember.tv.data.AddonMetadata.first) addonPeople ?: tmdbPeople else tmdbPeople ?: addonPeople).orEmpty(),
+                // The addon's people, with TMDB's photos and characters where the addon has none.
+                people = (if (app.ember.tv.data.AddonMetadata.first) addonPeople?.let { app.ember.tv.data.AddonCast.withFaces(it, tmdbPeople.orEmpty()) } ?: tmdbPeople
+                    else tmdbPeople ?: addonPeople).orEmpty(),
                 trailer = addonCredits?.trailer ?: tmdbCredits?.trailer,
             )
         }
