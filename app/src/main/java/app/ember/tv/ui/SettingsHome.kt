@@ -123,10 +123,9 @@ internal fun DefaultHomePage() {
                     HomeButtonService.instance?.applyConfig()
                 }
                 if (override) {
-                    Text(stringResource(R.string.home_mode), fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
                     Choice(
                         listOf("screen" to stringResource(R.string.home_mode_screen), "key" to stringResource(R.string.home_mode_key)),
-                        mode,
+                        mode, stringResource(R.string.home_mode),
                     ) {
                         mode = it
                         prefs.homeOverrideMode = it

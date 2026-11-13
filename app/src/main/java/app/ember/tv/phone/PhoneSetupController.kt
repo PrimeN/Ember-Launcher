@@ -3,6 +3,7 @@ package app.ember.tv.phone
 import app.ember.tv.addAddon
 import app.ember.tv.addonLabel
 import app.ember.tv.pauseAddon
+import app.ember.tv.moveAddon
 import app.ember.tv.saveApiKeyAndWait
 
 import android.app.Application
@@ -180,7 +181,8 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
             override fun content(): app.ember.tv.phone.PhoneContent = onPhoneMain {
                 app.ember.tv.phone.PhoneContent(sources().map { (id, s) -> id to (s.title ?: "Catalog") },
                     collections.list.flatMap { c -> listOf(targetKey(c.id) to (c.title + " / New folder")) + c.folders.map { f -> targetKey(c.id, f.id) to (c.title + " / " + f.title) } },
-                    addons.map { AddonAccess.key(it) to (addonLabel(it) + if (addonAvailable(it)) "" else " · Paused") },
+                    // #275: in the order they are asked, which the phone can change.
+                    addons.mapIndexed { i, it -> AddonAccess.key(it) to ("${i + 1}. " + addonLabel(it) + if (addonAvailable(it)) "" else " · Paused") },
                     catalogExtras = collectionCatalogs.filter { it.extras.isNotEmpty() }.map { app.ember.tv.phone.PhoneCatalogExtras(AddonAccess.key(it.key), it.label, it.extras.map { e -> if (app.ember.tv.data.CollectionSecrets.sensitive(e.name)) e.copy(default = null, options = emptyList()) else e }) },
                     collections = collections.list.map { targetKey(it.id) to it.title },
                     folderSources = folderSources().map { (id, target) -> id to (target.first.title + " / " + target.second.title + " / " + app.ember.tv.data.Collections.label(target.second.allSources[target.third], collectionCatalogs)) },
@@ -201,7 +203,8 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                                     w.id in widgets.loading -> "Loading"
                                     w.id in widgets.failed -> "Could not load"
                                     else -> "Nothing to show yet"
-                                }, canMoveUp = at > 0, canMoveDown = at in 0 until order.lastIndex, art = w.art)
+                                }, canMoveUp = at > 0, canMoveDown = at in 0 until order.lastIndex, art = w.art,
+                                more = w.more.map { app.ember.tv.data.HomeWidgets.sourceLabel(it, collectionCatalogs) })
                         }
                     },
                     library = folderSources().let { ids -> collections.list.map { c -> app.ember.tv.phone.PhoneCollection(targetKey(c.id), c.title, c.folders.map { f ->
@@ -351,13 +354,16 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             }
                             else -> return@onPhoneMain "Choose where the titles come from."
                         }
+                        val added = fields["addMore"].orEmpty().takeIf { it.isNotBlank() }?.let { id ->
+                            runCatching { configuredSource(id, emptyMap()) }.getOrNull() ?: return@onPhoneMain "That catalog needs filters. Add it to the widget on the TV."
+                        }
                         val widget = app.ember.tv.data.HomeWidgets.normalize(app.ember.tv.data.HomeWidget(
                             id = old?.id ?: java.util.UUID.randomUUID().toString(), title = title,
                             style = fields["style"] ?: old?.style ?: app.ember.tv.data.HomeWidgets.ROW, shape = fields["shape"] ?: old?.shape ?: "default",
                             source = source, limit = fields["limit"]?.trim()?.toIntOrNull() ?: old?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT,
                             art = fields["art"] ?: old?.art ?: app.ember.tv.data.HeroArtworkMode.STANDARD,
-                            // #264: catalogs added on the TV stay when the phone edits the widget.
-                            more = old?.more.orEmpty()))
+                            // #264: catalogs added on the TV stay when the phone edits the widget; #275: unless removed here.
+                            more = old?.more.orEmpty().filterIndexed { i, _ -> fields["dropMore:$i"] != "on" } + listOfNotNull(added)))
                         app.ember.tv.data.HomeWidgets.error(widget)?.let { return@onPhoneMain it }
                         if (widget.source.provider != app.ember.tv.data.HomeWidgets.LIST && !widget.sources.all { collectionSourceAllowed(it) }) return@onPhoneMain "That source is unavailable for this profile."
                         stage((if (old == null) "Add the Home widget " else "Save the Home widget ") + "$title: ${app.ember.tv.data.HomeWidgets.styleName(widget.style)}, " +
@@ -463,8 +469,19 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     }
                     "addon" -> {
                         val url = addons.firstOrNull { AddonAccess.key(it) == fields["addon"] } ?: return@onPhoneMain "Choose an installed add-on."
-                        val enabled = fields["enabled"] == "on"
-                        stage((if (enabled) "Enable " else "Pause ") + addonLabel(url)) { if (url !in addons) "That add-on was removed. Reload the phone page." else { pauseAddon(url, !enabled); null } }
+                        when (val change = fields["change"] ?: fields["enabled"]) {
+                            "up", "down" -> {
+                                val step = if (change == "up") -1 else 1
+                                if (app.ember.tv.AddonOrder.moved(addons, url, step) == null) return@onPhoneMain "That add-on is already ${if (step < 0) "first" else "last"}."
+                                stage("Move ${addonLabel(url)} ${if (step < 0) "up" else "down"} in the add-on order.") {
+                                    if (url !in addons) "That add-on was removed. Reload the phone page." else { moveAddon(url, step); null }
+                                }
+                            }
+                            else -> {
+                                val enabled = change == "on"
+                                stage((if (enabled) "Enable " else "Pause ") + addonLabel(url)) { if (url !in addons) "That add-on was removed. Reload the phone page." else { pauseAddon(url, !enabled); null } }
+                            }
+                        }
                     }
                     else -> "Unknown content action."
                 }

@@ -544,10 +544,8 @@ internal fun TrackerSyncCard(vm: HomeViewModel) {
         Text(stringResource(R.string.tx_keep_trackers_in_sync), fontSize = 18.sp)
         Text(stringResource(R.string.tx_copies_watched_history_watchlist_and_ratings) +
             "both ways, including removals. The first sync copies everything each one already has.", color = Mute, fontSize = 13.sp)
-        ButtonRow(spacing = 10.dp) {
-            SwitchChip("Sync", vm.trackerSyncOn) { vm.toggleTrackerSync() }
-            if (vm.trackerSyncOn && !vm.trackerSyncBusy) Chip("Sync now") { vm.syncTrackers(force = true) }
-        }
+        ToggleRow("Sync", null, vm.trackerSyncOn) { vm.toggleTrackerSync() }
+        if (vm.trackerSyncOn && !vm.trackerSyncBusy) Chip("Sync now") { vm.syncTrackers(force = true) }
         vm.trackerSyncStatus?.let { Text(it, color = Mute, fontSize = 13.sp) }
         if (vm.trackerSyncHeld.isNotEmpty()) {
             Text(vm.trackerSyncHeld.entries.joinToString(" ") { (name, n) -> "$name suddenly reports $n fewer titles than last time." } +
@@ -614,10 +612,10 @@ internal fun TrackerRow(vm: HomeViewModel, t: Tracker, openKeys: () -> Unit) {
         Text(t.blurb, color = Mute, fontSize = 13.sp)
         when {
             !t.configured -> Chip(stringResource(R.string.ui_add_the_key_in_api_keys)) { openKeys() }
-            connected -> ButtonRow(spacing = 10.dp) {
-                SwitchChip(stringResource(R.string.ui_use_on_home), t.id !in vm.trackersOff) { vm.toggleTracker(t.id) }
+            connected -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ToggleRow(stringResource(R.string.ui_use_on_home), null, t.id !in vm.trackersOff) { vm.toggleTracker(t.id) }
                 // Separate from Home (#80): a hidden tracker still hears what you watch unless this is off.
-                if (t.scrobbles) SwitchChip(stringResource(R.string.ui_report_what_i_watch), t.id !in vm.trackersQuiet) { vm.toggleTrackerReports(t.id) }
+                if (t.scrobbles) ToggleRow(stringResource(R.string.ui_report_what_i_watch), null, t.id !in vm.trackersQuiet) { vm.toggleTrackerReports(t.id) }
                 Chip(stringResource(R.string.ui_disconnect)) { vm.disconnectTracker(t.id) }
             }
             t.mode == LinkMode.DEVICE_CODE -> Chip(stringResource(R.string.ui_connect_name, t.name)) { vm.startLink(t.id) }

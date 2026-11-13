@@ -146,16 +146,22 @@ fun Focusable(
     ) { content() }
 }
 
+/** The enclosing settings section's title, so a control without its own label can name itself (#270). */
+internal val LocalSettingsSection = androidx.compose.runtime.compositionLocalOf<String?> { null }
+
 @Composable
 fun Section(title: String, subtitle: String? = null, id: String? = null, content: @Composable () -> Unit) {
     // A control that removes itself (Remove, Clear…) hands focus to the section's first control (#130).
-    Column(Modifier.settingsAnchor(id).rescueFocusInside(), verticalArrangement = Arrangement.spacedBy(TvTokens.Space.Row.dp)) {
+    // #269: every section can be reached from Search, by its id or else its title.
+    val anchor = id ?: title
+    RecordSettingOption(title)
+    Column(Modifier.settingsAnchor(anchor).rescueFocusInside(), verticalArrangement = Arrangement.spacedBy(TvTokens.Space.Row.dp)) {
         // The explanation sits under the title, so long notes never squeeze it.
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(title, fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.SemiBold)
             if (subtitle != null) Text(subtitle, fontSize = TvTokens.Type.Compact.sp, color = Mute, lineHeight = 18.sp)
         }
-        content()
+        androidx.compose.runtime.CompositionLocalProvider(LocalSettingsSection provides title, LocalSettingsAnchor provides anchor) { content() }
     }
 }
 

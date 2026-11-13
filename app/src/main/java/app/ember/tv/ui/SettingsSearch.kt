@@ -21,7 +21,7 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.DISCOVER to "Discover: show hide enable disable Explore Collections Catalogs sections automatic defaults AI-assisted discovery Mistral describe suggested filters",
     SettingsTab.HOME_TOOLS to "Apps and folders: apps on Home, choose apps, rows of apps, one row two rows, apps page, app icons banners circles, app folders custom artwork icons per-app PIN locks personal Home per profile",
     SettingsTab.HOME_EXTRAS to "Extras: Now Playing media controls notification access, presentation photo video slideshow keep awake",
-    SettingsTab.WIDGETS to "Widgets and collections: Home widgets, hero banner catalog, Standard Fanart artwork, list sources include exclude Plex Jellyfin Emby trackers, poster wide card shape, restore hidden, Home layout, order of sections, show hide move, banner, your apps, in progress, watchlist, up next, catalogs, your widgets, create widget, edit, import, export widget pack, numbered row top 10, cinematic carousel, hero banner widget, Trakt list, TMDB list, MDBList, filters, collections, folders, create collection, import pack, export, delete, Animated collections videos GIF previews on off",
+    SettingsTab.WIDGETS to "Widgets and collections: Home widgets, hero banner catalog, Standard Fanart artwork, list sources include exclude Plex Jellyfin Emby trackers, poster wide card shape, restore hidden, Home layout, order of sections, show hide move, banner, your apps, in progress, watchlist, up next, catalogs, your widgets, create widget, edit, import, export widget pack, numbered row top 10, cinematic carousel, hero banner widget, Trakt list, TMDB list, MDBList, filters, collections, folders, create collection, import pack, export, delete, Animated collections videos GIF previews on off, several catalogs in one widget, combine sources",
     SettingsTab.HOME_ROWS to "Banner and lists: hero banner carousel, Standard Fanart artwork, hero catalog source ten items dots Watch now, your apps, rows of apps, watchlist button, continue watching, up next, servers, catalogs, order of sections, omni-channel list sources include exclude Plex Jellyfin Emby local trackers restore hidden",
     SettingsTab.APPEARANCE to "Appearance: interface Ember Ember Light, media page Ember Modern Ember X cinema right panel, theme day night auto, OLED black, addon names on rows, accent colour color palette Ember Charcoal Blue Green Rose Android TV Google TV navy Red Cinema red Modern Ember Shadow Ember dark grey dark gray Blue ember Green flame Rose ember pink app icon colour, menu top side",
     SettingsTab.SIZE to "Size and spacing: interface size, text size, font, screen margins overscan, media card density comfortable standard dense",
@@ -29,12 +29,12 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.REMOTE to "Remote: remote settings button menu key TV projector, remote sounds click navigation sound effects",
     SettingsTab.LIGHT_HOME to "Light Home: wallpaper background title art aurora ocean ember glow black, carousel, Continue Watching Watch Next permission, recommendations per app, wallpaper colours, short clips, credits, idle full screen, motion",
     SettingsTab.POSTERS to "Posters and ratings: RPDB, Better Posters, textless, landscape cards, title logo, ratings IMDb Rotten Tomatoes Tomatometer Popcornmeter audience score Metacritic, MDBList",
-    SettingsTab.METADATA to "Metadata: AniList, TVDB, descriptions, artwork, episodes, anime",
+    SettingsTab.METADATA to "Metadata: AniList, TVDB, descriptions, artwork, episodes, anime, addon metadata first, respect the addon's own details logos backgrounds cast, AIOMetadata",
     SettingsTab.WEATHER to "Weather: location, city, units, Celsius, Fahrenheit, provider fallback saved forecast Open-Meteo MET Norway wttr.in",
     SettingsTab.PLAYER to "Player: player interface GUI look Ember Glass Basic Streaming (formerly Basic, Ember Modern, Ember X) cinema advanced simple, default player, external player, skip intro IntroDB, resume, leaving the player, confirm exit, back to last video, autoplay next episode, countdown, picture-in-picture, trailers, info at start",
     SettingsTab.AUDIO_VIDEO to "Audio and video: passthrough, bitstream, Dolby Atmos TrueHD DTS, receiver soundbar, FFmpeg sound video decoding, software, MPEG-H, deinterlacing, playback engine compatibility, tunneled playback, frame rate matching, resolution, buffer, Dolby Vision HDR10, sound timing lip sync",
     SettingsTab.PLAY_BUTTON to "Play button: best source, 4K, HDR, Dolby Vision, codecs, file size, cached only, server first",
-    SettingsTab.ADDONS to "Addons: add, remove, rename, Stremio, manifest, time limit, slow addons",
+    SettingsTab.ADDONS to "Addons: add, remove, rename, Stremio, manifest, time limit, slow addons, order, move up down, which addon is asked first",
     SettingsTab.CATALOGS to "Catalogs: Home, Discover, Live, order, reset",
     SettingsTab.STREMIO to "Stremio: badges basic detailed custom images, regex patterns, badge colours opacity corner radius border tint, source format, templates, name, description, AIOStreams",
     SettingsTab.SUBTITLES to "Languages and subtitles: preferred audio track language, remember tracks, subtitle languages, size, colour, background, outline, position, OpenSubtitles, foreign audio, hearing impaired",
@@ -46,16 +46,18 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.KEYS to "API keys: Mistral AI discovery, Streaming Availability RapidAPI, TMDB, Fanart.tv hero artwork backgrounds logos, RPDB, MDBList, Watchmode, Trakt client id, OpenSubtitles",
     SettingsTab.DEFAULT_HOME to "Startup: Ember as Home, default launcher, Home button, accessibility service, ADB, Google TV home, start with the TV boot wake standby destination app input HDMI presentation",
     SettingsTab.DEVICE_TOOLS to "TV and device: display inputs calibration patterns 4K UHD sharpness overscan brightness contrast grayscale colors judder motion SDR HDR10 Dolby Vision clips menus MediaTek Amlogic Xiaomi FengOS Formovie XGIMI projector focus picture HDMI AV input shortcuts, engineering menus firmware factory service menu",
-    SettingsTab.PHONE to "Phone setup: on off switch, 30 minute timer, session expiry, QR code, add from phone, keys, backup to phone, badges, collections",
+    SettingsTab.PHONE to "Phone setup: on off switch, 30 minute timer, session expiry, QR code, add from phone, keys, backup to phone, badges, collections, phone remote web app, crash log on the phone, addon order, widget sources",
     SettingsTab.SCREENSAVER to "Screensaver: sources, photos, backdrops, Ember screensaver",
     SettingsTab.BACKUP to "Back up and restore: backup file, passphrase, restore, Downloads",
     SettingsTab.WATCH_STATUS to "Watched and spoilers: watched unwatched indicators check badge mark movie show episode spoiler blur artwork",
     SettingsTab.UPDATES to "Updates: check install beta stable channel release GitHub automatic download",
-    SettingsTab.CACHE to "Cache Management: cache duration days hours metadata catalogs images network storage size retention clear cached data",
-    SettingsTab.DEBUG to "Debug diagnostics: provider source request timings duration latency timeout auth quota offline redacted export build type crash log reports troubleshoot",
+    SettingsTab.CACHE to "Cache management: cache duration days hours metadata catalogs images network storage size retention clear cached data",
+    SettingsTab.DEBUG to "Debug diagnostics: provider source request timings duration latency timeout auth quota offline redacted export build type crash log reports troubleshoot copy crash log",
     SettingsTab.ABOUT to "About Ember: version, credits, changelog",
     SettingsTab.LEGAL to "Legal: privacy policy, open source, licences, services, disclaimer, calibration sample credits Mehanik HDR Test Patterns",
 )
+
+private const val MAX_OPTION_HITS = 12
 
 @Composable
 internal fun SettingsSearchPage(vm: app.ember.tv.HomeViewModel, query: String, onQuery: (String) -> Unit, onOpen: (SettingsTab, String?) -> Unit) {
@@ -68,8 +70,18 @@ internal fun SettingsSearchPage(vm: app.ember.tv.HomeViewModel, query: String, o
                 exact.forEach { definition ->
                     Chip(definition.title + " · " + definition.tab.title()) { onOpen(definition.tab, definition.id) }
                 }
-                val hits = SETTINGS_INDEX.filter { (_, text) -> words.all { w -> w in text.lowercase() } }.filter { (tab, _) -> exact.none { it.tab == tab } }
-                if (hits.isEmpty() && exact.isEmpty()) Note("Nothing found for \"${query.trim()}\".")
+                // #269: single options, each opening its section.
+                val context = androidx.compose.ui.platform.LocalContext.current
+                remember { SettingsOptionIndex.load(context) }
+                val options = SettingsOptionIndex.search(query)
+                    .filter { o -> exact.none { it.tab == o.tab && it.id == o.anchor } }.take(MAX_OPTION_HITS)
+                options.forEach { o ->
+                    val where = listOfNotNull(o.section?.takeIf { !it.equals(o.label, ignoreCase = true) }, o.tab.title()).joinToString(" · ")
+                    Chip(o.label + " · " + where) { onOpen(o.tab, o.anchor) }
+                }
+                val hits = SETTINGS_INDEX.filter { (_, text) -> words.all { w -> w in text.lowercase() } }
+                    .filter { (tab, _) -> exact.none { it.tab == tab } && options.none { it.tab == tab } }
+                if (hits.isEmpty() && exact.isEmpty() && options.isEmpty()) Note("Nothing found for \"${query.trim()}\".")
                 hits.forEach { (tab, text) ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Chip(tab.title() + " ›") { onOpen(tab, null) }

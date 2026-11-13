@@ -426,10 +426,8 @@ internal fun LazyListScope.ratingsPage(vm: HomeViewModel, openKeys: () -> Unit) 
     item(key = "ratingshead") {
         Section(stringResource(R.string.ui_ratings), stringResource(R.string.ui_shown_on_title_screens_under_the)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ButtonRow(spacing = 10.dp) {
-                    SwitchChip(stringResource(R.string.ui_show_ratings), vm.metadata.ratingsOn) { vm.metadata.updateRatingsOn(!vm.metadata.ratingsOn) }
-                    Chip(stringResource(R.string.ui_api_keys)) { openKeys() }
-                }
+                ToggleRow(stringResource(R.string.ui_show_ratings), null, vm.metadata.ratingsOn) { vm.metadata.updateRatingsOn(!vm.metadata.ratingsOn) }
+                Chip(stringResource(R.string.ui_api_keys)) { openKeys() }
                 Text(
                     stringResource(R.string.ui_an_mdblist_key_gives_imdb_tmdb),
                     color = Mute,

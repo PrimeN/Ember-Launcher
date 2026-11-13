@@ -37,6 +37,7 @@ internal fun AudioTimingControls(value: Int, modifier: Modifier = Modifier, chan
 /** The whole row is one labeled switch on every settings surface. */
 @Composable
 internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: () -> Unit) {
+    RecordSettingOption(label)
     var focused by remember { mutableStateOf(false) }
     val floating = LocalFloating.current
     Focusable(onClick = onToggle, role = Role.Switch,
@@ -70,6 +71,7 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
  */
 @Composable
 internal fun SettingValueRow(label: String, value: String, note: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    RecordSettingOption(label)
     var focused by remember { mutableStateOf(false) }
     val floating = LocalFloating.current
     Focusable(onClick = onClick,

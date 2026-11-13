@@ -119,11 +119,12 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     AUDIO_VIDEO("Audio & video", "Playback"),
     SUBTITLES("Languages & subtitles", "Playback"),
     PLAY_BUTTON("Play button", "Playback"),
+    // #274: how the source list looks sits beside what the Play button picks from it.
+    STREMIO("Stream results & badges", "Playback"),
     WATCH_STATUS("Watched & spoilers", "Playback"),
     // Sources: where titles, streams and their details come from.
     ADDONS("Addons & catalogs", "Sources"),
     CATALOGS("Catalogs", "Sources", "ADDONS"),
-    STREMIO("Stream results & badges", "Sources"),
     LIVE("Live TV", "Sources"),
     STREAMING("Where to watch", "Sources"),
     POSTERS("Artwork & metadata", "Sources"),
@@ -139,7 +140,7 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     BACKUP("Backup & restore", "System"),
     UPDATES("Updates", "System"),
     DEBUG("Storage & diagnostics", "System"),
-    CACHE("Cache Management", "System", "DEBUG"),
+    CACHE("Cache management", "System", "DEBUG"),
     FEATURES("Features", "System"),
     // About: what Ember is and its licences, in their own section (#67).
     ABOUT("About Ember", "About"),
@@ -291,6 +292,7 @@ fun SettingsScreen(vm: HomeViewModel) {
                 item(key = "disclaimer") { DisclaimerPage() }
             }
         }
+        if (SettingsReset.available(tab)) item(key = "reset-page") { ResetPageButton(tab) }
     }
 
     // Page-only search results need the same guarded focus handoff as exact section hits.
@@ -309,7 +311,7 @@ fun SettingsScreen(vm: HomeViewModel) {
         }
         keys.indexOf(target).takeIf { it >= 0 }
     }
-    androidx.compose.runtime.CompositionLocalProvider(LocalSettingsTarget provides searchRequest) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalSettingsTarget provides searchRequest, LocalSettingsPage provides tab) {
         ModernSettings(location=location, onCategory={category->
             val destination=location.fromSidebar(category,focusContent)
             if(destination!=location) {

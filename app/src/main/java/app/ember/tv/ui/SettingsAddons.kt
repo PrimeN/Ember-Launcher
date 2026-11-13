@@ -197,8 +197,8 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
             if (flags.isNotEmpty()) Text(flags.joinToString("\n"), fontSize = TvTokens.Type.Caption.sp,
                 color = if (a.configurationRequired || a.adult) Color(0xFFFFB4AB) else Mute)
         }
+        ToggleRow("Enabled", null, vm.addonAvailable(url)) { vm.pauseAddon(url, vm.addonAvailable(url)) }
         ButtonRow(spacing = 8.dp) {
-            SwitchChip("Enabled", vm.addonAvailable(url)) { vm.pauseAddon(url, vm.addonAvailable(url)) }
             info?.configureUrl?.let { link ->
                 val context = androidx.compose.ui.platform.LocalContext.current
                 Chip(if (info?.configurationRequired == true) "Set it up" else "Its settings") {

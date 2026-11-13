@@ -78,6 +78,7 @@ internal fun SubtitleSample(c: SubtitleConfig, modifier: Modifier, text: String 
 @Composable
 internal fun SubtitleChoice(title: String, options: List<Pair<String, String>>, selected: String, c: SubtitleConfig, apply: (SubtitleConfig, String) -> SubtitleConfig, onPick: (String) -> Unit) {
     Text(title, fontSize = 15.sp)
+    RecordSettingOption(title)
     PictureRow { tile ->
         options.forEach { (id, label) ->
             Focusable(onClick = { onPick(id) }, modifier = Modifier.width(tile).semantics { this.selected = selected == id }.testTag("subtitle_${title.lowercase()}_$id"),

@@ -48,6 +48,7 @@ internal fun StepSlider(
     onPick: (Int) -> Unit,
 ) {
     if (values.isEmpty()) return
+    RecordSettingOption(name)
     val at = values.indexOf(selected).takeIf { it >= 0 } ?: StepSliders.nearest(values, selected)
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val accent = MaterialTheme.colorScheme.primary

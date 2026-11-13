@@ -31,7 +31,9 @@ data class PhoneHomeEntry(val id: String, val title: String, val kind: String, v
 data class PhoneLookup(val id: String, val name: String, val note: String = "")
 /** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
 data class PhoneWidget(val id: String, val title: String, val style: String, val shape: String, val limit: Int, val source: String, val status: String,
-    val canMoveUp: Boolean = true, val canMoveDown: Boolean = true, val art: String = app.ember.tv.data.HeroArtworkMode.STANDARD)
+    val canMoveUp: Boolean = true, val canMoveDown: Boolean = true, val art: String = app.ember.tv.data.HeroArtworkMode.STANDARD,
+    /** #275: the widget's other sources as labels, in order (removed by position). */
+    val more: List<String> = emptyList())
 /** [cover] is the collection backdrop link, shown like a folder cover (#234). */
 data class PhoneCollection(val id: String, val title: String, val folders: List<PhoneFolder>, val cover: String? = null)
 /** [shape] is "poster", "wide" or "square"; [sources] are opaque ids with their labels, in order. */
@@ -211,6 +213,14 @@ object ContentPhone {
         append("<fieldset data-kind=mdblist><legend>MDBList list</legend><label for=md>List link, user/list-name or number</label><input id=md name=mdblist placeholder=\"https://mdblist.com/lists/user/list-name\">")
         append("<label for=mdm>Show</label><select id=mdm name=mdblistMedia><option value=''>Movies and shows</option><option value=MOVIE>Movies</option><option value=TV>Shows</option></select><p class=m>Needs your MDBList API key (Setup &gt; API keys).</p></fieldset>")
         append("<fieldset data-kind=list><legend>My lists</legend><select name=list>"); options(content.lists); append("</select><p class=m>Tracker lists appear here once the TV has loaded them.</p></fieldset>")
+        // #275: the other catalogs this widget combines, as on the TV.
+        append("<h3>More catalogs</h3><p class=m>Titles from every catalog take turns in one row. Lists can't be combined.</p>")
+        widget?.more?.forEachIndexed { i, label ->
+            append("<label><input type=checkbox name=\"dropMore:").append(i).append("\"> Remove <b>").append(esc(label)).append("</b></label>")
+        }
+        if ((widget?.more?.size ?: 0) < app.ember.tv.data.HomeWidgets.MAX_SOURCES - 1) {
+            append("<label for=addMore>Add a catalog</label><select id=addMore name=addMore><option value=''>None</option>"); options(content.sources); append("</select>")
+        }
         append("<button>Save</button><p class=m>Saving sends the widget to the TV. Approve it there in Phone setup.</p></form>")
         append("<script>").append(BIND).append("bind('source','data-source');bind('kind','data-kind');").append(FINDERS).append("</script>")
     }
@@ -349,8 +359,8 @@ object ContentPhone {
         append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=delete><label>Collection or folder to delete</label><select name=target>")
         options(content.collections.map { (id, name) -> id to "$name (whole collection)" } + content.targets.filterNot { it.first.startsWith("c-") })
         append("</select><button>Send delete for review on the TV</button></form>")
-        group(); append("<h3>Add-ons</h3><form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=addon><label>Add-on</label><select name=addon>")
-        options(content.addons); append("</select><select name=enabled><option value=on>Enable</option><option value=off>Pause</option></select><button>Preview add-on change on TV</button></form>")
+        group(); append("<h3>Add-ons</h3><p class=m>Listed in the order the TV asks them. Earlier add-ons are asked first for sources and details.</p><form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=addon><label>Add-on</label><select name=addon>")
+        options(content.addons); append("</select><select name=change><option value=on>Enable</option><option value=off>Pause</option><option value=up>Move up</option><option value=down>Move down</option></select><button>Preview add-on change on TV</button></form>")
         append("</div></div>")
     }
 }

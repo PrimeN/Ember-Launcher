@@ -159,10 +159,9 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OnOff("Match to the exact file", c.hashMatch) { vm.playerSettings.updateSubtitleConfig { it.copy(hashMatch = !it.hashMatch) } }
                 OnOff("Skip machine-translated", c.skipMachine) { vm.playerSettings.updateSubtitleConfig { it.copy(skipMachine = !it.skipMachine) } }
-                Text(stringResource(R.string.ui_hearing_impaired_sdh), fontSize = 15.sp)
                 Choice(
                     listOf("avoid" to "Avoid", "include" to "No preference", "prefer" to "Prefer", "exclude" to "Never"),
-                    c.hearingImpaired,
+                    c.hearingImpaired, stringResource(R.string.ui_hearing_impaired_sdh),
                 ) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(hearingImpaired = m) } }
                 Note(
                     stringResource(R.string.ui_match_to_the_exact_file_reads) +

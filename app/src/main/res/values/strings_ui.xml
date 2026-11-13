@@ -456,5 +456,5 @@
     <string name="settings_summary_updates">Update checks, beta channel and installation.</string>
     <string name="settings_summary_debug">Build information and crash diagnostics.</string>
     <string name="settings_summary_cache">Cache durations, storage usage and clearing cached data</string>
-    <string name="settings_cache_management">Cache Management</string>
+    <string name="settings_cache_management">Cache management</string>
 </resources>

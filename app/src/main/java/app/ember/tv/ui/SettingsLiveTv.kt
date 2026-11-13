@@ -169,7 +169,7 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
 
         Section(stringResource(R.string.ui_add_a_source)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Choice(listOf("m3u" to "M3U playlist link", "xtream" to "Xtream Codes login"), kind) { kind = it }
+                Choice(listOf("m3u" to "M3U playlist link", "xtream" to "Xtream Codes login"), kind, "Type") { kind = it }
                 TextInput(name, { name = it }, "Name (optional), e.g. My provider")
                 if (kind == "m3u") {
                     TextInput(url, { url = it }, "Playlist link, e.g. http://provider.tv/get.php?...", width = 760)
@@ -177,7 +177,7 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
                     TextInput(url, { url = it }, "Server, e.g. http://provider.tv:8080", width = 760)
                     TextInput(user, { user = it }, "Username")
                     TextInput(pass, { pass = it }, "Password", password = true)
-                    Choice(listOf("ts" to "Streams: MPEG-TS (most compatible)", "m3u8" to "Streams: HLS"), format) { format = it }
+                    Choice(listOf("ts" to "MPEG-TS (most compatible)", "m3u8" to "HLS"), format, "Streams") { format = it }
                 }
                 SettingsDisclosure(stringResource(R.string.settings_advanced_options),advanced,Modifier.settingsAnchor("iptv-advanced")) {advanced=!advanced}
                 if (advanced) {

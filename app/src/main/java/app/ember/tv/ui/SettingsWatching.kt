@@ -103,11 +103,15 @@ import java.util.Locale
 
 // ---------------------------------------------------------------- Player engine
 
+/** One setting with several answers (#270): a row showing the current answer that opens a menu; [label] defaults to the section title. */
 @Composable
-internal fun Choice(options: List<Pair<String, String>>, selected: String, onPick: (String) -> Unit) {
-    ButtonRow(Modifier.padding(vertical = 4.dp)) {
-        options.forEach { (id, label) -> Chip(label, selected = selected == id) { onPick(id) } }
-    }
+internal fun Choice(options: List<Pair<String, String>>, selected: String, label: String? = null, onPick: (String) -> Unit) {
+    val title = label ?: LocalSettingsSection.current.orEmpty()
+    var open by remember { mutableStateOf(false) }
+    val value = options.firstOrNull { it.first == selected }?.second ?: selected
+    options.forEach { RecordSettingOption(it.second) }
+    SettingValueRow(title, value, modifier = Modifier.widthIn(max = 760.dp)) { open = true }
+    if (open) OptionMenu(title, options.map { (id, text) -> MenuOption(text, selected = id == selected) { onPick(id) } }) { open = false }
 }
 
 @Composable
@@ -156,8 +160,7 @@ internal fun UpdatesSection(vm: HomeViewModel) {
                 vm.updates.updateBeta,
             ) { vm.updates.toggleUpdateBeta() }
             if (vm.updates.updateBeta) {
-                Text(stringResource(R.string.tx_beta_update_source), color = Fg, fontSize = 14.sp)
-                Choice(listOf("releases" to "Releases", "actions" to "Actions APK"), vm.updates.updateBetaSource) { vm.updates.updateBetaSource(it) }
+                Choice(listOf("releases" to "Releases", "actions" to "Actions APK"), vm.updates.updateBetaSource, stringResource(R.string.tx_beta_update_source)) { vm.updates.updateBetaSource(it) }
                 Note(if (vm.updates.updateBetaSource == "actions")
                     "Latest successful signed public beta build. Downloads use nightly.link; APKs expire after three days."
                     else "Only explicitly published public beta releases.")

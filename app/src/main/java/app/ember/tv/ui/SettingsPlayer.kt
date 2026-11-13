@@ -144,14 +144,12 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "leaving" -> Section("Leaving the player", "What Back and Home do while a video plays.", id = "leaving") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.tx_back_button), fontSize = 15.sp)
-            Choice(SettingDefinitions.leaving.options, if (c.confirmExit) "ask" else "leave") { v ->
+            Choice(SettingDefinitions.leaving.options, if (c.confirmExit) "ask" else "leave", stringResource(R.string.tx_back_button)) { v ->
                 vm.playerSettings.updatePlaybackConfig { it.copy(confirmExit = v == "ask") }
             }
             Note("Ask first shows Stop watching? with Keep watching selected. Pressing Back again leaves, so a double press still exits.")
             ToggleRow("Home: keep playing in a small window", null, c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
-            Text(stringResource(R.string.tx_back_to_the_last_video_from), fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
-            Choice(app.ember.tv.player.QuickReturn.keys, app.ember.tv.player.QuickReturn.key(c)) { v ->
+            Choice(app.ember.tv.player.QuickReturn.keys, app.ember.tv.player.QuickReturn.key(c), stringResource(R.string.tx_back_to_the_last_video_from)) { v ->
                 vm.playerSettings.updatePlaybackConfig { app.ember.tv.player.QuickReturn.choose(it, v) }
             }
             Note("Android does not let apps stop the Home button, so Home cannot ask first. Picture-in-picture keeps the video playing in a corner where the TV supports it. " +
@@ -176,8 +174,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             ) { vm.playerSettings.updatePlaybackConfig { it.copy(passthrough = !it.passthrough) } }
             if (c.passthrough) {
                 Choice(
-                    listOf("auto" to "Formats: as HDMI reports", "manual" to "Formats: choose myself"),
-                    c.passthroughMode,
+                    listOf("auto" to "As HDMI reports", "manual" to "Choose myself"),
+                    c.passthroughMode, "Formats",
                 ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(passthroughMode = m) } }
                 if (c.passthroughMode == "manual") {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
@@ -198,30 +196,26 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
         }
     }
         "decoding" -> Section(stringResource(R.string.ui_decoding), stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot)) {
-            Text(stringResource(R.string.tx_playback_engine),fontSize=15.sp)
-            Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
+            Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine, stringResource(R.string.tx_playback_engine)) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
             Note("Automatic keeps Ember's controls and tries compatibility playback when a format needs it.")
-            Text(stringResource(R.string.tx_compatibility_deinterlacing),fontSize=15.sp)
-            Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing) { mode ->
+            Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing)) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
             }
             Note("For interlaced Live TV or older video in Compatibility playback. Automatic follows the video's scan type; Always is for streams detected incorrectly. Uses more processing. Off is the default.")
             Note("Decoder preferences below apply to Standard playback. Compatibility has its own decoder controls while watching.")
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.ui_sound_decoding), fontSize = 15.sp)
             Choice(
                 listOf("on" to "Software when needed", "prefer" to "Prefer software", "off" to "TV decoders only"),
-                c.ffmpeg,
+                c.ffmpeg, stringResource(R.string.ui_sound_decoding),
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpeg = m) } }
             Note("Software includes FFmpeg and MPEG-H. MPEG-H outputs stereo PCM. AC-4 uses the device decoder when available.")
-            Text(stringResource(R.string.ui_video_decoding), fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
             Choice(
                 listOf(
                     "fallback" to stringResource(R.string.ui_ffmpeg_video_fallback),
                     "always" to stringResource(R.string.ui_ffmpeg_video_always),
                     "off" to stringResource(R.string.ui_ffmpeg_video_off),
                 ),
-                c.ffmpegVideo,
+                c.ffmpegVideo, stringResource(R.string.ui_video_decoding),
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpegVideo = m) } }
             ToggleRow(stringResource(R.string.ui_tunneled_playback), null, c.tunneling) {
                 vm.playerSettings.updatePlaybackConfig { it.copy(tunneling = !it.tunneling) }

@@ -79,7 +79,7 @@ class CacheManagementUiTest {
   runBlocking{CacheManagement.usage(app)}
   val metadata=File(app.cacheDir,"managed-responses/metadata/fixture.cache").apply{parentFile!!.mkdirs();writeText("disposable data")}
   compose.runOnIdle{part="cache-size"}
-  compose.onNodeWithText("Current Cache Size").assertExists()
+  compose.onNodeWithText("Current cache size").assertExists()
   compose.onNodeWithText("Clear Cache Data").performSemanticsAction(SemanticsActions.OnClick){it()}
   compose.onNodeWithText("Clear Cache Data?").assertExists()
   compose.onNodeWithText("Clear cache data").performSemanticsAction(SemanticsActions.OnClick){it()}

@@ -111,6 +111,7 @@ internal fun PictureRow(content: @Composable (androidx.compose.ui.unit.Dp) -> Un
 @Composable
 internal fun PictureToggles(group: String, options: List<Pair<String, String>>, on: Set<String>, onToggle: (String) -> Unit) = PictureRow { tile ->
         options.forEach { (id, label) ->
+            RecordSettingOption(label)
             val picture = SettingPictures.of(group, id)
             val chosen = id in on
             Focusable(onClick = { onToggle(id) }, modifier = Modifier.width(tile).semantics { this.selected = chosen }.testTag("picture_$picture"),
@@ -128,6 +129,7 @@ internal fun PictureToggles(group: String, options: List<Pair<String, String>>, 
 @Composable
 internal fun PictureChoice(group: String, options: List<Pair<String, String>>, selected: String, onPick: (String) -> Unit) = PictureRow { tile ->
         options.forEach { (id, label) ->
+            RecordSettingOption(label)
             val picture = SettingPictures.of(group, id)
             Focusable(onClick = { onPick(id) }, modifier = Modifier.width(tile).semantics { this.selected = selected == id }.testTag("picture_$picture"),
                 radius = TvTokens.Shape.Card, container = if (selected == id) WashHi else PanelHi) {

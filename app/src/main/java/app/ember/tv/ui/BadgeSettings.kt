@@ -223,10 +223,8 @@ private fun BadgeOptionsDialog(vm: HomeViewModel, id: String, close: () -> Unit)
                     Box(Modifier.graphicsLayer(scaleX = 2f, scaleY = 2f).alpha(if (b.isEnabled) 1f else .35f)) { SourceBadge(shown) }
                 }
                 Text(BadgeEditor.summary(b), color = Mute, fontSize = 13.sp)
-                ButtonRow(spacing = 8.dp) {
-                    SwitchChip("Show this badge", b.isEnabled) { edit { it.copy(isEnabled = !it.isEnabled) } }
-                    MoveButton(b.name, all.indexOfFirst { it.id == id }, all.lastIndex) { step -> f.moveBadge(id, step) }
-                }
+                ToggleRow("Show this badge", null, b.isEnabled) { edit { it.copy(isEnabled = !it.isEnabled) } }
+                MoveButton(b.name, all.indexOfFirst { it.id == id }, all.lastIndex) { step -> f.moveBadge(id, step) }
                 OptionLabel("Try it")
                 TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "A source name, e.g. Movie 2160p REMUX DV")
                 if (sample.isNotBlank()) {

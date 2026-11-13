@@ -59,7 +59,7 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         .allowRgb565(true)
         .memoryCache { coil.memory.MemoryCache.Builder(this).maxSizePercent(0.25).build() }
         .diskCache { coil.disk.DiskCache.Builder().directory(cacheDir.resolve("images")).maxSizeBytes(app.ember.tv.ui.ArtworkStorageBudget.disk(runCatching {android.os.StatFs(cacheDir.path).availableBytes}.getOrDefault(0))).build() }
-        // Artwork retention is Ember's own (Settings > System > Cache Management, enforced by
+        // Artwork retention is Ember's own (Settings > System > Cache management, enforced by
         // ImageCacheRetention). Server cache headers only added a revalidation of every poster on
         // each launch, for hosts that send no-cache or a short max-age (#32). Private server
         // artwork never uses this disk cache, so this cannot store a no-store image.

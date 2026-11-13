@@ -42,7 +42,7 @@ internal fun CacheManagementSettings(part: String) {
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) { error = "Could not read cache size. Try again." }
         }
-        Section("Current Cache Size", "Cache storage only. Saved lists, connections and playback files are kept.", id = part) {
+        Section("Current cache size", "Cache storage only. Saved lists, connections and playback files are kept.", id = part) {
             Text(usage?.let { Formatter.formatShortFileSize(context,it.total) } ?: "Reading cache size…", color = Fg)
             usage?.categories?.forEach { (kind, bytes) -> Text("${kind.label}: ${Formatter.formatShortFileSize(context,bytes)}", color = Mute) }
             ButtonRow {
@@ -87,10 +87,10 @@ internal fun CacheManagementSettings(part: String) {
     val maximum = if(days)365 else 720
     val options = if(days)listOf(1,7,14,30,90) else listOf(1,6,12,24,72)
     val title = when(kind) {
-        CacheKind.IMAGES -> "Image cache duration (Days)"
-        CacheKind.METADATA -> "Metadata cache duration (Hours)"
-        CacheKind.CATALOGS -> "Catalog cache duration (Hours)"
-        CacheKind.NETWORK -> "Network cache duration (Hours)"
+        CacheKind.IMAGES -> "Image cache duration (days)"
+        CacheKind.METADATA -> "Metadata cache duration (hours)"
+        CacheKind.CATALOGS -> "Catalog cache duration (hours)"
+        CacheKind.NETWORK -> "Network cache duration (hours)"
     }
     Section(title, if(kind==CacheKind.NETWORK) "Maximum reuse time; providers can require earlier refresh." else "Changing this duration clears the corresponding cache.", id=part) {
         ButtonRow {
