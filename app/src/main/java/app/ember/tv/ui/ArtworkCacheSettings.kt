@@ -2,7 +2,6 @@ package app.ember.tv.ui
 
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
-
 import android.text.format.Formatter
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext

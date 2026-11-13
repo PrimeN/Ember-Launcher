@@ -2,7 +2,6 @@ package app.ember.tv.ui
 
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
-
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,7 +46,7 @@ internal fun ProviderDiagnosticsSettings() {
                     catch(_:SecurityException){pending=null;message="The device blocked document access."}
                 }
                 Chip(stringResource(R.string.ui_clear)) {SourceDiagnostics.clear()}
-                if(rows.size>12)Chip(if(showAll)stringResource(R.string.st_show_latest_12) else stringResource(R.string.st_show_all, rows.size)) {showAll=!showAll}
+                if(rows.size>12)Chip(if(showAll)stringResource(R.string.st_show_latest_12) else stringResource(R.string.st_show_all_2, rows.size)) {showAll=!showAll}
         }
         rows.take(if(showAll)64 else 12).forEach {row->key(row.group,row.reference) {
             Focusable(onClick={},modifier=Modifier.fillMaxWidth(),focusedScale=TvTokens.Focus.None) {

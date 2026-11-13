@@ -2,7 +2,6 @@ package app.ember.tv.ui
 
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
-
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

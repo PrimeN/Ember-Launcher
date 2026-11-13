@@ -35,7 +35,7 @@ class SettingsRoundTest {
         compose.onNodeWithText("Large (4K remux)").assertExists()
         compose.onNodeWithText("Huge").assertDoesNotExist()
         compose.onNodeWithText("Large (4K remux)").performSemanticsAction(SemanticsActions.OnClick) { it() }
-        compose.onNodeWithText("Huge").performSemanticsAction(SemanticsActions.OnClick) { it() }
+        compose.onNodeWithContentDescription("Huge").performSemanticsAction(SemanticsActions.OnClick) { it() }
         compose.runOnIdle { assertEquals("huge", picked) }
     }
 

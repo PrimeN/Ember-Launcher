@@ -46,7 +46,7 @@ internal fun CacheManagementSettings(part: String) {
             Text(usage?.let { Formatter.formatShortFileSize(context,it.total) } ?: "Reading cache size…", color = Fg)
             usage?.categories?.forEach { (kind, bytes) -> Text("${kind.label}: ${Formatter.formatShortFileSize(context,bytes)}", color = Mute) }
             ButtonRow {
-                Chip(if (busy) stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data), maxLines = 1) { if (!busy) confirm = true }
+                Chip(if (busy) stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data_2), maxLines = 1) { if (!busy) confirm = true }
                 Chip(stringResource(R.string.st_refresh_size), maxLines = 1) {
                     if (!busy) scope.launch {
                         try { usage = CacheManagement.usage(context); error = null }
@@ -95,7 +95,7 @@ internal fun CacheManagementSettings(part: String) {
     Section(title, if(kind==CacheKind.NETWORK) stringResource(R.string.st_maximum_reuse_time_providers_can_require) else stringResource(R.string.st_changing_this_duration_clears_the_correspondi), id=part) {
         ButtonRow {
             options.forEach { amount -> Chip(amount.toString(),selected=value==amount,maxLines=1){apply(kind,amount)} }
-            Chip(if(value in options)stringResource(R.string.st_custom) else value.toString(),selected=value !in options,maxLines=1){if(!busy){draft=value.toString();custom=true}}
+            Chip(if(value in options)stringResource(R.string.st_custom_2) else value.toString(),selected=value !in options,maxLines=1){if(!busy){draft=value.toString();custom=true}}
         }
         error?.let { Text(it,color=Mute) }
     }

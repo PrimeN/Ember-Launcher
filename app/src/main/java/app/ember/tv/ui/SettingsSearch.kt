@@ -2,7 +2,6 @@ package app.ember.tv.ui
 
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable

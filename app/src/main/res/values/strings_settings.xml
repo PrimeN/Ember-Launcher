@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Settings labels (#272). -->
 <resources>
-    <string name="st_50_ms">−50 ms</string>
+    <string name="st_50_ms">+50 ms</string>
+    <string name="st_50_ms_2">−50 ms</string>
     <string name="st_a_connected_keyboard_can_make_editing">A connected keyboard can make editing templates easier. Templates are included in backups.</string>
     <string name="st_a_format_the_receiver_cannot_take">A format the receiver cannot take plays as silence, so switch it off again.</string>
     <string name="st_a_soft_click_for_the_arrows">A soft click for the arrows and OK in every interface and menu. Not used during playback.</string>
@@ -54,7 +55,8 @@
     <string name="st_choose_movie_and_show_details_independently">Choose movie and show details independently of your Home interface and player controls.</string>
     <string name="st_choose_navigation_for_ember_ember_light">Choose navigation for Ember. Ember Light uses navigation icons in its app grid.</string>
     <string name="st_clear_artwork_cache">Clear artwork cache</string>
-    <string name="st_clear_cache_data">Clear Cache Data</string>
+    <string name="st_clear_cache_data">Clear cache data</string>
+    <string name="st_clear_cache_data_2">Clear Cache Data</string>
     <string name="st_clearing">Clearing…</string>
     <string name="st_close_all">Close all</string>
     <string name="st_collections">Collections</string>
@@ -66,7 +68,8 @@
     <string name="st_copy_those_removals_too">Copy those removals too</string>
     <string name="st_copy_to_my_badges_and_edit">Copy to my badges and edit</string>
     <string name="st_current_cache_size">Current cache size</string>
-    <string name="st_custom">Custom…</string>
+    <string name="st_custom"> Custom.</string>
+    <string name="st_custom_2">Custom…</string>
     <string name="st_customize_individual_effects">Customize individual effects</string>
     <string name="st_decoder_preferences_below_apply_to_standard">Decoder preferences below apply to Standard playback. Compatibility has its own decoder controls while watching.</string>
     <string name="st_default"> Default.</string>
@@ -198,7 +201,8 @@
     <string name="st_show">Show</string>
     <string name="st_show_a_check_on_watched_movies">Show a check on watched movies, completed shows and episodes. Hold OK on a title to change its watched mark.</string>
     <string name="st_show_addon_names">Show addon names</string>
-    <string name="st_show_all" formatted="true">Show all %1$s</string>
+    <string name="st_show_all">Show all</string>
+    <string name="st_show_all_2" formatted="true">Show all %1$s</string>
     <string name="st_show_all_hidden_badges" formatted="true">Show all %1$s hidden badges</string>
     <string name="st_show_apps_on_home">Show apps on Home</string>
     <string name="st_show_latest_12">Show latest 12</string>

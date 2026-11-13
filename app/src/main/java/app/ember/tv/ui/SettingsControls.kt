@@ -2,7 +2,6 @@ package app.ember.tv.ui
 
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -30,7 +29,7 @@ internal fun AudioTimingControls(value: Int, modifier: Modifier = Modifier, chan
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(AudioTiming.label(value), fontSize = 16.sp)
         ButtonRow {
-            Chip(stringResource(R.string.st_50_ms)) { change(AudioTiming.adjust(value, -1)) }
+            Chip(stringResource(R.string.st_50_ms_2)) { change(AudioTiming.adjust(value, -1)) }
             Chip(stringResource(R.string.st_50_ms)) { change(AudioTiming.adjust(value, 1)) }
             Chip(stringResource(R.string.pl_reset)) { change(0) }
         }

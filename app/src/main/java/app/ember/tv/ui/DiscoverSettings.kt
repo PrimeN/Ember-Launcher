@@ -2,7 +2,6 @@ package app.ember.tv.ui
 
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
-
 import androidx.compose.runtime.Composable
 import app.ember.tv.HomeViewModel
 import app.ember.tv.state.DiscoverSection
