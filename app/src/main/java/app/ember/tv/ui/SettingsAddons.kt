@@ -4,6 +4,7 @@ import app.ember.tv.addAddon
 import app.ember.tv.addonLabel
 import app.ember.tv.pauseAddon
 import app.ember.tv.refreshAddon
+import app.ember.tv.moveAddon
 import app.ember.tv.removeAddon
 import app.ember.tv.renameAddon
 import app.ember.tv.updateAddonTimeout
@@ -109,6 +110,7 @@ internal fun LazyListScope.addonsPage(vm: HomeViewModel) {
         if (organizing) ContentOrganizer(vm) { organizing = false }
         Section(stringResource(R.string.ui_stremio_addons), stringResource(R.string.ui_each_catalog_an_addon_offers_becomes)) {
             Chip("Organize add-ons, catalogs and collections") { organizing = true }
+            if (vm.addons.size > 1) Text(stringResource(R.string.tx_addon_order_note), color = Mute, fontSize = 13.sp)
             if (vm.addons.isEmpty()) {
                 Text(stringResource(R.string.ui_no_addons_yet_paste_a_link), color = Mute, fontSize = 14.sp)
             }
@@ -209,6 +211,8 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
             }
             if (!renaming) Chip(stringResource(R.string.ui_rename)) { renaming = true }
             Chip("Refresh") { vm.refreshAddon(url) }
+            // #267: the order addons are asked in.
+            MoveButton(vm.addonLabel(url), vm.addons.indexOf(url), vm.addons.lastIndex) { step -> vm.moveAddon(url, step) }
             // #131: removing loses the addon's configured link, so it asks first.
             var removing by remember(url) { mutableStateOf(false) }
             Chip(stringResource(R.string.ui_remove)) { removing = true }

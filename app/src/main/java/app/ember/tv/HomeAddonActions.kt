@@ -217,6 +217,27 @@ internal fun HomeViewModel.removeAddon(url: String) {
     discover.reset(); refreshRows()
 }
 
+/**
+ * #267: addons are asked in this order, for title details (after the catalog's own addon) and for
+ * sources and subtitles; catalogs never moved by hand follow it too.
+ */
+internal fun HomeViewModel.moveAddon(url: String, step: Int) {
+    ensureAddons()
+    val next = AddonOrder.moved(addons, url, step) ?: return
+    if (!prefs.saveAddons(next)) { notice = "Encrypted storage is unavailable. The add-on order was kept."; return }
+    addons = next
+    discover.reset(); refreshRows(refetch = false)
+}
+
+/** #267: the addon list with one addon moved by [step] places; null when nothing moves. */
+internal object AddonOrder {
+    fun moved(list: List<String>, url: String, step: Int): List<String>? {
+        val i = list.indexOf(url); if (i < 0) return null
+        val j = (i + step).coerceIn(0, list.lastIndex); if (i == j) return null
+        return list.toMutableList().apply { add(j, removeAt(i)) }
+    }
+}
+
 internal fun HomeViewModel.addonLabel(url: String): String = (addonInfo[url] ?: client.cachedManifest(url))?.name ?: "Add-on ${addons.indexOf(url) + 1}"
 
 internal fun HomeViewModel.updateAddonTimeout(seconds: Int) {

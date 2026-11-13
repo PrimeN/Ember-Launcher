@@ -164,4 +164,5 @@
     <string name="tx_addon_metadata_about">For addons that serve their own details, logos and backgrounds.</string>
     <string name="tx_addon_metadata_first">Use the addon\'s metadata first</string>
     <string name="tx_addon_metadata_first_note">Keeps the logo, backgrounds, details and cast your catalog addon gives, and asks that addon for title details. TMDB and Fanart only fill in what it leaves out, so fewer requests are made.</string>
+    <string name="tx_addon_order_note">Addons are asked in this order: for title details after the catalog\'s own addon, and for sources and subtitles. Use Move on an addon to change it.</string>
 </resources>
