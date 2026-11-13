@@ -133,6 +133,31 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+      # The UI tests save pictures of their screens. They go only to a private repository
+      # (SCREENSHOTS_TOKEN), never to this run's artifacts; the summary lists screen names only.
+      - name: Screenshot comparison
+        if: always() && github.event_name == 'push' && hashFiles('app/build/reports/ui/*.png') != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          SHOTS_TOKEN: ${{ secrets.SCREENSHOTS_TOKEN }}
+        run: |
+          if [ -z "$SHOTS_TOKEN" ]; then echo "No SCREENSHOTS_TOKEN secret; skipping."; exit 0; fi
+          python3 -m pip install --quiet pillow
+          store="$RUNNER_TEMP/screenshots"
+          git clone --quiet --depth 1 "https://x-access-token:${SHOTS_TOKEN}@github.com/PrimeN/Ember-Screenshots.git" "$store"
+          label="${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          python3 .github/scripts/screenshots.py app/build/reports/ui "$store" "$GITHUB_REF_NAME" "$label"
+          cd "$store"
+          git config user.name "ember-ci"
+          git config user.email "ember-ci@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -qm "$GITHUB_REF_NAME $label"
+            b=$(git symbolic-ref --short HEAD)
+            git push -q origin "$b" || { git pull -q --rebase origin "$b" && git push -q origin "$b"; }
+          fi
+
       - name: Build
         shell: bash
         run: |
