@@ -151,53 +151,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 
-/** What the sign-in dialog shows while the user approves on their phone. */
-data class LinkUi(val trackerName: String, val code: String, val url: String)
-
-/** State of the title screen: details, episode picker, sources and subtitles. */
-data class DetailsUi(
-    val meta: Meta,
-    val episodes: List<Episode> = emptyList(),
-    val season: Int? = null,
-    val episode: Episode? = null,
-    val loadingEpisodes: Boolean = false,
-    val nativeSeasons: List<Int> = emptyList(),
-    val episodeCursor: Int? = null,
-    val streams: List<StreamOption> = emptyList(),
-    /** Directors, top cast and a trailer from the addon's details, and from TMDB when a key is set. */
-    val addonCredits: Credits? = null,
-    val tmdbCredits: Credits? = null,
-    /** Facts from AniList or TVDB for the line under the title (studio, network, status, next episode). */
-    val facts: List<String> = emptyList(),
-    /** Which metadata services added something, e.g. ["AniList", "TVDB"]. */
-    val metaSources: List<String> = emptyList(),
-    /** Ratings by source id, as shown ("8.5", "93%"). */
-    val ratings: Map<String, String> = emptyMap(),
-    /** Copies on your Plex, Jellyfin or Emby servers. */
-    val serverStreams: List<StreamOption> = emptyList(),
-    val loadingServer: Boolean = false,
-    val subtitles: List<SubtitleOption> = emptyList(),
-    val loadingStreams: Boolean = false,
-    val note: String? = null,
-    /** Where to watch, from Watchmode: every service with the title in your region. */
-    val offers: List<Offer> = emptyList(),
-    /** Addon links that open in another app (externalUrl, ytId, #73), shown with the services. */
-    val addonLinks: List<Offer> = emptyList(),
-    val loadingOffers: Boolean = false,
-) {
-    val seasons: List<Int> get() = nativeSeasons.ifEmpty { episodes.map { it.season }.distinct() }
-
-    /** TMDB's people (they have photos and characters); the addon's trailer first, as Stremio plays it. */
-    val credits: Credits?
-        get() {
-            if (addonCredits == null && tmdbCredits == null) return null
-            return Credits(
-                people = tmdbCredits?.people?.ifEmpty { null } ?: addonCredits?.people.orEmpty(),
-                trailer = addonCredits?.trailer ?: tmdbCredits?.trailer,
-            )
-        }
-}
-
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal val prefs = Prefs(app)
     internal val deviceCaps: DevicePerformance.Capabilities by lazy { DevicePerformance.capabilities(app) }
@@ -230,28 +183,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     // Encrypted: read on IO as the first startup step (#46), not on the main thread while the
     // view model is built. Everything that uses the list runs after that step.
     var addons by mutableStateOf<List<String>>(emptyList()); internal set
-    @Volatile private var addonsLoaded = false
-    /** Before a change is saved: never save over the stored list before it has been read. */
-    private fun ensureAddons() { if (!addonsLoaded) { addons = prefs.addons; addonsLoaded = true } }
-    var pausedAddons by mutableStateOf(prefs.pausedAddons); private set
+    var pausedAddons by mutableStateOf(prefs.pausedAddons); internal set
     val activeAddons: List<String> get() = addons.filter { AddonAccess.key(it) !in pausedAddons }
     init { AddonAccess.paused = pausedAddons }
     fun addonAvailable(url: String) = AddonAccess.key(url) !in pausedAddons
-    fun pauseAddon(url: String, paused: Boolean) {
-        if (url !in addons) return
-        val key = AddonAccess.key(url)
-        pausedAddons = if (paused) pausedAddons + key else pausedAddons - key
-        prefs.pausedAddons = pausedAddons
-        AddonAccess.paused = pausedAddons
-        if (paused) AddonClient.cancel(url)
-        collections.closeFolder(); collections.invalidatePages()
-        discover.reset(); refreshRows()
-        title.details?.let { title.retrySources() }
-    }
-    fun refreshAddon(url: String) {
-        if (!addonAvailable(url)) { notice = "Resume this add-on before refreshing it."; return }
-        client.forget(url); discover.reset(); collections.invalidatePages(); refreshRows(refetch = true)
-    }
     /** The banner is a Home section (Settings > Home layout). */
     val heroOn: Boolean get() = sectionOn(HOME_HERO)
     var homeFeatureAction by mutableStateOf<String?>(null)
@@ -264,37 +199,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal var watchedIndex by mutableStateOf(WatchedIndex())
     internal var watchedProfile by mutableStateOf<String?>(null)
     val watchedReady:Boolean get()=watchedProfile==profiles.profileId
-    suspend fun reloadWatched() {
-        val profile=profiles.profileId
-        val loaded=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){watchedStore.load(profile)}
-        kotlinx.coroutines.currentCoroutineContext().ensureActive()
-        if(profiles.profileId==profile){watchedIndex=loaded;watchedProfile=profile}
-        if(remoteWatched.isEmpty())restoreRemoteWatched()
-    }
     /** What your trackers say you watched (#83); used on profiles with personal rows. */
     internal var remoteWatched by mutableStateOf<Set<String>>(emptySet())
     internal val remoteWatchedFile by lazy { TrackerWatchedFile(java.io.File(app.filesDir, "tracker_watched.txt")) }
     fun isWatched(meta:Meta):Boolean=(if(watchedProfile==profiles.profileId)watchedIndex else WatchedIndex()).watched(meta,if(personalOn)remoteWatched else emptySet())
     fun isEpisodeWatched(show:Meta,ep:Episode):Boolean=isWatched(WatchedKeys.episode(show,ep))
-    fun setTitleWatched(meta:Meta,value:Boolean) {
-        val profile=profiles.profileId
-        val serverIdentity=servers.accountFingerprint()
-        viewModelScope.launch {
-            val loaded=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){watchedStore.mark(profile,meta,value)}
-            if(profiles.profileId!=profile)return@launch
-            watchedIndex=loaded
-            watchedProfile=profile
-            notice=if(value)"Marked as watched on this TV." else "Marked as unwatched on this TV."
-            val ref=app.ember.tv.mediaserver.ServerRef.of(meta)?.value
-            if(ref!=null)watchedServerMutex.withLock {if(profiles.profileId==profile && isWatched(meta)==value && servers.accountFingerprint()==serverIdentity)servers.markWatched(ref,value)}
-            // Your trackers hear about it too, as history rather than a fake scrobble (#79).
-            if(personalOn && featureOn(app.ember.tv.data.Features.TRACKERS)) {
-                val sent=hub.markWatched(meta.toRef(),meta.season,meta.episode,value)
-                if(profiles.profileId==profile)notice=(if(value)"Marked as watched on this TV." else "Marked as unwatched on this TV.")+sent.describe()
-            }
-        }
-    }
-
     // ---- trackers ----
     var continueItems by mutableStateOf<List<Meta>>(emptyList()); internal set
     var trackerWatchlist by mutableStateOf<List<Meta>>(emptyList()); internal set
@@ -330,9 +239,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             }
     }
 
-    /** One entry per title, the first list winning. */
-    internal fun mergeTitles(vararg lists: List<Meta>): List<Meta> = mergeTitlesIndexed(*lists)
-
     /**
      * In progress: what you played in Ember (kept on the TV, so it works without trackers and
      * offline), then your trackers' Continue watching, then your media servers' Continue.
@@ -354,41 +260,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             libraryHistory.filter { !LocalLibrary.isHidden(it) && personalListIncludes("recent", it, "trakt") })
     }
 
-    /** Hold OK on a title in In progress, Recently watched or the watchlist page: takes it off that list. */
-    fun removeFromList(which: String, meta: Meta) {
-        when (which) {
-            app.ember.tv.data.NavTabs.PROGRESS -> removeFromContinue(meta)
-            app.ember.tv.data.NavTabs.RECENT -> {
-                LocalLibrary.hideRecent(meta)
-                notice = "Removed from Recently watched."
-            }
-            else -> if (isSaved(meta)) toggleWatchlist(meta)
-        }
-    }
-
-    /** Recently watched page: Clear. Ember's finished plays go; Trakt's entries stay hidden here. */
-    fun clearRecent() {
-        LocalLibrary.clearRecent(recentItems)
-        notice = "Recently watched cleared."
-    }
-
     // ---- features that can be switched off (Settings > Features) ----
-    var featuresOff by mutableStateOf(prefs.featuresOff); private set
+    var featuresOff by mutableStateOf(prefs.featuresOff); internal set
 
     fun featureOn(id: String) = id !in featuresOff
-
-    fun toggleFeature(id: String) {
-        featuresOff = if (id in featuresOff) featuresOff - id else featuresOff + id
-        prefs.featuresOff = featuresOff
-        when (id) {
-            app.ember.tv.data.Features.TRACKERS, app.ember.tv.data.Features.SMART_ROWS -> {
-                smartRowsLoadedAt = 0L
-                refreshTrackers()
-            }
-            app.ember.tv.data.Features.SERVERS -> refreshServers(force = true)
-            app.ember.tv.data.Features.LIVE -> if (featureOn(id)) iptv.refresh(force = false)
-        }
-    }
 
     internal var trackersAt = 0L
     internal var trackerRefreshJob: Job? = null
@@ -465,72 +340,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     // ---- playing (players and autoplay in state/PlayingState.kt) ----
     val playing = PlayingState(getApplication<Application>(), prefs)
 
-    /** Builds what the player needs for a source on the open title screen. */
-    fun playRequest(s: StreamOption): PlayRequest? {
-        val d = details ?: return null
-        if(!contentAllowed(d.meta))return null
-        serverPlaybackDirty = true
-        val m = d.meta
-        val ep = d.episode
-        if (d.loadingEpisodes && ep == null) return null
-        // Use the tracker's progress only when it belongs to this exact episode.
-        val trackerProgress = m.progress?.takeIf { ep == null || (ep.season == m.season && ep.episode == m.episode) }
-        // Kept on the TV for In progress and Recently watched (the player adds how far you get).
-        LocalLibrary.started(
-            m.playbackKey(ep),
-            if (ep == null) m else m.copy(serverRef = ep.serverRef ?: m.serverRef, serverSeriesRef = ep.serverSeriesRef ?: m.serverSeriesRef, season = ep.season, episode = ep.episode, badge = "S${ep.season} · E${ep.episode}" + ep.title.takeIf { it.isNotBlank() }?.let { "  $it" }.orEmpty()),
-        )
-        return PlayRequest(
-            stream = s,
-            title = when {
-                ep != null -> "${m.name} S${ep.season}E${ep.episode}"
-                m.season != null && m.episode != null -> "${m.name} S${m.season}E${m.episode}"
-                else -> m.name
-            },
-            kind = when (m.type) {
-                "movie" -> Kind.MOVIE
-                "anime" -> Kind.ANIME
-                else -> Kind.SHOW
-            },
-            imdbId = m.imdb,
-            tmdbId = m.tmdbId,
-            season = ep?.season ?: m.season,
-            episode = ep?.episode ?: m.episode,
-            resumeKey = m.playbackKey(ep),
-            resumeFraction = ep?.progress ?: trackerProgress,
-            subtitles = (s.serverPlayback?.parts?.firstOrNull()?.subtitles.orEmpty() + d.subtitles).distinctBy { it.url },
-            seriesName = m.name,
-            serverRef = s.serverRef,
-            nextEpisodes = if (ep == null) emptyList() else {
-                val i = d.episodes.indexOfFirst { it.id == ep.id }
-                if (i < 0) emptyList() else d.episodes.drop(i + 1).take(30)
-            },
-            details = app.ember.tv.player.PlayerDetails(
-                name = m.name,
-                logo = app.ember.tv.data.Posters.logoUrl(m, app.ember.tv.data.PosterConfig()),
-                year = m.releaseInfo?.take(4),
-                rating = d.ratings["imdb"]?.let { "IMDb $it" } ?: d.ratings.entries.firstOrNull()?.let { "${it.key.uppercase()} ${it.value}" },
-                episodeTitle = ep?.title?.takeIf { it.isNotBlank() },
-                synopsis = ep?.overview?.takeIf { !it.isNullOrBlank() } ?: m.description,
-                cast = d.credits?.people.orEmpty().take(20),
-                backdrop = m.background,
-            ),
-            profileId = profiles.profileId,
-            contentMeta = m,
-        )
-    }
-
-    internal suspend fun loadAddonInfos(): List<AddonInfo> = coroutineScope {
-        val permits = kotlinx.coroutines.sync.Semaphore(if (lowPowerDevice()) 2 else 4)
-        activeAddons.map { url ->
-            async { permits.acquire(); try {
-                kotlinx.coroutines.withTimeoutOrNull(addonTimeout * 1000L) { runCatching { client.manifest(url) }.getOrNull() }
-            } finally { permits.release() } }
-        }.awaitAll().filterNotNull()
-            // An addon that declares adult content is never used on a kids profile (#71).
-            .filterNot { it.adult && profiles.profile.kids }
-    }
-
     // ---- media servers ----
     val servers = MediaServers(app)
     val serverBrowser = ServerBrowserState(app, servers, viewModelScope)
@@ -588,9 +397,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * First pages of hero/carousel catalogs that are not on Home (#68), so any catalog can feed the
      * hero. Loaded by [loadFeaturedRows]; a catalog on Home uses its Home row instead.
      */
-    var featuredRows by mutableStateOf<Map<String, CatalogRow>>(emptyMap()); private set
-    private fun heroRows(source: String?): List<CatalogRow> =
-        if (source == null || rows.any { HeroBanner.sourceKey(it) == source }) rows else rows + listOfNotNull(featuredRows[source])
+    var featuredRows by mutableStateOf<Map<String, CatalogRow>>(emptyMap()); internal set
     val heroItems: List<Meta> by derivedStateOf { HeroBanner.items(heroRows(look.heroCatalog), look.heroCatalog, ::homeTitleVisible) }
     /** Light's own carousel catalog (#61): empty when it mixes automatically or the catalog is unavailable. */
     val lightFeaturedItems: List<Meta> by derivedStateOf {
@@ -599,19 +406,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (source == null || from.none { HeroBanner.sourceKey(it) == source }) emptyList()
         else HeroBanner.items(from, source, ::homeTitleVisible)
     }
-    private suspend fun loadFeaturedRows(sources: Set<String>, defs: List<CatalogDef>, onHome: Set<String>, revision: Long) {
-        featuredRows = featuredRows.filterKeys { it in sources && it !in onHome }
-        for (key in sources - onHome) {
-            if (featuredRows[key]?.let { featuredRevision[key] == revision } == true) continue
-            val def = defs.firstOrNull { it.key == key && it.featurable } ?: continue
-            val items = kotlinx.coroutines.withTimeoutOrNull(addonTimeout * 1000L) {
-                runCatching { client.browse(def) }.getOrNull()
-            }?.let { filterKidsItems(it) } ?: continue
-            featuredRevision[key] = revision
-            featuredRows = featuredRows + (key to CatalogRow(def.addon.name, def.originalLabel, items, catalogKey = def.key))
-        }
-    }
-    private val featuredRevision = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    internal val featuredRevision = java.util.concurrent.ConcurrentHashMap<String, Long>()
     init {
         // Dispatched, not immediate: it reads state declared further down this class.
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
@@ -685,18 +480,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun refreshRows(refetch: Boolean = true) = catalogs.refreshRows(refetch)
     fun canSeeAll(row: CatalogRow) = row.catalogKey?.startsWith("explore:") == true || catalogs.canSeeAll(row)
-    fun seeAll(row: CatalogRow): Boolean {
-        row.catalogKey?.takeIf { it.startsWith("explore:") }?.let { key ->
-            if (profile.kids) return false
-            explore.load(key.removePrefix("explore:"))
-            return true
-        }
-        return catalogs.seeAll(row).also { if (it) explore.addonMode = true }
-    }
-
-    var homeHiddenTitles by mutableStateOf(prefs.homeHiddenTitles); private set
+    var homeHiddenTitles by mutableStateOf(prefs.homeHiddenTitles); internal set
     /** Nothing hidden on this profile (the usual case): no title needs hashing (#57). */
-    private val hidesHomeTitles by derivedStateOf {
+    internal val hidesHomeTitles by derivedStateOf {
         val prefix = HomeTitleVisibility.prefix(profiles.profileId)
         homeHiddenTitles.any { it.startsWith(prefix) }
     }
@@ -714,7 +500,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         offerUndo("Hidden from Home") { homeHiddenTitles = homeHiddenTitles - key; prefs.homeHiddenTitles = homeHiddenTitles }
     }
     data class LocalUndo(val id: Long, val profile: String, val message: String, val action: () -> Unit)
-    var localUndo by mutableStateOf<LocalUndo?>(null); private set
+    var localUndo by mutableStateOf<LocalUndo?>(null); internal set
     internal var undoRevision = 0L
     internal fun offerUndo(message: String, action: () -> Unit) {
         localUndo = LocalUndo(++undoRevision, profiles.profileId, message, action)
@@ -739,8 +525,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun openServerSettings() = openSetupSettings("SERVERS")
     fun openTrackerSettings() = openSetupSettings("TRACKERS")
     fun openSettingsPage(page: String) = openSettingsGuarded { look.settingsDestination = page }
-    internal fun openSetupSettings(page: String) = openSettingsPage(page)
-
     // ---- watchlist ----
     /** A short message shown at the bottom of the screen, then cleared. */
     var notice by mutableStateOf<String?>(null); internal set
@@ -753,7 +537,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         LocalLibrary.version
         TitleIndex((watchlist + trackerWatchlist + serverWatchlistItems).filterNot { LocalLibrary.isListHidden("watchlist", it) })
     }
-    private fun personalListIncludes(list: String, meta: Meta, fallback: String) = sections.sourceEnabled(
+    internal fun personalListIncludes(list: String, meta: Meta, fallback: String) = sections.sourceEnabled(
         profiles.profileId, list, app.ember.tv.data.PersonalListSources.source(meta, fallback))
 
     internal fun List<String>.syncedSuffix(meta: Meta): String {
@@ -774,59 +558,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         year = releaseInfo?.take(4)?.toIntOrNull(),
     )
 
-    // ---- addons ----
-    /** Returns an error message, or null when the addon was added. */
-    fun addAddon(link: String): String? {
-        val url = link.trim().replace("stremio://", "https://")
-        if (url.toHttpUrlOrNull()?.pathSegments?.lastOrNull() != "manifest.json") {
-            return "The link should end in manifest.json."
-        }
-        ensureAddons()
-        if (url in addons) return "That addon is already added."
-        if (!prefs.saveAddons(addons + url)) return "Encrypted storage is unavailable. The add-on was not added."
-        addons = addons + url
-        catalogs.addonAdded(url)
-        discover.reset()
-        refreshRows()
-        return null
-    }
-
-    /** Gives an addon its own name on Home, title screens and Discover; blank goes back to the manifest's name. */
-    fun renameAddon(url: String, name: String) {
-        val n = name.trim()
-        val map = prefs.addonNames.toMutableMap().apply { if (n.isEmpty()) remove(AddonAccess.key(url)) else put(AddonAccess.key(url), n) }
-        prefs.addonNames = map
-        AddonClient.renames = map
-        discover.reset()
-        refreshRows(refetch = false)
-    }
-
-    fun removeAddon(url: String) {
-        ensureAddons()
-        if (!prefs.saveAddons(addons - url)) { notice = "Encrypted storage is unavailable. The add-on was kept."; return }
-        if (AddonAccess.key(url) in prefs.addonNames) renameAddon(url, "")
-        AddonClient.cancel(url); client.forget(url); collections.invalidatePages()
-        addons = addons - url
-        pausedAddons = pausedAddons - AddonAccess.key(url)
-        prefs.pausedAddons = pausedAddons; AddonAccess.paused = pausedAddons
-        discover.reset(); refreshRows()
-    }
-
     // ---- look ----
     fun updateHeroOn(on: Boolean) {
         if (sectionOn(HOME_HERO) != on) sections.toggleSection(HOME_HERO)
     }
 
     // ---- top menu ----
-    var nav by mutableStateOf(prefs.nav); private set
-
-    internal fun enableTab(id: String) {
-        val enabled = NavTabs.enable(nav, id)
-        if (enabled != nav) {
-            nav = enabled
-            prefs.nav = nav
-        }
-    }
+    var nav by mutableStateOf(prefs.nav); internal set
 
     /** Tabs shown in the top menu, in order. */
     val visibleTabs: List<String>
@@ -834,31 +572,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             .filter { it != NavTabs.LIVE || featureOn(app.ember.tv.data.Features.LIVE) }
             .filter { it != NavTabs.LIVE || liveAllowed }
             .filter { personalOn || (it != NavTabs.LIBRARY && it != NavTabs.WATCHLIST) }
-
-    fun toggleTab(id: String) {
-        if (NavTabs.locked(id)) return
-        if (id == NavTabs.LIVE) restoreLiveDefault = false
-        nav = nav.map { if (it.first == id) it.first to !it.second else it }
-        prefs.nav = nav
-    }
-
-    fun moveTab(id: String, delta: Int) {
-        val i = nav.indexOfFirst { it.first == id }
-        val j = i + delta
-        if (i < 0 || j !in nav.indices) return
-        val list = nav.toMutableList()
-        val moved = list[i]
-        list[i] = list[j]
-        list[j] = moved
-        nav = list
-        prefs.nav = nav
-    }
-
-    fun resetTabs() {
-        restoreLiveDefault = false
-        nav = NavTabs.ALL.map { it.id to it.shownByDefault }
-        prefs.nav = nav
-    }
 
     fun showNotice(message: String) { notice = message }
 
@@ -868,11 +581,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val recentSearches get() = searchPreferencesRevision.let { prefs.recentSearches(profiles.profileId) }
     fun setRecentSearchesEnabled(enabled: Boolean) { prefs.setRecentSearchesEnabled(profiles.profileId, enabled); searchPreferencesRevision++ }
     fun clearRecentSearches() { prefs.clearRecentSearches(profiles.profileId); searchPreferencesRevision++ }
-    fun submitSearch(query: String) {
-        prefs.recordRecentSearch(profiles.profileId, query); searchPreferencesRevision++
-        search.setQuery(query, immediate = true)
-    }
-
     // ---- Discover and Search ----
     val discover: DiscoverState = DiscoverState(viewModelScope, client) {
         catalogs.ordered(loadAddonInfos().flatMap { client.catalogsOf(it) }).filter { isInDiscover(it) }
@@ -907,9 +615,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val libraryInProgress: List<Meta>
         get() = (continueItems + serverRows.filter { it.inProgress }.flatMap { it.items }).distinctBy { it.mediaKey() }
 
-    /** Library is your media servers now; history loads with the trackers (refreshTrackers). */
-    fun openLibrary() = Unit
-
     // ---- streaming services: "Where to watch" (state/WhereToWatchState.kt) ----
     val watch: WhereToWatchState = WhereToWatchState(prefs, viewModelScope, apps = { apps }) {
         title.details?.let { title.details = it.copy(offers = emptyList()) }
@@ -937,7 +642,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshCollection() { collectionExplore.clear(); collections.refreshFolder() }
     val collectionCatalogs get() = allCatalogs.filter { addonAvailable(it.addon.url) && profileAllows(it) && it.addon.manifestId != null }
     val collectionSearches get() = prefs.explorePresets(profiles.profileId)
-    fun addonLabel(url: String): String = (addonInfo[url] ?: client.cachedManifest(url))?.name ?: "Add-on ${addons.indexOf(url) + 1}"
     val sourceFormat = SourceFormatState(getApplication<Application>(), prefs, viewModelScope) { details }
 
     // ---- IPTV (Live TV page, Settings > Live TV) ----
@@ -951,32 +655,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     // ---- API keys entered on the TV ----
     /** Bumped when a key changes, so Settings redraws. */
     var keysRev by mutableIntStateOf(0); internal set
-    var keysMessage by mutableStateOf<String?>(null); private set
+    var keysMessage by mutableStateOf<String?>(null); internal set
 
-    fun saveApiKey(id: String, value: String) {
-        viewModelScope.launch {saveApiKeyAndWait(id,value)}
-    }
-
-    internal suspend fun saveApiKeyAndWait(id:String,value:String):String? {
-        try {withContext(Dispatchers.IO) { ApiKeys.set(id, value) }}
-        catch(error:kotlinx.coroutines.CancellationException) {throw error}
-        catch(_:Exception) {return "The key could not be saved to encrypted storage. Previous settings were kept.".also {keysMessage=it}}
-        keysRev++
-        trackerRev++
-        keysMessage = if (value.isBlank()) {
-            "Removed. " + if (ApiKeys.builtIn(id).isNotBlank()) "Using the key built into the app." else "This service is off until you add a key."
-        } else {
-            "Saved."
-        }
-        if (id == "RPDB_API_KEY") Posters.keyRev++
-        watch.keyChanged(id)
-        if (id == "TMDB_API_KEY") explore.reset()
-        smartRowsLoadedAt = 0L
-        refreshTrackers()
-        return null
-    }
-
-    // ---- private set (About: tap "0.1 First light" ten times) ----
+    // ---- internal set (About: tap "0.1 First light" ten times) ----
     internal var privateFails = 0
     internal var privateLockedUntil = 0L
     var privateBusy by mutableStateOf(false); internal set
@@ -995,8 +676,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val approvingContent get() = phone.approvingContent
     fun clearPendingContent() = phone.clearPendingContent()
     fun approveContent() = phone.approveContent()
-    fun phoneHandler(access: app.ember.tv.phone.PhoneSetupAccess): app.ember.tv.phone.PhoneSetup.Handler = phone.handler(access)
-
     // ---- profiles (state/ProfilesState.kt) ----
     val profiles: ProfilesState = ProfilesState(
         prefs,
@@ -1090,9 +769,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal val settingsAccess=SettingsAccess({profile},{prefs.pinHash},{reason,go->pin.withPin(reason,go)},{notice=it})
     val settingsAllowed:Boolean get()=settingsAccess.allowed
     fun revokeSettingsAccess()=settingsAccess.revoke()
-    /** Kids settings fail closed without a PIN, including quick settings and restored routes. */
-    fun openSettingsGuarded(open: () -> Unit)=settingsAccess.open(open)
-
     // ---- resume or start over, mark as watched ----
     /** A play waiting for "Resume or Start over", with the label for Resume. */
     var resumeAsk by mutableStateOf<Pair<app.ember.tv.player.PlayRequest, String>?>(null)
@@ -1125,37 +801,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val updates = UpdatesState(app, prefs, viewModelScope)
 
     val homeShortcuts = HomeShortcuts(app,viewModelScope,{profiles.profileId},{notice=it})
-    var libraryShortcutPending by mutableStateOf(false);private set
+    var libraryShortcutPending by mutableStateOf(false);internal set
     fun consumeLibraryShortcut() {libraryShortcutPending=false}
-    fun openHomeShortcut(value:app.ember.tv.data.HomeShortcut):String? {
-        if(profile.kids || !personalOn || homeShortcuts.items.none {it.id==value.id})return null
-        when(value.kind) {
-            "server" -> {
-                if(!featureOn(Features.SERVERS))return null
-                val ref=app.ember.tv.mediaserver.ServerRef.parse(value.ref)?:return null
-                if(ref.provider=="plex" && !plexConnected || ref.provider!="plex" && serverAccounts.none {it.key==ref.account}) {
-                    notice="Reconnect this media server in Settings.";return null
-                }
-                val lib=serverLibraries.firstOrNull {it.ref==value.ref} ?: app.ember.tv.mediaserver.ServerLibrary(value.label,value.label,"",emptyList(),ref=value.ref)
-                serverBrowser.open(lib,value.folder,value.label.takeIf {value.folder!=null})
-                libraryShortcutPending=true
-                return NavTabs.LIBRARY
-            }
-            "collection" -> {
-                val c=collections.list.firstOrNull {it.id==value.ref}
-                val f=c?.folders?.firstOrNull {it.id==value.folder}
-                if(c!=null && f!=null)collections.openFolder(c,f) else notice="This collection folder is no longer available."
-            }
-            "network" -> {
-                val context=getApplication<Application>()
-                val intent=android.content.Intent(context,app.ember.tv.player.MediaFilesActivity::class.java)
-                    .putExtra("network.profile",profiles.profileId).putExtra("network.account",value.ref).putExtra("network.path",value.folder.orEmpty()).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-            }
-        }
-        return null
-    }
-
     // ---- Home layout (state/HomeSectionsState.kt) ----
     val sections: HomeSectionsState = HomeSectionsState(
         prefs,
@@ -1182,8 +829,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             catalogs.updateCatalogHomes(values.mapKeys { HomeSectionsState.catalogKey(it.key) })
         },
     )
-    internal fun sectionOn(id: String) = sections.sectionOn(id)
-    internal fun smartSection(id: String) = sections.smartSection(id)
     internal val layout get() = sections.layout
     val homeCatalogsWanted:Boolean get() {
         val catalogs=sections.layout.filter {HomeSectionsState.isCatalogSection(it.first)}
@@ -1212,77 +857,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         data class Collection(override val key: String, val collection: app.ember.tv.data.MediaCollection) : HomeBlock
     }
 
-    val homeBlocks: List<HomeBlock> by derivedStateOf { buildList {
-            val catalogsShown = mutableSetOf<String>()
-            // Collections marked "pin to top" come first; the others go after your catalogs.
-            val shownCollections = if (profile.kids) emptyList() else collections.onHome
-            val (pinned, unpinned) = shownCollections.partition { it.pinToTop }
-            fun addCollections(list: List<app.ember.tv.data.MediaCollection>) = list.forEach { add(HomeBlock.Collection("collection:${it.id}", it)) }
-            for ((id, on) in layout) {
-                if (!on) continue
-                val before = size
-                when (id) {
-                    HOME_HERO -> if (heroItems.isNotEmpty()) add(HomeBlock.Hero)
-                    HOME_APPS -> if (homeApps.isNotEmpty() || personalHomes.current.folders.any {f->f.packages.any(appAccess::canLaunch)}) add(HomeBlock.Apps)
-                    "pinned-shortcuts" -> if(personalOn && homeShortcuts.items.isNotEmpty())add(HomeBlock.Pinned(homeShortcuts.items))
-                    HOME_CONTINUE, HOME_RECENT, HOME_WATCHLIST -> if (personalOn) {
-                        if (sections.listStyle(id) == "button") {
-                            // Buttons next to each other share one line (joinShortcuts below).
-                            add(HomeBlock.Shortcuts("shortcuts:$id", listOf(id)))
-                        } else {
-                            val (title, items) = when (id) {
-                                HOME_CONTINUE -> "In progress" to inProgressItems
-                                HOME_RECENT -> "Recently watched" to recentItems
-                                else -> "Your watchlist" to combinedWatchlist
-                            }
-                            if (items.isNotEmpty()) add(HomeBlock.Row(id, CatalogRow("", title, items), saved = id == HOME_WATCHLIST))
-                        }
-                    }
-                    HOME_UPNEXT -> upNextRow?.let { add(HomeBlock.Row("upnext", it)) }
-                    HOME_SERVERS -> if (personalOn) serverRows.filterNot { it.catalogKey?.endsWith(":watchlist") == true }.forEach { r ->
-                        val shown = if (r.inProgress) r.copy(items = r.items.filterNot { LocalLibrary.isListHidden("continue", it) }) else r
-                        if (shown.items.isNotEmpty()) add(HomeBlock.Row(shown.catalogKey ?: "server:${shown.addonName}:${shown.title}", shown))
-                    }
-                    else -> if (HomeSectionsState.isCatalogSection(id)) {
-                        val key = HomeSectionsState.catalogKey(id)
-                        val row=rows.firstOrNull {it.catalogKey==key}
-                        if(row!=null) {
-                            catalogsShown+=key
-                            add(HomeBlock.Row("addon:$key",row))
-                        } else if(catalogs.loading && count {it is HomeBlock.Loading}<3) {
-                            allCatalogs.firstOrNull {it.key==key}?.let {add(HomeBlock.Loading("addon:$key",it.label))}
-                        }
-                    } else if (HomeWidgets.isSection(id) && !profile.kids) {
-                        widgets.list.firstOrNull { HomeWidgets.section(it.id) == id }?.let { w ->
-                            val items = widgetItems(w)
-                            if (items.isNotEmpty()) add(HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
-                            else if (w.id in widgets.loading && count { it is HomeBlock.Loading } < 3) add(HomeBlock.Loading(id, w.title, w))
-                            else widgets.errors[w.id]?.let { add(HomeBlock.Notice(id, w.title, it)) }
-                        }
-                    } else if (id.startsWith("explore:") && !profile.kids) {
-                        explore.homeRows.firstOrNull { it.catalogKey == id }?.let { add(HomeBlock.Row(id, it)) }
-                    } else if (id.startsWith("smart:") && personalOn) {
-                        val smartId = id.removePrefix("smart:")
-                        otherSmartRows.filter { it.catalogKey == id || it.catalogKey?.startsWith("$id:") == true || (smartId == SmartRows.LISTS && it.catalogKey?.startsWith("smart:${SmartRows.LISTS}") == true) }
-                            .forEach { r -> add(HomeBlock.Row(r.catalogKey ?: "$id:${r.addonName}:${r.title}", r)) }
-                    }
-                }
-                // #195: every row this section added takes the section's own card shape, when it has one.
-                sections.shape(id)?.let { shape -> for (i in before until size) (this[i] as? HomeBlock.Row)?.let { this[i] = it.copy(shape = shape) } }
-            }
-            // A Kids profile's Home is its allowed catalogs, even with the section off.
-            if (profile.kids) rows.filter { it.catalogKey !in catalogsShown }.forEachIndexed { i, r ->
-                add(HomeBlock.Row("addon:${r.catalogKey ?: "$i:${r.addonName}:${r.title}"}", r))
-            }
-            // Pinned collections go right after the banner and apps when those lead, else first.
-            val lead = indexOfFirst { it !is HomeBlock.Hero && it !is HomeBlock.Apps && it !is HomeBlock.Shortcuts }.let { if (it < 0) size else it }
-            pinned.reversed().forEach { add(lead, HomeBlock.Collection("collection:${it.id}", it)) }
-            addCollections(unpinned)
-        }.mapNotNull { block ->
-            if (block is HomeBlock.Row) block.copy(row = block.row.copy(items = block.row.items.filter(::homeTitleVisible))).takeIf { it.row.items.isNotEmpty() }
-            else block
-        }.let { joinShortcuts(it) }
-    }
+    val homeBlocks: List<HomeBlock> by derivedStateOf { buildHomeBlocks() }
 
     // ---- apps on Home and on the Apps page ----
     var homeAppRows by mutableIntStateOf(prefs.homeAppRows); internal set
@@ -1292,23 +867,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val homeApps: List<AppEntry> get() = visibleApps.filter {personalHomes.folderFor(it.pkg)==null}
 
     // ---- background refresh (work/RefreshWorker.kt) ----
-    var backgroundRefresh by mutableStateOf(prefs.backgroundRefresh); private set
-
-    fun toggleBackgroundRefresh() {
-        backgroundRefresh = !backgroundRefresh
-        prefs.backgroundRefresh = backgroundRefresh
-        app.ember.tv.work.RefreshWorker.schedule(getApplication<Application>())
-    }
+    var backgroundRefresh by mutableStateOf(prefs.backgroundRefresh); internal set
 
     // ---- slow addons ----
-    var addonTimeout by mutableIntStateOf(prefs.addonTimeout); private set
+    var addonTimeout by mutableIntStateOf(prefs.addonTimeout); internal set
     /** Addons that ran past the time limit last time, by name. */
-    var slowAddons by mutableStateOf<Set<String>>(emptySet()); private set
-
-    fun updateAddonTimeout(seconds: Int) {
-        addonTimeout = seconds
-        prefs.addonTimeout = seconds
-    }
+    var slowAddons by mutableStateOf<Set<String>>(emptySet()); internal set
 
     internal fun noteSlow(name: String, slow: Boolean) {
         slowAddons = if (slow) slowAddons + name else slowAddons - name
