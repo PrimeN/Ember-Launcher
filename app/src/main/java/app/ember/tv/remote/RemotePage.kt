@@ -308,11 +308,12 @@ var crashes=[];
 function copyText(t){var a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();a.setSelectionRange(0,t.length);
  var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(a);
  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(t).then(function(){toast('Copied')},function(){toast('Could not copy')});return}toast(ok?'Copied':'Could not copy')}
-q('crash').onclick=function(){buzz(6);var l=q('clist');l.innerHTML='<p class=m>Loading…</p>';q('ccopy').hidden=true;q('csheet').hidden=false;
- api('crashes').then(function(j){crashes=(j&&j.entries)||[];l.innerHTML='';
-  if(!crashes.length){l.innerHTML='<p class=m>Nothing recorded. If Ember closes by itself, it shows here.</p>';return}
+function cnote(l,t){l.textContent='';var e=document.createElement('p');e.className='m';e.textContent=t;l.appendChild(e)}
+q('crash').onclick=function(){buzz(6);var l=q('clist');cnote(l,'Loading…');q('ccopy').hidden=true;q('csheet').hidden=false;
+ api('crashes').then(function(j){crashes=(j&&j.entries)||[];l.textContent='';
+  if(!crashes.length){cnote(l,'Nothing recorded. If Ember closes by itself, it shows here.');return}
   q('ccopy').hidden=false;crashes.forEach(function(t,i){var d=document.createElement('details');d.open=i===0;var s=document.createElement('summary');s.textContent=t.split('\n')[0];
-   var p=document.createElement('pre');p.textContent=t;d.appendChild(s);d.appendChild(p);l.appendChild(d)})}).catch(function(){l.innerHTML='<p class=m>Could not reach the TV.</p>'})};
+   var p=document.createElement('pre');p.textContent=t;d.appendChild(s);d.appendChild(p);l.appendChild(d)})}).catch(function(){cnote(l,'Could not reach the TV.')})};
 q('ccopy').onclick=function(){copyText(crashes.join('\n\n----\n\n'))};q('cclose').onclick=function(){q('csheet').hidden=true};
 q('csheet').addEventListener('click',function(e){if(e.target===q('csheet'))q('csheet').hidden=true});
 function openTracks(k){tkind=k;buzz(6);fillTracks();q('tsheet').hidden=false}
