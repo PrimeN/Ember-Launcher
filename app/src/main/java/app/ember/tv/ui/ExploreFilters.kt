@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -24,138 +26,185 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
+/** #244: the values the filter sliders step through, and each category's one-line summary. */
+internal object FilterSteps {
+    private val thisYear = java.time.LocalDate.now().year
+    /** 0 means any year. */
+    val years: List<Int> = (listOf(0) + (1920..2020 step 10) + listOf(2025, thisYear)).distinct().sorted()
+    /** Tenths of a TMDB score; 0 means any. */
+    val minScore = listOf(0, 50, 55, 60, 65, 70, 75, 80, 85, 90)
+    /** Tenths; 100 means no upper limit. */
+    val maxScore = listOf(50, 60, 70, 80, 85, 90, 95, 100)
+    val movieVotes = listOf(0, 50, 100, 200, 500, 1000, 2000, 5000, 10000)
+    val showVotes = listOf(0, 50, 100, 200, 500, 1000, 2000)
+
+    fun yearLabel(y: Int) = if (y == 0) "Any" else "$y"
+    fun minLabel(t: Int) = if (t == 0) "Any" else "${t / 10}.${t % 10}+"
+    fun maxLabel(t: Int) = if (t >= 100) "Any" else "Up to ${t / 10}.${t % 10}"
+    fun votesLabel(v: Int) = if (v == 0) "Any" else "$v+"
+    fun tenths(score: Double?) = score?.let { (it * 10).toInt() }
+
+    /** The years in order, whichever end was set first. */
+    fun ordered(from: Int?, to: Int?): Pair<Int?, Int?> = if (from != null && to != null && from > to) to to from else from to to
+
+    fun yearSummary(q: ExploreQuery) = when {
+        q.fromYear == null && q.toYear == null -> "Any year"
+        q.toYear == null -> "${q.fromYear} onward"
+        q.fromYear == null -> "Up to ${q.toYear}"
+        else -> "${q.fromYear}–${q.toYear}"
+    }
+    fun scoreSummary(q: ExploreQuery) = when {
+        q.minRating == null && q.maxRating == null -> "Any score"
+        q.maxRating == null -> "${q.minRating}+"
+        else -> "${q.minRating ?: 0.0}–${q.maxRating}"
+    }
+    fun names(refs: List<ExploreRef>, none: String) = if (refs.isEmpty()) none else refs.joinToString(", ") { it.name }
+}
+
+/**
+ * Discover's filters (#244): categories on the left with what each is set to, the chosen category's
+ * controls on the right, and one Show results button. Years, scores and votes are sliders.
+ */
 @Composable
 internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: ExploreRepository,
     onApply: (ExploreQuery) -> Unit, onClose: () -> Unit,
     searchTools: (@Composable ColumnScope.() -> Unit)? = null) {
     var draft by remember { mutableStateOf(initial) }
-    var years by remember { mutableStateOf(initial.fromYear?.toString().orEmpty() to initial.toYear?.toString().orEmpty()) }
-    var rating by remember { mutableStateOf(initial.minRating?.toString().orEmpty() to initial.maxRating?.toString().orEmpty()) }
-    var votes by remember { mutableStateOf("${initial.minMovieVotes}" to "${initial.minTvVotes}") }
     var error by remember { mutableStateOf<String?>(null) }
-    var expanded by remember { mutableStateOf("Type and sort") }
+    var current by remember { mutableStateOf("Genre") }
     var picker by remember { mutableStateOf<String?>(null) }
     val first = remember { FocusRequester() }
+    val categories = buildList {
+        add(Triple("Genre", androidx.compose.material.icons.Icons.Outlined.Category, ExploreGenres.selected(draft).joinToString(", ") { it.label }.ifEmpty { "Any genre" }))
+        add(Triple("Year", androidx.compose.material.icons.Icons.Outlined.CalendarMonth, FilterSteps.yearSummary(draft)))
+        add(Triple("Score", androidx.compose.material.icons.Icons.Outlined.StarOutline, FilterSteps.scoreSummary(draft)))
+        add(Triple("Streaming", androidx.compose.material.icons.Icons.Outlined.LiveTv, FilterSteps.names(draft.providers, "Any service")))
+        add(Triple("Actors", androidx.compose.material.icons.Icons.Outlined.Person, FilterSteps.names(draft.actors, "Anyone")))
+        add(Triple("Directors", androidx.compose.material.icons.Icons.Outlined.Movie, FilterSteps.names(draft.directors, "Anyone")))
+        add(Triple("Studios", androidx.compose.material.icons.Icons.Outlined.Business, FilterSteps.names(draft.companies, "Any studio")))
+        add(Triple("Awards", androidx.compose.material.icons.Icons.Outlined.EmojiEvents, draft.oscars.label + if (draft.bestPicture) " · Best Picture" else ""))
+        if (searchTools != null) add(Triple("Search tools", androidx.compose.material.icons.Icons.Outlined.Tune, "Save, load, refresh"))
+    }
+    val active = exploreTags(draft).size
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         DialogMotion()
         KeyboardResizesDialog()
         CompositionLocalProvider(LocalFloating provides true, LocalFocusScene provides null) {
             BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress()) {
-                Column(Modifier.align(Alignment.CenterEnd).padding(12.dp).width(minOf(520.dp, maxWidth)).fillMaxHeight()
-                    .floatingPanelSurface().padding(22.dp),
+                Column(Modifier.align(Alignment.CenterEnd).padding(12.dp).width(minOf(960.dp, maxWidth)).fillMaxHeight()
+                    .floatingPanelSurface().padding(horizontal = 24.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Discover filters", color = Fg, fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
-                        DialogClose(onClose, Modifier.focusRequester(first))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Filters", color = Fg, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                        KindSegments(draft.kind) { k ->
+                            draft = draft.copy(kind = k, oscars = if (k == ExploreKind.TV) OscarMode.ANY else draft.oscars,
+                                bestPicture = if (k == ExploreKind.TV) false else draft.bestPicture)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        DialogClose(onClose)
                     }
-                    Text("Match every category. Multiple people, studios or services within a category match any selected entry.", color = Mute, fontSize = 12.sp)
-                    Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FilterGroup("Type and sort", expanded, { expanded = it }) {
-                            ButtonRow { ExploreKind.entries.forEach { k -> Chip(k.label, draft.kind == k) {
-                                draft = draft.copy(kind = k, oscars = if (k == ExploreKind.TV) OscarMode.ANY else draft.oscars,
-                                    bestPicture = if (k == ExploreKind.TV) false else draft.bestPicture)
-                            } } }
-                            ButtonRow { ExploreSort.entries.forEach { s -> Chip(s.label, draft.sort == s) { draft = draft.copy(sort = s) } } }
-                            Text("All mixes movies and shows evenly where possible. Only released titles are included.", color = Mute, fontSize = 12.sp)
-                        }
-                        FilterGroup("Genre", expanded, { expanded = it }) {
-                            ButtonRow { ExploreGenres.all.filter { g -> g.key in draft.genres || draft.kind == ExploreKind.ALL || g.ids(draft.kind).isNotEmpty() }.forEach { g ->
-                                Chip(g.label, g.key in draft.genres) { draft = draft.copy(genres = if (g.key in draft.genres) draft.genres - g.key else draft.genres + g.key) }
-                            } }
-                            ButtonRow {
-                                Chip("Clear genres") { draft = draft.copy(genres = emptySet(), allGenres = false) }
-                                Chip("Match any genre", !draft.allGenres) { draft = draft.copy(allGenres = false) }
-                                Chip("Match all genres", draft.allGenres) { draft = draft.copy(allGenres = true) }
-                            }
-                            Text("Genres follow the movie/show catalog. Some genres exist for only one type.", color = Mute, fontSize = 12.sp)
-                        }
-                        FilterGroup("Year", expanded, { expanded = it }) {
-                            Text("Movie release year or a show's premiere year. Blank means any year.", color = Mute, fontSize = 12.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                TvTextField(years.first, { years = years.copy(first = it.take(4)) }, Modifier.weight(1f), placeholder = "From year")
-                                TvTextField(years.second, { years = years.copy(second = it.take(4)) }, Modifier.weight(1f), placeholder = "To year")
-                            }
-                            ButtonRow {
-                                Chip("Any") { years = "" to "" }
-                                Chip("1990s") { years = "1990" to "1999" }
-                                Chip("2000s") { years = "2000" to "2009" }
-                                Chip("2010s") { years = "2010" to "2019" }
-                                Chip("2020 onward") { years = "2020" to "" }
+                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        // Moving down the list shows each category's controls; right goes into them.
+                        Column(Modifier.width(290.dp).fillMaxHeight().verticalScroll(rememberMenuScrollState()).padding(4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            categories.forEachIndexed { i, (name, icon, summary) ->
+                                FilterRailItem(name, summary, icon, selected = current == name,
+                                    set = name != "Search tools" && exploreTags(draft).isNotEmpty() && summary !in FilterRail.unset,
+                                    modifier = if (i == 0) Modifier.focusRequester(first) else Modifier, onFocus = { current = name }) { current = name }
                             }
                         }
-                        FilterGroup("Rating", expanded, { expanded = it }) {
-                            Text("TMDB audience score out of 10. Other scores on title pages keep their own sources.", color = Mute, fontSize = 12.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                TvTextField(rating.first, { rating = rating.copy(first = it.take(5)) }, Modifier.weight(1f), placeholder = "Minimum score")
-                                TvTextField(rating.second, { rating = rating.copy(second = it.take(5)) }, Modifier.weight(1f), placeholder = "Maximum score")
-                            }
-                            ButtonRow {
-                                Chip("Any score") { rating = "" to "" }
-                                Chip("7+") { rating = "7" to "" }
-                                Chip("8+") { rating = "8" to "" }
-                            }
-                            if (draft.sort == ExploreSort.RATING) {
-                                Text("Minimum votes for Highest rated: movies / shows. Keeps tiny samples from leading the chart.", color = Mute, fontSize = 12.sp)
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    TvTextField(votes.first, { votes = votes.copy(first = it.take(7)) }, Modifier.weight(1f), placeholder = "Movie votes")
-                                    TvTextField(votes.second, { votes = votes.copy(second = it.take(7)) }, Modifier.weight(1f), placeholder = "Show votes")
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(Fg.copy(alpha = .08f)))
+                        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberMenuScrollState()).padding(4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Text(current, color = Fg, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+                            when (current) {
+                                "Genre" -> {
+                                    ButtonRow { ExploreGenres.all.filter { g -> g.key in draft.genres || draft.kind == ExploreKind.ALL || g.ids(draft.kind).isNotEmpty() }.forEach { g ->
+                                        Chip(g.label, g.key in draft.genres) { draft = draft.copy(genres = if (g.key in draft.genres) draft.genres - g.key else draft.genres + g.key) }
+                                    } }
+                                    if (draft.genres.size > 1) Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Titles must have", color = Mute, fontSize = 14.sp)
+                                        Chip("Any of these", !draft.allGenres) { draft = draft.copy(allGenres = false) }
+                                        Chip("All of these", draft.allGenres) { draft = draft.copy(allGenres = true) }
+                                    }
+                                    if (draft.genres.isNotEmpty()) Chip("Clear genres") { draft = draft.copy(genres = emptySet(), allGenres = false) }
+                                    Hint("Genres follow the movie or show catalog; some exist for only one type.")
                                 }
+                                "Year" -> {
+                                    ButtonRow {
+                                        listOf("Any" to (null to null), "1980s" to (1980 to 1989), "1990s" to (1990 to 1999), "2000s" to (2000 to 2009), "2010s" to (2010 to 2019), "2020 onward" to (2020 to null))
+                                            .forEach { (label, range) -> Chip(label, draft.fromYear == range.first && draft.toYear == range.second) { draft = draft.copy(fromYear = range.first, toYear = range.second) } }
+                                    }
+                                    StepSlider("From", FilterSteps.years, draft.fromYear ?: 0, FilterSteps::yearLabel, width = 520.dp) { y ->
+                                        val (from, to) = FilterSteps.ordered(y.takeIf { it > 0 }, draft.toYear); draft = draft.copy(fromYear = from, toYear = to)
+                                    }
+                                    StepSlider("To", FilterSteps.years, draft.toYear ?: 0, { if (it == 0) "Now" else "$it" }, width = 520.dp) { y ->
+                                        val (from, to) = FilterSteps.ordered(draft.fromYear, y.takeIf { it > 0 }); draft = draft.copy(fromYear = from, toYear = to)
+                                    }
+                                    Hint("A movie's release year or a show's first year.")
+                                }
+                                "Score" -> {
+                                    ButtonRow {
+                                        Chip("Any", draft.minRating == null && draft.maxRating == null) { draft = draft.copy(minRating = null, maxRating = null) }
+                                        listOf(6.0, 7.0, 7.5, 8.0).forEach { m -> Chip("$m+", draft.minRating == m && draft.maxRating == null) { draft = draft.copy(minRating = m, maxRating = null) } }
+                                    }
+                                    StepSlider("At least", FilterSteps.minScore, FilterSteps.tenths(draft.minRating) ?: 0, FilterSteps::minLabel, width = 520.dp) { t ->
+                                        draft = draft.copy(minRating = t.takeIf { it > 0 }?.div(10.0))
+                                    }
+                                    StepSlider("At most", FilterSteps.maxScore, FilterSteps.tenths(draft.maxRating) ?: 100, FilterSteps::maxLabel, width = 520.dp) { t ->
+                                        draft = draft.copy(maxRating = t.takeIf { it < 100 }?.div(10.0))
+                                    }
+                                    Text("Votes needed for Highest rated", color = Fg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                    StepSlider("Movies", FilterSteps.movieVotes, draft.minMovieVotes, FilterSteps::votesLabel, width = 520.dp) { draft = draft.copy(minMovieVotes = it) }
+                                    StepSlider("Shows", FilterSteps.showVotes, draft.minTvVotes, FilterSteps::votesLabel, width = 520.dp) { draft = draft.copy(minTvVotes = it) }
+                                    Hint("TMDB audience score out of 10. Vote minimums keep tiny samples from leading Highest rated.")
+                                }
+                                "Streaming" -> {
+                                    SelectedRefs(draft.providers) { id -> draft = draft.copy(providers = draft.providers.filterNot { it.id == id }) }
+                                    Chip("Choose services") { picker = "Services" }
+                                    ToggleRow("Include rent and buy", "Off: subscription, free and ad-supported only.", draft.includeRentBuy) {
+                                        draft = draft.copy(includeRentBuy = !draft.includeRentBuy)
+                                    }
+                                    Hint("Availability in $region from JustWatch via TMDB. Change the country in Settings › Where to watch.")
+                                }
+                                "Actors" -> {
+                                    SelectedRefs(draft.actors) { id -> draft = draft.copy(actors = draft.actors.filterNot { it.id == id }) }
+                                    Chip("Find actors") { picker = "Actors" }
+                                    Hint("Several actors match a title with any of them.")
+                                }
+                                "Directors" -> {
+                                    SelectedRefs(draft.directors) { id -> draft = draft.copy(directors = draft.directors.filterNot { it.id == id }) }
+                                    Chip("Find directors") { picker = "Directors" }
+                                    Hint("Matches the Director credit; for shows, at least one episode.")
+                                }
+                                "Studios" -> {
+                                    SelectedRefs(draft.companies) { id -> draft = draft.copy(companies = draft.companies.filterNot { it.id == id }) }
+                                    Chip("Find studios") { picker = "Studios" }
+                                    Hint("Choose exact companies, such as DreamWorks Animation or DreamWorks Pictures.")
+                                }
+                                "Awards" -> {
+                                    ButtonRow { OscarMode.entries.forEach { mode -> Chip(mode.label, draft.oscars == mode) {
+                                        draft = draft.copy(oscars = mode, kind = if (mode != OscarMode.ANY && draft.kind == ExploreKind.TV) ExploreKind.MOVIE else draft.kind)
+                                    } } }
+                                    if (draft.oscars != OscarMode.ANY) ToggleRow("Best Picture only", "Off includes any Oscar category.", draft.bestPicture) {
+                                        draft = draft.copy(bestPicture = !draft.bestPicture)
+                                    }
+                                    Hint("Oscars are film awards, from Wikidata records; coverage may be incomplete.")
+                                }
+                                "Search tools" -> searchTools?.invoke(this)
                             }
                         }
-                        FilterGroup("Streaming service", expanded, { expanded = it }) {
-                            Text("Availability in $region, from JustWatch via TMDB. This selection is independent of your title-page provider settings.", color = Mute, fontSize = 12.sp)
-                            SelectedRefs(draft.providers) { id -> draft = draft.copy(providers = draft.providers.filterNot { it.id == id }) }
-                            Chip("Choose services") { picker = "Services" }
-                            ToggleRow("Include rent and buy", "Off includes subscription, free and ad-supported availability.", draft.includeRentBuy) {
-                                draft = draft.copy(includeRentBuy = !draft.includeRentBuy)
-                            }
-                            Text("Change the viewing country in Settings > Where to watch.", color = Mute, fontSize = 12.sp)
-                        }
-                        FilterGroup("Actor", expanded, { expanded = it }) {
-                            SelectedRefs(draft.actors) { id -> draft = draft.copy(actors = draft.actors.filterNot { it.id == id }) }
-                            Chip("Find actors") { picker = "Actors" }
-                        }
-                        FilterGroup("Director", expanded, { expanded = it }) {
-                            Text("Matches the Director credit. For shows, at least one episode. Producers and creators are not treated as directors.", color = Mute, fontSize = 12.sp)
-                            SelectedRefs(draft.directors) { id -> draft = draft.copy(directors = draft.directors.filterNot { it.id == id }) }
-                            Chip("Find directors") { picker = "Directors" }
-                        }
-                        FilterGroup("Production company", expanded, { expanded = it }) {
-                            Text("Choose exact studios, such as DreamWorks Animation or DreamWorks Pictures. Add both to include both companies.", color = Mute, fontSize = 12.sp)
-                            SelectedRefs(draft.companies) { id -> draft = draft.copy(companies = draft.companies.filterNot { it.id == id }) }
-                            Chip("Find studios") { picker = "Studios" }
-                        }
-                        FilterGroup("Awards", expanded, { expanded = it }) {
-                            Text("Oscars are film awards. Verified records from Wikidata; its coverage may be incomplete. A title must have its own award record or be the work named in the recipient's record.", color = Mute, fontSize = 12.sp)
-                            ButtonRow { OscarMode.entries.forEach { mode -> Chip(mode.label, draft.oscars == mode) {
-                                draft = draft.copy(oscars = mode, kind = if (mode != OscarMode.ANY && draft.kind == ExploreKind.TV) ExploreKind.MOVIE else draft.kind)
-                            } } }
-                            if (draft.oscars != OscarMode.ANY) ToggleRow("Best Picture only", "Off includes any recorded Oscar category.", draft.bestPicture) {
-                                draft = draft.copy(bestPicture = !draft.bestPicture)
-                            }
-                        }
-                        if(searchTools!=null)FilterGroup("Search tools",expanded,{expanded=it}) {searchTools()}
                     }
                     error?.let { Text(it, color = Fg, fontSize = 13.sp) }
-                    ButtonRow {
-                        Chip("Apply filters") {
-                            error = when {
-                                listOf(years.first, years.second).any { it.isNotBlank() && it.trim().toIntOrNull() == null } -> "Enter valid whole years."
-                                listOf(rating.first, rating.second).any { it.isNotBlank() && it.trim().toDoubleOrNull() == null } -> "Enter valid rating numbers."
-                                listOf(votes.first, votes.second).any { it.toIntOrNull() == null } -> "Enter valid minimum vote counts."
-                                else -> null
-                            }
-                            if (error == null) {
-                                val value = draft.copy(fromYear = years.first.trim().toIntOrNull(), toYear = years.second.trim().toIntOrNull(),
-                                    minRating = rating.first.trim().toDoubleOrNull(), maxRating = rating.second.trim().toDoubleOrNull(),
-                                    minMovieVotes = votes.first.toInt(), minTvVotes = votes.second.toInt(),
-                                    allGenres = draft.allGenres && draft.genres.size > 1, bestPicture = draft.bestPicture && draft.oscars != OscarMode.ANY)
-                                error = value.error()
-                                if (error == null) onApply(value)
-                            }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        PrimaryButton(if (active == 0) "Show results" else "Show results · $active ${if (active == 1) "filter" else "filters"}", Modifier.testTag("filters_apply")) {
+                            val (from, to) = FilterSteps.ordered(draft.fromYear, draft.toYear)
+                            val value = draft.copy(fromYear = from, toYear = to,
+                                allGenres = draft.allGenres && draft.genres.size > 1, bestPicture = draft.bestPicture && draft.oscars != OscarMode.ANY)
+                            error = value.error()
+                            if (error == null) onApply(value)
                         }
-                        Chip("Reset") { draft = ExploreQuery(); years = "" to ""; rating = "" to ""; votes = "500" to "200"; error = null }
+                        Chip("Reset all") { draft = ExploreQuery(kind = draft.kind, sort = draft.sort); error = null }
+                        Spacer(Modifier.weight(1f))
+                        Text("Every category must match; within one, any choice can.", color = Mute, fontSize = 12.sp)
                     }
                 }
             }
@@ -177,14 +226,42 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
 }
 
 @Composable
-private fun FilterGroup(name: String, expanded: String, onExpanded: (String) -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Chip((if (expanded == name) "− " else "+ ") + name, selected = expanded == name, modifier = Modifier.fillMaxWidth()) {
-            onExpanded(if (expanded == name) "" else name)
+private fun Hint(text: String) = Text(text, color = Mute, fontSize = 12.sp)
+
+/** One category on the left: its icon, name and current value; a dot when it filters. */
+@Composable
+private fun FilterRailItem(name: String, summary: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, set: Boolean,
+    modifier: Modifier = Modifier, onFocus: () -> Unit, onClick: () -> Unit) {
+    val accent = androidx.tv.material3.MaterialTheme.colorScheme.primary
+    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() },
+        radius = TvTokens.Shape.Control, container = if (selected) WashHi else Color.Transparent, focusedContainer = PillColor, focusedContent = OnPillColor,
+        outline = false, focusedScale = TvTokens.Focus.Inline) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MaterialGlyph(icon, if (set) accent else androidx.tv.material3.LocalContentColor.current.copy(alpha = .8f), 20.dp)
+            Column(Modifier.weight(1f)) {
+                Text(name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(summary, fontSize = 12.sp, color = androidx.tv.material3.LocalContentColor.current.copy(alpha = .65f), maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            if (set) Box(Modifier.size(8.dp).background(accent, RoundedCornerShape(50)))
         }
-        if (expanded == name) content()
     }
 }
+
+/** What a category's summary says when it does not filter. */
+internal object FilterRail { val unset = setOf("Any genre", "Any year", "Any score", "Any service", "Anyone", "Any studio", "Any awards") }
+
+/** The panel's main action: filled with the accent colour. */
+@Composable
+internal fun PrimaryButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val accent = androidx.tv.material3.MaterialTheme.colorScheme.primary
+    Focusable(onClick = onClick, modifier = modifier, radius = TvTokens.Shape.Pill, container = accent, focusedContainer = PillColor, focusedContent = OnPillColor,
+        outline = false, focusedScale = TvTokens.Focus.Control) {
+        Text(label, Modifier.padding(horizontal = 22.dp, vertical = 10.dp), fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+            color = if (androidx.tv.material3.LocalContentColor.current == OnPillColor) OnPillColor else androidx.tv.material3.MaterialTheme.colorScheme.onPrimary)
+    }
+}
+
 @Composable
 private fun SelectedRefs(refs: List<ExploreRef>, onRemove: (Long) -> Unit) {
     if (refs.isEmpty()) Text("Any", color = Mute, fontSize = 13.sp)

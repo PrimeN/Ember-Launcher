@@ -107,7 +107,8 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     // #163: what you add to Home yourself, in one place.
     WIDGETS("Widgets & collections", "Home"),
     HOME_TOOLS("Apps & folders", "Home"),
-    TOP_MENU("Top menu", "Home"),
+    // #245: the navbar tabs moved to Appearance, beside the navbar style.
+    TOP_MENU("Top menu", "Look", "APPEARANCE"),
     LIGHT_HOME("Ember Light Home", "Home"),
     DEFAULT_HOME("Startup & screensaver", "Home"),
     SCREENSAVER("Screensaver", "Home", "DEFAULT_HOME"),

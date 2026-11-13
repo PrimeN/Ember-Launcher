@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
@@ -90,12 +91,15 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                     }
                 }
                 when (section) {
-                    DiscoverSection.EXPLORE -> {
-                        Chip(state.query.kind.label + " ▾", modifier = Modifier.focusRequester(kindFocus)) { kindMenu = true }
-                        ToolbarIcon("Filters · ${exploreTags(state.query).size} active", androidx.compose.material.icons.Icons.Outlined.FilterList,
-                            Modifier.focusRequester(filterFocus), selected = exploreTags(state.query).isNotEmpty()) { panel = true }
-                        ToolbarIcon("Sort: ${state.query.sort.label}", androidx.compose.material.icons.Icons.AutoMirrored.Outlined.Sort,
-                            Modifier.focusRequester(sortFocus)) { sortMenu = true }
+                    // #244: type as one switch; Sort and Filters say what they are set to.
+                    DiscoverSection.EXPLORE -> if (!kids) {
+                        KindSegments(state.query.kind, first = kindFocus) { kind ->
+                            state.apply(state.query.copy(kind = kind, oscars = if (kind == ExploreKind.TV) OscarMode.ANY else state.query.oscars,
+                                bestPicture = kind != ExploreKind.TV && state.query.bestPicture))
+                        }
+                        ToolbarPill("Sort", state.query.sort.label, DiscoverLook.sortIcon(state.query.sort), Modifier.focusRequester(sortFocus)) { sortMenu = true }
+                        ToolbarPill(DiscoverLook.filtersLabel(exploreTags(state.query).size), null, androidx.compose.material.icons.Icons.Outlined.Tune,
+                            Modifier.focusRequester(filterFocus).testTag("discover_filters"), active = exploreTags(state.query).isNotEmpty()) { panel = true }
                     }
                     DiscoverSection.CATALOGS -> {
                         if (def != null) Chip(def.label.take(22) + " ▾", modifier = Modifier.focusRequester(catalogFocus)) { catalogs = true }
@@ -117,8 +121,9 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
             DiscoverSection.COLLECTIONS -> Box(Modifier.fillMaxWidth().weight(1f)) { DiscoverCollections(vm) }
             DiscoverSection.CATALOGS -> Box(Modifier.fillMaxWidth().weight(1f)) { AddonDiscoverScreen(vm, onOpen) }
             DiscoverSection.EXPLORE -> Column(Modifier.fillMaxWidth().weight(1f).padding(horizontal = TvTokens.Space.Page.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("${state.query.sort.label} · ${state.results.size}/100 titles" +
-                    (if (exploreTags(state.query).isNotEmpty()) " · ${exploreTags(state.query).size} filters" else "") + when {
+                // #244: each filter in use as a tag to remove.
+                if (!kids) ActiveFilterTags(state.query, Modifier.fillMaxWidth()) { state.apply(it) }
+                Text("${state.results.size}/100 titles" + when {
                         state.loading -> " · Finding matches…"
                         state.complete -> if (state.pagingLimit) " · Provider limit reached" else " · Complete"
                         else -> ""
@@ -178,9 +183,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
             vm.discover.applyExtras(it); catalogFilters = false
         }
     }
-    if (sortMenu && !kids) OptionMenu("Sort by", ExploreSort.entries.map { sort ->
-        MenuOption(sort.label, selected = state.query.sort == sort) { if (state.query.sort != sort) state.apply(state.query.copy(sort = sort)) }
-    }) { sortMenu = false }
+    if (sortMenu && !kids) SortSheet(state.query.sort, { sort -> if (state.query.sort != sort) state.apply(state.query.copy(sort = sort)) }) { sortMenu = false }
     if ((panel || aiReview) && !kids) ExploreFilters(aiDraft ?: state.query, vm.watch.watchRegion, vm.exploreRepository,
         onApply = { state.apply(it); panel = false; aiDraft = null }, onClose = { panel = false; aiDraft = null },
         searchTools=if(aiReview)null else ({

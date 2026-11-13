@@ -24,6 +24,7 @@ internal object RemotePage {
 <div class=tv><span class=dot></span><span>${esc(tv)}</span></div>
 <button class=ic id=bk aria-label="Keyboard and arrows" title="Keyboard and arrows">&#9000;</button>
 <button class=ic id=bs aria-label=Search title=Search><svg width=22 height=22 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2.4 stroke-linecap=round aria-hidden=true><circle cx=10.5 cy=10.5 r=6.5 /><path d="M20 20l-4.6-4.6"/></svg></button></header>
+<div id=ask class=ask hidden role=alertdialog aria-live=assertive><b id=at></b><small id=ax></small><div id=ac class=acts></div></div>
 <section id=vlists class=view><nav class=tabs><button data-l=progress class=on>In progress</button><button data-l=watchlist>Watchlist</button></nav><div id=list class=rows></div></section>
 <section id=vsearch class=view hidden><form id=sf><input id=sq type=search placeholder="Search movies and shows" aria-label=Search autocomplete=off enterkeyhint=search></form><p id=sn class=m></p><div id=results class=rows></div></section>
 <section id=vtitle class=view hidden><button class=back id=tb>&#8249; Back</button><div id=title></div></section>
@@ -82,7 +83,9 @@ input[type=range]{flex:1;padding:0;border:0;background:none;accent-color:var(--a
 .grab{width:42px;height:5px;border-radius:3px;background:#4a4b50;margin:0 auto 8px}.krow{display:flex;gap:8px;margin-top:10px}.krow button{flex:1}
 .pad{display:grid;grid-template-columns:repeat(3,72px);grid-template-rows:repeat(3,64px);gap:8px;justify-content:center;margin-top:14px}
 .pad button{font-size:20px}.pad .u{grid-area:1/2}.pad .l{grid-area:2/1}.pad .o{grid-area:2/2;background:var(--accent);color:#111;font-weight:700;border-radius:50%}.pad .r{grid-area:2/3}.pad .d{grid-area:3/2}
-.done{width:100%;margin-top:12px;background:#3a3b40}.empty{color:#a9adb3;text-align:center;padding:30px 10px}
+.done{width:100%;margin-top:12px;background:#3a3b40}
+.ask{position:sticky;top:8px;z-index:4;background:#2c2d32;border:2px solid var(--accent);border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.ask b{display:block;font-size:17px}.ask small{display:block;color:#a9adb3;margin-top:2px}.ask .acts{margin:12px 0 0}.ask .acts button{flex:1 1 auto}.ask .acts button.go{background:var(--accent);color:#111;font-weight:700}.empty{color:#a9adb3;text-align:center;padding:30px 10px}
 """
 
     private const val LOGIN = """
@@ -146,7 +149,15 @@ q('np').onclick=function(){api('player',{action:'toggle'},1).then(poll)};
 document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){api('player',{action:b.dataset.p,value:b.dataset.v||''},1).then(poll)}});
 q('nw').onclick=function(){var n=state.now;if(n&&n.ref)api('watchlist',{ref:n.ref},1).then(function(j){if(j.ok)toast(n.saved?'Removed from your watchlist':'Added to your watchlist');poll()})};
 q('nwd').onclick=function(){var n=state.now;if(n&&n.ref)api('watched',{ref:n.ref},1).then(function(j){if(j.ok)toast(n.watched?'Marked unwatched':'Marked watched');poll()})};
-function draw(s){state=s;var n=s.now,f=q('now');q('kn').textContent=s.typing?'A text box is open on the TV: typing goes there.':'No text box is open on the TV: what you type is searched for.';
+var askKey='';
+function ask(p){var box=q('ask');if(!p){box.hidden=true;askKey='';return}
+ q('at').textContent=p.title;q('ax').textContent=p.text||'';q('ax').hidden=!p.text;
+ var key=p.kind+'|'+p.choices.map(function(c){return c.id+':'+c.label}).join(',');
+ if(key!==askKey){askKey=key;var row=q('ac');row.textContent='';
+  p.choices.forEach(function(c,i){var b=el('button',i===0&&c.id!=='cancel'?'go':'',c.label);b.onclick=function(){box.hidden=true;askKey='';api('prompt',{kind:p.kind,choice:c.id},1).then(poll)};row.appendChild(b)});
+  if(box.hidden&&navigator.vibrate)navigator.vibrate([20,40,20])}
+ box.hidden=false}
+function draw(s){state=s;ask(s.prompt);var n=s.now,f=q('now');q('kn').textContent=s.typing?'A text box is open on the TV: typing goes there.':'No text box is open on the TV: what you type is searched for.';
  if(!n){f.hidden=true;if(liveRef){liveRef=null;mark()}return}f.hidden=false;q('nn').textContent=n.title;q('ns').textContent=n.sub||(n.live?'Live':'');
  if(n.image&&q('ni').getAttribute('src')!==n.image)q('ni').src=n.image;q('ni').hidden=!n.image;
  q('np').innerHTML=n.playing?'&#10074;&#10074;':'&#9654;';q('np').setAttribute('aria-label',n.playing?'Pause':'Play');

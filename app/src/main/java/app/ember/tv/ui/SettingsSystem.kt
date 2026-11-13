@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -243,27 +244,21 @@ internal fun RestorePage(vm: HomeViewModel) {
     }
 }
 
-/** Show, hide and reorder the tabs in the top menu. Home and Settings are always shown. */
+/**
+ * #245: which tabs the navbar shows, one switch each. Tabs keep their place; Home and Settings are
+ * always shown. Lives on Appearance beside the navbar's style.
+ */
 @Composable
 internal fun TopMenuSection(vm: HomeViewModel) {
-    Section(stringResource(R.string.ui_top_menu), stringResource(R.string.ui_choose_which_tabs_appear_and_in)) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            vm.nav.forEachIndexed { i, (id, shown) ->
-                Row(
-                    modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(tabTitle(id), fontSize = 16.sp, modifier = Modifier.weight(1f))
-                    if (NavTabs.locked(id)) {
-                        Text(stringResource(R.string.ui_always_shown), color = Mute, fontSize = 13.sp)
-                    } else {
-                        Chip(if (shown) "Shown" else "Hidden", selected = shown) { vm.toggleTab(id) }
-                    }
-                    if (i > 0) Chip(stringResource(R.string.ui_move_left)) { vm.moveTab(id, -1) }
-                    if (i < vm.nav.lastIndex) Chip(stringResource(R.string.ui_move_right)) { vm.moveTab(id, 1) }
+    Section("Navbar tabs", "Switch tabs on or off. Home and Settings are always there.", id = "navbar-tabs") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ButtonRow(spacing = 10.dp) {
+                vm.nav.filterNot { NavTabs.locked(it.first) }.forEach { (id, shown) ->
+                    SwitchChip(tabTitle(id), shown, Modifier.testTag("tab_switch_$id")) { vm.toggleTab(id) }
                 }
             }
+            val hidden = vm.nav.count { !it.second && !NavTabs.locked(it.first) }
+            Text(if (hidden == 0) "Every tab is shown." else "$hidden ${if (hidden == 1) "tab is" else "tabs are"} off. Off tabs stay reachable from Settings and search.", color = Mute, fontSize = 13.sp)
             Chip(stringResource(R.string.ui_reset_to_default)) { vm.resetTabs() }
         }
     }

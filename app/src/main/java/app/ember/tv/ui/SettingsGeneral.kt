@@ -113,6 +113,8 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         SettingsTab.APPEARANCE -> buildList {
             add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
             if (active != "light") {add("navbar-style");add("menu")}
+            // #245: the tabs sit with the navbar they belong to.
+            add("navbar-tabs")
             add("tile-labels"); add("row-addon-labels")
         }
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
@@ -137,6 +139,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.appearancePage(vm: H
 private fun AppearancePart(vm: HomeViewModel, key: String) {
     when (key) {
         // #151: on Appearance, beside the other labels, instead of at the bottom of Home layout.
+        "navbar-tabs" -> TopMenuSection(vm)
         "row-addon-labels" -> Section(SettingDefinitions.rowAddonLabels.title, "The addon's name after each catalog's title, such as Popular · Cinemeta, on Home and Live TV.", id = "row-addon-labels") {
             ToggleRow("Show addon names", if (vm.look.rowAddonLabels) "Shown after each row's title" else "Hidden: rows show only the catalog's title", vm.look.rowAddonLabels) {
                 vm.look.updateRowAddonLabels(!vm.look.rowAddonLabels)

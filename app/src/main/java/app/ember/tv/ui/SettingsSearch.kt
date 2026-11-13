@@ -17,7 +17,7 @@ import androidx.tv.material3.Text
  */
 internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.FEATURES to "Features: switch off Live, media servers, trackers, extra rows, cast; background refresh",
-    SettingsTab.TOP_MENU to "Top menu: tabs, order, hide tabs, Home, Discover, Live, Apps, Library, Watchlist, Search",
+    SettingsTab.TOP_MENU to "Navbar tabs: top menu tabs, show or hide tabs, Home, Discover, Live, Apps, Library, Watchlist, Search",
     SettingsTab.DISCOVER to "Discover: show hide enable disable Explore Collections Catalogs sections automatic defaults AI-assisted discovery Mistral describe suggested filters",
     SettingsTab.HOME_TOOLS to "Apps and folders: apps on Home, choose apps, rows of apps, one row two rows, apps page, app icons banners circles, app folders custom artwork icons per-app PIN locks personal Home per profile",
     SettingsTab.HOME_EXTRAS to "Extras: Now Playing media controls notification access, presentation photo video slideshow keep awake",

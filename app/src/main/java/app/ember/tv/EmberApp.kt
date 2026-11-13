@@ -10,6 +10,8 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         super.onCreate()
         // First, so a failure in anything below is recorded too.
         app.ember.tv.data.CrashLog.install(this)
+        // #242: the phone remote's arrows go to whichever Ember screen is in front.
+        app.ember.tv.remote.RemoteBridge.install(this)
         // Why the previous run ended when no exception was thrown: not responding, native crash,
         // low memory (#27). Read on the crash log's own thread.
         app.ember.tv.data.ExitHistory.record(this)

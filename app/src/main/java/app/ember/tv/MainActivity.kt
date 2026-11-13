@@ -163,6 +163,7 @@ class MainActivity : ComponentActivity() {
     // #241: what the phone remote can do on this screen.
     private val remoteScreen = object : app.ember.tv.remote.RemoteBridge.Screen {
         override fun play(request: PlayRequest) { this@MainActivity.play(request) }
+        override fun playWith(request: PlayRequest, target: String) { this@MainActivity.playWith(request, target) }
         override fun search(query: String) { vm.closeDetails(); tab = NavTabs.SEARCH; vm.search.setQuery(query, immediate = true) }
         override fun home() { vm.closeDetails(); tab = NavTabs.HOME }
     }

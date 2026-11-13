@@ -93,6 +93,7 @@ internal class RemoteController(private val vm: HomeViewModel) {
         }
         "backspace" -> if (RemoteBridge.backspace()) ok() else RemoteServer.error("No text box is being edited on the TV.")
         "key" -> key(p["key"].orEmpty())
+        "prompt" -> if (answer(p["kind"].orEmpty(), p["choice"].orEmpty())) ok() else RemoteServer.error("The TV is no longer asking that.")
         else -> null
     }
 
@@ -113,8 +114,54 @@ internal class RemoteController(private val vm: HomeViewModel) {
                     if (nowMeta != null) { put("ref", JsonPrimitive(ref(nowMeta))); put("tref", JsonPrimitive(RemoteFormat.titleRef(nowMeta))); put("saved", JsonPrimitive(vm.isSaved(nowMeta))); put("watched", JsonPrimitive(vm.isWatched(nowMeta))) }
                 })
                 put("details", vm.details?.meta?.let { m -> JsonPrimitive(ref(m)) } ?: JsonNull)
+                put("prompt", prompt()?.let(RemoteFormat::prompt) ?: JsonNull)
                 put("typing", JsonPrimitive(RemoteBridge.focusedText != null))
                 put("volume", volumeState())
+            }
+        }
+    }
+
+    /**
+     * #243: the question the TV is asking now, if any, with the TV's own wording: the player's Up next
+     * and Skip, then Resume or start over, then Play with.
+     */
+    private fun prompt(): app.ember.tv.player.RemotePrompt? {
+        PlayerRemote.prompt()?.let { return it }
+        val ctx = vm.getApplication<Application>()
+        vm.resumeAsk?.let { (req, label) ->
+            return app.ember.tv.player.RemotePrompt("resume", ctx.getString(app.ember.tv.R.string.ui_continue_watching), req.title,
+                listOf("resume" to "▶ $label", "start" to ctx.getString(app.ember.tv.R.string.ui_start_over), "cancel" to ctx.getString(app.ember.tv.R.string.ui_cancel)))
+        }
+        vm.playing.chooser?.let { req ->
+            return app.ember.tv.player.RemotePrompt("player", ctx.getString(app.ember.tv.R.string.ui_play_with), req.title,
+                listOf(app.ember.tv.data.Prefs.PLAYER_BUILTIN to ctx.getString(app.ember.tv.R.string.ui_built_in_player)) + vm.playing.players.map { it.pkg to it.label } +
+                    ("cancel" to ctx.getString(app.ember.tv.R.string.ui_cancel)))
+        }
+        return null
+    }
+
+    /** Picks one of [prompt]'s choices on the TV, as if chosen there. */
+    private fun answer(kind: String, choice: String): Boolean {
+        if (kind == "upnext" || kind == "skip") return PlayerRemote.answer(kind, choice)
+        return main {
+            val screen = RemoteBridge.screen
+            when (kind) {
+                "resume" -> {
+                    val (req, _) = vm.resumeAsk ?: return@main false
+                    if (choice !in setOf("resume", "start", "cancel")) return@main false
+                    vm.resumeAsk = null
+                    if (choice != "cancel") screen?.playWith(req.copy(resumeDecided = true, startOver = choice == "start"), app.ember.tv.data.Prefs.PLAYER_BUILTIN) ?: return@main false
+                    true
+                }
+                "player" -> {
+                    val req = vm.playing.chooser ?: return@main false
+                    val allowed = setOf(app.ember.tv.data.Prefs.PLAYER_BUILTIN, "cancel") + vm.playing.players.map { it.pkg }
+                    if (choice !in allowed) return@main false
+                    vm.playing.dismissChooser()
+                    if (choice != "cancel") screen?.playWith(req, choice) ?: return@main false
+                    true
+                }
+                else -> false
             }
         }
     }
@@ -195,10 +242,13 @@ internal class RemoteController(private val vm: HomeViewModel) {
 
     /** Arrow keys, OK and Back go to Ember's own screen; Home goes to Ember's Home. */
     private fun key(name: String): String {
-        if (name == "home") return if (main { RemoteBridge.screen?.home() } != null) ok() else RemoteServer.error("Open Ember on the TV first.")
+        if (name == "home") {
+            // Home leaves the player first, then shows Ember's Home.
+            if (PlayerRemote.now() != null) PlayerRemote.command("stop", null)
+            return if (main { RemoteBridge.screen?.home() } != null) ok() else RemoteServer.error("Open Ember on the TV first.")
+        }
         val code = RemoteFormat.keyCode(name) ?: return bad()
-        return runCatching { android.app.Instrumentation().sendKeyDownUpSync(code); ok() }
-            .getOrElse { RemoteServer.error("The arrows work while Ember is on the TV screen.") }
+        return if (RemoteBridge.press(code)) ok() else RemoteServer.error("The arrows work while Ember is on the TV screen, not inside other apps.")
     }
 }
 
@@ -208,6 +258,11 @@ internal object RemoteFormat {
         val key = listOf(m.type, m.id, m.season?.toString().orEmpty(), m.episode?.toString().orEmpty()).joinToString(":")
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray(Charsets.UTF_8))
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest).take(14)
+    }
+
+    fun prompt(p: app.ember.tv.player.RemotePrompt): JsonObject = buildJsonObject {
+        put("kind", JsonPrimitive(p.kind)); put("title", JsonPrimitive(p.title)); put("text", JsonPrimitive(p.text))
+        put("choices", buildJsonArray { p.choices.forEach { (id, label) -> add(buildJsonObject { put("id", JsonPrimitive(id)); put("label", JsonPrimitive(label)) }) } })
     }
 
     /** The same for every episode of a show, to mark what is playing in a list. */

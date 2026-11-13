@@ -9,7 +9,39 @@ internal data class RemoteNow(
     val playing: Boolean, val live: Boolean, val meta: app.ember.tv.data.Meta?,
 )
 
+/** #243: a question the TV is asking, mirrored on the phone with the same choices. */
+internal data class RemotePrompt(val kind: String, val title: String, val text: String, val choices: List<Pair<String, String>>)
+
 internal object PlayerRemote {
+    /** The player's own questions: the Up next card, then the Skip intro/recap/credits button. */
+    fun prompt(): RemotePrompt? = RemoteBridge.onMain {
+        val a = active() ?: return@onMain null
+        val u = a.upNextUi
+        if (a.upNextInitialized && u.visible) {
+            val line = listOf(u.series, "S${u.season}:E${u.episode}" + if (u.title.isNotBlank()) " " + u.title else "").filter { it.isNotBlank() }.joinToString(" · ")
+            return@onMain RemotePrompt("upnext", if (u.finding) "Finding a source for the next episode…" else "Up next in ${u.seconds}s", line,
+                if (u.finding) listOf("cancel" to "Cancel") else listOf("play" to "Play now", "cancel" to "Cancel"))
+        }
+        val m = a.skipTarget ?: return@onMain null
+        val label = when (m.kind) {
+            "recap" -> a.getString(app.ember.tv.R.string.pl_skip_recap)
+            "credits" -> a.getString(if (a.nextEpisodes.isNotEmpty()) app.ember.tv.R.string.ui_next_episode else app.ember.tv.R.string.pl_skip_credits)
+            else -> a.getString(app.ember.tv.R.string.ui_skip_intro)
+        }
+        RemotePrompt("skip", label, "", listOf("skip" to label))
+    }
+
+    /** Answers one of [prompt]'s questions; false when it is no longer being asked. */
+    fun answer(kind: String, choice: String): Boolean = RemoteBridge.onMain {
+        val a = active() ?: return@onMain false
+        when {
+            kind == "upnext" && a.upNextInitialized && a.upNextUi.visible -> if (choice == "play" && !a.upNextUi.finding) a.playNext() else a.dismissUpNext()
+            kind == "skip" && a.skipTarget != null -> a.doSkip()
+            else -> return@onMain false
+        }
+        true
+    } ?: false
+
     private fun active(): PlayerActivity? = PlayerActivity.current?.get()?.takeIf { !it.isFinishing && !it.isDestroyed }
 
     fun now(): RemoteNow? = RemoteBridge.onMain { active()?.remoteNow() }
@@ -22,7 +54,8 @@ internal object PlayerRemote {
             "toggle" -> a.controlActions.playPause()
             "play" -> if (!c.playing) a.controlActions.playPause()
             "pause" -> if (c.playing) a.controlActions.playPause()
-            "seek" -> value?.let { target -> a.controlActions.seekBy(target.coerceIn(0, c.duration.takeIf { it > 0 } ?: Long.MAX_VALUE) - c.position) }
+            "seek" -> value?.let { target -> a.player?.let { p -> p.seekTo(target.coerceIn(0, p.duration.takeIf { it > 0 } ?: Long.MAX_VALUE)); a.showControls() }
+                ?: a.controlActions.seekBy(target - c.position) }
             "skip" -> value?.let { a.controlActions.seekBy(it) }
             "stop" -> a.endPlayback()
             "next" -> if (c.nextEpisodes.isNotEmpty()) a.controlActions.next() else return@onMain false
