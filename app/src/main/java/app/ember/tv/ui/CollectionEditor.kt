@@ -127,7 +127,13 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
     } else if (picker) CollectionSourcePicker(vm, onChoose = { source ->
         if (draft.allSources.none { vm.collections.sourceKey(it) == vm.collections.sourceKey(source) }) draft = draft.copy(sources = draft.allSources + source, catalogSources = emptyList())
         picker = false
-    }, close = { picker = false })
+    }, close = { picker = false }, onChooseMany = { sources ->
+        // #264: several catalogs at once; ones already in the folder are skipped.
+        val fresh = sources.filter { s -> draft.allSources.none { vm.collections.sourceKey(it) == vm.collections.sourceKey(s) } }
+        if (fresh.isNotEmpty()) draft = draft.copy(sources = draft.allSources + fresh, catalogSources = emptyList())
+        if (fresh.size < sources.size) message = "Sources already in the folder were skipped."
+        picker = false
+    })
     else MediaDialog("Edit folder", ::dismiss, resizeForKeyboard = true, wide = true) {
         ButtonRow { FolderSteps.all.forEachIndexed { i, (id, name) ->
             Chip("${i + 1}  $name" + if (id == FolderSteps.SOURCES) " (${draft.allSources.size})" else "", step == id, modifier = Modifier.testTag("folder_step_$id")) { step = id }
@@ -247,8 +253,29 @@ internal fun CatalogOptions(def: CatalogDef, initial: Map<String, String>, close
     }
 }
 
+/** #264: picking several sources in one pass. */
+internal object SourcePicks {
+    /** The same catalog, search or list, whatever its options. */
+    fun same(a: CollectionSource, b: CollectionSource) = a.provider == b.provider && a.addonId == b.addonId && a.type == b.type &&
+        a.catalogId == b.catalogId && a.tmdbSourceType == b.tmdbSourceType && a.tmdbId == b.tmdbId && a.traktListId == b.traktListId && a.exploreQuery == b.exploreQuery
+    /** Adds [source], or takes it out when it is already picked. */
+    fun toggle(picked: List<CollectionSource>, source: CollectionSource) =
+        if (picked.any { same(it, source) }) picked.filterNot { same(it, source) } else picked + source
+    fun count(n: Int) = when (n) { 0 -> "Choose as many as you like"; 1 -> "1 selected"; else -> "$n selected" }
+    fun addLabel(n: Int) = if (n == 1) "Add 1 source" else "Add $n sources"
+}
+
 @Composable
-internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSource) -> Unit, close: () -> Unit) {
+internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSource) -> Unit, close: () -> Unit,
+    /** #264: when set, several sources are picked in one pass and handed over together. */
+    onChooseMany: ((List<CollectionSource>) -> Unit)? = null) {
+    val multiple = onChooseMany != null
+    var picked by remember { mutableStateOf<List<CollectionSource>>(emptyList()) }
+    fun same(a: CollectionSource, b: CollectionSource) = SourcePicks.same(a, b)
+    fun take(source: CollectionSource) {
+        if (!multiple) { onChoose(source); return }
+        picked = SourcePicks.toggle(picked, source)
+    }
     var mode by remember { mutableStateOf("Catalogs") }
     var query by remember { mutableStateOf("") }
     var catalog by remember { mutableStateOf<CatalogDef?>(null) }
@@ -268,20 +295,35 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
         }
     }
     if (catalog != null) CatalogOptions(catalog!!, emptyMap(), { catalog = null }) { values ->
-        val c = catalog!!; onChoose(CollectionDrafts.catalog(c, values["genre"], values - "genre"))
-    } else MediaDialog("Choose a source", close, resizeForKeyboard = true, wide = true) {
+        val c = catalog!!; take(CollectionDrafts.catalog(c, values["genre"], values - "genre")); catalog = null
+    } else MediaDialog(if (multiple) "Choose sources" else "Choose a source", close, resizeForKeyboard = true, wide = true) {
         ButtonRow { listOf("Catalogs", "Saved searches", "TMDB", "Trakt").forEach { value -> Chip(value, mode == value) { mode = value; query = "" } } }
+        if (multiple) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(SourcePicks.count(picked.size), color = if (picked.isEmpty()) Mute else Fg, fontSize = 14.sp)
+            if (picked.isNotEmpty()) {
+                Chip(SourcePicks.addLabel(picked.size), modifier = Modifier.testTag("sources_add")) { onChooseMany!!(picked) }
+                Chip("Clear") { picked = emptyList() }
+            }
+        }
         if (mode == "Catalogs") {
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find catalogs")
             val matches = vm.collectionCatalogs.filter { (it.label + it.addon.name).contains(query, true) }
             Text(stringResource(R.string.tx_catalogs, matches.size) + if (matches.size > 60) " · First 60 shown; search to narrow the list." else "", fontSize = 12.sp, color = Mute)
-            matches.take(60).forEach { c -> Chip(c.label + " · " + c.addon.name) {
-                if (c.extras.isEmpty()) onChoose(CollectionDrafts.catalog(c)) else catalog = c
-            } }
+            matches.take(60).forEach { c ->
+                val plain = CollectionDrafts.catalog(c)
+                val on = multiple && picked.any { same(it, plain) }
+                Chip(c.label + " · " + c.addon.name, selected = on) {
+                    // A catalog with options is set up first; choosing it again takes it out.
+                    if (c.extras.isEmpty() || on) take(plain) else catalog = c
+                }
+            }
         } else if (mode == "Saved searches") {
             val saved = vm.collectionSearches
             if (saved.isEmpty()) Text(stringResource(R.string.tx_save_a_search_in_discover_first), color = Mute)
-            saved.forEach { search -> Chip(search.name) { onChoose(CollectionDrafts.discover(search.name, search.query, vm.profiles.profileId)) } }
+            saved.forEach { search ->
+                val source = CollectionDrafts.discover(search.name, search.query, vm.profiles.profileId)
+                Chip(search.name, selected = multiple && picked.any { same(it, source) }) { take(source) }
+            }
         } else {
             if (mode == "TMDB") ButtonRow {
                 listOf("COLLECTION", "LIST", "COMPANY", "NETWORK", "PERSON", "DIRECTOR").forEach { value -> Chip(value.lowercase().replaceFirstChar { it.uppercase() }, kind == value) { kind = value; if (value == "NETWORK") media = "TV" else if (value == "COLLECTION") media = "MOVIE" } }
@@ -294,11 +336,14 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
             TvTextField(id, { id = it }, Modifier.fillMaxWidth(), placeholder = if (mode == "TMDB") "TMDB ID or URL" else "Trakt list ID or numeric list URL")
             if (mode == "Trakt" || kind !in setOf("COLLECTION", "NETWORK")) ButtonRow { listOf("MOVIE" to "Movies", "TV" to "Shows").forEach { (key, label) -> Chip(label, media == key) { media = key } } }
             error?.let { Text(it, color = Mute) }
-            Chip("Use source") {
+            Chip(if (multiple) "Add source" else "Use source") {
                 val number = CollectionDrafts.numericId(id)
                 error = when { name.isBlank() -> "Enter a source name."; number == null -> "Enter a positive numeric ID or URL containing it."; mode == "TMDB" && number > Int.MAX_VALUE -> "That TMDB ID is too large."; else -> null }
-                if (error == null) onChoose(if (mode == "TMDB") CollectionSource(provider = "tmdb", title = name.trim(), tmdbSourceType = kind, tmdbId = number!!.toInt(), mediaType = media)
-                    else CollectionSource(provider = "trakt", title = name.trim(), traktListId = number, mediaType = media))
+                if (error == null) {
+                    take(if (mode == "TMDB") CollectionSource(provider = "tmdb", title = name.trim(), tmdbSourceType = kind, tmdbId = number!!.toInt(), mediaType = media)
+                        else CollectionSource(provider = "trakt", title = name.trim(), traktListId = number, mediaType = media))
+                    if (multiple) { id = ""; name = ""; error = "Added. Add another, or choose " + SourcePicks.addLabel(picked.size) + "." }
+                }
             }
         }
     }

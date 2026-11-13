@@ -458,6 +458,45 @@ class HomeWidgetsTest {
         } finally { scope.cancel() }
     }
 
+    @Test fun aWidgetCombinesSeveralCatalogsAndKeepsWhatLoaded() {
+        // #264: titles taken in turn from each source, each once; one failing source does not empty the widget.
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        try {
+            val state = WidgetsState(memoryPrefs(), scope, { "me" }, { true }, page = { source ->
+                when (source.traktListId) {
+                    1L -> Result.success(CollectionPage(listOf(Meta("a", "movie", "A"), Meta("b", "movie", "B"), Meta("c", "movie", "C")), 1, true))
+                    2L -> Result.success(CollectionPage(listOf(Meta("x", "movie", "X"), Meta("b", "movie", "B")), 1, true))
+                    else -> Result.failure(IllegalStateException("offline"))
+                }
+            }, onChanged = {}, clock = { 0L })
+            val w = widget(style = HomeWidgets.ROW, source = trakt.copy(traktListId = 1)).copy(more = listOf(trakt.copy(traktListId = 2), trakt.copy(traktListId = 3)))
+            assertNull(state.save(w)); state.refresh { true }
+            assertEquals(listOf("a", "x", "b", "c"), state.items["w1"]?.map { it.id })
+            assertTrue(state.errors.isEmpty())
+        } finally { scope.cancel() }
+    }
+
+    @Test fun severalSourcesAreCheckedSavedAndLabelled() {
+        val second = trakt.copy(traktListId = 2)
+        val w = widget().copy(more = listOf(second, second, trakt, CollectionSource(provider = HomeWidgets.LIST, catalogId = "watchlist")))
+        assertEquals("duplicates, the first source and lists are dropped", listOf(second), HomeWidgets.normalize(w).more)
+        assertEquals(w.copy(more = listOf(second)), HomeWidgets.decode(HomeWidgets.encode(listOf(HomeWidgets.normalize(w)))).single())
+        assertEquals("Trakt list 42 + 1 more", HomeWidgets.sourcesLabel(HomeWidgets.normalize(w), emptyList()))
+        assertNotNull("every source is checked", HomeWidgets.error(widget().copy(more = listOf(CollectionSource(provider = "trakt")))))
+        val many = widget().copy(more = (2L..20L).map { trakt.copy(traktListId = it) })
+        assertEquals(HomeWidgets.MAX_SOURCES, HomeWidgets.normalize(many).sources.size)
+        val listWidget = widget(source = CollectionSource(provider = HomeWidgets.LIST, catalogId = "watchlist")).copy(more = listOf(second))
+        assertTrue("a list stands alone", HomeWidgets.normalize(listWidget).more.isEmpty())
+        assertEquals(listOf("a", "x", "b"), HomeWidgets.merge(listOf(listOf(Meta("a", "movie", "A"), Meta("b", "movie", "B")), listOf(Meta("x", "movie", "X"), Meta("a", "movie", "A"))), 10).map { it.id })
+        assertEquals(2, HomeWidgets.merge(listOf((1..9).map { Meta("m$it", "movie", "M") }), 2).size)
+        // The picker takes several and gives one back when it is chosen again.
+        val picks = app.ember.tv.ui.SourcePicks
+        val one = CollectionSource(addonId = "a", type = "movie", catalogId = "top")
+        assertEquals(listOf(one, second), picks.toggle(picks.toggle(emptyList(), one), second))
+        assertEquals(listOf(second), picks.toggle(listOf(one, second), one.copy(title = "Renamed")))
+        assertEquals("Add 3 sources", picks.addLabel(3)); assertEquals("1 selected", picks.count(1))
+    }
+
     @Test fun widgetsLoadSaveAndForgetPerProfile() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val prefs = memoryPrefs(); var profile = "one"; var now = 0L; var changed = 0

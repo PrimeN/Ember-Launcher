@@ -148,7 +148,7 @@ internal object WidgetDrafts {
     /** A new widget has no source yet; the default addon source without a catalog fails [HomeWidgets.error] until one is chosen. */
     fun new() = HomeWidget(id = java.util.UUID.randomUUID().toString())
     fun hasSource(w: HomeWidget) = HomeWidgets.error(w.copy(title = "x")) == null
-    fun summary(w: HomeWidget, defs: List<CatalogDef>) = "${HomeWidgets.styleName(w.style)} · ${HomeWidgets.sourceLabel(w.source, defs)} · up to ${w.limit} titles"
+    fun summary(w: HomeWidget, defs: List<CatalogDef>) = "${HomeWidgets.styleName(w.style)} · ${HomeWidgets.sourcesLabel(w, defs)} · up to ${w.limit} titles"
     /** Choosing a source names an untitled widget after it. */
     fun withSource(w: HomeWidget, source: CollectionSource, label: String? = null) =
         w.copy(source = source, title = w.title.ifBlank { (label ?: source.title).orEmpty().take(100) })

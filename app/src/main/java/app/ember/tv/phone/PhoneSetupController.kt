@@ -82,7 +82,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
             fun entry(section: String): app.ember.tv.phone.PhoneHomeEntry {
                 val w = ownWidget(section)
                 val kind = when { w != null -> "yours"; app.ember.tv.state.HomeSectionsState.isCatalogSection(section) -> "catalog"; else -> "built" }
-                val note = if (w != null) app.ember.tv.data.HomeWidgets.styleName(w.style) + " · " + app.ember.tv.data.HomeWidgets.sourceLabel(w.source, collectionCatalogs) else info[section]?.note.orEmpty()
+                val note = if (w != null) app.ember.tv.data.HomeWidgets.styleName(w.style) + " · " + app.ember.tv.data.HomeWidgets.sourcesLabel(w, collectionCatalogs) else info[section]?.note.orEmpty()
                 return app.ember.tv.phone.PhoneHomeEntry(homeKey(section), homeTitle(section), kind, note, app.ember.tv.ui.WidgetDrafts.picture(section, w?.style), w?.let { widgetKey(it.id) })
             }
             val (on, off) = homeSections()
@@ -194,7 +194,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             val section = app.ember.tv.data.HomeWidgets.section(w.id)
                             val at = order.indexOf(section)
                             val count = widgetItems(w).size
-                            app.ember.tv.phone.PhoneWidget(widgetKey(w.id), w.title, w.style, w.shape, w.limit, app.ember.tv.data.HomeWidgets.sourceLabel(w.source, collectionCatalogs),
+                            app.ember.tv.phone.PhoneWidget(widgetKey(w.id), w.title, w.style, w.shape, w.limit, app.ember.tv.data.HomeWidgets.sourcesLabel(w, collectionCatalogs),
                                 when {
                                     !sections.sectionOn(section) -> "Off on Home"
                                     count > 0 -> "$count titles"
@@ -355,11 +355,13 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             id = old?.id ?: java.util.UUID.randomUUID().toString(), title = title,
                             style = fields["style"] ?: old?.style ?: app.ember.tv.data.HomeWidgets.ROW, shape = fields["shape"] ?: old?.shape ?: "default",
                             source = source, limit = fields["limit"]?.trim()?.toIntOrNull() ?: old?.limit ?: app.ember.tv.data.HomeWidgets.DEFAULT_LIMIT,
-                            art = fields["art"] ?: old?.art ?: app.ember.tv.data.HeroArtworkMode.STANDARD))
+                            art = fields["art"] ?: old?.art ?: app.ember.tv.data.HeroArtworkMode.STANDARD,
+                            // #264: catalogs added on the TV stay when the phone edits the widget.
+                            more = old?.more.orEmpty()))
                         app.ember.tv.data.HomeWidgets.error(widget)?.let { return@onPhoneMain it }
-                        if (widget.source.provider != app.ember.tv.data.HomeWidgets.LIST && !collectionSourceAllowed(widget.source)) return@onPhoneMain "That source is unavailable for this profile."
+                        if (widget.source.provider != app.ember.tv.data.HomeWidgets.LIST && !widget.sources.all { collectionSourceAllowed(it) }) return@onPhoneMain "That source is unavailable for this profile."
                         stage((if (old == null) "Add the Home widget " else "Save the Home widget ") + "$title: ${app.ember.tv.data.HomeWidgets.styleName(widget.style)}, " +
-                            "${app.ember.tv.data.HomeWidgets.sourceLabel(widget.source, collectionCatalogs)}, up to ${widget.limit} titles.") {
+                            "${app.ember.tv.data.HomeWidgets.sourcesLabel(widget, collectionCatalogs)}, up to ${widget.limit} titles.") {
                             widgets.save(widget).also { if (it == null) refreshWidgets() }
                         }
                     }

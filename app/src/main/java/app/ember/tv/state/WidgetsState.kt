@@ -42,7 +42,7 @@ class WidgetsState(
     private var waiting: ((String) -> Boolean)? = null
     var revision by mutableLongStateOf(0L); private set
     private val loadedAt = HashMap<String, Long>()
-    private val loadedSource = HashMap<String, CollectionSource>()
+    private val loadedSource = HashMap<String, List<CollectionSource>>()
     private var job: Job? = null
 
     /** The profile changed, or a backup was restored. */
@@ -70,12 +70,16 @@ class WidgetsState(
             var batch = due
             while (batch.isNotEmpty()) {
                 for (w in batch) {
-                    val result = try { page(w.source) } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
+                    // #264: every source of the widget; it shows what loaded, and fails only when none did.
+                    val pages = w.sources.map { s -> try { page(s) } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) } }
+                    val loadedPages = pages.mapNotNull { it.getOrNull() }
+                    val result = if (loadedPages.isEmpty()) Result.failure(pages.first().exceptionOrNull() ?: IllegalStateException("Nothing loaded."))
+                        else Result.success(HomeWidgets.merge(loadedPages.map { it.items }, w.limit))
                     ensureActive()
                     if (profileId() != id || owner != id) return@launch
                     result.onSuccess { loaded ->
-                        items = items + (w.id to loaded.items.take(w.limit))
-                        loadedAt[w.id] = clock(); loadedSource[w.id] = w.source
+                        items = items + (w.id to loaded)
+                        loadedAt[w.id] = clock(); loadedSource[w.id] = w.sources
                         failed = failed - w.id; errors = errors - w.id
                     }.onFailure { failed = failed + w.id; errors = errors + (w.id to reason(it)) }
                     loading = loading - w.id
@@ -92,7 +96,7 @@ class WidgetsState(
         val now = clock()
         return list.filter { w ->
             w.source.provider != HomeWidgets.LIST && visible(HomeWidgets.section(w.id)) &&
-                (force || loadedSource[w.id] != w.source || now - (loadedAt[w.id] ?: Long.MIN_VALUE / 2) > FRESH_MILLIS)
+                (force || loadedSource[w.id] != w.sources || now - (loadedAt[w.id] ?: Long.MIN_VALUE / 2) > FRESH_MILLIS)
         }
     }
 

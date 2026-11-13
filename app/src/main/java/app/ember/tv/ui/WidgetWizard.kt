@@ -92,6 +92,8 @@ internal object WidgetSteps {
 
     /** The kinds of source, as cards on the first step. */
     const val FILTERS = "filters"; const val LISTS = "lists"; const val CATALOG = "catalog"; const val TRAKT = "trakt"; const val MDB = "mdblist"
+    /** #264: the picker that adds catalogs to the ones already chosen. */
+    const val MORE = "more"
     val kinds = listOf(
         FILTERS to ("Filters" to "Genre, years, rating, people, services"),
         LISTS to ("Your lists" to "Watchlist, Continue watching, tracker lists"),
@@ -136,11 +138,11 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
     var focusNext by remember { mutableStateOf(false) }
 
     // The source is loaded as soon as it is chosen, so an empty or broken one shows before moving on.
-    LaunchedEffect(draft.source, retry) {
+    LaunchedEffect(draft.sources, retry) {
         check = WidgetSteps.Check(); titles = emptyList()
         if (draft.source == CollectionSource() || HomeWidgets.error(draft.copy(title = "x")) != null) return@LaunchedEffect
         if (draft.source.provider == HomeWidgets.LIST) { titles = vm.widgetItems(draft); check = WidgetSteps.Check(titles.size) }
-        else vm.previewWidget(draft.source).fold({ titles = it; check = WidgetSteps.Check(it.size) },
+        else vm.previewWidget(draft).fold({ titles = it; check = WidgetSteps.Check(it.size) },
             { check = WidgetSteps.Check(error = app.ember.tv.state.WidgetsState.reason(it)) })
     }
 
@@ -148,6 +150,21 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
         // A new source renames a widget still named after the old one.
         val auto = draft.title.isBlank() || draft.title == draft.source.title.orEmpty().take(100)
         draft = WidgetDrafts.withSource(if (auto) draft.copy(title = "") else draft, source, label); message = null; focusNext = true
+        // Your own lists are read live and stand alone.
+        if (source.provider == HomeWidgets.LIST) draft = draft.copy(more = emptyList())
+    }
+    /** #264: several catalogs picked together; the first leads, the rest follow. */
+    fun chosenMany(sources: List<CollectionSource>, adding: Boolean) {
+        if (sources.isEmpty()) return
+        if (!adding || draft.source == CollectionSource() || draft.source.provider == HomeWidgets.LIST) {
+            chosen(sources.first())
+            draft = HomeWidgets.normalize(draft.copy(more = sources.drop(1)))
+        } else {
+            val fresh = sources.filter { s -> draft.sources.none { SourcePicks.same(it, s) } }
+            draft = HomeWidgets.normalize(draft.copy(more = draft.more + fresh)); message = null; focusNext = true
+        }
+        if (draft.sources.size < sources.size + (if (adding) 1 else 0) && sources.size > 1)
+            message = "A widget combines up to ${HomeWidgets.MAX_SOURCES} sources."
     }
     fun go(to: String) {
         if (WidgetSteps.open(to, draft, check, existing)) { step = to; message = null }
@@ -160,7 +177,10 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
     }
 
     when (overlay) {
-        WidgetSteps.CATALOG -> { CollectionSourcePicker(vm, onChoose = { chosen(it); overlay = null }, close = { overlay = null }); return }
+        WidgetSteps.CATALOG -> { CollectionSourcePicker(vm, onChoose = { chosen(it); overlay = null }, close = { overlay = null },
+            onChooseMany = { chosenMany(it, adding = false); overlay = null }); return }
+        WidgetSteps.MORE -> { CollectionSourcePicker(vm, onChoose = { chosenMany(listOf(it), adding = true); overlay = null }, close = { overlay = null },
+            onChooseMany = { chosenMany(it, adding = true); overlay = null }); return }
         WidgetSteps.TRAKT -> { TraktListPicker(vm, onChoose = { chosen(it); overlay = null }, close = { overlay = null }); return }
         // #181: Discover's own filter panel, opened in place.
         WidgetSteps.FILTERS -> {
@@ -180,7 +200,8 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
             when (step) {
                 WidgetSteps.SOURCE -> SourceStep(vm, draft, check, titles, panel, stepFocus,
                     onKind = { kind -> message = null; if (kind == WidgetSteps.LISTS || kind == WidgetSteps.MDB) panel = kind else { panel = null; overlay = kind } },
-                    onChoose = ::chosen, onRetry = { retry++ }, onProblem = { message = it })
+                    onChoose = ::chosen, onRetry = { retry++ }, onProblem = { message = it },
+                    onAddMore = { overlay = WidgetSteps.MORE }, onRemove = { i -> draft = draft.copy(more = draft.more.filterIndexed { j, _ -> j != i }) })
                 WidgetSteps.STYLE -> LookStep(draft, stepFocus) { draft = it }
                 WidgetSteps.DETAILS -> {
                     Text(stringResource(R.string.tx_name), color = Mute, fontSize = 13.sp)
@@ -263,7 +284,8 @@ private fun WizardButton(label: String, ready: Boolean, modifier: Modifier = Mod
 
 @Composable
 private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.Check, titles: List<Meta>, panel: String?, first: FocusRequester,
-    onKind: (String) -> Unit, onChoose: (CollectionSource, String?) -> Unit, onRetry: () -> Unit, onProblem: (String?) -> Unit) {
+    onKind: (String) -> Unit, onChoose: (CollectionSource, String?) -> Unit, onRetry: () -> Unit, onProblem: (String?) -> Unit,
+    onAddMore: () -> Unit, onRemove: (Int) -> Unit) {
     val kind = WidgetSteps.kindOf(draft.source)
     ButtonRow(spacing = 10.dp) {
         WidgetSteps.kinds.forEachIndexed { i, (id, text) ->
@@ -292,7 +314,7 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
             }
         }
     }
-    if (draft.source != CollectionSource()) ChosenSource(vm, draft, check, titles, onRetry)
+    if (draft.source != CollectionSource()) ChosenSource(vm, draft, check, titles, onRetry, onAddMore, onRemove)
 }
 
 /** One kind of source: an emblem, its name and what it covers. */
@@ -325,7 +347,8 @@ private fun SourceKindCard(kind: String, name: String, about: String, on: Boolea
 
 /** The chosen source, what loading it found, and its first posters. */
 @Composable
-private fun ChosenSource(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.Check, titles: List<Meta>, onRetry: () -> Unit) {
+private fun ChosenSource(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.Check, titles: List<Meta>, onRetry: () -> Unit,
+    onAddMore: () -> Unit, onRemove: (Int) -> Unit) {
     val ok = WidgetSteps.sourceProblem(draft, check) == null
     val accent = MaterialTheme.colorScheme.primary
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(TvTokens.Shape.Card.dp)).background(Wash).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -335,10 +358,20 @@ private fun ChosenSource(vm: HomeViewModel, draft: HomeWidget, check: WidgetStep
                     if (ok) MaterialTheme.colorScheme.onPrimary else Color(0xFFFFB86B), 16.dp)
             }
             Column(Modifier.weight(1f)) {
-                Text(HomeWidgets.sourceLabel(draft.source, vm.allCatalogs), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(HomeWidgets.sourcesLabel(draft, vm.allCatalogs), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(WidgetSteps.status(draft, check), fontSize = 13.sp, color = Mute)
             }
             if (check.error != null) Chip("Try again") { onRetry() }
+        }
+        // #264: more catalogs in the same widget, their titles taken in turn.
+        if (draft.source.provider != HomeWidgets.LIST) {
+            draft.more.forEachIndexed { i, s ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("+ " + HomeWidgets.sourceLabel(s, vm.allCatalogs), Modifier.weight(1f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Chip("Remove", modifier = Modifier.testTag("widget_more_remove_$i")) { onRemove(i) }
+                }
+            }
+            if (draft.sources.size < HomeWidgets.MAX_SOURCES) Chip("Add more sources", modifier = Modifier.testTag("widget_add_more")) { onAddMore() }
         }
         if (titles.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             titles.take(9).forEach { PosterImage(it, Modifier.width(62.dp).height(93.dp).clip(RoundedCornerShape(6.dp)).background(PanelHi)) }
@@ -369,7 +402,7 @@ private fun LookStep(draft: HomeWidget, first: FocusRequester, change: (HomeWidg
 private fun ReviewStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.Check, titles: List<Meta>, first: FocusRequester, go: (String) -> Unit) {
     val look = HomeWidgets.styleName(draft.style) + if (HomeWidgets.isPanel(draft.style)) "" else " · " + (HomeWidgets.shapes.firstOrNull { it.first == draft.shape }?.second ?: draft.shape)
     listOf(
-        Triple(WidgetSteps.SOURCE, "Content", HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) + " · " + WidgetSteps.status(draft, check)),
+        Triple(WidgetSteps.SOURCE, "Content", HomeWidgets.sourcesLabel(draft, vm.allCatalogs) + " · " + WidgetSteps.status(draft, check)),
         Triple(WidgetSteps.STYLE, "Look", look),
         Triple(WidgetSteps.DETAILS, "Name & size", draft.title.ifBlank { "No name yet" } + " · up to ${draft.limit} titles"),
     ).forEachIndexed { i, (id, label, value) ->

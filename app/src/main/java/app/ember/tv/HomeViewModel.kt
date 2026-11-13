@@ -730,6 +730,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** The first titles of a source, for the editor's preview (#182); nothing is saved. */
     internal suspend fun previewWidget(source: CollectionSource): Result<List<Meta>> =
         try { collections.firstPage(source).map { it.items } } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
+    /** #264: a widget's sources together, as Home will show them; fails only when none loads. */
+    internal suspend fun previewWidget(w: HomeWidget): Result<List<Meta>> = kotlinx.coroutines.coroutineScope {
+        val pages = w.sources.map { s -> async { previewWidget(s) } }.map { it.await() }
+        val loaded = pages.mapNotNull { it.getOrNull() }
+        if (loaded.isEmpty()) Result.failure(pages.first().exceptionOrNull() ?: IllegalStateException("Nothing loaded."))
+        else Result.success(HomeWidgets.merge(loaded, HomeWidgets.LIMITS.last))
+    }
     /** A widget Home asked to edit (#183): Settings opens on Widgets & collections with its editor up. */
     var widgetToEdit by mutableStateOf<String?>(null)
     fun editWidget(id: String) { widgetToEdit = id; openSettingsPage("WIDGETS") }
@@ -825,7 +832,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             addAll(explore.saved.filter {it.home}.map {HomeSectionsState.SectionInfo(it.section,it.name,"Saved Discover · up to 20 matching titles") to true})
             // #161: your own widgets are sections like the rest, so they can be switched off and moved.
             addAll(widgets.list.map {w->HomeSectionsState.SectionInfo(HomeWidgets.section(w.id),w.title,
-                "Widget · ${HomeWidgets.styleName(w.style)} · ${HomeWidgets.sourceLabel(w.source,allCatalogs)}") to true})
+                "Widget · ${HomeWidgets.styleName(w.style)} · ${HomeWidgets.sourcesLabel(w,allCatalogs)}") to true})
         } },
         onCatalogVisibilityChanged = { values ->
             catalogs.updateCatalogHomes(values.mapKeys { HomeSectionsState.catalogKey(it.key) })

@@ -21,7 +21,12 @@ data class HomeWidget(
     val limit: Int = HomeWidgets.DEFAULT_LIMIT,
     /** #196: a Hero banner or Cinematic carousel's artwork, [HeroArtworkMode.STANDARD] or [HeroArtworkMode.FANART]. */
     val art: String = HeroArtworkMode.STANDARD,
-)
+    /** #264: more catalogs whose titles show with [source]'s, taken in turn. Never your own lists. */
+    val more: List<CollectionSource> = emptyList(),
+) {
+    /** Every source, [source] first. */
+    val sources: List<CollectionSource> get() = listOf(source) + more
+}
 
 object HomeWidgets {
     const val ROW = "row"
@@ -72,7 +77,22 @@ object HomeWidgets {
         shape = w.shape.takeIf { s -> shapes.any { it.first == s } } ?: "default",
         limit = w.limit.coerceIn(LIMITS.first, LIMITS.last),
         art = HeroArtworkMode.normalize(w.art),
+        more = if (w.source.provider == LIST) emptyList() else w.more.filter { it.provider != LIST && it != w.source }.distinct().take(MAX_SOURCES - 1),
     )
+    /** #264: how many sources one widget may combine. */
+    const val MAX_SOURCES = 8
+
+    /** #264: titles from several sources, one from each in turn, each title once, up to [limit]. */
+    fun merge(pages: List<List<Meta>>, limit: Int): List<Meta> {
+        val seen = HashSet<String>(); val out = ArrayList<Meta>()
+        val depth = pages.maxOfOrNull { it.size } ?: 0
+        for (i in 0 until depth) for (page in pages) {
+            val m = page.getOrNull(i) ?: continue
+            if (seen.add(m.type + ":" + m.id)) out += m
+            if (out.size >= limit) return out
+        }
+        return out
+    }
     /** Styles that are one large panel: they choose artwork (#196), not a card shape. */
     fun isPanel(style: String) = style == CAROUSEL || style == HERO
     val arts = listOf(HeroArtworkMode.STANDARD to "Standard", HeroArtworkMode.FANART to "Fanart")
@@ -80,19 +100,28 @@ object HomeWidgets {
     fun error(w: HomeWidget): String? = when {
         w.id.isBlank() -> "The widget has no id."
         w.title.isBlank() -> "Enter a widget title."
-        w.source.provider !in setOf("addon", "ember", "trakt", "tmdb", LIST, MDBLIST) -> "Choose a source."
-        w.source.provider == LIST && lists.none { it.first == w.source.catalogId } && !isTrackerList(w.source.catalogId) -> "Choose one of your lists."
-        w.source.provider == MDBLIST && w.source.catalogId?.let { mdbPath.matches(it) } != true -> "Enter an MDBList list link, user/list-name or number."
-        w.source.provider == "addon" && w.source.catalogId.isNullOrBlank() -> "Choose a catalog."
-        w.source.provider == "trakt" && w.source.traktListId == null -> "Enter a Trakt list link or number."
-        w.source.provider == "tmdb" && w.source.tmdbId == null && !w.source.tmdbSourceType.equals("DISCOVER", true) -> "Enter a TMDB list link or number."
-        w.source.provider == "ember" && w.source.exploreQuery == null -> "Choose filters."
-        w.source.provider == "ember" -> w.source.exploreQuery?.error()
+        else -> w.sources.firstNotNullOfOrNull { sourceError(it) }
+    }
+
+    /** What is wrong with one of a widget's sources; null when it can be loaded. */
+    fun sourceError(source: CollectionSource): String? = when {
+        source.provider !in setOf("addon", "ember", "trakt", "tmdb", LIST, MDBLIST) -> "Choose a source."
+        source.provider == LIST && lists.none { it.first == source.catalogId } && !isTrackerList(source.catalogId) -> "Choose one of your lists."
+        source.provider == MDBLIST && source.catalogId?.let { mdbPath.matches(it) } != true -> "Enter an MDBList list link, user/list-name or number."
+        source.provider == "addon" && source.catalogId.isNullOrBlank() -> "Choose a catalog."
+        source.provider == "trakt" && source.traktListId == null -> "Enter a Trakt list link or number."
+        source.provider == "tmdb" && source.tmdbId == null && !source.tmdbSourceType.equals("DISCOVER", true) -> "Enter a TMDB list link or number."
+        source.provider == "ember" && source.exploreQuery == null -> "Choose filters."
+        source.provider == "ember" -> source.exploreQuery?.error()
         // Private keys belong in Collections, which store them encrypted; a widget is plain settings.
-        w.source.extraArgs.any { (name, value) -> value.isNotBlank() && CollectionSecrets.sensitive(name) } ->
+        source.extraArgs.any { (name, value) -> value.isNotBlank() && CollectionSecrets.sensitive(name) } ->
             "This catalog needs a private key. Put it in a collection instead."
         else -> null
     }
+
+    /** #264: the first source, and how many more. */
+    fun sourcesLabel(w: HomeWidget, defs: List<CatalogDef>): String =
+        sourceLabel(w.source, defs) + if (w.more.isEmpty()) "" else " + ${w.more.size} more"
 
     /** What the source is, for the widget lists on the TV and the phone. */
     fun sourceLabel(source: CollectionSource, defs: List<CatalogDef>): String = when (source.provider) {
@@ -135,7 +164,8 @@ object HomeWidgets {
         val raw = runCatching { json.decodeFromString(Pack.serializer(), text) }.getOrNull()?.takeIf { it.format == PACK_FORMAT }?.widgets
             ?: runCatching { json.decodeFromString<List<HomeWidget>>(text) }.getOrNull()
             ?: error("This is not an Ember widget pack.")
-        val usable = raw.map { w -> normalize(if (w.source.provider == "ember") w.copy(source = w.source.copy(ownerProfile = profile)) else w) }
+        fun own(s: CollectionSource) = if (s.provider == "ember") s.copy(ownerProfile = profile) else s
+        val usable = raw.map { w -> normalize(w.copy(source = own(w.source), more = w.more.map(::own))) }
             .filter { error(it) == null }.distinctBy { it.id }.take(MAX_WIDGETS)
         require(usable.isNotEmpty()) { "The pack has no widgets that can be used here." }
         usable
