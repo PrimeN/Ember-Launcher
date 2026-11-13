@@ -91,6 +91,8 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                         Chip(choice.name.lowercase().replaceFirstChar { it.uppercase() }, selected = section == choice) { state.section = choice }
                     }
                 }
+                // #266: Sort, Filters and the catalog menu sit at the right edge, with or without section choices.
+                else Spacer(Modifier.weight(1f))
                 when (section) {
                     // #244: type as one switch; Sort and Filters say what they are set to.
                     DiscoverSection.EXPLORE -> if (!kids) {
