@@ -45,18 +45,15 @@ internal object RemotePage {
         "\"" + name + "\":" + kotlinx.serialization.json.JsonPrimitive(svg(name)).toString()
     }
 
-    fun manifest(tv: String, accent: String): String = kotlinx.serialization.json.buildJsonObject {
-        fun put(k: String, v: String) = put(k, kotlinx.serialization.json.JsonPrimitive(v))
-        put("name", "Ember remote · ${tv.take(40)}"); put("short_name", "Ember remote"); put("start_url", "/"); put("scope", "/")
-        put("display", "standalone"); put("orientation", "portrait"); put("background_color", "#0F1013"); put("theme_color", "#0F1013")
-        put("description", "Control Ember on your TV")
-        put("icons", kotlinx.serialization.json.buildJsonArray {
-            listOf(192, 512).forEach { size -> add(kotlinx.serialization.json.buildJsonObject {
-                put("src", "/icon-$size.png"); put("sizes", "${size}x$size"); put("type", "image/png"); put("purpose", "any maskable")
-            }) }
-            add(kotlinx.serialization.json.buildJsonObject { put("src", "/icon.svg"); put("sizes", "any"); put("type", "image/svg+xml") })
-        })
-    }.toString().also { accentOf(accent) }
+    fun manifest(tv: String, accent: String): String {
+        fun obj(vararg pairs: Pair<String, String>) = kotlinx.serialization.json.JsonObject(pairs.associate { (k, v) -> k to kotlinx.serialization.json.JsonPrimitive(v) })
+        val icons = listOf(192, 512).map { size -> obj("src" to "/icon-$size.png", "sizes" to "${size}x$size", "type" to "image/png", "purpose" to "any maskable") } +
+            obj("src" to "/icon.svg", "sizes" to "any", "type" to "image/svg+xml")
+        val fields = obj("name" to "Ember remote · ${tv.take(40)}", "short_name" to "Ember remote", "start_url" to "/", "scope" to "/",
+            "display" to "standalone", "orientation" to "portrait", "background_color" to "#0F1013", "theme_color" to "#0F1013",
+            "description" to "Control Ember on your TV")
+        return kotlinx.serialization.json.JsonObject(fields + ("icons" to kotlinx.serialization.json.JsonArray(icons))).toString()
+    }
 
     fun iconSvg(accent: String) = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#121316"/><rect x="16" y="16" width="68" height="68" rx="20" fill="${accentOf(accent)}"/><path d="M43 36l23 14-23 14z" fill="#121316"/></svg>"""
 
