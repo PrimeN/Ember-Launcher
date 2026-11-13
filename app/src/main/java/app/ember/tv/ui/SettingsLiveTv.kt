@@ -123,15 +123,15 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
                 if(id.endsWith(":guide"))iptv.refreshGuide(id.removeSuffix(":guide")) else iptv.refresh(force=true,only=id)
             }
             iptv.guideProgress?.let { Text(it,color=Mute,fontSize=12.sp) }
-            Chip("Programme guide tools") { guideTools = true }
+            Chip(stringResource(R.string.st_programme_guide_tools)) { guideTools = true }
             Note(
                 stringResource(R.string.ui_add_an_m3u_playlist_link_or) +
-                    "use channel up and down (or Up and Down) to change channel, and Info for the playback panel. " +
-                    "Addon catalogs for Live TV are chosen in Settings > Addons & catalogs.",
+                    stringResource(R.string.st_use_channel_up_and_down_or) +
+                    stringResource(R.string.st_addon_catalogs_for_live_tv_are),
             )
         }
 
-        Section(stringResource(R.string.ui_your_sources), if (iptv.sources.isEmpty()) "None yet." else "${iptv.channels.size} channels · guide for ${iptv.guide.size}") {
+        Section(stringResource(R.string.ui_your_sources), if (iptv.sources.isEmpty()) stringResource(R.string.st_none_yet) else stringResource(R.string.st_channels_guide_for, iptv.channels.size, iptv.guide.size)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 iptv.message?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
                 iptv.sources.forEach { s ->
@@ -160,8 +160,8 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
                 }
                 if (iptv.sources.isNotEmpty()) {
                     ButtonRow(spacing = 10.dp) {
-                        Chip(if (iptv.loading) "Loading channels..." else "Reload channels") { iptv.refresh(force = false) }
-                        Chip(if (iptv.guideLoading) "Loading the guide..." else "Reload the guide") { iptv.refreshGuide() }
+                        Chip(if (iptv.loading) stringResource(R.string.st_loading_channels) else stringResource(R.string.st_reload_channels)) { iptv.refresh(force = false) }
+                        Chip(if (iptv.guideLoading) stringResource(R.string.st_loading_the_guide) else stringResource(R.string.st_reload_the_guide)) { iptv.refreshGuide() }
                     }
                 }
             }
@@ -185,7 +185,7 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
                     TextInput(agent, { agent = it }, "User agent, only if your provider asks for one", width = 760)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Chip(if (vm.iptvSetup.iptvAdding) "Adding..." else "Add source") {
+                    Chip(if (vm.iptvSetup.iptvAdding) stringResource(R.string.st_adding) else stringResource(R.string.st_add_source)) {
                         vm.iptvSetup.addIptvSource(kind, name, url, user, pass, epg, agent, format) {
                             name = ""; url = ""; user = ""; pass = ""; epg = ""; agent = ""
                         }
@@ -194,7 +194,7 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
                 }
                 Note(
                     stringResource(R.string.ui_logins_and_links_are_stored_encrypted) +
-                        "The guide comes from the playlist (url-tvg) or the Xtream server unless you give a link, and refreshes every 12 hours.",
+                        stringResource(R.string.st_the_guide_comes_from_the_playlist),
                 )
             }
         }

@@ -64,6 +64,14 @@ class SettingsRoundTest {
         assertTrue(SettingsOptionIndex.search("passthrough").any { it.tab == SettingsTab.AUDIO_VIDEO })
     }
 
+    /** #272/#273: the reset section reads its words from resources. */
+    @Test fun resetSectionShowsTranslatedLabels() {
+        compose.setContent { EmberTheme(0) { ResetPageButton(SettingsTab.SIZE) } }
+        compose.onNodeWithText("Reset this page").assertExists()
+        compose.onNodeWithText("Reset Size & spacing").performSemanticsAction(SemanticsActions.OnClick) { it() }
+        compose.onNodeWithText("Reset Size & spacing?").assertExists()
+    }
+
     /** #273: a page reset clears only that page's settings. */
     @Test fun resetClearsOnlyThatPage() {
         val app = RuntimeEnvironment.getApplication()

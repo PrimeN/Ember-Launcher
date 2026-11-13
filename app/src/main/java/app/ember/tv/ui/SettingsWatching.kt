@@ -136,7 +136,7 @@ internal fun UpdateProgressBar(stage: String, progress: Float) {
 /** Settings > System > Updates: new versions from the GitHub repository; Ember installs them and restarts. */
 @Composable
 internal fun UpdatesSection(vm: HomeViewModel) {
-    Section(stringResource(R.string.ui_updates), "Ember ${app.ember.tv.BuildConfig.VERSION_NAME} · build ${app.ember.tv.BuildConfig.VERSION_CODE}",id="updates") {
+    Section(stringResource(R.string.ui_updates), stringResource(R.string.st_ember_build, app.ember.tv.BuildConfig.VERSION_NAME, app.ember.tv.BuildConfig.VERSION_CODE),id="updates") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // What is installed now, next to what the check finds.
             Text(stringResource(R.string.tx_installed_version_build, app.ember.tv.BuildConfig.VERSION_NAME, app.ember.tv.BuildConfig.VERSION_CODE) +
@@ -144,8 +144,8 @@ internal fun UpdatesSection(vm: HomeViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Chip(stringResource(R.string.ui_check_now)) { vm.updates.checkForUpdate(manual = true) }
                 vm.updates.update?.let { u ->
-                    if (vm.updates.updateProgress == null && vm.updates.installProgress == null) Chip("Install ${u.name}", selected = true) { vm.updates.installUpdate() }
-                    if (vm.updates.updateProgress != null) Chip("Cancel") { vm.updates.cancelUpdate() }
+                    if (vm.updates.updateProgress == null && vm.updates.installProgress == null) Chip(stringResource(R.string.st_install, u.name), selected = true) { vm.updates.installUpdate() }
+                    if (vm.updates.updateProgress != null) Chip(stringResource(R.string.ui_cancel)) { vm.updates.cancelUpdate() }
                 }
             }
             // #212: one bar through downloading and installing.
@@ -154,19 +154,19 @@ internal fun UpdatesSection(vm: HomeViewModel) {
             vm.updates.updateMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
             vm.updates.update?.notes?.takeIf { it.isNotBlank() }?.let { Note(it.take(600)) }
             ToggleRow(
-                "Beta updates",
-                if (vm.updates.updateBeta) "Published beta builds from the public Ember repository. No token required."
-                else "Published releases from the public Ember repository. No token required.",
+                stringResource(R.string.st_beta_updates),
+                if (vm.updates.updateBeta) stringResource(R.string.st_published_beta_builds_from_the_public)
+                else stringResource(R.string.st_published_releases_from_the_public_ember),
                 vm.updates.updateBeta,
             ) { vm.updates.toggleUpdateBeta() }
             if (vm.updates.updateBeta) {
                 Choice(listOf("releases" to "Releases", "actions" to "Actions APK"), vm.updates.updateBetaSource, stringResource(R.string.tx_beta_update_source)) { vm.updates.updateBetaSource(it) }
                 Note(if (vm.updates.updateBetaSource == "actions")
-                    "Latest successful signed public beta build. Downloads use nightly.link; APKs expire after three days."
-                    else "Only explicitly published public beta releases.")
+                    stringResource(R.string.st_latest_successful_signed_public_beta_build)
+                    else stringResource(R.string.st_only_explicitly_published_public_beta_release))
             }
             ToggleRow(stringResource(R.string.ui_check_once_a_day), stringResource(R.string.ui_when_ember_starts_a_message_appears), vm.updates.updateAutoCheck) { vm.updates.toggleUpdateAutoCheck() }
-            Note("Stable updates use published releases. Actions APKs are available after a successful beta build. Turning beta off returns to stable releases when a newer build is available.")
+            Note(stringResource(R.string.st_stable_updates_use_published_releases_actions))
         }
     }
 }

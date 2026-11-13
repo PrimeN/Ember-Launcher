@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,17 +37,17 @@ internal fun ProviderDiagnosticsSettings() {
             catch(_:Exception){message="Could not save diagnostics. Choose another document provider."}
         }
     }
-    Section("Provider diagnostics","Recent request timings from this session. Source names, URLs, credentials and raw errors are omitted.",id="provider-diagnostics") {
-        if(rows.isEmpty())Note("No completed source requests in this session yet.")
+    Section(stringResource(R.string.st_provider_diagnostics),stringResource(R.string.st_recent_request_timings_from_this_session),id="provider-diagnostics") {
+        if(rows.isEmpty())Note(stringResource(R.string.st_no_completed_source_requests_in_this))
         ButtonRow {
-                Chip("Export timings") {
+                Chip(stringResource(R.string.st_export_timings)) {
                     pending=SourceDiagnostics.export()
                     try {save.launch("ember-provider-diagnostics.json")}
                     catch(_:ActivityNotFoundException){pending=null;message="No document picker is installed."}
                     catch(_:SecurityException){pending=null;message="The device blocked document access."}
                 }
-                Chip("Clear") {SourceDiagnostics.clear()}
-                if(rows.size>12)Chip(if(showAll)"Show latest 12" else "Show all ${rows.size}") {showAll=!showAll}
+                Chip(stringResource(R.string.ui_clear)) {SourceDiagnostics.clear()}
+                if(rows.size>12)Chip(if(showAll)stringResource(R.string.st_show_latest_12) else stringResource(R.string.st_show_all, rows.size)) {showAll=!showAll}
         }
         rows.take(if(showAll)64 else 12).forEach {row->key(row.group,row.reference) {
             Focusable(onClick={},modifier=Modifier.fillMaxWidth(),focusedScale=TvTokens.Focus.None) {

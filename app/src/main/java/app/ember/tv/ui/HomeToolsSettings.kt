@@ -86,31 +86,31 @@ internal object AppChoices {
     var chooseApps by remember {mutableStateOf<String?>(null)}
     Column(verticalArrangement=Arrangement.spacedBy(22.dp)) {
         // #190: the two places apps show, each choosing its apps in a dialog instead of a switch per app down the page.
-        if(part==HomeToolsPart.FOLDERS)Section("Apps on Home","The Apps widget on Home. All your apps show by default, as many as fit; hold OK on an app on Home to move it.",id="apps-on-home") {
+        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.ui_apps_on_home),stringResource(R.string.st_the_apps_widget_on_home_all),id="apps-on-home") {
             val on=vm.sections.sectionOn(HomeViewModel.HOME_APPS)
-            SettingToggle("Show apps on Home","The Apps widget. Its place among Home's widgets is set in Widgets & collections.",on){vm.sections.toggleSection(HomeViewModel.HOME_APPS)}
-            SettingValueRow("Apps on Home",AppChoices.count(vm.apps.count {it.pkg !in vm.hidden},vm.apps.size)){chooseApps="home"}
+            SettingToggle(stringResource(R.string.st_show_apps_on_home),stringResource(R.string.st_the_apps_widget_its_place_among),on){vm.sections.toggleSection(HomeViewModel.HOME_APPS)}
+            SettingValueRow(stringResource(R.string.ui_apps_on_home),AppChoices.count(vm.apps.count {it.pkg !in vm.hidden},vm.apps.size)){chooseApps="home"}
             Text(stringResource(R.string.ui_rows_of_apps),fontSize=15.sp)
             ButtonRow(spacing=10.dp) {
-                Chip("One row",selected=vm.homeAppRows==1){vm.updateHomeAppRows(1)}
-                Chip("Two rows",selected=vm.homeAppRows==2){vm.updateHomeAppRows(2)}
+                Chip(stringResource(R.string.ui_one_row),selected=vm.homeAppRows==1){vm.updateHomeAppRows(1)}
+                Chip(stringResource(R.string.ui_two_rows),selected=vm.homeAppRows==2){vm.updateHomeAppRows(2)}
             }
         }
-        if(part==HomeToolsPart.FOLDERS)Section("Apps page","The page that lists every app.",id="apps-page") {
+        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.st_apps_page),stringResource(R.string.st_the_page_that_lists_every_app),id="apps-page") {
             val all=vm.appAccess.page(true)
-            SettingValueRow("Apps on the Apps page",AppChoices.count(all.count {it.pkg !in vm.appsPageOff},all.size)){chooseApps="page"}
+            SettingValueRow(stringResource(R.string.st_apps_on_the_apps_page),AppChoices.count(all.count {it.pkg !in vm.appsPageOff},all.size)){chooseApps="page"}
         }
-        if(part==HomeToolsPart.FOLDERS)Section("Personal Home", "App order, visibility, folders, artwork and Light choices are saved separately for each profile.") {
-            Chip("New app folder"){vm.homeFeatureAction="edit:folder-new"}
+        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.st_personal_home), stringResource(R.string.st_app_order_visibility_folders_artwork_and)) {
+            Chip(stringResource(R.string.st_new_app_folder)){vm.homeFeatureAction="edit:folder-new"}
             vm.personalHomes.current.folders.forEachIndexed {index,f->ButtonRow {
-                Chip("Edit ${f.name}"){vm.homeFeatureAction="edit:folder:${f.id}"}
-                if(index>0)Chip("Move earlier"){vm.personalHomes.update {p->val folders=p.folders.toMutableList();java.util.Collections.swap(folders,index,index-1);p.copy(folders=folders)}}
+                Chip(stringResource(R.string.st_edit, f.name)){vm.homeFeatureAction="edit:folder:${f.id}"}
+                if(index>0)Chip(stringResource(R.string.ui_move_earlier)){vm.personalHomes.update {p->val folders=p.folders.toMutableList();java.util.Collections.swap(folders,index,index-1);p.copy(folders=folders)}}
             }}
             Text(stringResource(R.string.tx_hold_ok_on_an_app_to),color=Mute,fontSize=14.sp)
-            if(vm.launcherExtras.options.lockedApps.isNotEmpty())Chip("Remove all app PIN locks") {vm.pin.withPin("Enter the administrator PIN"){vm.launcherExtras.update {it.copy(lockedApps=emptySet())}}}
+            if(vm.launcherExtras.options.lockedApps.isNotEmpty())Chip(stringResource(R.string.st_remove_all_app_pin_locks)) {vm.pin.withPin("Enter the administrator PIN"){vm.launcherExtras.update {it.copy(lockedApps=emptySet())}}}
         }
         if(part==HomeToolsPart.FOLDERS)HiddenAppsSection(vm)
-        if(part==HomeToolsPart.STARTUP)Section("Start with the TV", "Choose Home, an app, an input or a presentation. Child profiles stay on Home.") {
+        if(part==HomeToolsPart.STARTUP)Section(stringResource(R.string.st_start_with_the_tv), stringResource(R.string.st_choose_home_an_app_an_input)) {
             // #224: where the TV opens, as pictures; an app or an input is then picked from its own list.
             val now=when(opts.destination){"app"->vm.apps.firstOrNull {it.pkg==opts.target}?.label;"input"->"TV input";else->null}
             PictureChoice("start",StartupChoices.options,StartupChoices.normalize(opts.destination)) {kind->
@@ -120,31 +120,31 @@ internal object AppChoices {
                 }
             }
             now?.let {Text(stringResource(R.string.tx_opens, it),color=Mute,fontSize=13.sp)}
-            SettingToggle("At startup",null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
-            SettingToggle("After standby","Wake launching requires Ember to be the active Home, or its Home button service to be enabled.",opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
+            SettingToggle(stringResource(R.string.st_at_startup),null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
+            SettingToggle(stringResource(R.string.st_after_standby),stringResource(R.string.st_wake_launching_requires_ember_to_be),opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
         }
-        if(part==HomeToolsPart.EXTRAS)Section("Now Playing", "Control supported apps from Light Home or the quick menu. No listening history is stored.") {
-            SettingToggle("Show Now Playing",null,opts.nowPlaying){vm.launcherExtras.update {it.copy(nowPlaying=!it.nowPlaying)}}
+        if(part==HomeToolsPart.EXTRAS)Section(stringResource(R.string.st_now_playing), stringResource(R.string.st_control_supported_apps_from_light_home)) {
+            SettingToggle(stringResource(R.string.st_show_now_playing),null,opts.nowPlaying){vm.launcherExtras.update {it.copy(nowPlaying=!it.nowPlaying)}}
             if(opts.nowPlaying) {
                 Text(if(PlaybackAccess.granted(context))"Media control access allowed" else "Media control access needed",color=Mute,fontSize=14.sp)
-                Chip("Allow media controls"){runCatching {context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}.onFailure {vm.showNotice("This TV does not expose notification-listener access.")}}
+                Chip(stringResource(R.string.st_allow_media_controls)){runCatching {context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}.onFailure {vm.showNotice("This TV does not expose notification-listener access.")}}
                 NowPlayingPanel(vm)
             }
         }
-        if(part==HomeToolsPart.EXTRAS)Section("Presentation", "Loop photos and videos. Selected local files must remain available; settings backups keep the playlist but do not copy large media files.") {
+        if(part==HomeToolsPart.EXTRAS)Section(stringResource(R.string.st_presentation), stringResource(R.string.st_loop_photos_and_videos_selected_local)) {
             ButtonRow {
-                Chip("Choose media on TV"){vm.homeFeatureAction="edit:presentation-add"}
-                if(opts.slides.isNotEmpty())Chip("Start presentation"){if(!vm.profiles.profile.kids)PresentationActivity.start(context) else vm.showNotice("Switch to an adult profile to use presentation mode.")}
+                Chip(stringResource(R.string.st_choose_media_on_tv)){vm.homeFeatureAction="edit:presentation-add"}
+                if(opts.slides.isNotEmpty())Chip(stringResource(R.string.st_start_presentation)){if(!vm.profiles.profile.kids)PresentationActivity.start(context) else vm.showNotice("Switch to an adult profile to use presentation mode.")}
             }
             Text(stringResource(R.string.tx_small_photos_and_videos_can_also),color=Mute,fontSize=13.sp)
-            SettingToggle("Keep screen awake","Applies only while the presentation is open.",opts.keepAwake){vm.launcherExtras.update {it.copy(keepAwake=!it.keepAwake)}}
+            SettingToggle(stringResource(R.string.st_keep_screen_awake),stringResource(R.string.st_applies_only_while_the_presentation_is),opts.keepAwake){vm.launcherExtras.update {it.copy(keepAwake=!it.keepAwake)}}
             Text(stringResource(R.string.tx_photo_duration),fontSize=15.sp)
             StepSlider("Seconds per slide",listOf(5,10,20,30,60),opts.slideSeconds,{"${it}s"}){seconds->vm.launcherExtras.update {it.copy(slideSeconds=seconds)}}
             opts.slides.forEachIndexed {index,item->
                 Text("${index+1}. ${item.name}",fontSize=14.sp,maxLines=2)
                 ButtonRow {
-                    if(index>0)Chip("Earlier"){vm.launcherExtras.update {p->val rows=p.slides.toMutableList();java.util.Collections.swap(rows,index,index-1);p.copy(slides=rows)}}
-                    Chip("Remove") {vm.launcherExtras.update {it.copy(slides=it.slides.filterNot {s->s.id==item.id})};scope.launch(Dispatchers.IO){PresentationMedia.removeUpload(context,item)}}
+                    if(index>0)Chip(stringResource(R.string.st_earlier)){vm.launcherExtras.update {p->val rows=p.slides.toMutableList();java.util.Collections.swap(rows,index,index-1);p.copy(slides=rows)}}
+                    Chip(stringResource(R.string.cal_remove_clip)) {vm.launcherExtras.update {it.copy(slides=it.slides.filterNot {s->s.id==item.id})};scope.launch(Dispatchers.IO){PresentationMedia.removeUpload(context,item)}}
                 }
             }
         }
@@ -157,9 +157,9 @@ internal object AppChoices {
         MediaDialog(if(home)"Apps on Home" else "Apps on the Apps page",{chooseApps=null}, wide = true) {
             Text(AppChoices.count(all.count {shown(it.pkg)},all.size)+". Highlighted apps are shown; press OK to switch one.",color=Mute,fontSize=13.sp)
             ButtonRow {
-                Chip("Show all"){all.forEach {if(!shown(it.pkg))toggle(it.pkg)}}
-                Chip("Hide all"){all.forEach {if(shown(it.pkg))toggle(it.pkg)}}
-                Chip("Done"){chooseApps=null}
+                Chip(stringResource(R.string.st_show_all)){all.forEach {if(!shown(it.pkg))toggle(it.pkg)}}
+                Chip(stringResource(R.string.st_hide_all)){all.forEach {if(shown(it.pkg))toggle(it.pkg)}}
+                Chip(stringResource(R.string.st_done)){chooseApps=null}
             }
             // #210: icons, six to a row; a hidden app is dimmed and unticked.
             Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -201,10 +201,10 @@ internal object AppChoices {
         val actions=current.controller.playbackState?.actions ?: 0L
         ButtonRow {
             fun control(action:()->Unit){if(!vm.profiles.profile.kids && vm.appAccess.canLaunch(current.pkg))runCatching(action).onFailure {vm.showNotice("This session is no longer available.")}}
-            if(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS!=0L)Chip("Previous"){control {current.controller.transportControls.skipToPrevious()}}
-            if(actions and (android.media.session.PlaybackState.ACTION_PLAY or android.media.session.PlaybackState.ACTION_PAUSE or android.media.session.PlaybackState.ACTION_PLAY_PAUSE)!=0L)Chip(if(current.playing)"Pause" else "Play"){control {if(current.playing)current.controller.transportControls.pause() else current.controller.transportControls.play()}}
-            if(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT!=0L)Chip("Next"){control {current.controller.transportControls.skipToNext()}}
-            Chip("Open app"){vm.appAccess.page(false).firstOrNull {it.pkg==current.pkg}?.let {vm.pendingAppLaunch=it}}
+            if(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS!=0L)Chip(stringResource(R.string.st_previous)){control {current.controller.transportControls.skipToPrevious()}}
+            if(actions and (android.media.session.PlaybackState.ACTION_PLAY or android.media.session.PlaybackState.ACTION_PAUSE or android.media.session.PlaybackState.ACTION_PLAY_PAUSE)!=0L)Chip(if(current.playing)stringResource(R.string.player_pause) else stringResource(R.string.cal_play_clip)){control {if(current.playing)current.controller.transportControls.pause() else current.controller.transportControls.play()}}
+            if(actions and android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT!=0L)Chip(stringResource(R.string.st_next)){control {current.controller.transportControls.skipToNext()}}
+            Chip(stringResource(R.string.st_open_app)){vm.appAccess.page(false).firstOrNull {it.pkg==current.pkg}?.let {vm.pendingAppLaunch=it}}
         }
     }
 }
@@ -217,7 +217,7 @@ internal object AppChoices {
     val offHome=vm.hidden;val hiddenApps=vm.appsPageOff
     val apps=vm.appAccess.page(true).filter {it.pkg in offHome || it.pkg in hiddenApps}
     val pages=app.ember.tv.data.LightNavigation.entries(vm.visibleTabs).filter {it.pkg in vm.personalHomes.current.lightNavHidden}
-    Section("Hidden apps","Apps taken off Home or hidden, and Ember Light page tiles you hid. Show one to put it back.",id="hidden-apps") {
+    Section(stringResource(R.string.st_hidden_apps),stringResource(R.string.st_apps_taken_off_home_or_hidden),id="hidden-apps") {
         if(apps.isEmpty() && pages.isEmpty())Text(stringResource(R.string.tx_nothing_is_hidden),color=Mute,fontSize=14.sp)
         apps.forEach {a->HiddenAppRow(a.label,if(a.pkg in hiddenApps)"Hidden" else "Not on Home") {
             if(a.pkg in hiddenApps)vm.toggleAppsPage(a.pkg)
@@ -233,6 +233,6 @@ internal object AppChoices {
             Text(name,fontSize=16.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             Text(state,color=Mute,fontSize=13.sp,maxLines=1)
         }
-        Chip("Show",maxLines=1,modifier=Modifier.semantics {contentDescription="Show $name"},onClick=show)
+        Chip(stringResource(R.string.st_show),maxLines=1,modifier=Modifier.semantics {contentDescription="Show $name"},onClick=show)
     }
 }

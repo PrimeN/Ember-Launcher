@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -8,11 +11,11 @@ import app.ember.tv.HomeViewModel
 
 @Composable internal fun WatchStatusSettings(vm:HomeViewModel) {
     Column(verticalArrangement=Arrangement.spacedBy(16.dp)) {
-    Section("Watched indicators","Show a check on watched movies, completed shows and episodes. Hold OK on a title to change its watched mark.",id="watch-status") {
-        ToggleRow("Show watched indicators",null,vm.look.showWatchedBadges){vm.look.updateShowWatchedBadges(!vm.look.showWatchedBadges)}
+    Section(stringResource(R.string.st_watched_indicators),stringResource(R.string.st_show_a_check_on_watched_movies),id="watch-status") {
+        ToggleRow(stringResource(R.string.st_show_watched_indicators),null,vm.look.showWatchedBadges){vm.look.updateShowWatchedBadges(!vm.look.showWatchedBadges)}
     }
-    Section("Episode spoilers","Blur unwatched episode artwork until it is watched or marked watched. Titles and descriptions remain visible.",id="episode-spoilers") {
-        ToggleRow("Blur unwatched episode artwork",null,vm.look.blurUnwatchedEpisodes){vm.look.updateBlurUnwatchedEpisodes(!vm.look.blurUnwatchedEpisodes)}
+    Section(stringResource(R.string.st_episode_spoilers),stringResource(R.string.st_blur_unwatched_episode_artwork_until_it),id="episode-spoilers") {
+        ToggleRow(stringResource(R.string.st_blur_unwatched_episode_artwork),null,vm.look.blurUnwatchedEpisodes){vm.look.updateBlurUnwatchedEpisodes(!vm.look.blurUnwatchedEpisodes)}
     }
     }
 }

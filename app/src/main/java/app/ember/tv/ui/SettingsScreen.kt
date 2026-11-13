@@ -197,11 +197,11 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.DISCOVER -> item(key = "discover-sections") { DiscoverSettings(vm) }
             SettingsTab.HOME_ROWS, SettingsTab.WIDGETS -> {
                 item(key = "widgets") { WidgetsSettings(vm) }
-                item(key = "collections") { Section("Collections", "Rows of folder tiles on Home and Discover; each folder opens one or more catalogs.", id = "collections") { CollectionsSettings(vm) } }
+                item(key = "collections") { Section(stringResource(R.string.st_collections), stringResource(R.string.st_rows_of_folder_tiles_on_home), id = "collections") { CollectionsSettings(vm) } }
             }
             SettingsTab.LIGHT_HOME -> {
                 if (vm.look.uiStyle != app.ember.tv.data.InterfaceStyles.LIGHT) item(key = "light-note") {
-                    Note("These options apply when Appearance > Interface is Ember Light.")
+                    Note(stringResource(R.string.st_these_options_apply_when_appearance_interface))
                 }
                 appearancePage(vm, SettingsTab.LIGHT_HOME)
             }
@@ -276,7 +276,7 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.UPDATES -> item(key="updates") {UpdatesSection(vm)}
             SettingsTab.DEBUG -> {
                 CACHE_KEYS.forEach { part -> item(key=part) { CacheManagementSettings(part) } }
-                item(key="debug-build") {Section("Build information",id="debug-build") {
+                item(key="debug-build") {Section(stringResource(R.string.st_build_information),id="debug-build") {
                     Text("${app.ember.tv.BuildConfig.VERSION_NAME} · ${app.ember.tv.BuildConfig.BUILD_TYPE}",color=Fg)
                     if(app.ember.tv.BuildConfig.DEBUG)Note(stringResource(R.string.ui_this_is_a_debug_build_updates))
                 }}

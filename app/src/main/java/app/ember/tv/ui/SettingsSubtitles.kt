@@ -109,7 +109,7 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
             )
         }
 
-        Section(stringResource(R.string.ui_languages), if (c.languages.isEmpty()) "Using the TV's language${if (androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language != "en") " and English" else ""}." else "First is the main one. Up to three.") {
+        Section(stringResource(R.string.ui_languages), if (c.languages.isEmpty()) stringResource(R.string.st_using_the_tv_s_language, (if (androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language != "en") " and English" else "")) else stringResource(R.string.st_first_is_the_main_one_up)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (c.languages.isNotEmpty()) {
                     ButtonRow(spacing = 10.dp) {
@@ -142,46 +142,46 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
 
         Section(stringResource(R.string.ui_providers)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OnOff("Your Stremio addons", c.addonSubs) { vm.playerSettings.updateSubtitleConfig { it.copy(addonSubs = !it.addonSubs) } }
-                OnOff("OpenSubtitles (free, no key)", c.stremioOpenSubs) { vm.playerSettings.updateSubtitleConfig { it.copy(stremioOpenSubs = !it.stremioOpenSubs) } }
-                OnOff("OpenSubtitles.com", c.openSubsCom, note = if (osReady) "Key set" else "Needs an API key") { vm.playerSettings.updateSubtitleConfig { it.copy(openSubsCom = !it.openSubsCom) } }
-                OnOff("SubDL", c.subdl, note = if (subdlReady) "Key set" else "Needs an API key") { vm.playerSettings.updateSubtitleConfig { it.copy(subdl = !it.subdl) } }
+                OnOff(stringResource(R.string.st_your_stremio_addons), c.addonSubs) { vm.playerSettings.updateSubtitleConfig { it.copy(addonSubs = !it.addonSubs) } }
+                OnOff(stringResource(R.string.st_opensubtitles_free_no_key), c.stremioOpenSubs) { vm.playerSettings.updateSubtitleConfig { it.copy(stremioOpenSubs = !it.stremioOpenSubs) } }
+                OnOff(stringResource(R.string.st_opensubtitles_com), c.openSubsCom, note = if (osReady) "Key set" else "Needs an API key") { vm.playerSettings.updateSubtitleConfig { it.copy(openSubsCom = !it.openSubsCom) } }
+                OnOff(stringResource(R.string.st_subdl), c.subdl, note = if (subdlReady) "Key set" else "Needs an API key") { vm.playerSettings.updateSubtitleConfig { it.copy(subdl = !it.subdl) } }
                 Chip(stringResource(R.string.ui_api_keys)) { openKeys() }
                 Note(
                     stringResource(R.string.ui_opensubtitles_free_is_the_same_service) +
-                        "OpenSubtitles.com with a key adds release names, frame rates, trusted uploaders and hearing-impaired flags; add your login for more downloads a day. " +
-                        "SubDL adds a second large library.",
+                        stringResource(R.string.st_opensubtitles_com_with_a_key_adds) +
+                        stringResource(R.string.st_subdl_adds_a_second_large_library),
                 )
             }
         }
 
         Section(stringResource(R.string.ui_matching)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OnOff("Match to the exact file", c.hashMatch) { vm.playerSettings.updateSubtitleConfig { it.copy(hashMatch = !it.hashMatch) } }
-                OnOff("Skip machine-translated", c.skipMachine) { vm.playerSettings.updateSubtitleConfig { it.copy(skipMachine = !it.skipMachine) } }
+                OnOff(stringResource(R.string.st_match_to_the_exact_file), c.hashMatch) { vm.playerSettings.updateSubtitleConfig { it.copy(hashMatch = !it.hashMatch) } }
+                OnOff(stringResource(R.string.st_skip_machine_translated), c.skipMachine) { vm.playerSettings.updateSubtitleConfig { it.copy(skipMachine = !it.skipMachine) } }
                 Choice(
                     listOf("avoid" to "Avoid", "include" to "No preference", "prefer" to "Prefer", "exclude" to "Never"),
                     c.hearingImpaired, stringResource(R.string.ui_hearing_impaired_sdh),
                 ) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(hearingImpaired = m) } }
                 Note(
                     stringResource(R.string.ui_match_to_the_exact_file_reads) +
-                        "The rest are ranked by how closely their release name matches the source (group, source such as WEB-DL or BluRay, resolution, edition), frame rate, uploader trust and downloads.",
+                        stringResource(R.string.st_the_rest_are_ranked_by_how),
                 )
             }
         }
 
         Section(stringResource(R.string.ui_look)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OnOff("Preserve authored subtitle styles",c.authoredStyles) {vm.playerSettings.updateSubtitleConfig {it.copy(authoredStyles=!it.authoredStyles)}}
-                OnOff("Use system caption style",c.systemStyle) {vm.playerSettings.updateSubtitleConfig {it.copy(systemStyle=!it.systemStyle)}}
+                OnOff(stringResource(R.string.st_preserve_authored_subtitle_styles),c.authoredStyles) {vm.playerSettings.updateSubtitleConfig {it.copy(authoredStyles=!it.authoredStyles)}}
+                OnOff(stringResource(R.string.st_use_system_caption_style),c.systemStyle) {vm.playerSettings.updateSubtitleConfig {it.copy(systemStyle=!it.systemStyle)}}
                 // #219: a live preview, then every choice as a sample of itself.
-                if (c.systemStyle) Note("Using the TV's caption style: the TV's own colours and outline replace these.")
+                if (c.systemStyle) Note(stringResource(R.string.st_using_the_tv_s_caption_style))
                 SubtitlePreview(c)
                 SubtitleChoice("Size", SubtitleLooks.sizes, c.size, c, { x, v -> x.copy(size = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(size = m) } }
                 SubtitleChoice("Outline", SubtitleLooks.backgrounds, c.background, c, { x, v -> x.copy(background = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(background = m) } }
                 SubtitleChoice("Colour", SubtitleLooks.colors, c.color, c, { x, v -> x.copy(color = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(color = m) } }
                 SubtitleChoice(stringResource(R.string.ui_position), SubtitleLooks.positions, c.position, c, { x, v -> x.copy(position = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(position = m) } }
-                Note("Higher keeps subtitles above a projector's masking or a scope screen's bar.")
+                Note(stringResource(R.string.st_higher_keeps_subtitles_above_a_projector))
                 SubtitleFontSettings(vm, c)
             }
         }
@@ -204,7 +204,7 @@ private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.Subtitl
     Text(stringResource(R.string.tx_custom_font), fontSize = 15.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         TextInput(link, { link = it.take(500) }, "Link to a .ttf or .otf file")
-        Chip(if (busy) "Loading…" else if (hasCustom) "Replace font" else "Load font") {
+        Chip(if (busy) stringResource(R.string.tx_loading) else if (hasCustom) stringResource(R.string.st_replace_font) else stringResource(R.string.st_load_font)) {
             if (busy) return@Chip
             busy = true; message = null
             scope.launch {
@@ -216,7 +216,7 @@ private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.Subtitl
         }
     }
     message?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
-    Note("Use a direct link to the font file, such as one from Google Fonts' GitHub. The built-in player always uses it; the advanced player uses it when it can read the font.")
+    Note(stringResource(R.string.st_use_a_direct_link_to_the))
 }
 private val subtitleFontClient by lazy { okhttp3.OkHttpClient.Builder().callTimeout(30, java.util.concurrent.TimeUnit.SECONDS).build() }
 

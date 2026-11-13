@@ -109,7 +109,7 @@ internal fun LazyListScope.addonsPage(vm: HomeViewModel) {
         var organizing by remember { mutableStateOf(false) }
         if (organizing) ContentOrganizer(vm) { organizing = false }
         Section(stringResource(R.string.ui_stremio_addons), stringResource(R.string.ui_each_catalog_an_addon_offers_becomes)) {
-            Chip("Organize add-ons, catalogs and collections") { organizing = true }
+            Chip(stringResource(R.string.st_organize_add_ons_catalogs_and_collections)) { organizing = true }
             if (vm.addons.size > 1) Text(stringResource(R.string.tx_addon_order_note), color = Mute, fontSize = 13.sp)
             if (vm.addons.isEmpty()) {
                 Text(stringResource(R.string.ui_no_addons_yet_paste_a_link), color = Mute, fontSize = 14.sp)
@@ -197,11 +197,11 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
             if (flags.isNotEmpty()) Text(flags.joinToString("\n"), fontSize = TvTokens.Type.Caption.sp,
                 color = if (a.configurationRequired || a.adult) Color(0xFFFFB4AB) else Mute)
         }
-        ToggleRow("Enabled", null, vm.addonAvailable(url)) { vm.pauseAddon(url, vm.addonAvailable(url)) }
+        ToggleRow(stringResource(R.string.st_enabled), null, vm.addonAvailable(url)) { vm.pauseAddon(url, vm.addonAvailable(url)) }
         ButtonRow(spacing = 8.dp) {
             info?.configureUrl?.let { link ->
                 val context = androidx.compose.ui.platform.LocalContext.current
-                Chip(if (info?.configurationRequired == true) "Set it up" else "Its settings") {
+                Chip(if (info?.configurationRequired == true) stringResource(R.string.st_set_it_up) else stringResource(R.string.st_its_settings)) {
                     val opened = runCatching {
                         context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
                             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -210,7 +210,7 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
                 }
             }
             if (!renaming) Chip(stringResource(R.string.ui_rename)) { renaming = true }
-            Chip("Refresh") { vm.refreshAddon(url) }
+            Chip(stringResource(R.string.st_refresh)) { vm.refreshAddon(url) }
             // #267: the order addons are asked in.
             MoveButton(vm.addonLabel(url), vm.addons.indexOf(url), vm.addons.lastIndex) { step -> vm.moveAddon(url, step) }
             // #131: removing loses the addon's configured link, so it asks first.
@@ -299,12 +299,12 @@ private fun CatalogFilters(list: List<CatalogDef>, groups: List<CatalogBrowse.Gr
         ButtonRow(spacing = 8.dp) { CatalogBrowse.shows.forEach { (id, name) -> Chip(name, selected = CatalogBrowse.show == id) { CatalogBrowse.show = id } } }
         val types = CatalogBrowse.types(list)
         if (types.size > 1) ButtonRow(spacing = 8.dp) {
-            Chip("All types", selected = CatalogBrowse.type == CatalogBrowse.ALL) { CatalogBrowse.type = CatalogBrowse.ALL }
+            Chip(stringResource(R.string.st_all_types), selected = CatalogBrowse.type == CatalogBrowse.ALL) { CatalogBrowse.type = CatalogBrowse.ALL }
             types.forEach { type -> Chip(CatalogBrowse.typeName(type), selected = CatalogBrowse.type == type) { CatalogBrowse.type = type } }
         }
         if (list.size > CatalogBrowse.SMALL && groups.size > 1) ButtonRow(spacing = 8.dp) {
-            Chip("Open all") { CatalogBrowse.open = groups.map { it.id }.toSet() }
-            Chip("Close all") { CatalogBrowse.open = emptySet() }
+            Chip(stringResource(R.string.st_open_all)) { CatalogBrowse.open = groups.map { it.id }.toSet() }
+            Chip(stringResource(R.string.st_close_all)) { CatalogBrowse.open = emptySet() }
         }
         Text(CatalogBrowse.summary(groups.sumOf { it.shown }, list.size, groups.size), color = Mute, fontSize = 13.sp)
     }
@@ -327,8 +327,8 @@ private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: 
             val all = g.byType.flatMap { it.second }.map { it.catalog }
             fun home(on: Boolean) = all.forEach { c -> if (c.homeable && vm.isOnHome(c) != on) vm.toggleCatalogHome(c) }
             fun discover(on: Boolean) = all.forEach { c -> if (c.browsable && vm.isInDiscover(c) != on) vm.toggleCatalogDiscover(c) }
-            Chip("All on Home") { home(true) }; Chip("None on Home") { home(false) }
-            Chip("All in Discover") { discover(true) }; Chip("None in Discover") { discover(false) }
+            Chip(stringResource(R.string.st_all_on_home)) { home(true) }; Chip(stringResource(R.string.st_none_on_home)) { home(false) }
+            Chip(stringResource(R.string.st_all_in_discover)) { discover(true) }; Chip(stringResource(R.string.st_none_in_discover)) { discover(false) }
         }
     }
 }
@@ -421,13 +421,13 @@ internal fun StremioFormatPage(vm: HomeViewModel) {
                 ToggleRow(stringResource(R.string.ui_custom_format), null, on) { vm.sourceFormat.updateStreamFormatOn(!on) }
                 Note(
                     if (on) stringResource(R.string.ui_templates_use_the_same_syntax_as) +
-                        "A connected keyboard can make editing templates easier. Templates are included in backups."
-                    else "Off: sources show the title, Ember's tags and the badges above. On: your own name and description templates, AIOStreams-style.",
+                        stringResource(R.string.st_a_connected_keyboard_can_make_editing)
+                    else stringResource(R.string.st_off_sources_show_the_title_ember),
                 )
             }
         }
         if (on) {
-            Section(stringResource(R.string.ui_preview), if (vm.sourceFormat.previewIsExample) "An example source. Open a title first to preview its real sources." else "The first source of the title you opened last.") {
+            Section(stringResource(R.string.ui_preview), if (vm.sourceFormat.previewIsExample) stringResource(R.string.st_an_example_source_open_a_title) else stringResource(R.string.st_the_first_source_of_the_title)) {
                 Row(
                     modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 18.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -458,7 +458,7 @@ internal fun StremioFormatPage(vm: HomeViewModel) {
                 onCancel = { editing = null },
                 onReset = { vm.sourceFormat.updateStreamTemplate(true, "") },
             )
-            Chip(if (showReference) "Hide the template reference" else "Template reference") { showReference = !showReference }
+            Chip(if (showReference) stringResource(R.string.st_hide_the_template_reference) else stringResource(R.string.ui_template_reference)) { showReference = !showReference }
             if (showReference) {
                 Section(stringResource(R.string.ui_template_reference)) {
                     Text(
@@ -479,7 +479,7 @@ internal fun StremioFormatPage(vm: HomeViewModel) {
         }
 
         // #163: Collections moved to Settings > Home > Widgets & collections.
-        Note("Collections are now in Settings > Home > Widgets & collections.")
+        Note(stringResource(R.string.st_collections_are_now_in_settings_home))
     }
 }
 /** A heading between the parts of a long Settings page. */
@@ -503,7 +503,7 @@ internal fun TemplateSection(
     onReset: () -> Unit,
 ) {
     var draft by remember(editing, value) { mutableStateOf(value) }
-    Section(title, subtitle + if (isDefault) " Default." else " Custom.") {
+    Section(title, subtitle + if (isDefault) stringResource(R.string.st_default) else stringResource(R.string.st_custom)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Buttons sit above the text, so they stay easy to reach while the text box has focus.
             ButtonRow(spacing = 10.dp) {

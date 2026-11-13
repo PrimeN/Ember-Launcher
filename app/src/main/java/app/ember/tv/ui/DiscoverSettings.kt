@@ -1,12 +1,15 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.runtime.Composable
 import app.ember.tv.HomeViewModel
 import app.ember.tv.state.DiscoverSection
 
 @Composable
 internal fun DiscoverSettings(vm: HomeViewModel) {
-    Section("Discover sections", "Explore is shown by default. Catalogs and Collections appear when content is available. A manual choice stays saved until you restore automatic defaults.") {
+    Section(stringResource(R.string.st_discover_sections), stringResource(R.string.st_explore_is_shown_by_default_catalogs)) {
         DiscoverSection.entries.forEach { section ->
             val on = vm.look.discoverSections[section.name] ?: when (section) {
                 DiscoverSection.EXPLORE -> true
@@ -20,12 +23,12 @@ internal fun DiscoverSettings(vm: HomeViewModel) {
             }
             SettingToggle(section.name.lowercase().replaceFirstChar { it.uppercase() }, note, on) { vm.look.updateDiscoverSection(section.name, !on) }
         }
-        Chip("Restore automatic defaults") { vm.look.resetDiscoverSections() }
+        Chip(stringResource(R.string.st_restore_automatic_defaults)) { vm.look.resetDiscoverSections() }
     }
-    Section("AI-assisted discovery", "Optional: describe what to watch, then review and apply ordinary Discover filters. Only your typed description is sent to Mistral; no profile or watch history. Requires Mistral and TMDB keys; provider charges may apply.", id = "ai-discovery") {
-        SettingToggle("AI-assisted discovery", "Off by default. Manual filters and saved searches remain available.", vm.look.aiDiscoveryEnabled) {
+    Section(stringResource(R.string.st_ai_assisted_discovery), stringResource(R.string.st_optional_describe_what_to_watch_then), id = "ai-discovery") {
+        SettingToggle(stringResource(R.string.st_ai_assisted_discovery), stringResource(R.string.st_off_by_default_manual_filters_and), vm.look.aiDiscoveryEnabled) {
             vm.look.updateAiDiscoveryEnabled(!vm.look.aiDiscoveryEnabled)
         }
-        Chip("API keys") { vm.openSettingsPage("KEYS") }
+        Chip(stringResource(R.string.settings_keys)) { vm.openSettingsPage("KEYS") }
     }
 }

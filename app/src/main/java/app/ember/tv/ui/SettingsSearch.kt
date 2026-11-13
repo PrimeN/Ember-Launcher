@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
@@ -61,7 +64,7 @@ private const val MAX_OPTION_HITS = 12
 
 @Composable
 internal fun SettingsSearchPage(vm: app.ember.tv.HomeViewModel, query: String, onQuery: (String) -> Unit, onOpen: (SettingsTab, String?) -> Unit) {
-    Section("Search settings", "Type a word (for example subtitles, Atmos, PIN, Trakt or theme); the pages that have it are listed.") {
+    Section(stringResource(R.string.settings_search), stringResource(R.string.st_type_a_word_for_example_subtitles)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             TextInput(query, onQuery, "Search", width = 520)
             val words = query.trim().lowercase().split(Regex("\\s+")).filter { it.length >= 2 }
@@ -81,7 +84,7 @@ internal fun SettingsSearchPage(vm: app.ember.tv.HomeViewModel, query: String, o
                 }
                 val hits = SETTINGS_INDEX.filter { (_, text) -> words.all { w -> w in text.lowercase() } }
                     .filter { (tab, _) -> exact.none { it.tab == tab } && options.none { it.tab == tab } }
-                if (hits.isEmpty() && exact.isEmpty() && options.isEmpty()) Note("Nothing found for \"${query.trim()}\".")
+                if (hits.isEmpty() && exact.isEmpty() && options.isEmpty()) Note(stringResource(R.string.st_nothing_found_for, (query.trim())))
                 hits.forEach { (tab, text) ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Chip(tab.title() + " ›") { onOpen(tab, null) }
@@ -93,9 +96,9 @@ internal fun SettingsSearchPage(vm: app.ember.tv.HomeViewModel, query: String, o
             }
         }
     }
-    Section("Search preferences", "Recent searches are stored for each profile after submitting typed or voice input. They are included if you export an encrypted settings backup.") {
-        ToggleRow("Remember recent searches", "Off by default. Turning off also deletes this profile’s history.", vm.recentSearchesEnabled) { vm.setRecentSearchesEnabled(!vm.recentSearchesEnabled) }
-        if (vm.recentSearches.isNotEmpty()) Chip("Clear recent searches") { vm.clearRecentSearches() }
+    Section(stringResource(R.string.st_search_preferences), stringResource(R.string.st_recent_searches_are_stored_for_each)) {
+        ToggleRow(stringResource(R.string.st_remember_recent_searches), stringResource(R.string.st_off_by_default_turning_off_also), vm.recentSearchesEnabled) { vm.setRecentSearchesEnabled(!vm.recentSearchesEnabled) }
+        if (vm.recentSearches.isNotEmpty()) Chip(stringResource(R.string.search_clear_recent)) { vm.clearRecentSearches() }
     }
 
 }

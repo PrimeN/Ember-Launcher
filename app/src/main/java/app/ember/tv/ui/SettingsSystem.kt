@@ -254,7 +254,7 @@ internal fun RestorePage(vm: HomeViewModel) {
  */
 @Composable
 internal fun TopMenuSection(vm: HomeViewModel) {
-    Section("Navbar tabs", "Switch tabs on or off. Home and Settings are always there.", id = "navbar-tabs") {
+    Section(stringResource(R.string.st_navbar_tabs), stringResource(R.string.st_switch_tabs_on_or_off_home), id = "navbar-tabs") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ButtonRow(spacing = 10.dp) {
                 vm.nav.filterNot { NavTabs.locked(it.first) }.forEach { (id, shown) ->
@@ -280,7 +280,7 @@ internal fun StreamingServicesHeader(vm: HomeViewModel, openKeys: () -> Unit) {
                 Chip(stringResource(R.string.ui_off), selected = vm.watch.watchProvider == "off") { vm.watch.updateWatchProvider("off") }
                 Chip(stringResource(R.string.ui_tmdb_justwatch_data), selected = vm.watch.watchProvider == "tmdb") { vm.watch.updateWatchProvider("tmdb") }
                 Chip(stringResource(R.string.ui_watchmode), selected = vm.watch.watchProvider == "watchmode") { vm.watch.updateWatchProvider("watchmode") }
-                Chip("Streaming Availability", selected = vm.watch.watchProvider == "streaming") { vm.watch.updateWatchProvider("streaming") }
+                Chip(stringResource(R.string.st_streaming_availability), selected = vm.watch.watchProvider == "streaming") { vm.watch.updateWatchProvider("streaming") }
             }
             Text(
                 when (vm.watch.watchProvider) {
@@ -374,19 +374,19 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 if (vm.plexConnected && "plex" in signedOut) {
                     // #94: Plex refused the saved sign-in.
                     Text(stringResource(R.string.tx_plex_no_longer_accepts_ember_s), color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
-                    Chip("Sign in again") { vm.startPlexLink() }
+                    Chip(stringResource(R.string.st_sign_in_again)) { vm.startPlexLink() }
                 }
                 Text(stringResource(R.string.ui_sign_in_with_a_code_at), color = Mute, fontSize = 13.sp)
                 if (vm.plexConnected) {
-                    Note("User: ${vm.plexUserName ?: "Account owner"}")
+                    Note(stringResource(R.string.st_user, (vm.plexUserName ?: "Account owner")))
                     ButtonRow(spacing = 8.dp) {
-                        Chip("Switch user") { userAccount = null; choosingUser = true }
+                        Chip(stringResource(R.string.st_switch_user)) { userAccount = null; choosingUser = true }
                         Chip(stringResource(R.string.ui_disconnect)) { vm.disconnectPlex() }
                     }
                 } else Chip(stringResource(R.string.ui_connect_plex)) { vm.startPlexLink() }
             }
 
-            ButtonRow { Chip("Done") { open = null } }
+            ButtonRow { Chip(stringResource(R.string.st_done)) { open = null } }
         }
         MediaServerTiles.ADD -> MediaDialog("Add a Jellyfin or Emby server", { open = null }, resizeForKeyboard = true, wide = true) {
             vm.serverMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
@@ -395,7 +395,7 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(stringResource(R.string.ui_add_a_jellyfin_or_emby_server), fontSize = 18.sp)
-                Chip(if (vm.discovering) "Looking..." else "Find servers on my network") { vm.discoverServers() }
+                Chip(if (vm.discovering) stringResource(R.string.st_looking) else stringResource(R.string.st_find_servers_on_my_network)) { vm.discoverServers() }
                 vm.found?.forEach { f ->
                     if (f.kind == "plex") {
                         Text(
@@ -423,12 +423,12 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                         password = ""
                     }
                     // #97: approve a code from the Jellyfin app instead of typing a password.
-                    if (kind == "jellyfin") Chip("Use Quick Connect") { vm.quickConnect(url) }
+                    if (kind == "jellyfin") Chip(stringResource(R.string.st_use_quick_connect)) { vm.quickConnect(url) }
                 }
                 if (kind == "jellyfin") Text(stringResource(R.string.tx_quick_connect_enter_the_address_then),
                     color = Mute, fontSize = 12.sp)
             }
-            ButtonRow { Chip("Done") { open = null } }
+            ButtonRow { Chip(stringResource(R.string.st_done)) { open = null } }
         }
         else -> vm.serverAccounts.firstOrNull { it.key == id }?.let { a ->
             MediaDialog(a.name, { open = null }, wide = true) {
@@ -439,14 +439,14 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(a.name, fontSize = 18.sp)
-                        if (a.userName.isNotBlank()) Note("User: ${a.userName}")
+                        if (a.userName.isNotBlank()) Note(stringResource(R.string.st_user, a.userName))
                         Text("${a.kind.replaceFirstChar { it.uppercase() }} · ${a.url}", color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (a.key in signedOut) Text(stringResource(R.string.tx_this_server_signed_ember_out_device),
                             color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
                     }
                     // #94: fills in the form below with this server, ready for the password or Quick Connect.
-                    if (a.key in signedOut) Chip("Sign in again") { kind = a.kind; url = a.url; user = a.userName; password = ""; open = MediaServerTiles.ADD }
-                    Chip("Switch user") { userAccount = a; choosingUser = true }
+                    if (a.key in signedOut) Chip(stringResource(R.string.st_sign_in_again)) { kind = a.kind; url = a.url; user = a.userName; password = ""; open = MediaServerTiles.ADD }
+                    Chip(stringResource(R.string.st_switch_user)) { userAccount = a; choosingUser = true }
                     var removing by remember(a.key) { mutableStateOf(false) }
                     Chip(stringResource(R.string.ui_remove)) { removing = true }
                     if (removing) ConfirmDestructive("Remove ${a.name}?",
@@ -454,7 +454,7 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                         { removing = false }, stringResource(R.string.ui_remove)) { vm.removeServer(a.key) }
                 }
             
-                ButtonRow { Chip("Done") { open = null } }
+                ButtonRow { Chip(stringResource(R.string.st_done)) { open = null } }
             }
         }
     }
@@ -473,7 +473,7 @@ internal fun ScreensaverSection(vm: HomeViewModel) {
             }
             // #224: each source as a picture; any number can be on.
             PictureToggles("saver", ScreensaverFeed.ALL.map { (id, label) -> id to label.substringBefore(" (") }, vm.screensaverSources.toSet()) { vm.toggleScreensaverSource(it) }
-            Note("Paintings come from the Cleveland Museum of Art and Space from NASA.")
+            Note(stringResource(R.string.st_paintings_come_from_the_cleveland_museum))
             if (ScreensaverFeed.PHOTOS in vm.screensaverSources) {
                 if (!vm.photosAllowed) {
                     Text(stringResource(R.string.ui_ember_needs_permission_to_read_pictures), color = Mute, fontSize = 13.sp)
@@ -505,7 +505,7 @@ internal fun WeatherSection(vm: HomeViewModel) {
     var city by remember { mutableStateOf("") }
     Section(stringResource(R.string.ui_weather), stringResource(R.string.ui_shown_in_the_top_bar_and)) {
         ButtonRow {app.ember.tv.weather.WeatherProviders.choices.forEach {(id,label)->Chip(label,selected=vm.weather.provider==id){vm.weather.updateProvider(id)}}}
-        SettingToggle("Use fallback weather sources",null,vm.weather.fallback){vm.weather.updateFallback(!vm.weather.fallback)}
+        SettingToggle(stringResource(R.string.st_use_fallback_weather_sources),null,vm.weather.fallback){vm.weather.updateFallback(!vm.weather.fallback)}
         vm.weather.details?.let {Text("${it.source} · " + if(vm.weather.updatedAt>0)java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(java.util.Date(vm.weather.updatedAt)) else "Saved forecast",color=Mute,fontSize=13.sp)}
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
@@ -517,7 +517,7 @@ internal fun WeatherSection(vm: HomeViewModel) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
                 item(key = "city") { Chip(stringResource(R.string.ui_use_this_city)) { vm.weather.setWeatherCity(city) } }
                 item(key = "approx") { Chip(stringResource(R.string.ui_use_my_approximate_area)) { vm.weather.useApproximateLocation() } }
-                item(key = "unit") { Chip(if (vm.weather.fahrenheit) "Showing °F" else "Showing °C") { vm.weather.updateFahrenheit(!vm.weather.fahrenheit) } }
+                item(key = "unit") { Chip(if (vm.weather.fahrenheit) stringResource(R.string.st_showing_f) else stringResource(R.string.st_showing_c)) { vm.weather.updateFahrenheit(!vm.weather.fahrenheit) } }
                 if (vm.weather.weatherPlaceName != null) item(key = "off") { Chip(stringResource(R.string.ui_turn_off)) { vm.weather.weatherOff() } }
             }
             Text(
@@ -544,14 +544,14 @@ internal fun TrackerSyncCard(vm: HomeViewModel) {
         Text(stringResource(R.string.tx_keep_trackers_in_sync), fontSize = 18.sp)
         Text(stringResource(R.string.tx_copies_watched_history_watchlist_and_ratings) +
             "both ways, including removals. The first sync copies everything each one already has.", color = Mute, fontSize = 13.sp)
-        ToggleRow("Sync", null, vm.trackerSyncOn) { vm.toggleTrackerSync() }
-        if (vm.trackerSyncOn && !vm.trackerSyncBusy) Chip("Sync now") { vm.syncTrackers(force = true) }
+        ToggleRow(stringResource(R.string.st_sync), null, vm.trackerSyncOn) { vm.toggleTrackerSync() }
+        if (vm.trackerSyncOn && !vm.trackerSyncBusy) Chip(stringResource(R.string.st_sync_now)) { vm.syncTrackers(force = true) }
         vm.trackerSyncStatus?.let { Text(it, color = Mute, fontSize = 13.sp) }
         if (vm.trackerSyncHeld.isNotEmpty()) {
             Text(vm.trackerSyncHeld.entries.joinToString(" ") { (name, n) -> "$name suddenly reports $n fewer titles than last time." } +
                 " Those removals were not copied to your other trackers, in case it was a bad read. Check on the service, then:",
                 color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
-            Chip("Copy those removals too") { vm.applyHeldRemovals() }
+            Chip(stringResource(R.string.st_copy_those_removals_too)) { vm.applyHeldRemovals() }
         }
         Text(stringResource(R.string.tx_not_synced_simkl_watchlist_removals_simkl),
             color = Mute, fontSize = 12.sp)
@@ -569,7 +569,7 @@ internal fun TrackersGrid(vm: HomeViewModel, openKeys: () -> Unit) {
     vm.hub.trackers.firstOrNull { it.id == open }?.let { t ->
         MediaDialog(t.name, { open = null }, resizeForKeyboard = true, wide = true) {
             TrackerRow(vm, t) { open = null; openKeys() }
-            ButtonRow { Chip("Done") { open = null } }
+            ButtonRow { Chip(stringResource(R.string.st_done)) { open = null } }
         }
     }
 }
@@ -674,7 +674,7 @@ internal fun PhoneSetupPage(vm: HomeViewModel) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         Section(stringResource(R.string.ui_set_up_from_your_phone), stringResource(R.string.ui_no_typing_with_the_remote_add)) {
-            ToggleRow("Phone setup", "Off by default. Automatically turns off after 30 minutes, when you leave this page, or when Ember leaves the foreground.", link != null) {
+            ToggleRow(stringResource(R.string.settings_phone), stringResource(R.string.st_off_by_default_automatically_turns_off), link != null) {
                 if (link != null) disable("Phone setup is off. The previous link no longer works.")
                 else {
                     val started = runCatching { setup.start() }.getOrNull()
@@ -703,16 +703,16 @@ internal fun PhoneSetupPage(vm: HomeViewModel) {
                         Text(l, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Note(stringResource(R.string.ui_the_page_works_only_while_this))
                         // #152
-                        Note("If the browser says it can't make a secure connection, type the address exactly as shown, starting with http:// (not https://).")
+                        Note(stringResource(R.string.st_if_the_browser_says_it_can))
                     }
                 }
             }
         }
         vm.pendingContent?.let { pending ->
-            Section("Review phone change", pending.summary) {
+            Section(stringResource(R.string.st_review_phone_change), pending.summary) {
                 ButtonRow {
-                    Chip(if (vm.approvingContent) "Saving…" else "Approve") { vm.approveContent() }
-                    Chip("Reject") { if (!vm.approvingContent) vm.clearPendingContent() }
+                    Chip(if (vm.approvingContent) stringResource(R.string.st_saving) else stringResource(R.string.st_approve)) { vm.approveContent() }
+                    Chip(stringResource(R.string.st_reject)) { if (!vm.approvingContent) vm.clearPendingContent() }
                 }
             }
         }
@@ -742,9 +742,9 @@ private fun PhoneRemoteSection(vm: HomeViewModel, accentHex: String) {
     var message by remember { mutableStateOf<String?>(null) }
     val url = app.ember.tv.remote.PhoneRemote.url
     LaunchedEffect(on) { if (on) app.ember.tv.remote.PhoneRemote.sync(context, vm, accentHex) }
-    Section("Phone remote", "Control Ember from your phone's browser: search, pick a source, play and pause, seek, volume, your lists, and a keyboard for typing on the TV. It stays on until you switch it off.") {
+    Section(stringResource(R.string.st_phone_remote), stringResource(R.string.st_control_ember_from_your_phone_s)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ToggleRow("Phone remote", "Off by default. Works on your home network while Ember is running.", on) {
+            ToggleRow(stringResource(R.string.st_phone_remote), stringResource(R.string.st_off_by_default_works_on_your), on) {
                 val next = !on
                 val started = app.ember.tv.remote.PhoneRemote.setEnabled(context, vm, next, accentHex)
                 on = next
@@ -755,11 +755,11 @@ private fun PhoneRemoteSection(vm: HomeViewModel, accentHex: String) {
                     color = if (hasPassword) Mute else MaterialTheme.colorScheme.primary, fontSize = 14.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TvTextField(password, { password = it.take(128) }, Modifier.width(320.dp), placeholder = if (hasPassword) "New password" else "Password (4 characters or more)", password = true)
-                    Chip(if (hasPassword) "Change password" else "Set password") {
+                    Chip(if (hasPassword) stringResource(R.string.st_change_password) else stringResource(R.string.st_set_password)) {
                         message = auth.setPassword(password) ?: "Password saved. Phones sign in with it once.".also { hasPassword = true; phones = 0; password = "" }
                     }
-                    if (hasPassword) Chip("Remove password") { auth.clearPassword(); hasPassword = false; phones = 0; message = "Password removed." }
-                    if (hasPassword && phones > 0) Chip("Sign out all phones") { auth.signOutAll(); phones = 0; message = "Every phone must sign in again." }
+                    if (hasPassword) Chip(stringResource(R.string.st_remove_password)) { auth.clearPassword(); hasPassword = false; phones = 0; message = "Password removed." }
+                    if (hasPassword && phones > 0) Chip(stringResource(R.string.st_sign_out_all_phones)) { auth.signOutAll(); phones = 0; message = "Every phone must sign in again." }
                 }
                 url?.let { l ->
                     Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -767,7 +767,7 @@ private fun PhoneRemoteSection(vm: HomeViewModel, accentHex: String) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.width(460.dp)) {
                             Text(stringResource(R.string.tx_scan_the_code_or_open_this), fontSize = 15.sp)
                             Text(l, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                            Note("Add it to your phone's home screen to use it like an app. If the TV's address changes (after a router restart), scan again.")
+                            Note(stringResource(R.string.st_add_it_to_your_phone_s))
                         }
                     }
                 }

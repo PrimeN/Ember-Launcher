@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -73,10 +76,10 @@ internal fun ResetPageButton(tab: SettingsTab) {
     val context = LocalContext.current
     var asking by remember { mutableStateOf(false) }
     val name = tab.title()
-    Section("Reset this page", "Puts the settings on $name back to their defaults. Ember restarts.", id = "reset-page") {
-        Chip("Reset $name") { asking = true }
+    Section(stringResource(R.string.st_reset_this_page), stringResource(R.string.st_puts_the_settings_on_back_to, name), id = "reset-page") {
+        Chip(stringResource(R.string.st_reset, name)) { asking = true }
     }
-    if (asking) ConfirmDestructive("Reset $name?", "These settings go back to their defaults and Ember restarts.", { asking = false }, "Reset") {
+    if (asking) ConfirmDestructive(stringResource(R.string.st_reset_page_ask, name), stringResource(R.string.st_reset_page_message), { asking = false }, stringResource(R.string.st_reset_action)) {
         SettingsReset.apply(context, tab)
         restartApp(context)
     }

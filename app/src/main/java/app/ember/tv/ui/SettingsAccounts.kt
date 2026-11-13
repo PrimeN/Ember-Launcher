@@ -145,7 +145,7 @@ private fun ApiKeyDialog(vm: HomeViewModel, s: ApiKeys.Service, close: () -> Uni
         Text(stringResource(R.string.ui_get_one, s.where), color = Mute, fontSize = 13.sp)
         vm.keysMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
         s.fields.forEach { f -> KeyField(vm, f) }
-        ButtonRow { Chip("Done") { close() } }
+        ButtonRow { Chip(stringResource(R.string.st_done)) { close() } }
     }
 }
 
@@ -234,10 +234,10 @@ internal fun ProfilePhotoPicker(name: String, close: () -> Unit, onPick: (String
         Text(stringResource(R.string.tx_or_a_link_to_a_picture), fontSize = 15.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TextInput(link, { link = it.take(500) }, "https://…")
-            Chip("Use this picture") { Profile.usablePhoto(link)?.let(onPick) ?: run { message = "Enter a link that starts with https://." } }
+            Chip(stringResource(R.string.st_use_this_picture)) { Profile.usablePhoto(link)?.let(onPick) ?: run { message = "Enter a link that starts with https://." } }
         }
         message?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
-        ButtonRow { Chip("Cancel") { close() } }
+        ButtonRow { Chip(stringResource(R.string.ui_cancel)) { close() } }
     }
 }
 
@@ -283,7 +283,7 @@ internal fun ProfilesPage(vm: HomeViewModel) {
                 }
             }
         }
-        Section(stringResource(R.string.ui_edit_profile, p.name), if (p.id == vm.profiles.profileId) "The profile in use." else null) {
+        Section(stringResource(R.string.ui_edit_profile, p.name), if (p.id == vm.profiles.profileId) stringResource(R.string.st_the_profile_in_use) else null) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextInput(name, { name = it }, "Name", width = 360)
@@ -298,8 +298,8 @@ internal fun ProfilesPage(vm: HomeViewModel) {
                 }
                 // #222: a photo instead of the letter.
                 ButtonRow(spacing = 10.dp) {
-                    Chip(if (p.photo == null) "Use a photo" else "Change photo") { choosingPhoto = true }
-                    if (p.photo != null) Chip("Remove photo") { vm.profiles.updateProfile(p.id) { it.copy(photo = null) } }
+                    Chip(if (p.photo == null) stringResource(R.string.st_use_a_photo) else stringResource(R.string.st_change_photo)) { choosingPhoto = true }
+                    if (p.photo != null) Chip(stringResource(R.string.st_remove_photo)) { vm.profiles.updateProfile(p.id) { it.copy(photo = null) } }
                 }
                 ToggleRow(stringResource(R.string.ui_kids_profile), stringResource(R.string.ui_asks_for_the_pin_to_open), p.kids) {
                     if(!p.kids)kidsSetup=p.copy(kids=true,personal=false,kidsSetupRequired=true)
@@ -311,13 +311,13 @@ internal fun ProfilesPage(vm: HomeViewModel) {
                     }
                 }
                 if(p.kids) {
-                    Chip(if(p.kidsSetupComplete)"Review parent setup" else "Complete parent setup") {kidsSetup=p}
+                    Chip(if(p.kidsSetupComplete)stringResource(R.string.st_review_parent_setup) else stringResource(R.string.st_complete_parent_setup)) {kidsSetup=p}
                 }
-                Section("Local activity","Local history, resume positions and remembered audio/subtitles. Connected tracker accounts remain shared across profiles.") {
+                Section(stringResource(R.string.st_local_activity),stringResource(R.string.st_local_history_resume_positions_and_remembered)) {
                     Choice(listOf("local" to "This profile", "shared" to "Shared household"),p.activityMode) {value->
                         vm.profiles.updateProfile(p.id){it.copy(activityMode=app.ember.tv.data.LocalActivity.mode(value))}
                     }
-                    Note("Changing this choice keeps both sets of saved activity; it does not merge or delete them.")
+                    Note(stringResource(R.string.st_changing_this_choice_keeps_both_sets))
                 }
                 if(p.kids)KidsContentSettings(p) {change->
                     val save={vm.profiles.updateProfile(p.id,change)}
@@ -349,12 +349,12 @@ internal fun ProfilesPage(vm: HomeViewModel) {
         }
         Section(stringResource(R.string.ui_pin), stringResource(R.string.ui_a_four_digit_pin_guards_kids)) {
             ButtonRow(spacing = 10.dp) {
-                Chip(if (vm.pin.pinSet) "Change PIN" else "Set a PIN") {
+                Chip(if (vm.pin.pinSet) stringResource(R.string.st_change_pin) else stringResource(R.string.st_set_a_pin)) {
                     if (vm.pin.pinSet) vm.pin.withPin("Enter the current PIN") { settingPin = true } else settingPin = true
                 }
                 if (vm.pin.pinSet && vm.profiles.all.none {app.ember.tv.data.KidsContentPolicy.restricted(it)}) Chip(stringResource(R.string.ui_remove_pin)) { vm.pin.withPin("Enter the PIN to remove it") { vm.pin.setPin(null) } }
             }
-            if(vm.profiles.all.any {app.ember.tv.data.KidsContentPolicy.restricted(it)})Note("Remove Kids content locks before removing the PIN.")
+            if(vm.profiles.all.any {app.ember.tv.data.KidsContentPolicy.restricted(it)})Note(stringResource(R.string.st_remove_kids_content_locks_before_removing))
             if (!vm.pin.pinSet && vm.profiles.all.any { it.kids }) Note(stringResource(R.string.ui_no_pin_yet_a_kids_profile))
         }
     }

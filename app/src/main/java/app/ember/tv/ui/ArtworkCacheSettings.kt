@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import android.text.format.Formatter
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -20,9 +23,9 @@ import kotlinx.coroutines.withContext
     var busy by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf<String?>(null)}
     LaunchedEffect(loader){bytes=withContext(Dispatchers.IO){(loader.diskCache?.size ?: 0)+IconArtworkCache.size()}}
-    Section("Artwork cache","Downloaded images reload as needed after clearing.",id="image-cache") {
+    Section(stringResource(R.string.st_artwork_cache),stringResource(R.string.st_downloaded_images_reload_as_needed_after),id="image-cache") {
         Text(bytes?.let {"Stored images: ${Formatter.formatShortFileSize(context,it)}"} ?: "Reading image cache…",color=Mute)
-        Chip(if(busy)"Clearing…" else "Clear artwork cache") {
+        Chip(if(busy)stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_artwork_cache)) {
             if(!busy) {
                 busy=true;error=null
                 scope.launch {

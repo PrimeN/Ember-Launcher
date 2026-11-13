@@ -143,43 +143,43 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
     when (key) {
         // #151: on Appearance, beside the other labels, instead of at the bottom of Home layout.
         "navbar-tabs" -> TopMenuSection(vm)
-        "row-addon-labels" -> Section(SettingDefinitions.rowAddonLabels.title, "The addon's name after each catalog's title, such as Popular · Cinemeta, on Home and Live TV.", id = "row-addon-labels") {
-            ToggleRow("Show addon names", if (vm.look.rowAddonLabels) "Shown after each row's title" else "Hidden: rows show only the catalog's title", vm.look.rowAddonLabels) {
+        "row-addon-labels" -> Section(SettingDefinitions.rowAddonLabels.title, stringResource(R.string.st_the_addon_s_name_after_each), id = "row-addon-labels") {
+            ToggleRow(stringResource(R.string.st_show_addon_names), if (vm.look.rowAddonLabels) stringResource(R.string.st_shown_after_each_row_s_title) else stringResource(R.string.st_hidden_rows_show_only_the_catalog), vm.look.rowAddonLabels) {
                 vm.look.updateRowAddonLabels(!vm.look.rowAddonLabels)
             }
         }
-        "tile-labels" -> Section("Labels under tiles", "Turn off a kind to remove its text under the tiles. Names are still read out by accessibility services.", id = "tile-labels") {
+        "tile-labels" -> Section(stringResource(R.string.st_labels_under_tiles), stringResource(R.string.st_turn_off_a_kind_to_remove), id = "tile-labels") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 app.ember.tv.data.TileLabels.choices.forEach { (kind, label) ->
                     ToggleRow(label, when (kind) {
-                        app.ember.tv.data.TileLabels.APPS -> "App names under app icons and folders"
-                        app.ember.tv.data.TileLabels.MEDIA -> "Titles and progress under movie and show cards"
-                        else -> "Folder names under collection tiles"
+                        app.ember.tv.data.TileLabels.APPS -> stringResource(R.string.st_app_names_under_app_icons_and)
+                        app.ember.tv.data.TileLabels.MEDIA -> stringResource(R.string.st_titles_and_progress_under_movie_and)
+                        else -> stringResource(R.string.st_folder_names_under_collection_tiles)
                     }, kind !in vm.look.tileLabelsOff) { vm.look.toggleTileLabel(kind) }
                 }
             }
         }
-        "card-focus" -> Section("Card focus effects","For apps and media cards. Low-performance devices and reduced motion keep a static focus cue.",id="card-focus") {
+        "card-focus" -> Section(stringResource(R.string.st_card_focus_effects),stringResource(R.string.st_for_apps_and_media_cards_low),id="card-focus") {
             PictureChoice("cardfocus",app.ember.tv.data.CardFocusStyle.choices,app.ember.tv.data.CardFocusStyle.normalize(vm.look.cardFocusStyle),vm.look::updateCardFocusStyle)
         }
-        "focus-backgrounds" -> Section("Focused backgrounds", "Tile colors use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.", id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
+        "focus-backgrounds" -> Section(stringResource(R.string.st_focused_backgrounds), stringResource(R.string.st_tile_colors_use_already_loaded_images), id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
         "interface" -> Section(
         stringResource(R.string.ui_interface),
-        "Ember is the default media-focused Home. Ember Light uses an app grid with movable navigation icons. Navbar, media-page and player layouts are chosen separately.", id = "interface",
+        stringResource(R.string.st_ember_is_the_default_media_focused), id = "interface",
     ) {
         // #203: each choice as a small picture of the result.
         PictureChoice("ui",SettingDefinitions.interfaceStyle.options,vm.look.uiStyle,vm.look::updateUiStyle)
-        if(isEmberX)Note("Ember X uses a dark cinema Home layout. Navbar, media-page and player styles are configured separately. Colour themes remain independent.")
+        if(isEmberX)Note(stringResource(R.string.st_ember_x_uses_a_dark_cinema))
     }
         "media-page-layout" -> Section(SettingDefinitions.mediaPageLayout.title,
-            "Choose movie and show details independently of your Home interface and player controls.", id = "media-page-layout") {
+            stringResource(R.string.st_choose_movie_and_show_details_independently), id = "media-page-layout") {
             PictureChoice("page", SettingDefinitions.mediaPageLayout.options, vm.look.mediaPageLayout, vm.look::updateMediaPageLayout)
         }
         "navbar-style" -> Section(SettingDefinitions.navbarStyle.title,
-            "Choose navigation for Ember. Ember Light uses navigation icons in its app grid.",id="navbar-style") {
+            stringResource(R.string.st_choose_navigation_for_ember_ember_light),id="navbar-style") {
             if(app.ember.tv.data.NavbarStyles.available(vm.look.uiStyle))
                 PictureChoice("nav",SettingDefinitions.navbarStyle.options,vm.look.navbarStyle,vm.look::updateNavbarStyle)
-            else Note("Light uses its own navigation.")
+            else Note(stringResource(R.string.st_light_uses_its_own_navigation))
         }
         "theme" -> Section(stringResource(R.string.ui_theme), stringResource(R.string.ui_night_dark_day_light_backgrounds_and), id = "theme") {
             PictureChoice("theme", listOf("night" to stringResource(R.string.ui_night), "day" to stringResource(R.string.ui_day), "auto" to stringResource(R.string.ui_auto)),
@@ -202,12 +202,12 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         "remote_s_settings_button" -> Section(stringResource(R.string.ui_remote_s_settings_button), stringResource(R.string.ui_ember_the_remote_s_settings_or)) {
         Choice(listOf("ember" to "Ember", "tv" to "TV or projector"), vm.look.remoteSettingsKey) { vm.look.updateRemoteSettingsKey(it) }
     }
-        "auto-load" -> Section("Load more as I scroll", "Discover, collections, media libraries and episode lists load their next page when you reach the end. Off shows a Load more button instead.", id = "auto-load") {
-            SettingToggle("Load more as I scroll", null, vm.collections.autoPage) { vm.collections.updateAutoPage(!vm.collections.autoPage) }
+        "auto-load" -> Section(stringResource(R.string.st_load_more_as_i_scroll), stringResource(R.string.st_discover_collections_media_libraries_and_epis), id = "auto-load") {
+            SettingToggle(stringResource(R.string.st_load_more_as_i_scroll), null, vm.collections.autoPage) { vm.collections.updateAutoPage(!vm.collections.autoPage) }
         }
-        "remote-sounds" -> Section("Remote sounds", "A soft click for the arrows and OK in every interface and menu. Not used during playback.", id = "remote-sounds") {
+        "remote-sounds" -> Section(stringResource(R.string.st_remote_sounds), stringResource(R.string.st_a_soft_click_for_the_arrows), id = "remote-sounds") {
         val soundContext = androidx.compose.ui.platform.LocalContext.current
-        SettingToggle("Remote sounds", null, vm.look.remoteSounds) {
+        SettingToggle(stringResource(R.string.st_remote_sounds), null, vm.look.remoteSounds) {
             vm.look.updateRemoteSounds(!vm.look.remoteSounds); RemoteSounds.warm(soundContext)
         }
     }
@@ -226,7 +226,7 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
                 Chip(stringResource(R.string.ui_poster), selected = vm.look.modernCards == "poster") { vm.look.updateModernCards("poster") }
             }
         }
-        "device-performance" -> Section(SettingDefinitions.performance.title,"One choice sets image quality, effects and glass together. Auto picks Low, Medium or High from this TV's memory and lightens effects if navigation is slow.",id="device-performance") {
+        "device-performance" -> Section(SettingDefinitions.performance.title,stringResource(R.string.st_one_choice_sets_image_quality_effects),id="device-performance") {
             // #223: each profile as a picture: a meter for Low to Ultra, Auto choosing, Custom as sliders.
             PictureChoice("perf",app.ember.tv.data.DevicePerformance.choices(Art.display4K),vm.look.devicePerformance,vm.look::updateDevicePerformance)
             val effective=LocalRenderOptions.current
@@ -241,25 +241,25 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             if(vm.look.devicePerformance=="auto") {
                 Text((if(app.ember.tv.BuildConfig.DEBUG)"Auto observation is paused in debug builds." else if(RuntimeBudgets.slowAuto)"Auto observed sustained slow frames and is using lighter effects." else "Auto is using ${app.ember.tv.data.DevicePerformance.label(effective.profile)} for this TV.")+
                     " Auto never picks Ultra.",color=Mute,fontSize=13.sp)
-                Chip("Reset Auto observations") {RuntimeBudgets.reset(performanceContext)}
+                Chip(stringResource(R.string.st_reset_auto_observations)) {RuntimeBudgets.reset(performanceContext)}
             }
             Text(stringResource(R.string.tx_pictures_up_to_glass, effective.heroMaxWidth, effective.heroMaxHeight)+glassModeLabel(effective),color=Mute,fontSize=13.sp)
-            if(!Art.display4K)Note("Ultra appears on a 4K display.")
+            if(!Art.display4K)Note(stringResource(R.string.st_ultra_appears_on_a_4k_display))
             if(vm.look.devicePerformance=="custom") {
                 Text(stringResource(R.string.tx_image_quality),fontSize=15.sp)
                 ButtonRow(spacing = 10.dp) { listOf("economy" to "Economy","balanced" to "Balanced","high" to "High").forEach { (value, label) ->
                     Chip(label, selected = vm.look.artworkQuality == value) { vm.look.updateArtworkQuality(value) }
                 } }
                 var customDetails by rememberSaveable {mutableStateOf(false)}
-                Chip(if(customDetails)"Hide individual effects" else "Customize individual effects") {customDetails=!customDetails}
+                Chip(if(customDetails)stringResource(R.string.st_hide_individual_effects) else stringResource(R.string.st_customize_individual_effects)) {customDetails=!customDetails}
                 if(customDetails)CustomPerformanceControls(vm)
             }
         }
-        "density" -> Section(SettingDefinitions.density.title, "Card and text spacing, independent of Home app circles.", id = "density") {
+        "density" -> Section(SettingDefinitions.density.title, stringResource(R.string.st_card_and_text_spacing_independent_of), id = "density") {
         PictureChoice("density", SettingDefinitions.density.options, vm.look.contentDensity, vm.look::updateContentDensity)
     }
-        "artwork" -> Section(SettingDefinitions.artwork.title, "Navigation, dock, menus and media buttons share one glass material. Labels and focus indicators stay sharp.", id = "artwork") {
-        ToggleRow("Glass", null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
+        "artwork" -> Section(SettingDefinitions.artwork.title, stringResource(R.string.st_navigation_dock_menus_and_media_buttons), id = "artwork") {
+        ToggleRow(stringResource(R.string.st_glass), null, vm.look.navigationGlass) { vm.look.updateNavigationGlass(!vm.look.navigationGlass) }
         // Google TV works with Glass on or off; the see-through styles turn it on (#147).
         // #223: the same panel over a colourful page in each glass style.
         PictureChoice("glass",app.ember.tv.data.GlassStyle.choices,app.ember.tv.data.GlassStyle.normalize(vm.look.navigationGlassMethod)) {value->
@@ -267,12 +267,12 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             if(value!=app.ember.tv.data.GlassStyle.SOLID && !vm.look.navigationGlass)vm.look.updateNavigationGlass(true)
         }
         if(vm.look.navigationGlass || vm.look.navigationGlassMethod==app.ember.tv.data.GlassStyle.SOLID) {
-            Note("Google TV draws solid panels and buttons, like stock Android TV: no blur, highlight or edge, and the lightest on the TV.")
-            Note("Auto follows the performance profile. Choose a glass style independently of image quality. Low uses tint only; Medium caps effects at prepared blur. Liquid needs Android 13+ and falls back to Frosted on older devices. Colour separation stays off.")
-            Note("Now: "+glassModeLabel(LocalRenderOptions.current)+". Prepared backgrounds are shared and reused until the image changes.")
+            Note(stringResource(R.string.st_google_tv_draws_solid_panels_and))
+            Note(stringResource(R.string.st_auto_follows_the_performance_profile_choose))
+            Note(stringResource(R.string.st_now)+glassModeLabel(LocalRenderOptions.current)+stringResource(R.string.st_prepared_backgrounds_are_shared_and_reused))
         }
     }
-        "accent_colour" -> Section(SettingDefinitions.colourTheme.title, "Choose colours independently of the interface. Charcoal is neutral grey; Android TV uses Google TV's own navy and blue; Red adds a dark red palette.", id="accent_colour") {
+        "accent_colour" -> Section(SettingDefinitions.colourTheme.title, stringResource(R.string.st_choose_colours_independently_of_the_interface), id="accent_colour") {
         ThemeColorPicker(vm.look.accent, vm.look::updateAccent)
 
     }
@@ -364,10 +364,10 @@ internal fun RpdbOptions(vm: HomeViewModel, c: PosterConfig, openKeys: () -> Uni
     val entered = ApiKeys.isEntered("RPDB_API_KEY")
     val tier = Posters.rpdbTier()
     val paid = tier >= 1
-    Section(stringResource(R.string.ui_key), if (entered) "Your key, tier $tier." else "Using the free key. It gives the default style only.") {
-        Chip(if (entered) "Change the key in API keys" else "Add your key in API keys") { openKeys() }
+    Section(stringResource(R.string.ui_key), if (entered) stringResource(R.string.st_your_key_tier, tier) else stringResource(R.string.st_using_the_free_key_it_gives)) {
+        Chip(if (entered) stringResource(R.string.st_change_the_key_in_api_keys) else stringResource(R.string.st_add_your_key_in_api_keys)) { openKeys() }
     }
-    Section(stringResource(R.string.ui_style), if (paid) "Which ratings the poster shows." else "Needs a paid key (tier 1 or higher).") {
+    Section(stringResource(R.string.ui_style), if (paid) stringResource(R.string.st_which_ratings_the_poster_shows) else stringResource(R.string.st_needs_a_paid_key_tier_1)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ButtonRow(spacing = 10.dp) {
                 Posters.RPDB_STYLES.forEach { (id, label) ->
@@ -379,7 +379,7 @@ internal fun RpdbOptions(vm: HomeViewModel, c: PosterConfig, openKeys: () -> Uni
             }
         }
     }
-    Section(stringResource(R.string.ui_language), if (paid) "Poster artwork language, where RPDB has one." else "Needs a paid key (tier 1 or higher).") {
+    Section(stringResource(R.string.ui_language), if (paid) stringResource(R.string.st_poster_artwork_language_where_rpdb_has) else stringResource(R.string.st_needs_a_paid_key_tier_1)) {
         LanguageChips(selected = if (paid) c.rpdbLang else null) { lang -> if (paid) vm.metadata.updatePosterConfig { it.copy(rpdbLang = lang) } }
     }
 }
@@ -510,7 +510,7 @@ internal fun MetadataPage(vm: HomeViewModel, openKeys: () -> Unit) {
 
         Section(stringResource(R.string.ui_anilist_anime), stringResource(R.string.ui_free_no_key_found_by_title)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OnOff("Use AniList", c.anilistOn) { vm.metadata.updateMetaConfig { it.copy(anilistOn = !it.anilistOn) } }
+                OnOff(stringResource(R.string.st_use_anilist), c.anilistOn) { vm.metadata.updateMetaConfig { it.copy(anilistOn = !it.anilistOn) } }
                 if (c.anilistOn) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ToggleRow(stringResource(R.string.ui_description), null, c.anilistDescription) { vm.metadata.updateMetaConfig { it.copy(anilistDescription = !it.anilistDescription) } }
@@ -528,10 +528,10 @@ internal fun MetadataPage(vm: HomeViewModel, openKeys: () -> Unit) {
             }
         }
 
-        Section(stringResource(R.string.ui_tvdb_tv_shows), if (tvdbReady) "Using your TVDB key." else "Needs a TVDB API key.") {
+        Section(stringResource(R.string.ui_tvdb_tv_shows), if (tvdbReady) stringResource(R.string.st_using_your_tvdb_key) else stringResource(R.string.st_needs_a_tvdb_api_key)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OnOff("Use TVDB", c.tvdbOn) { vm.metadata.updateMetaConfig { it.copy(tvdbOn = !it.tvdbOn) } }
-                Chip(if (tvdbReady) "Change the key in API keys" else "Add the key in API keys") { openKeys() }
+                OnOff(stringResource(R.string.st_use_tvdb), c.tvdbOn) { vm.metadata.updateMetaConfig { it.copy(tvdbOn = !it.tvdbOn) } }
+                Chip(if (tvdbReady) stringResource(R.string.st_change_the_key_in_api_keys) else stringResource(R.string.ui_add_the_key_in_api_keys)) { openKeys() }
                 if (c.tvdbOn) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ToggleRow(stringResource(R.string.ui_description), null, c.tvdbDescription) { vm.metadata.updateMetaConfig { it.copy(tvdbDescription = !it.tvdbDescription) } }

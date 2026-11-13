@@ -331,12 +331,12 @@ internal fun CrashLogSection() {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val list = entries
             if (list == null) {
-                Note("Loading…")
+                Note(stringResource(R.string.tx_loading))
             } else if (list.isEmpty()) {
                 Note(stringResource(R.string.ui_no_crashes_recorded))
             } else {
                 ButtonRow(spacing = 10.dp) {
-                    list.forEachIndexed { i, _ -> if (i < 6) Chip(if (i == 0) "Latest" else "#${i + 1}", selected = shown == i) { shown = i } }
+                    list.forEachIndexed { i, _ -> if (i < 6) Chip(if (i == 0) stringResource(R.string.st_latest) else "#${i + 1}", selected = shown == i) { shown = i } }
                     Chip(stringResource(R.string.ui_clear)) {
                         scope.launch(kotlinx.coroutines.Dispatchers.IO) { app.ember.tv.data.CrashLog.clear() }
                         entries = emptyList()

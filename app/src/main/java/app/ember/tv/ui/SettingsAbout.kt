@@ -167,7 +167,7 @@ private fun PrivateUnlockDialog(vm: HomeViewModel, onClose: () -> Unit) {
                 }
                 message?.let { Text(it, fontSize = 14.sp, lineHeight = 20.sp) }
                 ButtonRow(spacing = 10.dp) {
-                    if (!done) Chip(if (vm.privateBusy) "Working…" else "Unlock") { unlock() }
+                    if (!done) Chip(if (vm.privateBusy) stringResource(R.string.ui_working) else stringResource(R.string.st_unlock)) { unlock() }
                     Chip(if (done) stringResource(R.string.ui_close) else stringResource(R.string.ui_cancel)) { onClose() }
                 }
             }
@@ -220,7 +220,7 @@ private fun LegalLicenseDropdown(asset: String) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingsDisclosure("Full license text", expanded) { expanded = !expanded }
+        SettingsDisclosure(stringResource(R.string.st_full_license_text), expanded) { expanded = !expanded }
         if (expanded) {
             val blocks = remember(context, asset) {
                 context.assets.open(asset).bufferedReader(Charsets.UTF_8).use { it.readLines() }

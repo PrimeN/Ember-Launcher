@@ -94,9 +94,9 @@ internal fun BadgesSection(vm: HomeViewModel) {
             }
             ButtonRow(spacing = 8.dp) {
                 val current = modes.first { it.first == f.badgeMode }
-                Chip("Preview ${current.second} badges") { preview = current.first to current.second }
+                Chip(stringResource(R.string.st_preview_badges, current.second)) { preview = current.first to current.second }
                 val hidden = app.ember.tv.data.BadgeChoices.count(f.badgeMode, f.badgesOff)
-                if (f.badgeMode != Badges.LEGACY && hidden > 0) Chip("Show all $hidden hidden badges") { f.showAllBadges(f.badgeMode) }
+                if (f.badgeMode != Badges.LEGACY && hidden > 0) Chip(stringResource(R.string.st_show_all_hidden_badges, hidden)) { f.showAllBadges(f.badgeMode) }
             }
             if (f.badgeMode == Badges.MODERN) {
                 Text(stringResource(R.string.tx_detailed_categories), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
@@ -106,8 +106,8 @@ internal fun BadgesSection(vm: HomeViewModel) {
                         SwitchChip(label, on, Modifier.semantics { stateDescription = if (on) "On" else "Off" }) { f.toggleDetailedBadgeCategory(id) }
                     }
                 }
-                Note("To change a Detailed badge's colours, picture or pattern, copy them to your own badges.")
-                Chip("Copy to my badges and edit") { copying = true }
+                Note(stringResource(R.string.st_to_change_a_detailed_badge_s))
+                Chip(stringResource(R.string.st_copy_to_my_badges_and_edit)) { copying = true }
             }
             if (f.badgeMode == Badges.CUSTOM) {
                 // Like the reference: adding comes first, then every pattern as a card.
@@ -124,17 +124,17 @@ internal fun BadgesSection(vm: HomeViewModel) {
                     }
                 }
                 ButtonRow(spacing = 8.dp) {
-                    Chip("Load a pack from a link") { linking = true }
-                    Chip("Start from the Detailed badges") { copying = true }
+                    Chip(stringResource(R.string.st_load_a_pack_from_a_link)) { linking = true }
+                    Chip(stringResource(R.string.st_start_from_the_detailed_badges)) { copying = true }
                 }
                 val filters = custom?.filters.orEmpty()
                 if (filters.isNotEmpty()) {
                     Note("${filters.size} ${if (filters.size == 1) "pattern" else "patterns"}${filters.count { !it.isEnabled }.takeIf { it > 0 }?.let { " · $it off" }.orEmpty()}. " +
-                        "The first patterns come first under each source. Press OK on one for its options.")
+                        stringResource(R.string.st_the_first_patterns_come_first_under))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         filters.forEach { b -> BadgeCard(b) { editing = b.id } }
                     }
-                } else if (f.customBadgesRead) Note("No patterns yet. Add one, start from the Detailed badges, or send a pack from Settings > Phone setup.")
+                } else if (f.customBadgesRead) Note(stringResource(R.string.st_no_patterns_yet_add_one_start))
             }
             (f.badgeNote ?: Badges.message)?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
         }
@@ -223,7 +223,7 @@ private fun BadgeOptionsDialog(vm: HomeViewModel, id: String, close: () -> Unit)
                     Box(Modifier.graphicsLayer(scaleX = 2f, scaleY = 2f).alpha(if (b.isEnabled) 1f else .35f)) { SourceBadge(shown) }
                 }
                 Text(BadgeEditor.summary(b), color = Mute, fontSize = 13.sp)
-                ToggleRow("Show this badge", null, b.isEnabled) { edit { it.copy(isEnabled = !it.isEnabled) } }
+                ToggleRow(stringResource(R.string.st_show_this_badge), null, b.isEnabled) { edit { it.copy(isEnabled = !it.isEnabled) } }
                 MoveButton(b.name, all.indexOfFirst { it.id == id }, all.lastIndex) { step -> f.moveBadge(id, step) }
                 OptionLabel("Try it")
                 TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "A source name, e.g. Movie 2160p REMUX DV")
@@ -233,7 +233,7 @@ private fun BadgeOptionsDialog(vm: HomeViewModel, id: String, close: () -> Unit)
                         color = if (hit == true) Color(0xFF8FE3B0) else Mute, fontSize = 13.sp)
                 }
                 Spacer(Modifier.height(6.dp))
-                Chip("Delete this badge", modifier = Modifier.testTag("badge_delete")) { deleting = true }
+                Chip(stringResource(R.string.st_delete_this_badge), modifier = Modifier.testTag("badge_delete")) { deleting = true }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OptionLabel("Tag colour")
@@ -259,20 +259,20 @@ private fun BadgeOptionsDialog(vm: HomeViewModel, id: String, close: () -> Unit)
                 OptionLabel("Image")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TvTextField(image, { image = it }, Modifier.weight(1f), placeholder = "Picture link (https://…), or send one from the phone page")
-                    Chip("Use") { edit { it.copy(imageURL = image.trim().ifBlank { null }) } }
-                    if (!b.imageURL.isNullOrBlank()) Chip("Remove") { image = ""; edit { it.copy(imageURL = null) } }
+                    Chip(stringResource(R.string.st_use)) { edit { it.copy(imageURL = image.trim().ifBlank { null }) } }
+                    if (!b.imageURL.isNullOrBlank()) Chip(stringResource(R.string.cal_remove_clip)) { image = ""; edit { it.copy(imageURL = null) } }
                 }
                 OptionLabel("Pattern")
                 TvTextField(pattern, { pattern = it; problem = null }, Modifier.fillMaxWidth(), placeholder = "Regular expression", singleLine = false, fontSize = 14.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Chip("Save pattern") { problem = BadgeEditor.check(pattern); if (problem == null) edit { it.copy(pattern = pattern) } }
-                    if (pattern != b.pattern) Chip("Undo") { pattern = b.pattern; problem = null }
+                    Chip(stringResource(R.string.st_save_pattern)) { problem = BadgeEditor.check(pattern); if (problem == null) edit { it.copy(pattern = pattern) } }
+                    if (pattern != b.pattern) Chip(stringResource(R.string.st_undo)) { pattern = b.pattern; problem = null }
                 }
                 problem?.let { Text(it, color = Color(0xFFFFB4AB), fontSize = 13.sp) }
                 OptionLabel("Name")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TvTextField(name, { name = it.take(60) }, Modifier.weight(1f), placeholder = "Badge name")
-                    Chip("Rename") { if (name.isNotBlank()) edit { it.copy(name = name.trim()) } }
+                    Chip(stringResource(R.string.ui_rename)) { if (name.isNotBlank()) edit { it.copy(name = name.trim()) } }
                 }
             }
         }
@@ -288,13 +288,13 @@ private fun BadgeAddDialog(vm: HomeViewModel, close: () -> Unit) {
     var sample by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf<String?>(null) }
     MediaDialog("Add a pattern", close, resizeForKeyboard = true) {
-        Note("The badge shows under every source whose name or details match. Colours, a picture and more are in its options after adding.")
+        Note(stringResource(R.string.st_the_badge_shows_under_every_source))
         TvTextField(name, { name = it.take(60) }, Modifier.fillMaxWidth(), placeholder = "Badge name, e.g. REMUX")
         TvTextField(pattern, { pattern = it; problem = null }, Modifier.fillMaxWidth(), placeholder = "Pattern, e.g. \\bREMUX\\b", fontSize = 14.sp)
         TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "Try it on a source name (optional)")
         if (sample.isNotBlank() && pattern.isNotBlank()) Text(when (BadgeEditor.matches(pattern, sample)) { true -> "Matches."; false -> "No match."; null -> "The pattern cannot run." }, color = Mute, fontSize = 13.sp)
         problem?.let { Text(it, color = Color(0xFFFFB4AB), fontSize = 13.sp) }
-        ButtonRow { Chip("Add") { problem = vm.sourceFormat.addBadge(name, pattern); if (problem == null) close() }; Chip("Cancel") { close() } }
+        ButtonRow { Chip(stringResource(R.string.tx_add)) { problem = vm.sourceFormat.addBadge(name, pattern); if (problem == null) close() }; Chip(stringResource(R.string.ui_cancel)) { close() } }
     }
 }
 
@@ -305,6 +305,6 @@ private fun BadgeLinkDialog(vm: HomeViewModel, close: () -> Unit) {
         Note(stringResource(R.string.ui_badges_custom_note))
         Text(stringResource(R.string.tx_this_replaces_your_custom_badges), color = Mute, fontSize = 13.sp)
         TvTextField(url, { url = it }, Modifier.fillMaxWidth(), placeholder = "https://.../badges.json")
-        ButtonRow { Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) { vm.sourceFormat.importBadges(url); close() } }; Chip("Cancel") { close() } }
+        ButtonRow { Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) { vm.sourceFormat.importBadges(url); close() } }; Chip(stringResource(R.string.ui_cancel)) { close() } }
     }
 }

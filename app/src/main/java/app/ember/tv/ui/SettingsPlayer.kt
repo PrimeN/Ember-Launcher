@@ -142,19 +142,19 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             c.resume,
         ) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(resume = v) } }
     }
-        "leaving" -> Section("Leaving the player", "What Back and Home do while a video plays.", id = "leaving") {
+        "leaving" -> Section(stringResource(R.string.st_leaving_the_player), stringResource(R.string.st_what_back_and_home_do_while), id = "leaving") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(SettingDefinitions.leaving.options, if (c.confirmExit) "ask" else "leave", stringResource(R.string.tx_back_button)) { v ->
                 vm.playerSettings.updatePlaybackConfig { it.copy(confirmExit = v == "ask") }
             }
-            Note("Ask first shows Stop watching? with Keep watching selected. Pressing Back again leaves, so a double press still exits.")
-            ToggleRow("Home: keep playing in a small window", null, c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
+            Note(stringResource(R.string.st_ask_first_shows_stop_watching_with))
+            ToggleRow(stringResource(R.string.st_home_keep_playing_in_a_small), null, c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
             Choice(app.ember.tv.player.QuickReturn.keys, app.ember.tv.player.QuickReturn.key(c), stringResource(R.string.tx_back_to_the_last_video_from)) { v ->
                 vm.playerSettings.updatePlaybackConfig { app.ember.tv.player.QuickReturn.choose(it, v) }
             }
-            Note("Android does not let apps stop the Home button, so Home cannot ask first. Picture-in-picture keeps the video playing in a corner where the TV supports it. " +
-                "Back to the last video: for 4 hours after you leave a video part-way, press the chosen key on Home to continue where you stopped. " +
-                "Press Back twice suits remotes without a Play button. Quick settings also starts with a Back to … tile unless this is Off.")
+            Note(stringResource(R.string.st_android_does_not_let_apps_stop) +
+                stringResource(R.string.st_back_to_the_last_video_for) +
+                stringResource(R.string.st_press_back_twice_suits_remotes_without))
         }
     }
         "skip-intro" -> Section(stringResource(R.string.ui_skip_intro), stringResource(R.string.ui_uses_the_intro_recap_and_credits), id = "skip-intro") {
@@ -162,14 +162,14 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             SettingDefinitions.skipIntro.options,
             c.skipIntro,
         ) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(skipIntro = v) } }
-        ToggleRow("IntroDB fallback", "When server markers are missing, send only the IMDb ID and episode numbers to IntroDB. Community timings can differ between releases. Skip intro Off disables lookups.", c.introDb) {
+        ToggleRow(stringResource(R.string.st_introdb_fallback), stringResource(R.string.st_when_server_markers_are_missing_send), c.introDb) {
             vm.playerSettings.updatePlaybackConfig { it.copy(introDb = !it.introDb) }
         }
     }
         "audio-output" -> Section(stringResource(R.string.ui_audio_output), stringResource(R.string.ui_for_a_receiver_or_soundbar_over), id = "audio-output") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ToggleRow(
-                "Passthrough (bitstream)", if (c.passthrough) null else "Off: decode everything to PCM",
+                stringResource(R.string.st_passthrough_bitstream), if (c.passthrough) null else stringResource(R.string.st_off_decode_everything_to_pcm),
                 c.passthrough,
             ) { vm.playerSettings.updatePlaybackConfig { it.copy(passthrough = !it.passthrough) } }
             if (c.passthrough) {
@@ -189,26 +189,26 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 }
                 Note(
                     stringResource(R.string.ui_dolby_truehd_dts_hd_and_atmos) +
-                        "Use \"choose myself\" only if your receiver can play a format that the HDMI link does not report (common with ARC). " +
-                        "A format the receiver cannot take plays as silence, so switch it off again.",
+                        stringResource(R.string.st_use_choose_myself_only_if_your) +
+                        stringResource(R.string.st_a_format_the_receiver_cannot_take),
                 )
             }
         }
     }
         "decoding" -> Section(stringResource(R.string.ui_decoding), stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot)) {
             Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine, stringResource(R.string.tx_playback_engine)) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
-            Note("Automatic keeps Ember's controls and tries compatibility playback when a format needs it.")
+            Note(stringResource(R.string.st_automatic_keeps_ember_s_controls_and))
             Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing)) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
             }
-            Note("For interlaced Live TV or older video in Compatibility playback. Automatic follows the video's scan type; Always is for streams detected incorrectly. Uses more processing. Off is the default.")
-            Note("Decoder preferences below apply to Standard playback. Compatibility has its own decoder controls while watching.")
+            Note(stringResource(R.string.st_for_interlaced_live_tv_or_older))
+            Note(stringResource(R.string.st_decoder_preferences_below_apply_to_standard))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(
                 listOf("on" to "Software when needed", "prefer" to "Prefer software", "off" to "TV decoders only"),
                 c.ffmpeg, stringResource(R.string.ui_sound_decoding),
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpeg = m) } }
-            Note("Software includes FFmpeg and MPEG-H. MPEG-H outputs stereo PCM. AC-4 uses the device decoder when available.")
+            Note(stringResource(R.string.st_software_includes_ffmpeg_and_mpeg_h))
             Choice(
                 listOf(
                     "fallback" to stringResource(R.string.ui_ffmpeg_video_fallback),
@@ -222,7 +222,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             }
             Note(
                 stringResource(R.string.ui_video_always_uses_the_tv_s) +
-                    "Tunneled playback gives tighter A/V sync on some TVs; turn it off if video stutters or will not start.",
+                    stringResource(R.string.st_tunneled_playback_gives_tighter_a_v),
             )
         }
     }
@@ -239,7 +239,7 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             }
             Note(
                 stringResource(R.string.ui_frame_rate_matching_plays_23_976) +
-                    "Leave resolution matching off to let the projector's own scaler handle 1080p; turn it on to send 1080p as 1080p. Needs a TV or box that offers those modes.",
+                    stringResource(R.string.st_leave_resolution_matching_off_to_let),
             )
         }
     }
@@ -266,8 +266,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             ToggleRow(stringResource(R.string.ui_play_trailers_in_ember_experimental), null, c.trailersInApp) { vm.playerSettings.updatePlaybackConfig { it.copy(trailersInApp = !it.trailersInApp) } }
             Note(
                 stringResource(R.string.ui_plays_youtube_trailers_in_the_built) +
-                    "YouTube changes often, so this can stop working until Ember is updated; when it fails, the YouTube app opens instead. " +
-                    "Trailers are stereo (no Atmos), and fetching streams this way is against YouTube's terms.",
+                    stringResource(R.string.st_youtube_changes_often_so_this_can) +
+                    stringResource(R.string.st_trailers_are_stereo_no_atmos_and),
             )
         }
     }
@@ -347,7 +347,7 @@ internal fun PlayButtonPage(vm: HomeViewModel) {
             Section(stringResource(R.string.ui_skip_these_codecs), stringResource(R.string.ui_for_players_that_cannot_decode_them)) {
                 ButtonRow(spacing = 10.dp) {
                     app.ember.tv.data.PlayRules.CODECS.forEach { c ->
-                        Chip(c + if (c in r.avoidCodecs) ": skipped" else "", selected = c in r.avoidCodecs) {
+                        Chip(c + if (c in r.avoidCodecs) stringResource(R.string.st_skipped) else "", selected = c in r.avoidCodecs) {
                             vm.playerSettings.updatePlayRules { it.copy(avoidCodecs = if (c in it.avoidCodecs) it.avoidCodecs - c else it.avoidCodecs + c) }
                         }
                     }

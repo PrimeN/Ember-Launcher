@@ -42,12 +42,12 @@ internal fun CacheManagementSettings(part: String) {
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) { error = "Could not read cache size. Try again." }
         }
-        Section("Current cache size", "Cache storage only. Saved lists, connections and playback files are kept.", id = part) {
+        Section(stringResource(R.string.st_current_cache_size), stringResource(R.string.st_cache_storage_only_saved_lists_connections), id = part) {
             Text(usage?.let { Formatter.formatShortFileSize(context,it.total) } ?: "Reading cache size…", color = Fg)
             usage?.categories?.forEach { (kind, bytes) -> Text("${kind.label}: ${Formatter.formatShortFileSize(context,bytes)}", color = Mute) }
             ButtonRow {
-                Chip(if (busy) "Clearing…" else "Clear Cache Data", maxLines = 1) { if (!busy) confirm = true }
-                Chip("Refresh size", maxLines = 1) {
+                Chip(if (busy) stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data), maxLines = 1) { if (!busy) confirm = true }
+                Chip(stringResource(R.string.st_refresh_size), maxLines = 1) {
                     if (!busy) scope.launch {
                         try { usage = CacheManagement.usage(context); error = null }
                         catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -60,7 +60,7 @@ internal fun CacheManagementSettings(part: String) {
         if (confirm) MediaDialog("Clear Cache Data?",{if(!busy)confirm=false}) {
             Text(stringResource(R.string.tx_downloaded_images_cached_metadata_catalogs_an),color=Mute)
             ButtonRow {
-                Chip(if(busy)"Clearing…" else "Clear cache data",maxLines=1) {
+                Chip(if(busy)stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data),maxLines=1) {
                     if(!busy) {
                         busy=true;error=null
                         scope.launch {
@@ -71,7 +71,7 @@ internal fun CacheManagementSettings(part: String) {
                         }
                     }
                 }
-                Chip("Cancel",maxLines=1){if(!busy)confirm=false}
+                Chip(stringResource(R.string.ui_cancel),maxLines=1){if(!busy)confirm=false}
             }
         }
         return
@@ -92,10 +92,10 @@ internal fun CacheManagementSettings(part: String) {
         CacheKind.CATALOGS -> "Catalog cache duration (hours)"
         CacheKind.NETWORK -> "Network cache duration (hours)"
     }
-    Section(title, if(kind==CacheKind.NETWORK) "Maximum reuse time; providers can require earlier refresh." else "Changing this duration clears the corresponding cache.", id=part) {
+    Section(title, if(kind==CacheKind.NETWORK) stringResource(R.string.st_maximum_reuse_time_providers_can_require) else stringResource(R.string.st_changing_this_duration_clears_the_correspondi), id=part) {
         ButtonRow {
             options.forEach { amount -> Chip(amount.toString(),selected=value==amount,maxLines=1){apply(kind,amount)} }
-            Chip(if(value in options)"Custom…" else value.toString(),selected=value !in options,maxLines=1){if(!busy){draft=value.toString();custom=true}}
+            Chip(if(value in options)stringResource(R.string.st_custom) else value.toString(),selected=value !in options,maxLines=1){if(!busy){draft=value.toString();custom=true}}
         }
         error?.let { Text(it,color=Mute) }
     }
@@ -103,11 +103,11 @@ internal fun CacheManagementSettings(part: String) {
         Text(stringResource(R.string.tx_enter_a_value_from_1_to, maximum),color=Mute)
         TextInput(draft,{draft=it.take(6)},if(days)"Days" else "Hours",width=240,numeric=true)
         ButtonRow {
-            Chip(if(busy)"Saving…" else "Save",maxLines=1){
+            Chip(if(busy)stringResource(R.string.st_saving) else stringResource(R.string.ui_save),maxLines=1){
                 val amount=draft.toIntOrNull()
                 if(amount!=null && amount in 1..maximum)apply(kind,amount) else error="Enter a number from 1 to $maximum."
             }
-            Chip("Cancel",maxLines=1){if(!busy)custom=false}
+            Chip(stringResource(R.string.ui_cancel),maxLines=1){if(!busy)custom=false}
         }
         error?.let{Text(it,color=Mute)}
     }

@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
@@ -10,13 +13,13 @@ import app.ember.tv.data.Profile
     var genre by remember(profile.id){mutableStateOf(false)}
     var rating by remember(profile.id){mutableStateOf(false)}
     Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Section("Content lock","Choose a genre, a maximum age certification, or both. Titles without required metadata stay hidden.",id="kids-content-lock") {
+        Section(stringResource(R.string.st_content_lock),stringResource(R.string.st_choose_a_genre_a_maximum_age),id="kids-content-lock") {
             ButtonRow {
-                Chip(profile.lockedGenre ?: "Any genre"){genre=true}
-                Chip(profile.maxTvRating?.let {"Up to $it"} ?: "Any age rating"){rating=true}
+                Chip(profile.lockedGenre ?: stringResource(R.string.st_any_genre)){genre=true}
+                Chip(profile.maxTvRating?.let {stringResource(R.string.st_up_to, it)} ?: stringResource(R.string.st_any_age_rating)){rating=true}
             }
-            if(KidsContentPolicy.restricted(profile))Note(KidsContentPolicy.summary(profile)+". Live TV is hidden while a content lock is active.")
-            Note("US TV ratings are used as a ceiling; movies use G, PG, PG-13 and R equivalents. Genre alone is not an age restriction. Other apps keep their own parental controls.")
+            if(KidsContentPolicy.restricted(profile))Note(KidsContentPolicy.summary(profile)+stringResource(R.string.st_live_tv_is_hidden_while_a))
+            Note(stringResource(R.string.st_us_tv_ratings_are_used_as))
         }
     }
     if(genre)OptionMenu("Lock to genre",listOf(MenuOption("Any genre",profile.lockedGenre==null){onChange {it.copy(lockedGenre=null)};genre=false})+
