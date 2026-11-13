@@ -88,7 +88,7 @@ object AwardBodies {
         addAll(providers.map { it.name }); if (providers.isNotEmpty()) add(if (includeRentBuy) "Subscription, free, rent or buy" else "Subscription or free")
         addAll(actors.map { "Actor: ${it.name}" }); addAll(directors.map { "Director: ${it.name}" })
         addAll(companies.map { it.name })
-        if (oscars != OscarMode.ANY) add(AwardBodies.label(this))
+        if (oscars != OscarMode.ANY) add(AwardBodies.label(this@ExploreQuery))
     }
 }
 
