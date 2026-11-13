@@ -221,7 +221,7 @@ internal fun ProfilePhotoPicker(name: String, close: () -> Unit, onPick: (String
                 pictures!!.chunked(ProfilePhotos.PER_ROW).forEach { line ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         line.forEach { uri ->
-                            Focusable(onClick = { onPick(uri) }, modifier = Modifier.size(96.dp).testTag("profile_photo"), radius = TvTokens.Shape.Pill, container = PanelHi, focusedScale = TvTokens.Focus.Round) {
+                            Focusable(onClick = { onPick(uri) }, modifier = Modifier.size(96.dp).testTag("profile_photo").semantics { contentDescription = "Photo " + (pictures!!.indexOf(uri) + 1) }, radius = TvTokens.Shape.Pill, container = PanelHi, focusedScale = TvTokens.Focus.Round) {
                                 coil.compose.AsyncImage(uri, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
                             }
                         }

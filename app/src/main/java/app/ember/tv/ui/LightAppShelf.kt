@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +47,7 @@ internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: F
                 Text(header.orEmpty(), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.height(26.dp))
                 Focusable(onClick = { onOpen(item) },
-                    modifier = Modifier.fillMaxWidth().height(131.dp),
+                    modifier = Modifier.fillMaxWidth().height(131.dp).semantics { contentDescription = item.title },
                     radius = TvTokens.Shape.Card, focusedScale = TvTokens.Focus.Card) {
                     Box(Modifier.fillMaxSize().clip(RoundedCornerShape(TvTokens.Shape.Card.dp)).background(Color(0x33FFFFFF))) {
                         if (item.artwork != null) coil.compose.AsyncImage(item.artwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())

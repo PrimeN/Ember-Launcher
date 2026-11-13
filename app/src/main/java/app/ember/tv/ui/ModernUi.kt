@@ -279,9 +279,10 @@ internal fun QuickButton(profile: app.ember.tv.data.Profile?, size: androidx.com
 @Composable
 fun ProfileAvatar(p: app.ember.tv.data.Profile, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val color = Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })
-    Focusable(onClick = onClick, modifier = modifier.size(size), radius = TvTokens.Shape.Pill, container = color, focusedContainer = color, focusedContent = Color(0xFF1F1F1F), focusedScale = TvTokens.Focus.Round) {
+    // #259: read as the profile's name, not its initial.
+    Focusable(onClick = onClick, modifier = modifier.size(size).semantics { contentDescription = p.name }, radius = TvTokens.Shape.Pill, container = color, focusedContainer = color, focusedContent = Color(0xFF1F1F1F), focusedScale = TvTokens.Focus.Round) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(p.name.take(1).uppercase(), fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
+            Text(p.name.take(1).uppercase(), fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F), modifier = Modifier.clearAndSetSemantics { })
             // #222: the profile's photo over its colour; the letter shows until it loads, or if it can't.
             app.ember.tv.data.Profile.usablePhoto(p.photo)?.let { photo ->
                 coil.compose.AsyncImage(photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
