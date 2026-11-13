@@ -179,15 +179,23 @@ class SubtitleController(
         loadJob?.cancel()
         status = "Loading ${c.languageName} subtitles from ${c.provider}..."
         onChange()
-        loadJob = activity.lifecycleScope.launch {
+        loadJob = activity.lifecycleScope.launch(kotlinx.coroutines.CoroutineExceptionHandler { _, _ ->
+            status = "Could not load that subtitle. Try another one."; runCatching { onChange() }
+        }) {
             for (s in listOf(c) + fallbacks) {
                 val got = Subtitles.download(s,query)
                 ensureActive()
                 if (got == null) continue
-                val text=if(got.second=="microdvd") app.ember.tv.data.SubtitleFiles.microDvd(got.first,player()?.videoFormat?.frameRate?.takeIf {it>0}) else got.first
-                val native=text?.let {nativeSubtitle(it,if(got.second=="microdvd")"srt" else got.second,false)}==true
-                if (native || engine.load(got.first, got.second, player()?.videoFormat?.frameRate?.takeIf { it > 0 })) {
-                    if(native)engine.clear() else setMedia3Text(enabled = false)
+                // #256: a file the player or the drawing engine cannot take moves on to the next one instead of
+                // ending playback (and the app) with it.
+                val native = try {
+                    val text=if(got.second=="microdvd") app.ember.tv.data.SubtitleFiles.microDvd(got.first,player()?.videoFormat?.frameRate?.takeIf {it>0}) else got.first
+                    if (text?.let {nativeSubtitle(it,if(got.second=="microdvd")"srt" else got.second,false)}==true) true
+                    else if (engine.load(got.first, got.second, player()?.videoFormat?.frameRate?.takeIf { it > 0 })) false
+                    else null
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Throwable) { null }
+                if (native != null) {
+                    runCatching { if(native)engine.clear() else setMedia3Text(enabled = false) }
                     selection = Selection.External(s)
                     status = "${s.languageName} · ${s.provider}" + if (s.hashMatch) " · ★ made for this file" else ""
                     onChange()

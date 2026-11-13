@@ -63,7 +63,7 @@ internal object RemotePage {
 
     private fun shell(title: String, accent: String, body: String, script: String) = """<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name=theme-color content="#0F1013">
-<meta name=apple-mobile-web-app-capable content=yes><meta name=mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-status-bar-style content=black-translucent>
+<meta name=apple-mobile-web-app-capable content=yes><meta name=mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-status-bar-style content=black>
 <meta name=apple-mobile-web-app-title content="Ember remote"><meta name=format-detection content="telephone=no">
 <link rel=manifest href="/manifest.webmanifest"><link rel=icon href="/icon.svg" type="image/svg+xml"><link rel=apple-touch-icon href="/apple-touch-icon.png">
 <title>${esc(title)}</title><style>:root{--accent:${accentOf(accent)}}$CSS</style></head><body>$body<script>$script</script></body></html>"""
@@ -116,7 +116,7 @@ internal object RemotePage {
     private const val CSS = """
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0F1013;--s1:#17181C;--s2:#1F2126;--s3:#2A2C33;--line:rgba(255,255,255,.08);--fg:#F1F3F5;--mute:#9AA0A8;--top:env(safe-area-inset-top);--bot:env(safe-area-inset-bottom);--r:18px}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:16px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,Roboto,sans-serif;overscroll-behavior:none}
+html,body{margin:0;height:100%;background:#16171B;color:var(--fg);font:16px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,Roboto,sans-serif;overscroll-behavior:none}
 button,input{font:inherit;color:inherit}button{border:0;background:var(--s2);border-radius:14px;padding:12px 16px;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer;transition:transform .12s,background .2s}
 button:active{transform:scale(.95)}button svg{width:22px;height:22px;display:block}
 input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:14px;padding:13px 15px;outline:none}input:focus{border-color:var(--accent)}
@@ -126,7 +126,7 @@ input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius
 .login{min-height:100%;display:grid;place-items:center;padding:24px}.lcard{width:100%;max-width:360px;text-align:center}
 .lcard h1{margin:14px 0 2px;font-size:24px}.lcard form{display:grid;gap:12px;margin:22px 0 10px}.lcard .primary{padding:14px}
 .logo{width:64px;height:64px;margin:0 auto;border-radius:20px;background:var(--accent);color:#111;display:grid;place-items:center}.logo svg{width:30px;height:30px}
-.app{position:fixed;inset:0;display:flex;flex-direction:column}
+.app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
 .top{display:flex;align-items:center;gap:12px;padding:calc(var(--top) + 10px) 16px 8px}
 .brand{flex:1;display:flex;align-items:center;gap:10px;min-width:0}.bt b{display:block;font-size:18px;letter-spacing:.2px}.bt small{display:block;color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dot{width:10px;height:10px;border-radius:50%;background:#34D399;box-shadow:0 0 0 4px rgba(52,211,153,.15);flex:none}.dot.off{background:#FF6B6B;box-shadow:0 0 0 4px rgba(255,107,107,.15)}

@@ -373,7 +373,8 @@ object Subtitles {
             val text = decode(raw,s.lang)
             text to SubtitleFiles.format(name,text.toByteArray(Charsets.UTF_8))
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (_: Exception) { null }
+        // #256: an archive or file too large to read is skipped like any other bad download.
+        catch (_: Throwable) { null }
     }
 
     private suspend fun resolveOpenSubsCom(fileId: Long): String? {
