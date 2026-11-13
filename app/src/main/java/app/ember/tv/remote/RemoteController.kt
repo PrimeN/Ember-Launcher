@@ -76,6 +76,7 @@ internal class RemoteController(private val vm: HomeViewModel) {
             }?.let(RemoteServer::error) ?: ok()
         }
         "player" -> if (PlayerRemote.command(p["action"].orEmpty(), p["value"]?.toLongOrNull())) ok() else RemoteServer.error("Nothing is playing in Ember.")
+        "track" -> if (PlayerRemote.track(p["kind"].orEmpty(), p["index"]?.toIntOrNull() ?: -1)) ok() else RemoteServer.error("That choice is no longer offered.")
         "volume" -> volume(p["action"].orEmpty(), p["level"]?.toIntOrNull()).toString()
         "watched" -> {
             val m = meta(p["ref"])
@@ -111,6 +112,8 @@ internal class RemoteController(private val vm: HomeViewModel) {
                     put("image", now.image?.takeIf(RemoteFormat::web)?.let(::JsonPrimitive) ?: JsonNull)
                     put("position", JsonPrimitive(now.positionMs)); put("duration", JsonPrimitive(now.durationMs))
                     put("playing", JsonPrimitive(now.playing)); put("live", JsonPrimitive(now.live))
+                    // #249: sound and subtitles, to change from the phone.
+                    put("audio", RemoteFormat.choices(now.audio)); put("subtitles", RemoteFormat.choices(now.subtitles))
                     if (nowMeta != null) { put("ref", JsonPrimitive(ref(nowMeta))); put("tref", JsonPrimitive(RemoteFormat.titleRef(nowMeta))); put("saved", JsonPrimitive(vm.isSaved(nowMeta))); put("watched", JsonPrimitive(vm.isWatched(nowMeta))) }
                 })
                 put("details", vm.details?.meta?.let { m -> JsonPrimitive(ref(m)) } ?: JsonNull)
@@ -263,6 +266,11 @@ internal object RemoteFormat {
     fun prompt(p: app.ember.tv.player.RemotePrompt): JsonObject = buildJsonObject {
         put("kind", JsonPrimitive(p.kind)); put("title", JsonPrimitive(p.title)); put("text", JsonPrimitive(p.text))
         put("choices", buildJsonArray { p.choices.forEach { (id, label) -> add(buildJsonObject { put("id", JsonPrimitive(id)); put("label", JsonPrimitive(label)) }) } })
+    }
+
+    /** A list of choices for the phone: each label and whether it is in use. */
+    fun choices(list: List<Pair<String, Boolean>>): JsonArray = buildJsonArray {
+        list.take(40).forEach { (label, on) -> add(buildJsonObject { put("label", JsonPrimitive(label)); put("on", JsonPrimitive(on)) }) }
     }
 
     /** The same for every episode of a show, to mark what is playing in a list. */

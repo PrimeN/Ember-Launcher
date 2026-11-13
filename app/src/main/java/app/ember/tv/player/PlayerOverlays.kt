@@ -263,6 +263,16 @@ internal fun PlayerActivity.shiftSubtitles(deltaMs: Long?) {
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.updateSubtitleSheet() {
     if (!advanced || !subsInitialized) return
+    val (rows, acts) = subtitleChoices()
+    subtitleActions = acts
+    controls.subtitleOptions = rows
+    controls.subtitleShift = subs.engine.offsetMs
+    changed()
+}
+
+/** #249: the subtitle choices and what each does: for the TV's sheet and the phone remote alike. */
+internal fun PlayerActivity.subtitleChoices(): Pair<List<Pair<String, Boolean>>, List<() -> Unit>> {
+    if (!subsInitialized) return emptyList<Pair<String, Boolean>>() to emptyList()
     val sel = subs.selection
     val rows = ArrayList<Pair<String, Boolean>>()
     val acts = ArrayList<() -> Unit>()
@@ -275,8 +285,5 @@ internal fun PlayerActivity.updateSubtitleSheet() {
         rows += label to (sel is SubtitleController.Selection.External && sel.candidate == c); acts += { subs.selectExternal(c) }
     }
     if(sel is SubtitleController.Selection.Manual){rows+=sel.label to true;acts+={}}
-    subtitleActions = acts
-    controls.subtitleOptions = rows
-    controls.subtitleShift = subs.engine.offsetMs
-    changed()
+    return rows to acts
 }

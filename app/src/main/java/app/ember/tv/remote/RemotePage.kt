@@ -35,6 +35,10 @@ internal object RemotePage {
         "left" to """<path d="M15 6l-6 6 6 6"/>""",
         "right" to """<path d="M9 6l6 6-6 6"/>""",
         "menu" to """<path d="M4 7h16M4 12h16M4 17h16"/>""",
+        "audio" to """<path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/>""",
+        "cc" to """<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6"/>""",
+        "radio" to """<circle cx="12" cy="12" r="8"/>""",
+        "radioOn" to """<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>""",
         "erase" to """<path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/>""",
     )
 
@@ -77,18 +81,19 @@ internal object RemotePage {
 <main id=main>
 <section id=vhome class=view>
 <div id=ask class=ask hidden role=alertdialog aria-live=assertive><b id=at></b><small id=ax></small><div id=ac class=askb></div></div>
-<div id=hero class=hero hidden><div class=hart id=hart></div><div class=hbody><small class=eye>Now playing</small><b id=ht></b><span id=hs></span>
+<div id=hero class=hero hidden><div class=hglow id=hglow></div><div class=hart id=hart></div><div class=hbody><small class=eye>Now playing</small><b id=ht></b><span id=hs></span>
 <div class=seek><span id=h0>0:00</span><input type=range id=seek min=0 max=1 value=0 aria-label=Position><span id=h1>0:00</span></div>
 <div class=ctl><button class=round data-p=skip data-v=-10000 aria-label="Back 10 seconds">${svg("rew")}</button><button class="round play" id=hpp aria-label=Pause>${svg("pause")}</button><button class=round data-p=skip data-v=30000 aria-label="Forward 30 seconds">${svg("fwd")}</button></div>
 <div class=vol id=volrow><button class=round data-vol=down aria-label="Volume down">${svg("voldown")}</button><input type=range id=vol min=0 max=15 value=5 aria-label=Volume><button class=round data-vol=up aria-label="Volume up">${svg("volup")}</button></div>
-<div class=chips><button id=hnext data-p=next>${svg("next")}<span>Next</span></button><button id=hwatched>${svg("check")}<span>Watched</span></button><button id=hsave>${svg("star")}<span>Watchlist</span></button><button data-p=stop>${svg("stop")}<span>Stop</span></button></div></div></div>
+<div class=chips><button id=hnext data-p=next>${svg("next")}<span>Next</span></button><button id=hwatched>${svg("check")}<span>Watched</span></button><button id=hsave>${svg("star")}<span>Watchlist</span></button><button data-p=stop>${svg("stop")}<span>Stop</span></button></div>
+<div class=tracks><button id=haud hidden>${svg("audio")}<span><small>Sound</small><b id=haudv></b></span></button><button id=hsub hidden>${svg("cc")}<span><small>Subtitles</small><b id=hsubv></b></span></button></div></div></div>
 <div id=idle class=idle><b>Nothing is playing</b><span>Pick something below, or search.</span></div>
 <h2>Continue watching</h2><div id=progress class=strip></div>
 <h2>Watchlist</h2><div id=watchlist class=strip></div>
 </section>
 <section id=vsearch class=view hidden>
 <form id=sf class=sbar>${svg("search")}<input id=sq type=search placeholder="Movies and shows" aria-label=Search autocomplete=off enterkeyhint=search><button type=button id=sx class=clear aria-label=Clear hidden>${svg("close")}</button></form>
-<p id=sn class=m></p><div id=results class=grid></div>
+<div id=recent class=recent></div><p id=sn class=m></p><div id=results class=grid></div>
 </section>
 <section id=vremote class=view hidden>
 <div class=seg><button data-mode=pad class=on>Touch pad</button><button data-mode=dpad>Buttons</button></div>
@@ -104,6 +109,7 @@ internal object RemotePage {
 <div id=keys class=sheet hidden><div class=panel><div class=grab></div><p id=kn class=m></p>
 <form id=kf><input id=kt autocomplete=off autocapitalize=off autocorrect=off spellcheck=false placeholder="Type here, it appears on the TV" aria-label="Text for the TV" enterkeyhint=send></form>
 <div class=keys><button id=kbs>${svg("erase")}<span>Delete</span></button><button id=kgo class=primary><span>Enter</span></button></div><button class=done id=kc>Done</button></div></div>
+<div id=tsheet class=sheet hidden><div class=panel><div class=grab></div><h3 id=tst class=sht></h3><div id=tlist class=tlist></div><button class=done id=tclose>Done</button></div></div>
 <p id=toast role=status aria-live=polite></p>
 </div>""", "var I=" + iconsJson() + ";" + APP)
 
@@ -127,11 +133,11 @@ input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius
 main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:4px 16px 20px}
 .view{animation:in .22s ease}@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 h2{font-size:17px;margin:22px 2px 10px}
-.tabs{display:flex;background:rgba(23,24,28,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:6px 8px calc(var(--bot) + 6px)}
-.tabs button{flex:1;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;color:var(--mute);font-size:12px;font-weight:600;border-radius:12px}
+.tabs{display:flex;background:rgba(23,24,28,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:3px 8px max(4px,calc(var(--bot) - 16px))}
+.tabs button{flex:1;background:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 0 3px;color:var(--mute);font-size:11px;font-weight:600;border-radius:12px}.tabs svg{width:21px;height:21px}
 .tabs button.on{color:var(--fg)}.tabs button.on svg{color:var(--accent)}
 .hero{position:relative;border-radius:24px;overflow:hidden;background:var(--s1);border:1px solid var(--line)}
-.hart{height:150px;background:var(--s2) center/cover no-repeat;position:relative}.hart:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,var(--s1))}
+.hart{height:150px;background:transparent center/cover no-repeat;position:relative;-webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent)}
 .hbody{padding:0 18px 18px;margin-top:-34px;position:relative}.eye{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.8px;text-transform:uppercase}
 .hbody>b{display:block;font-size:21px;margin-top:2px;line-height:1.2}.hbody>span{display:block;color:var(--mute);font-size:14px;margin-top:3px}
 .seek{display:flex;align-items:center;gap:10px;margin-top:14px}.seek span{font-size:12px;color:var(--mute);min-width:42px;font-variant-numeric:tabular-nums}.seek span:last-child{text-align:right}
@@ -141,6 +147,14 @@ input[type=range]{flex:1;padding:0;border:0;background:none;accent-color:var(--a
 .vol{display:flex;align-items:center;gap:10px;margin-top:6px}.vol .round{width:40px;height:40px;background:none;color:var(--mute)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.pc .chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
 .hero .chips{display:grid;grid-template-columns:1fr 1fr}.hero .chips button{justify-content:center}.chips button{flex:none;display:flex;align-items:center;gap:7px;padding:10px 14px;font-size:14px;font-weight:600;border-radius:999px;background:var(--s2)}.chips button svg{width:18px;height:18px}.chips button.on{background:var(--accent);color:#111}
+.hglow{position:absolute;inset:-60px;background:center/cover no-repeat;filter:blur(44px) saturate(1.5);opacity:.32;pointer-events:none}.hbody{z-index:1}.hart{z-index:1}
+.tracks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.tracks button{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);min-width:0}
+.tracks svg{width:20px;height:20px;flex:none;color:var(--accent)}.tracks span{min-width:0}.tracks small{display:block;font-size:11px;color:var(--mute);font-weight:600;letter-spacing:.3px;text-transform:uppercase}.tracks b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sht{margin:2px 4px 10px;font-size:17px}.tlist{display:grid;gap:6px;max-height:55vh;overflow-y:auto}.tlist button{display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;background:var(--s2);font-size:15px}.tlist button.on{background:var(--s3)}.tlist button svg{flex:none;color:var(--mute)}.tlist button.on svg{color:var(--accent)}
+.recent{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 6px}.recent button{padding:8px 13px;border-radius:999px;font-size:13px;background:var(--s1);border:1px solid var(--line);color:#C6CAD0}
+.card .pic.sk{background:linear-gradient(90deg,var(--s1),var(--s2),var(--s1));background-size:200% 100%;animation:sk 1.2s linear infinite}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (orientation:landscape) and (max-height:540px){#vremote:not([hidden]){display:grid;grid-template-columns:1.3fr 1fr;gap:6px 16px;align-items:start}#vremote .seg{grid-column:1/-1}#vremote .pad,#vremote .dpad{grid-row:2/span 2}.pad{height:68vh}.hart{height:110px}}
 .idle{border:1px dashed rgba(255,255,255,.14);border-radius:22px;padding:22px;text-align:center}.idle b{display:block}.idle span{color:var(--mute);font-size:14px}
 .strip{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:0 16px 4px;scrollbar-width:none}.strip::-webkit-scrollbar{display:none}
 .card{flex:none;width:126px;scroll-snap-align:start;background:none;padding:0;text-align:left;border-radius:14px;position:relative}
@@ -210,7 +224,7 @@ var state={},liveRef=null,tab='home';
 // Tabs.
 function go(v){tab=v;keep.set('tab',v);['home','search','remote'].forEach(function(n){q('v'+n).hidden=n!==v});
  document.querySelectorAll('.tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});q('main').scrollTop=0;
- if(v==='home')loadHome();if(v==='search')setTimeout(function(){if(!q('sq').value)q('sq').focus()},250);mini()}
+ if(v==='home')loadHome();if(v==='search'){recents();setTimeout(function(){if(!q('sq').value)q('sq').focus()},250)}mini()}
 document.querySelectorAll('.tabs button').forEach(function(b){b.onclick=function(){buzz(5);go(b.dataset.v)}});
 // Cards.
 function card(it){var c=el('button','card');c.dataset.tref=it.tref||'';if(it.tref&&it.tref===liveRef)c.classList.add('live');
@@ -219,10 +233,14 @@ function card(it){var c=el('button','card');c.dataset.tref=it.tref||'';if(it.tre
  f.onclick=function(e){e.stopPropagation();buzz(10);api('watchlist',{ref:it.ref},1).then(function(j){if(j.ok){it.saved=!it.saved;f.className='fav'+(it.saved?' on':'');f.replaceChild(icon(it.saved?'starOn':'star').firstChild,f.firstChild);toast(it.saved?'Added to your watchlist':'Removed from your watchlist')}})};
  p.appendChild(f);c.appendChild(p);c.appendChild(el('b',null,it.title));c.appendChild(el('small',null,it.sub));c.onclick=function(){buzz(6);openTitle(it.ref)};return c}
 function fill(box,items,empty){box.textContent='';if(!items||!items.length){box.appendChild(el('p','empty',empty));return}items.forEach(function(it){box.appendChild(card(it))})}
-function loadHome(){api('lists').then(function(j){fill(q('progress'),j.progress,'Nothing in progress.');fill(q('watchlist'),j.watchlist,'Your watchlist is empty.')})}
+function skel(box){if(box.children.length)return;for(var i=0;i<3;i++){var c=el('div','card');c.appendChild(el('span','pic sk'));box.appendChild(c)}}
+function loadHome(){skel(q('progress'));skel(q('watchlist'));api('lists').then(function(j){fill(q('progress'),j.progress,'Nothing in progress.');fill(q('watchlist'),j.watchlist,'Your watchlist is empty.')})}
 // Search.
-var sTimer;function search(){var v=q('sq').value.trim();q('sx').hidden=!v;if(v.length<2){q('results').textContent='';q('sn').textContent='';return}
- q('sn').textContent='Searching on the TV…';api('search',{q:v}).then(function(j){if(q('sq').value.trim()!==v)return;q('sn').textContent=j.note||(j.items.length?'':'Nothing found.');fill(q('results'),j.items,'')})}
+function recents(){var box=q('recent');box.textContent='';if(q('sq').value.trim())return;var r=[];try{r=JSON.parse(keep.get('recent')||'[]')}catch(e){}
+ r.forEach(function(t){var b=el('button',null,t);b.onclick=function(){buzz(5);q('sq').value=t;search()};box.appendChild(b)})}
+function remember(v){var r=[];try{r=JSON.parse(keep.get('recent')||'[]')}catch(e){}r=[v].concat(r.filter(function(x){return x.toLowerCase()!==v.toLowerCase()})).slice(0,6);keep.set('recent',JSON.stringify(r))}
+var sTimer;function search(){var v=q('sq').value.trim();q('sx').hidden=!v;recents();if(v.length<2){q('results').textContent='';q('sn').textContent='';return}
+ q('sn').textContent='Searching on the TV…';api('search',{q:v}).then(function(j){if(q('sq').value.trim()!==v)return;q('sn').textContent=j.note||(j.items.length?'':'Nothing found.');if(j.items.length)remember(v);fill(q('results'),j.items,'')})}
 q('sq').addEventListener('input',function(){clearTimeout(sTimer);sTimer=setTimeout(search,550)});
 q('sf').addEventListener('submit',function(e){e.preventDefault();clearTimeout(sTimer);q('sq').blur();search()});
 q('sx').onclick=function(){q('sq').value='';search();q('sq').focus()};
@@ -232,6 +250,9 @@ var dt,openRef=null;function openTitle(ref){openRef=ref;var pg=q('page');pg.hidd
  api('open',{ref:ref},1).then(function(){clearTimeout(dt);dt=setTimeout(loadTitle,700)})}
 function closeTitle(){q('page').hidden=true;openRef=null;clearTimeout(dt)}
 q('pclose').onclick=function(){buzz(5);closeTitle()};
+(function(){var pg=q('page'),y0=null,dy=0;pg.addEventListener('touchstart',function(e){y0=pg.scrollTop<=0?e.touches[0].clientY:null;dy=0},{passive:true});
+ pg.addEventListener('touchmove',function(e){if(y0==null)return;dy=e.touches[0].clientY-y0;if(dy>0){pg.style.transform='translateY('+Math.min(dy*.6,160)+'px)';pg.style.opacity=String(1-Math.min(dy/600,.4))}},{passive:true});
+ pg.addEventListener('touchend',function(){if(y0!=null&&dy>110){buzz(6);closeTitle()}pg.style.transform='';pg.style.opacity='';y0=null})})();
 function loadTitle(){if(q('page').hidden)return;api('details').then(function(d){if(q('page').hidden)return;drawTitle(d);clearTimeout(dt);if(d.open&&(d.loading||!d.sources.length&&!d.needsEpisode))dt=setTimeout(loadTitle,1500)})}
 function chip(label,ic,on,fn){var b=el('button',on?'on':'');b.appendChild(icon(ic).firstChild);b.appendChild(el('span',null,label));b.onclick=function(){buzz(8);fn()};return b}
 function drawTitle(d){var b=q('pbody');var y=q('page').scrollTop;b.textContent='';if(!d.open){b.appendChild(el('p','empty','Nothing is open on the TV.'));return}
@@ -267,15 +288,26 @@ document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){b
 q('hsave').onclick=function(){var n=state.now;if(n&&n.ref){buzz(10);api('watchlist',{ref:n.ref},1).then(function(j){if(j.ok)toast(n.saved?'Removed from your watchlist':'Added to your watchlist');poll()})}};
 q('hwatched').onclick=function(){var n=state.now;if(n&&n.ref){buzz(10);api('watched',{ref:n.ref},1).then(function(j){if(j.ok)toast(n.watched?'Marked unwatched':'Marked watched');poll()})}};
 function mini(){var n=state.now;q('mini').hidden=!n||tab==='home'}
+// #249: sound and subtitles while something plays.
+function current(list,none){var on=(list||[]).filter(function(x){return x.on})[0];return on?on.label:none}
+function tracks(n){var a=n.audio||[],s=n.subtitles||[];q('haud').hidden=a.length<2;q('hsub').hidden=!s.length;
+ q('haudv').textContent=current(a,'Default');q('hsubv').textContent=current(s,'Off');if(!q('tsheet').hidden)fillTracks()}
+var tkind='audio';function fillTracks(){var n=state.now;if(!n){q('tsheet').hidden=true;return}var list=tkind==='audio'?(n.audio||[]):(n.subtitles||[]);
+ q('tst').textContent=tkind==='audio'?'Sound':'Subtitles';var box=q('tlist');box.textContent='';
+ list.forEach(function(x,i){var b=el('button',x.on?'on':'');b.appendChild(icon(x.on?'radioOn':'radio').firstChild);b.appendChild(el('span',null,x.label));
+  b.onclick=function(){buzz(10);api('track',{kind:tkind,index:i},1).then(function(j){if(j.ok){toast((tkind==='audio'?'Sound: ':'Subtitles: ')+x.label);setTimeout(poll,450)}});q('tsheet').hidden=true};box.appendChild(b)})}
+function openTracks(k){tkind=k;buzz(6);fillTracks();q('tsheet').hidden=false}
+q('haud').onclick=function(){openTracks('audio')};q('hsub').onclick=function(){openTracks('subtitles')};q('tclose').onclick=function(){q('tsheet').hidden=true};
+q('tsheet').addEventListener('click',function(e){if(e.target===q('tsheet'))q('tsheet').hidden=true});
 function draw(s){state=s;ask(s.prompt);var n=s.now;q('kn').textContent=s.typing?'A text box is open on the TV: what you type goes there.':'No text box is open on the TV: what you type is searched for.';
  q('hero').hidden=!n;q('idle').hidden=!!n;mini();
  if(!n){if(liveRef){liveRef=null;mark()}return}
  q('ht').textContent=n.title;q('hs').textContent=n.sub||(n.live?'Live':'');q('mtt').textContent=n.title;q('mts').textContent=n.sub||'';
- if(n.image&&q('hart').dataset.u!==n.image){q('hart').dataset.u=n.image;bg(q('hart'),n.image);bg(q('mart'),n.image)}
+ if(n.image&&q('hart').dataset.u!==n.image){q('hart').dataset.u=n.image;bg(q('hart'),n.image);bg(q('mart'),n.image);bg(q('hglow'),n.image)}
  [q('hpp'),q('mpp'),q('rpp')].forEach(function(b){setIcon(b,n.playing?'pause':'play');b.setAttribute('aria-label',n.playing?'Pause':'Play')});
  q('hsave').hidden=!n.ref;q('hwatched').hidden=!n.ref;q('hsave').classList.toggle('on',!!n.saved);setIcon(q('hsave'),n.saved?'starOn':'star');q('hwatched').classList.toggle('on',!!n.watched);
  if(!dragging){q('seek').max=Math.max(1,Math.round(n.duration/1000));q('seek').value=Math.round(n.position/1000);q('h0').textContent=time(n.position)}
- q('h1').textContent=n.live?'Live':time(n.duration);q('seek').disabled=n.live||!n.duration;
+ q('h1').textContent=n.live?'Live':time(n.duration);q('seek').disabled=n.live||!n.duration;tracks(n);
  if(liveRef!==(n.tref||null)){liveRef=n.tref||null;mark()}}
 function mark(){document.querySelectorAll('.card[data-tref]').forEach(function(r){r.classList.toggle('live',!!liveRef&&r.dataset.tref===liveRef)})}
 function vol(v){if(!v)return;q('vol').hidden=v.fixed;if(!volDrag){q('vol').max=v.max;q('vol').value=v.level}}
@@ -292,7 +324,12 @@ var busy=false;function poll(){if(busy)return;busy=true;api('state').then(functi
 setInterval(function(){if(!document.hidden)poll()},1000);document.addEventListener('visibilitychange',function(){if(!document.hidden){poll();if(tab==='home')loadHome()}});
 // Remote: touch pad or buttons.
 var kq=Promise.resolve();function key(k){buzz(k==='ok'?14:6);kq=kq.then(function(){return api('key',{key:k},1)}).catch(function(){})}
-document.querySelectorAll('[data-k]').forEach(function(b){b.onclick=function(){key(b.dataset.k)}});
+// Arrow buttons repeat while held; the others press once.
+document.querySelectorAll('[data-k]').forEach(function(b){var k=b.dataset.k;
+ if(['up','down','left','right'].indexOf(k)<0){b.onclick=function(){key(k)};return}
+ var t1,t2;function stop(){clearTimeout(t1);clearInterval(t2)}
+ b.addEventListener('pointerdown',function(e){e.preventDefault();key(k);t1=setTimeout(function(){t2=setInterval(function(){key(k)},160)},420)});
+ ['pointerup','pointerleave','pointercancel'].forEach(function(n){b.addEventListener(n,stop)})});
 function mode(m){keep.set('pad',m);q('pad').hidden=m!=='pad';q('dpad').hidden=m!=='dpad';document.querySelectorAll('.seg button').forEach(function(b){b.classList.toggle('on',b.dataset.mode===m)})}
 document.querySelectorAll('.seg button').forEach(function(b){b.onclick=function(){buzz(5);mode(b.dataset.mode)}});
 (function(){var pad=q('pad'),dot=q('dotp'),x0=0,y0=0,t0=0,moved=false,id=null,STEP=46;

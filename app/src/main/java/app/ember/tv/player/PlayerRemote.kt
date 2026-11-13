@@ -7,6 +7,8 @@ import app.ember.tv.tracker.Kind
 internal data class RemoteNow(
     val title: String, val subtitle: String, val image: String?, val positionMs: Long, val durationMs: Long,
     val playing: Boolean, val live: Boolean, val meta: app.ember.tv.data.Meta?,
+    /** #249: sound tracks and subtitle choices, each with whether it is the one in use. */
+    val audio: List<Pair<String, Boolean>> = emptyList(), val subtitles: List<Pair<String, Boolean>> = emptyList(),
 )
 
 /** #243: a question the TV is asking, mirrored on the phone with the same choices. */
@@ -46,6 +48,24 @@ internal object PlayerRemote {
 
     fun now(): RemoteNow? = RemoteBridge.onMain { active()?.remoteNow() }
 
+    /** #249: picks sound track or subtitle choice [index] ("audio" or "subtitles"). */
+    fun track(kind: String, index: Int): Boolean = RemoteBridge.onMain {
+        val a = active() ?: return@onMain false
+        when (kind) {
+            "audio" -> {
+                if (index !in a.audioTracks().indices) return@onMain false
+                a.pickAudioTrack(index)
+                a.handler.postDelayed({ a.controls.audioTracks = a.audioTracks(); a.changed() }, 400)
+            }
+            "subtitles" -> {
+                val act = a.subtitleChoices().second.getOrNull(index) ?: return@onMain false
+                a.subsTouched = true; act(); a.updateSubtitleSheet()
+            }
+            else -> return@onMain false
+        }
+        true
+    } ?: false
+
     /** "toggle", "play", "pause", "seek" (to [value] ms), "skip" (by [value] ms), "stop" or "next". */
     fun command(action: String, value: Long?): Boolean = RemoteBridge.onMain {
         val a = active() ?: return@onMain false
@@ -70,6 +90,7 @@ internal object PlayerRemote {
             type = if (item.kind == Kind.MOVIE) "movie" else "series", name = seriesName, imdbId = item.imdbId, tmdbId = item.tmdbId,
             season = item.season, episode = item.episode, serverRef = serverRef)
         val subtitle = listOfNotNull(c.seasonEpisode, c.details?.episodeTitle?.takeIf { it.isNotBlank() }, c.details?.year).joinToString(" · ")
-        return RemoteNow(c.title.ifBlank { seriesName }, subtitle, c.details?.backdrop ?: if (itemInitialized) item.poster else null, c.position, c.duration, c.playing, live, meta)
+        return RemoteNow(c.title.ifBlank { seriesName }, subtitle, c.details?.backdrop ?: if (itemInitialized) item.poster else null, c.position, c.duration, c.playing, live, meta,
+            audioTracks(), subtitleChoices().first)
     }
 }

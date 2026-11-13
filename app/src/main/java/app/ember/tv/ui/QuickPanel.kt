@@ -139,8 +139,9 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                         // ---- settings: Ember's and the TV's, then the TV's pages ----
                         // "Back to …": the video you just left, from where it stopped. It comes first.
                         // #216: across the panel and a third of the screen high, not one tile in the grid.
-                        onReturn?.let { (title, go) -> ReturnTile(title, Modifier.focusRequester(first)) { onClose(); go() } }
-                        Tiles(
+                        // #248: the same column, padding and gap as the tiles below it.
+                        Tiles(top = onReturn?.let { (title, go) -> @Composable { ReturnTile(title, Modifier.focusRequester(first)) { onClose(); go() } } },
+                            tiles = 
                             listOf(
                                 Tile(stringResource(R.string.ui_network), info.networkShort, if (info.ethernet) IcEthernet else IcWifi) { tv(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) },
                                 Tile(stringResource(R.string.ui_qs_picture), info.displayShort, IcTv) {
@@ -251,17 +252,15 @@ private class Tile(
 /** The video you just left (#216): the panel's width, a third of the screen's height. */
 @Composable
 private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
-    val accent = FloatingPanelStyle.accent
     // #230: a quarter of the earlier third of the screen, one line.
     val height = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 12).coerceAtLeast(44).dp
     var focused by remember { mutableStateOf(false) }
     val soft = if (focused) OnPillColor.copy(alpha = .75f) else Mute
-    Focusable(onClick = onClick, modifier = modifier.padding(horizontal = 18.dp, vertical = 4.dp).fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.testTag("quick_return"),
-        radius = TvTokens.Shape.Control, container = WashHi, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
+    // #248: the tiles' own colours and icon, and no padding of its own (the column gives it).
+    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.testTag("quick_return"),
+        radius = TvTokens.Shape.Control, container = Panel, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
         Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(28.dp).clip(CircleShape).background(if (focused) OnPillColor.copy(alpha = .14f) else accent.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
-                MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else accent, 16.dp)
-            }
+            MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else Fg, 22.dp)
             Text("Back to", fontSize = 13.sp, color = soft, maxLines = 1)
             Text(title, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Continue", fontSize = 12.sp, color = soft, maxLines = 1)
@@ -271,7 +270,7 @@ private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
 
 /** Two tiles a row: icon, name and a short line (often what the TV is doing right now). */
 @Composable
-private fun Tiles(tiles: List<Tile>) {
+private fun Tiles(tiles: List<Tile>, top: (@Composable () -> Unit)? = null) {
     val accent = FloatingPanelStyle.accent
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val fontScale=androidx.compose.ui.platform.LocalDensity.current.fontScale
@@ -279,6 +278,7 @@ private fun Tiles(tiles: List<Tile>) {
     // Every tile the same size: room for the icon, a one-line name and a two-line note.
     val tileHeight=MenuSizing.quickTileHeight(fontScale)
     Column(Modifier.padding(horizontal = 18.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        top?.invoke()
         tiles.chunked(columns).forEach { pair ->
             Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 pair.forEach { t ->
