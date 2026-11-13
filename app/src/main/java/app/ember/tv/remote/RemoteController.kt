@@ -58,6 +58,10 @@ internal class RemoteController(private val vm: HomeViewModel) {
             put("watchlist", JsonArray(vm.combinedWatchlist.take(80).map(::item)))
         } }.toString()
         "details" -> details().toString()
+        // #257: the TV's crash log, newest first, so a crash can be passed on from the phone.
+        "crashes" -> buildJsonObject {
+            put("entries", JsonArray(app.ember.tv.data.CrashLog.entries().take(6).map { JsonPrimitive(it.take(12_000)) }))
+        }.toString()
         "open" -> { val m = meta(p["ref"]) ?: return gone(); main { vm.openDetails(m) }; ok() }
         "season" -> { val n = p["season"]?.toIntOrNull() ?: return bad(); main { vm.selectSeason(n) }; ok() }
         "episode" -> {

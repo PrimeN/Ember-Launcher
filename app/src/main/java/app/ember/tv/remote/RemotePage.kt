@@ -16,6 +16,7 @@ internal object RemotePage {
         "home" to """<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>""",
         "search" to """<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>""",
         "remote" to """<rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2"/><path d="M10 14h4M10 17h4"/>""",
+        "bug" to """<path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/><rect x="6" y="7.5" width="12" height="13" rx="6"/><path d="M12 11v9M6 12H3M21 12h-3M6 17H3.5M20.5 17H18M7 8.5 4.5 6M17 8.5 19.5 6"/>""",
         "kbd" to """<rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7.5 14h9"/>""",
         "play" to """<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>""",
         "pause" to """<path d="M7 5h3.2v14H7zM13.8 5H17v14h-3.2z" fill="currentColor" stroke="none"/>""",
@@ -77,7 +78,7 @@ internal object RemotePage {
     fun app(tv: String, accent: String) = shell("Ember remote", accent, """
 <div class=app>
 <header class=top><div class=brand><span class=dot id=dot></span><div class=bt><b>Ember</b><small>${esc(tv)}</small></div></div>
-<button class=round id=kbd aria-label="Type on the TV">${svg("kbd")}</button></header>
+<div class=tops><button class=round id=crash aria-label="Crash log">${svg("bug")}</button><button class=round id=kbd aria-label="Type on the TV">${svg("kbd")}</button></div></header>
 <main id=main>
 <section id=vhome class=view>
 <div id=ask class=ask hidden role=alertdialog aria-live=assertive><b id=at></b><small id=ax></small><div id=ac class=askb></div></div>
@@ -110,6 +111,8 @@ internal object RemotePage {
 <form id=kf><input id=kt autocomplete=off autocapitalize=off autocorrect=off spellcheck=false placeholder="Type here, it appears on the TV" aria-label="Text for the TV" enterkeyhint=send></form>
 <div class=keys><button id=kbs>${svg("erase")}<span>Delete</span></button><button id=kgo class=primary><span>Enter</span></button></div><button class=done id=kc>Done</button></div></div>
 <div id=tsheet class=sheet hidden><div class=panel><div class=grab></div><h3 id=tst class=sht></h3><div id=tlist class=tlist></div><button class=done id=tclose>Done</button></div></div>
+<div id=csheet class=sheet hidden><div class=panel><div class=grab></div><h3 class=sht>Crash log</h3><div id=clist class=clist></div>
+<div class=keys><button id=ccopy hidden>${svg("check")}<span>Copy</span></button></div><button class=done id=cclose>Done</button></div></div>
 <p id=toast role=status aria-live=polite></p>
 </div>""", "var I=" + iconsJson() + ";" + APP)
 
@@ -150,7 +153,9 @@ input[type=range]{flex:1;padding:0;border:0;background:none;accent-color:var(--a
 .hglow{position:absolute;inset:-60px;background:center/cover no-repeat;filter:blur(44px) saturate(1.5);opacity:.32;pointer-events:none}.hbody{z-index:1}.hart{z-index:1}
 .tracks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.tracks button{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);min-width:0}
 .tracks svg{width:20px;height:20px;flex:none;color:var(--accent)}.tracks span{min-width:0}.tracks small{display:block;font-size:11px;color:var(--mute);font-weight:600;letter-spacing:.3px;text-transform:uppercase}.tracks b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sht{margin:2px 4px 10px;font-size:17px}.tlist{display:grid;gap:6px;max-height:55vh;overflow-y:auto}.tlist button{display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;background:var(--s2);font-size:15px}.tlist button.on{background:var(--s3)}.tlist button svg{flex:none;color:var(--mute)}.tlist button.on svg{color:var(--accent)}
+.sht{margin:2px 4px 10px;font-size:17px}.tops{display:flex;gap:8px;margin-left:auto}
+.clist{display:grid;gap:8px;max-height:58vh;overflow-y:auto}.clist details{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.clist summary{font-size:13px;color:var(--mute);cursor:pointer}.clist pre{margin:8px 0 0;white-space:pre-wrap;word-break:break-word;font:12px/1.4 ui-monospace,Menlo,monospace;color:var(--fg)}.tlist{display:grid;gap:6px;max-height:55vh;overflow-y:auto}.tlist button{display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;background:var(--s2);font-size:15px}.tlist button.on{background:var(--s3)}.tlist button svg{flex:none;color:var(--mute)}.tlist button.on svg{color:var(--accent)}
 .recent{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 6px}.recent button{padding:8px 13px;border-radius:999px;font-size:13px;background:var(--s1);border:1px solid var(--line);color:#C6CAD0}
 .card .pic.sk{background:linear-gradient(90deg,var(--s1),var(--s2),var(--s1));background-size:200% 100%;animation:sk 1.2s linear infinite}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -298,6 +303,18 @@ var tkind='audio';function fillTracks(){var n=state.now;if(!n){q('tsheet').hidde
  q('tst').textContent=tkind==='audio'?'Sound':'Subtitles';var box=q('tlist');box.textContent='';
  list.forEach(function(x,i){var b=el('button',x.on?'on':'');b.appendChild(icon(x.on?'radioOn':'radio').firstChild);b.appendChild(el('span',null,x.label));
   b.onclick=function(){buzz(10);api('track',{kind:tkind,index:i},1).then(function(j){if(j.ok){toast((tkind==='audio'?'Sound: ':'Subtitles: ')+x.label);setTimeout(poll,450)}});q('tsheet').hidden=true};box.appendChild(b)})}
+// #257: the TV's crash log, to copy and pass on.
+var crashes=[];
+function copyText(t){var a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();a.setSelectionRange(0,t.length);
+ var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(a);
+ if(!ok&&navigator.clipboard){navigator.clipboard.writeText(t).then(function(){toast('Copied')},function(){toast('Could not copy')});return}toast(ok?'Copied':'Could not copy')}
+q('crash').onclick=function(){buzz(6);var l=q('clist');l.innerHTML='<p class=m>Loading…</p>';q('ccopy').hidden=true;q('csheet').hidden=false;
+ api('crashes').then(function(j){crashes=(j&&j.entries)||[];l.innerHTML='';
+  if(!crashes.length){l.innerHTML='<p class=m>Nothing recorded. If Ember closes by itself, it shows here.</p>';return}
+  q('ccopy').hidden=false;crashes.forEach(function(t,i){var d=document.createElement('details');d.open=i===0;var s=document.createElement('summary');s.textContent=t.split('\n')[0];
+   var p=document.createElement('pre');p.textContent=t;d.appendChild(s);d.appendChild(p);l.appendChild(d)})}).catch(function(){l.innerHTML='<p class=m>Could not reach the TV.</p>'})};
+q('ccopy').onclick=function(){copyText(crashes.join('\n\n----\n\n'))};q('cclose').onclick=function(){q('csheet').hidden=true};
+q('csheet').addEventListener('click',function(e){if(e.target===q('csheet'))q('csheet').hidden=true});
 function openTracks(k){tkind=k;buzz(6);fillTracks();q('tsheet').hidden=false}
 q('haud').onclick=function(){openTracks('audio')};q('hsub').onclick=function(){openTracks('subtitles')};q('tclose').onclick=function(){q('tsheet').hidden=true};
 q('tsheet').addEventListener('click',function(e){if(e.target===q('tsheet'))q('tsheet').hidden=true});

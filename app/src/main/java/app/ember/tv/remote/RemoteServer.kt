@@ -164,7 +164,7 @@ class RemoteServer(
         private const val MAX_BODY = 32_768
         private val IPV4 = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$")
         /** Requests that only read. */
-        val READS = setOf("state", "search", "lists", "details")
+        val READS = setOf("state", "search", "lists", "details", "crashes")
 
         internal fun form(text: String): Map<String, String> = text.split('&').filter { it.isNotEmpty() }.mapNotNull { pair ->
             runCatching { URLDecoder.decode(pair.substringBefore('='), "UTF-8") to URLDecoder.decode(pair.substringAfter('=', ""), "UTF-8") }.getOrNull()

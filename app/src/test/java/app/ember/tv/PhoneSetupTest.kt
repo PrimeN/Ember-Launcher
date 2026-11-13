@@ -10,7 +10,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class PhoneSetupTest {
-    private class Handler(private val access: PhoneSetupAccess, val calls: AtomicInteger) : PhoneSetup.Handler {
+    private class Handler(private val access: PhoneSetupAccess, val calls: AtomicInteger, private val crashes: List<String>? = null) : PhoneSetup.Handler {
+        override fun crashLog() = crashes
         private fun received(): String { access.requireActive(); calls.incrementAndGet(); return "Received" }
         override fun addAddon(url: String) = received()
         override fun saveKey(id: String, value: String) = received()
@@ -27,8 +28,8 @@ class PhoneSetupTest {
     }
 
     private fun server(calls: AtomicInteger = AtomicInteger(), duration: Long = PhoneSetupAccess.DURATION_MILLIS,
-        clock: () -> Long = { System.nanoTime() / 1_000_000 }) = PhoneSetup(
-        { Handler(it, calls) }, address = { "127.0.0.1" }, port = 0,
+        clock: () -> Long = { System.nanoTime() / 1_000_000 }, crashes: List<String>? = null) = PhoneSetup(
+        { Handler(it, calls, crashes) }, address = { "127.0.0.1" }, port = 0,
         durationMillis = duration, nowMillis = clock,
     )
 
@@ -52,6 +53,21 @@ class PhoneSetupTest {
             val rejected=runCatching {request(uri,"/presentation?${uri.rawQuery}","POST")}.getOrDefault("")
             assertFalse(rejected.startsWith("HTTP/1.1 200"));assertEquals(1,calls.get())
         }finally{server.stop()}
+    }
+
+    @Test fun theCrashLogCanBeCopiedFromThePhone() {
+        // #257
+        val setup = server(crashes = listOf("2026-11-13 09:12  ·  Ember\njava.lang.IllegalStateException: boom"))
+        try {
+            val uri = URI(setup.start()!!)
+            val page = request(uri, "/?${uri.rawQuery}&tab=backup&s=crash")
+            assertTrue(page.contains("<div id=crashes>") && page.contains("IllegalStateException: boom"))
+            assertTrue(page.contains("data-copy=\"#crashes pre\">Copy crash log</button>"))
+            assertTrue(page.contains("document.querySelectorAll('[data-copy]')"))
+        } finally { setup.stop() }
+        val remote = app.ember.tv.remote.RemotePage.app("TV", "#FF7A2F")
+        assertTrue(remote.contains("id=crash aria-label=\"Crash log\"") && remote.contains("api('crashes')") && remote.contains("id=ccopy"))
+        assertTrue("crashes" in app.ember.tv.remote.RemoteServer.READS)
     }
 
     @Test fun accessIsExactlyThirtyMinutesAndRequestsDoNotExtendIt() {

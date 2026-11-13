@@ -710,14 +710,18 @@ class PhoneSetup(
                     entries.isEmpty() -> append("<p class=m>Nothing recorded. Crashes, freezes (ANR) and Android closing Ember appear here.</p>")
                     else -> {
                         append("<p class=m>${entries.size} entr${if (entries.size == 1) "y" else "ies"}, newest first. Links, passwords and keys are removed.</p>")
+                        append("<div id=crashes>")
                         entries.take(CRASH_ENTRIES_SHOWN).forEachIndexed { i, e ->
                             val first = e.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().take(120)
                             append("<details${if (i == 0) " open" else ""}><summary>${esc(first)}</summary><pre>${esc(e)}</pre></details>")
                         }
+                        append("</div>")
                         if (entries.size > CRASH_ENTRIES_SHOWN) append("<p class=m>Download the log to see all ${entries.size}.</p>")
                     }
                 }
                 if (!entries.isNullOrEmpty()) {
+                    // #257: copy straight into a message, no file needed.
+                    append("<button type=button class=flat data-copy=\"#crashes pre\">Copy crash log</button>")
                     append("<form class=flat method=post action=\"/crash-log$auth\"><button>Download crash log</button></form>")
                     append("<form class=flat method=post action=\"/crash-log-clear$auth\"><label class=tick><input type=checkbox name=confirm required> Delete every entry</label><button class=danger>Clear crash log</button></form>")
                 }
@@ -921,6 +925,13 @@ ${BadgePhone.CSS}
          */
         private const val SCRIPT = """
 document.documentElement.classList.add('js');
+// #257: Copy buttons put the text of what they point at on the clipboard.
+document.querySelectorAll('[data-copy]').forEach(function(b){b.onclick=function(){
+  var t=Array.prototype.map.call(document.querySelectorAll(b.dataset.copy),function(e){return e.textContent}).join('\n\n----\n\n');
+  var a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();a.setSelectionRange(0,t.length);
+  var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(a);
+  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(t).then(function(){b.textContent='Copied'},function(){b.textContent='Could not copy'});return}
+  b.textContent=ok?'Copied':'Could not copy';};});
 function steps(g){return g&&g.dataset.steps?JSON.parse(g.dataset.steps):null;}
 function label(f){var g=f.querySelector('input[type=range]'),o=f.querySelector('output');if(!g)return;var s=steps(g);
   if(s){var l=JSON.parse(g.dataset.labels);f.querySelector('.hv').value=s[g.value];if(o)o.textContent=l[g.value];}else if(o)o.textContent=g.value;}
