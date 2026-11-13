@@ -352,16 +352,25 @@ jobs:
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id || steps.retry.outputs.artifact-id }}
         run: |
           [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo "::error::No APK artifact is available for the Actions update source."; exit 1; }
-          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$RUNNER_TEMP/actions-artifact.json"
+          # A just-uploaded artifact can take a few seconds to be listed.
+          for attempt in 1 2 3 4 5 6; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$RUNNER_TEMP/actions-artifact.json" && break
+            [ "$attempt" = 6 ] && { echo "::error::The APK artifact was not listed."; exit 1; }
+            sleep 10
+          done
           expected=$(jq -r '.digest' "$RUNNER_TEMP/actions-artifact.json")
           expected_size=$(jq -r '.size_in_bytes' "$RUNNER_TEMP/actions-artifact.json")
           [[ "$expected" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Missing Actions archive digest."; exit 1; }
-          curl --fail --silent --show-error --retry 2 --max-time 60 \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
-            --output "$RUNNER_TEMP/actions-public-metadata.json"
-          public_digest=$(jq -r --argjson id "$ARTIFACT_ID" '.artifacts[] | select(.id == $id) | .digest' "$RUNNER_TEMP/actions-public-metadata.json")
+          for attempt in 1 2 3 4 5 6; do
+            curl --fail --silent --show-error --retry 2 --max-time 60 \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
+              --output "$RUNNER_TEMP/actions-public-metadata.json" || true
+            public_digest=$(jq -r --argjson id "$ARTIFACT_ID" '.artifacts[]? | select(.id == $id) | .digest' "$RUNNER_TEMP/actions-public-metadata.json" 2>/dev/null || true)
+            [[ "$public_digest" == "$expected" ]] && break
+            sleep 10
+          done
           [[ "$public_digest" == "$expected" ]] || { echo "::error::Actions metadata is not available anonymously."; exit 1; }
-          curl --fail --silent --show-error --location --retry 2 --max-time 180 \
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 10 --retry-all-errors --max-time 180 \
             "https://nightly.link/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID.zip" \
             --output "$RUNNER_TEMP/actions-apk.zip"
           printf '%s  %s\n' "${expected#sha256:}" "$RUNNER_TEMP/actions-apk.zip" | sha256sum --check --status
