@@ -218,145 +218,9 @@ internal object WidgetDrafts {
     }
 }
 
-/** The TV editor's three steps (#173): one decision on screen at a time. */
-internal object WidgetSteps {
-    const val STYLE = "style"; const val SOURCE = "source"; const val DETAILS = "details"
-    val all = listOf(STYLE to "Style", SOURCE to "Source", DETAILS to "Details")
-    /** A new widget starts by choosing how it looks; editing opens on the details, with the other steps one press away. */
-    fun first(existing: Boolean) = if (existing) DETAILS else STYLE
-    fun next(step: String): String? = all.map { it.first }.let { ids -> ids.getOrNull(ids.indexOf(step) + 1) }
-    fun heading(step: String) = when (step) { STYLE -> "How it looks"; SOURCE -> "Where the titles come from"; else -> "Name and size" }
-}
-
-@Composable
-private fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: () -> Unit) {
-    var draft by remember(initial.id) { mutableStateOf(initial) }
-    var picker by remember { mutableStateOf(false) }
-    var trakt by remember { mutableStateOf(false) }
-    var filters by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    val existing = vm.widgets.list.any { it.id == initial.id }
-    var step by remember(initial.id) { mutableStateOf(WidgetSteps.first(existing)) }
-    // Choosing a source moves a new widget on to its details; an edit stays where it is.
-    fun chosen(source: CollectionSource, label: String? = null) { draft = WidgetDrafts.withSource(draft, source, label); message = null; if (!existing) step = WidgetSteps.DETAILS }
-    if (picker) CollectionSourcePicker(vm, onChoose = { source -> chosen(source); picker = false }, close = { picker = false })
-    else if (trakt) TraktListPicker(vm, onChoose = { source -> chosen(source); trakt = false }, close = { trakt = false })
-    // #181: Discover's own filter panel, opened in place; no saved search needed first.
-    else if (filters) ExploreFilters(draft.source.exploreQuery ?: app.ember.tv.discover.ExploreQuery(), vm.watch.watchRegion, vm.exploreRepository,
-        onApply = { query -> chosen(WidgetDrafts.filters(query, vm.profiles.profileId)); filters = false }, onClose = { filters = false })
-    else MediaDialog((if (existing) "Edit widget" else "New widget") + " · " + WidgetSteps.heading(step), close, resizeForKeyboard = true, wide = true) {
-        ButtonRow { WidgetSteps.all.forEachIndexed { i, (id, name) -> Chip("${i + 1}  $name", step == id, modifier = Modifier.testTag("widget_step_$id")) { step = id; message = null } } }
-        when (step) {
-            WidgetSteps.STYLE -> {
-                // #172: each style as a small picture of itself.
-                ButtonRow { HomeWidgets.styles.forEach { (value, name) ->
-                    WidgetStyleTile(value, name, draft.style == value) { draft = draft.copy(style = value) }
-                } }
-                // #195: a row is posters or wide cards, your choice, shown as pictures. #196: a panel chooses its artwork.
-                if (HomeWidgets.isPanel(draft.style)) {
-                    Text("Artwork", color = Mute, fontSize = 13.sp)
-                    ButtonRow { HomeWidgets.arts.forEach { (value, name) -> Chip(name, draft.art == value) { draft = draft.copy(art = value) } } }
-                    Note(if (draft.art == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos. Add TMDB and Fanart API keys in Settings > Accounts > API keys; missing images fall back to standard artwork."
-                        else "Standard TMDB and catalog backgrounds and logos.")
-                } else {
-                    Text("Card shape", color = Mute, fontSize = 13.sp)
-                    ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> CardShapeTile(value, name, draft.shape == value) { draft = draft.copy(shape = value) } } }
-                }
-            }
-            WidgetSteps.SOURCE -> {
-                Text("Now: " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "nothing chosen yet", fontSize = 15.sp)
-                ButtonRow {
-                    Chip("Build filters", modifier = Modifier.testTag("widget_filters")) { filters = true }
-                    Chip("Catalog, saved search or TMDB") { picker = true }
-                    Chip("Browse Trakt lists") { trakt = true }
-                }
-                Text("One of your lists", color = Mute, fontSize = 13.sp)
-                ButtonRow { vm.widgetLists().take(14).forEach { (id, label) ->
-                    Chip(label, draft.source.provider == HomeWidgets.LIST && draft.source.catalogId == id, maxLines = 1) {
-                        chosen(CollectionSource(provider = HomeWidgets.LIST, catalogId = id, title = label), label)
-                    }
-                } }
-                // #171: MDBList was only on the phone page.
-                Text("An MDBList list", color = Mute, fontSize = 13.sp)
-                var mdb by remember { mutableStateOf(if (draft.source.provider == HomeWidgets.MDBLIST) draft.source.catalogId.orEmpty() else "") }
-                TvTextField(mdb, { mdb = it.take(200) }, Modifier.fillMaxWidth(), placeholder = "MDBList link, user/list-name or number")
-                ButtonRow { Chip("Use this MDBList list", draft.source.provider == HomeWidgets.MDBLIST) {
-                    val (problem, source) = WidgetDrafts.mdblist(mdb, ApiKeys.get("MDBLIST_API_KEY").isNotBlank())
-                    if (source != null) chosen(source) else message = problem
-                } }
-                Note("Build filters picks titles by kind, genre, years, rating, people, studios and services. Searches you saved in Discover are under Catalog, saved search or TMDB.")
-            }
-            else -> {
-                TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Widget title")
-                Text("Titles to show", color = Mute, fontSize = 13.sp)
-                StepSlider("Titles to show", WidgetDrafts.limits, draft.limit, { "$it" }) { n -> draft = draft.copy(limit = n) }
-                Text(HomeWidgets.styleName(draft.style) + " · " + if (WidgetDrafts.hasSource(draft)) HomeWidgets.sourceLabel(draft.source, vm.allCatalogs) else "no source yet", color = Mute, fontSize = 13.sp)
-                // #182: what will land on Home, with the source's real titles.
-                WidgetPreview(vm, draft)
-            }
-        }
-        message?.let { Text(it, color = Mute, fontSize = 13.sp) }
-        ButtonRow {
-            val next = WidgetSteps.next(step)
-            if (next != null && !existing) Chip("Next") { step = next; message = null }
-            if (existing || next == null) Chip("Save widget", modifier = Modifier.testTag("widget_save")) {
-                message = vm.widgets.save(draft)
-                if (message == null) { vm.refreshWidgets(); close() }
-                // Send them to the step that is missing something.
-                else if (!WidgetDrafts.hasSource(draft)) step = WidgetSteps.SOURCE
-            }
-            Chip("Cancel") { close() }
-        }
-    }
-}
-
-/**
- * The editor's preview (#182): the chosen source's first titles drawn in the chosen style, so an
- * empty or wrong source shows before saving. Nothing here takes focus.
- */
-@Composable
-private fun WidgetPreview(vm: HomeViewModel, draft: HomeWidget) {
-    if (!WidgetDrafts.hasSource(draft)) return
-    var titles by remember { mutableStateOf<List<Meta>?>(null) }
-    var problem by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(draft.source) {
-        titles = null; problem = null
-        if (draft.source.provider == HomeWidgets.LIST) titles = vm.widgetItems(draft)
-        else vm.previewWidget(draft.source).fold({ titles = it }, { problem = app.ember.tv.state.WidgetsState.reason(it) })
-    }
-    Text("Preview", color = Mute, fontSize = 13.sp)
-    val shown = titles?.take(draft.limit)
-    when {
-        problem != null -> Text("Could not load: $problem", fontSize = 13.sp)
-        shown == null -> Text("Loading…", color = Mute, fontSize = 13.sp)
-        shown.isEmpty() -> Text("This source has no titles right now.", fontSize = 13.sp)
-        else -> {
-            val wide = draft.shape == "wide"
-            val few = shown.take(WidgetDrafts.previewCount(draft.style, wide))
-            when (draft.style) {
-                HomeWidgets.CAROUSEL, HomeWidgets.HERO -> Box(Modifier.width(360.dp).height(202.dp).clip(RoundedCornerShape(10.dp)).background(PanelHi).testTag("widget_preview")) {
-                    LandscapeImage(few.first(), Modifier.fillMaxSize())
-                    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(.5f to Color.Transparent, 1f to Color(0xE6000000))))
-                    Text(few.first().name, Modifier.align(if (draft.style == HomeWidgets.HERO) Alignment.BottomStart else Alignment.BottomCenter).padding(12.dp),
-                        fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                else -> Row(Modifier.testTag("widget_preview"), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-                    few.forEachIndexed { i, meta ->
-                        if (draft.style == HomeWidgets.NUMBERED) Text("${i + 1}", fontSize = 30.sp, lineHeight = 30.sp, fontWeight = FontWeight.Black, color = Mute)
-                        val shape = Modifier.clip(RoundedCornerShape(8.dp)).background(PanelHi)
-                        if (wide) LandscapeImage(meta, Modifier.width(132.dp).height(74.dp).then(shape))
-                        else PosterImage(meta, Modifier.width(70.dp).height(105.dp).then(shape))
-                    }
-                }
-            }
-            Text(if (shown.size == 1) "1 title" else "${shown.size} titles, the first ${few.size} shown", color = Mute, fontSize = 12.sp)
-        }
-    }
-}
-
 /** Poster, wide, or whatever Home's rows use, as a small picture (#195). */
 @Composable
-private fun CardShapeTile(shape: String, name: String, selected: Boolean, onClick: () -> Unit) {
+internal fun CardShapeTile(shape: String, name: String, selected: Boolean, onClick: () -> Unit) {
     Focusable(onClick = onClick, modifier = Modifier.width(132.dp).testTag("card_shape_$shape"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
         val ink = androidx.tv.material3.LocalContentColor.current
         Column(Modifier.fillMaxWidth().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -427,8 +291,8 @@ private fun BuiltInWidgetDialog(vm: HomeViewModel, section: String, label: Strin
 
 /** One widget style in the picker (#172): a small picture of it, its name and a line on what it is. */
 @Composable
-private fun WidgetStyleTile(style: String, name: String, selected: Boolean, onClick: () -> Unit) {
-    Focusable(onClick = onClick, modifier = Modifier.width(176.dp).testTag("widget_style_$style"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
+internal fun WidgetStyleTile(style: String, name: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Focusable(onClick = onClick, modifier = modifier.width(176.dp).testTag("widget_style_$style"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
         val ink = androidx.tv.material3.LocalContentColor.current
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             WidgetStylePreview(style, ink)
@@ -514,7 +378,7 @@ private fun WidgetImportDialog(vm: HomeViewModel, close: () -> Unit, done: (Stri
 
 /** Your Trakt lists and the ones you liked (signed in), Trakt's popular and trending lists, and a search (#246). */
 @Composable
-private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> Unit, close: () -> Unit) {
+internal fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> Unit, close: () -> Unit) {
     val signedIn = remember { vm.hub.trakt() != null }
     var tab by remember { mutableStateOf(if (signedIn) "mine" else "popular") }
     var query by remember { mutableStateOf("") }
