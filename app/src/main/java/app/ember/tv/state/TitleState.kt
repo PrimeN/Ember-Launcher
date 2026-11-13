@@ -314,7 +314,7 @@ class TitleState(
             }
 
             // TMDB is still asked when the addon's cast has no photos, for the faces only.
-            if (addonFirst && details?.addonCredits?.people.let { it.isNullOrEmpty() || it.any { p -> p.photo.isNullOrBlank() } }) loadTmdbCredits(full)
+            if (addonFirst && AddonCast.wantsTmdb(details?.addonCredits?.people)) loadTmdbCredits(full)
             loadRatings(full, addonImdbRating)
             if (meta.playsDirectly || (episodes.isEmpty() && directVideoId != null)) {
                 details = details?.copy(meta = full, loadingEpisodes = false, loadingStreams = true)

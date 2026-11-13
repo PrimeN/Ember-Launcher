@@ -39,13 +39,25 @@ object AddonCast {
 
     private fun key(name: String) = name.lowercase().filter { it.isLetterOrDigit() }
 
-    /** The addon's people in its order, with TMDB's photo, character and id where the addon has none. */
-    fun withFaces(addon: List<Person>, tmdb: List<Person>): List<Person> {
+    /** Fewer cast members than this and TMDB's fuller list is asked for too (#268). */
+    const val SHORT = 6
+
+    /** True when TMDB is worth asking: someone has no photo, or the addon lists only a few people. */
+    fun wantsTmdb(addon: List<Person>?): Boolean =
+        addon.isNullOrEmpty() || addon.any { it.photo.isNullOrBlank() } || addon.count { !it.isCrew } < SHORT
+
+    /**
+     * The addon's people first, in its order, with TMDB's photo, character and id where the addon has
+     * none; then the rest of TMDB's cast and crew, so a short addon list (#268) is not all there is.
+     */
+    fun combine(addon: List<Person>, tmdb: List<Person>): List<Person> {
         if (tmdb.isEmpty()) return addon
         val byName = tmdb.groupBy { key(it.name) }
-        return addon.map { p ->
+        val first = addon.map { p ->
             val t = byName[key(p.name)]?.let { same -> same.firstOrNull { it.isCrew == p.isCrew } ?: same.first() } ?: return@map p
             p.copy(photo = p.photo?.takeIf { it.isNotBlank() } ?: t.photo, role = p.role?.takeIf { it.isNotBlank() } ?: t.role, tmdbId = p.tmdbId ?: t.tmdbId)
         }
+        val shown = first.map { key(it.name) to it.isCrew }.toSet()
+        return first + tmdb.filter { (key(it.name) to it.isCrew) !in shown }
     }
 }

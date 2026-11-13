@@ -42,7 +42,7 @@ class AddonMetadataFirstTest {
         val fromTmdb = Credits(listOf(Person("TMDB Actor", "Lead", "https://tmdb/face.jpg")), "yt2")
         val ui = DetailsUi(meta = addon, addonCredits = fromAddon, tmdbCredits = fromTmdb)
         AddonMetadata.first = true
-        assertEquals("Addon Actor", ui.credits!!.people.single().name)
+        assertEquals(listOf("Addon Actor", "TMDB Actor"), ui.credits!!.people.map { it.name })
         AddonMetadata.first = false
         assertEquals("TMDB Actor", ui.credits!!.people.single().name)
         assertEquals("the addon's trailer either way", "yt1", ui.credits!!.trailer)
