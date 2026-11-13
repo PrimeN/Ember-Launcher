@@ -232,6 +232,8 @@ object Collections {
         else "\"$name\" is not one of $addon's catalogs. Turn it on in the add-on's settings, or remove it from this folder."
     }
     private val requests by lazy { CollectionRequests() }
+    /** #246: the signed-in Trakt account's token, set by the app; null when nobody is signed in. */
+    @Volatile var traktToken: (() -> String?)? = null
     /** Trakt's public lists, for the widget editors (#161). */
     internal suspend fun traktLists(tab: String, query: String) = requests.traktLists(tab, query)
     suspend fun page(s: CollectionSource, defs: List<CatalogDef>, client: AddonClient, skip: Int = 0, readSecret: (String) -> String? = { null }): Result<CollectionPage> = try {

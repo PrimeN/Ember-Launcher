@@ -512,10 +512,11 @@ private fun WidgetImportDialog(vm: HomeViewModel, close: () -> Unit, done: (Stri
     }
 }
 
-/** Trakt's popular and trending public lists, and a search of them. */
+/** Your Trakt lists and the ones you liked (signed in), Trakt's popular and trending lists, and a search (#246). */
 @Composable
 private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> Unit, close: () -> Unit) {
-    var tab by remember { mutableStateOf("popular") }
+    val signedIn = remember { vm.hub.trakt() != null }
+    var tab by remember { mutableStateOf(if (signedIn) "mine" else "popular") }
     var query by remember { mutableStateOf("") }
     var media by remember { mutableStateOf("MOVIE") }
     var found by remember { mutableStateOf<List<CollectionRequests.ListRef>?>(null) }
@@ -531,8 +532,13 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
     }
     MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true, wide = true) {
         ButtonRow {
+            if (signedIn) {
+                Chip("My lists", tab == "mine" && query.isBlank()) { tab = "mine"; query = "" }
+                Chip("Liked", tab == "liked" && query.isBlank()) { tab = "liked"; query = "" }
+            }
             Chip("Popular", tab == "popular" && query.isBlank()) { tab = "popular"; query = "" }
             Chip("Trending", tab == "trending" && query.isBlank()) { tab = "trending"; query = "" }
+            Chip("Official", tab == "official" && query.isBlank()) { tab = "official"; query = "" }
             listOf("MOVIE" to "Movies", "TV" to "Shows").forEach { (key, label) -> Chip(label, media == key) { media = key } }
         }
         TvTextField(query, { query = it.take(100) }, Modifier.fillMaxWidth(), placeholder = "Search Trakt lists")
@@ -540,7 +546,7 @@ private fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> U
         when {
             lists == null -> Text("Loading…", color = Mute)
             failed != null -> Text(failed.orEmpty(), color = Mute)
-            lists.isEmpty() -> Text("No lists found.", color = Mute)
+            lists.isEmpty() -> Text(if (tab == "mine" && query.isBlank()) "Your Trakt account has no lists yet." else "No lists found.", color = Mute)
             // #178: cards, two across, instead of thirty full-width buttons.
             else -> ButtonRow { lists.take(30).forEach { l ->
                 Focusable(onClick = { onChoose(WidgetDrafts.trakt(l, media)) }, modifier = Modifier.width(270.dp).testTag("trakt_list"), radius = TvTokens.Shape.Card, container = PanelHi) {

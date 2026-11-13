@@ -46,6 +46,7 @@ abstract class TraktLikeTracker(
         get() = clientId.isNotBlank() && (!requiresClientSecret || clientSecret.isNotBlank())
 
     private fun access() = store.get("$id.access")
+    protected fun bearerToken(): String? = access()
     override fun isConnected() = !access().isNullOrBlank()
     override fun accountLabel(): String? = if (isConnected()) store.get("$id.account") ?: "Signed in" else null
     override fun disconnect() {
@@ -309,6 +310,8 @@ class TraktTracker(context: Context) : TraktLikeTracker(
     tokenCodeField = "code",
 ) {
     override val requiresClientSecret = true
+    /** #246: the account's token, for loading your own Trakt lists as widgets. */
+    fun listToken(): String? = if (isConnected()) bearerToken() else null
     // Trakt refreshes through the same endpoint as sign-in.
     override val refreshPath = "oauth/token"
     override val refreshRedirectUri: String? = "urn:ietf:wg:oauth:2.0:oob"

@@ -202,7 +202,7 @@ object ContentPhone {
             append("<label>").append(name).append("</label><div class=pick data-ref=").append(ref).append(" data-lookup=").append(lookup).append("><div class=chosen></div><input type=search autocomplete=off placeholder=\"Search to add\" aria-label=\"Search ").append(name.lowercase()).append("\"><div class=results></div></div>")
         }
         append("</fieldset>")
-        append("<fieldset data-kind=trakt><legend>Trakt list</legend><div id=trakt-find><div class=tabs2><button type=button data-tab=popular>Popular</button><button type=button data-tab=trending>Trending</button></div>")
+        append("<fieldset data-kind=trakt><legend>Trakt list</legend><div id=trakt-find><div class=tabs2><button type=button data-tab=mine>My lists</button><button type=button data-tab=liked>Liked</button><button type=button data-tab=popular>Popular</button><button type=button data-tab=trending>Trending</button></div>")
         append("<input type=search autocomplete=off placeholder=\"Search Trakt lists\" aria-label=\"Search Trakt lists\"><div class=results></div></div>")
         append("<label for=tk>List number, or a link that contains it</label><input id=tk name=trakt placeholder=\"Pick a list above, or paste here\">")
         append("<label for=tkm>Show</label><select id=tkm name=traktMedia><option value=MOVIE>Movies</option><option value=TV>Shows</option></select></fieldset>")

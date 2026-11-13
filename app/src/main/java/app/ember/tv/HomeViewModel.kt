@@ -216,7 +216,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun onUiInteraction() = refreshQueue.interaction()
     internal suspend fun awaitUiPresentation() = refreshQueue.awaitPresentation()
     internal val client = AddonClient()
-    val hub = TrackerHub(app)
+    val hub = TrackerHub(app).also { h -> app.ember.tv.data.Collections.traktToken = { h.trakt()?.listToken() } }
     internal val linkTasks = LinkTasks(viewModelScope)
     // Capture this before any automatic source addition saves the navigation defaults.
     internal var restoreLiveDefault = !prefs.hasSavedNav

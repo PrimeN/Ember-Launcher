@@ -49,6 +49,35 @@ class CollectionRequestsFixesTest {
         assertEquals("2022", url.queryParameter("primary_release_year")); assertEquals("2022-12-31", url.queryParameter("primary_release_date.lte"))
         assertTrue(page.end)
     }
+    @Test fun traktListChoicesUseTodaysAddressesAndSurviveEmptyAnswers() = runBlocking {
+        // #246: Trakt answers the bare popular/trending addresses with nothing (HTTP 204).
+        assertEquals("lists/popular/personal", CollectionRequests.traktListsPath("popular", ""))
+        assertEquals("lists/trending/personal", CollectionRequests.traktListsPath("trending", ""))
+        assertEquals("lists/popular/official", CollectionRequests.traktListsPath("official", ""))
+        assertEquals("users/me/lists", CollectionRequests.traktListsPath("mine", ""))
+        assertEquals("users/likes/lists", CollectionRequests.traktListsPath("liked", ""))
+        assertEquals("search/list", CollectionRequests.traktListsPath("mine", "noir"))
+        val empty = Fixture { "" to emptyMap() }.apply { status = 204 }
+        assertEquals(emptyList<CollectionRequests.ListRef>(), empty.requests.traktLists("popular", ""))
+        assertEquals("/lists/popular/personal", empty.seen.single().url.encodedPath)
+        // Your own lists come bare, not wrapped in {"list": …}.
+        val mine = CollectionRequests.parseTraktLists(Json.parseToJsonElement("""[{"name":"Weekend","ids":{"trakt":7},"item_count":3,"likes":0,"user":{"username":"me"}}]"""))
+        assertEquals(7L, mine.single().id); assertEquals("me", mine.single().by)
+    }
+    @Test fun signedInListRequestsCarryTheTokenAndRetryWithoutIt() = runBlocking {
+        val seen = CopyOnWriteArrayList<Request>()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request(); seen += request
+            val code = if (request.header("Authorization") != null) 401 else 200
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("fixture").body(traktItems(1, 2).toResponseBody()).build()
+        }.build()
+        val requests = CollectionRequests(client, { "expired" }) { "fixture-key" }
+        val page = requests.page(CollectionSource(provider = "trakt", traktListId = 9), 0)
+        assertEquals(2, page.items.size)
+        assertEquals(listOf("Bearer expired", null), seen.map { it.header("Authorization") })
+        val noToken = CollectionRequests(client, { null }) { "fixture-key" }
+        assertTrue(runCatching { noToken.traktLists("mine", "") }.exceptionOrNull()!!.message!!.contains("Sign in to Trakt"))
+    }
     @Test fun traktListsContinuePastOneHundredAndUseProviderEndMetadata() = runBlocking {
         val f = Fixture { request ->
             val page = request.url.queryParameter("page")!!.toInt()

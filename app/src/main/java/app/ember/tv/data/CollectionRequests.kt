@@ -21,6 +21,8 @@ data class CollectionPage(val items: List<Meta>, val nextSkip: Int, val end: Boo
 /** Credential-bearing requests do not enter the HTTP disk cache. Test clients need no real API keys. */
 internal class CollectionRequests(
     client: OkHttpClient = Net.client(10, 30),
+    /** #246: the signed-in Trakt account's token, so your own and private lists load. */
+    private val traktToken: () -> String? = { Collections.traktToken?.invoke() },
     private val key: (String) -> String = ApiKeys::get,
 ) {
     private val http = client.newBuilder().cache(null).build()
@@ -35,15 +37,30 @@ internal class CollectionRequests(
     /** A public Trakt list, for choosing one as a Home widget's source (#161). */
     data class ListRef(val id: Long, val name: String, val by: String, val items: Int, val likes: Int, val description: String)
 
-    /** Trakt's popular or trending lists, or a search of its public lists. Needs only the app's client id. */
+    /**
+     * Trakt lists to choose from: your own ("mine") and liked ("liked") when signed in, Trakt's popular
+     * or trending lists, or a search. #246: Trakt now answers the bare popular/trending addresses with
+     * nothing; they take a "personal" or "official" ending.
+     */
     suspend fun traktLists(tab: String, query: String): List<ListRef> {
         val clientId = key("TRAKT_CLIENT_ID").ifBlank { error("Trakt lists need a client id.") }
         val q = query.trim()
-        val url = (if (q.isNotEmpty()) "https://api.trakt.tv/search/list" else "https://api.trakt.tv/lists/" + if (tab == "trending") "trending" else "popular")
-            .toHttpUrl().newBuilder().apply { if (q.isNotEmpty()) addQueryParameter("query", q.take(100)) }.addQueryParameter("limit", "30").build()
-        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId)
-            .header("Content-Type", "application/json").header("User-Agent", TRAKT_AGENT).build())
+        val path = traktListsPath(tab, q)
+        if ((tab == "mine" || tab == "liked") && q.isEmpty() && traktToken() == null) error("Sign in to Trakt in Settings > Trackers to see your lists.")
+        val url = "https://api.trakt.tv/$path".toHttpUrl().newBuilder().apply { if (q.isNotEmpty()) addQueryParameter("query", q.take(100)) }
+            .addQueryParameter("limit", if (tab == "mine" && q.isEmpty()) "100" else "30").build()
+        val result = traktRequest(url, clientId)
         return parseTraktLists(result.body)
+    }
+
+    /** A Trakt request, signed in when an account is, and again without the sign-in if Trakt refuses it. */
+    private suspend fun traktRequest(url: okhttp3.HttpUrl, clientId: String): Reply {
+        fun build(token: String?) = Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId)
+            .header("Content-Type", "application/json").header("User-Agent", TRAKT_AGENT).apply { token?.let { header("Authorization", "Bearer $it") } }.build()
+        val token = traktToken()
+        return try { request(build(token)) } catch (e: IllegalStateException) {
+            if (token != null && e.message?.contains("HTTP 401") == true) request(build(null)) else throw e
+        }
     }
 
     /**
@@ -63,8 +80,20 @@ internal class CollectionRequests(
     companion object {
         /** Trakt asks API clients to identify themselves (#166). */
         const val TRAKT_AGENT = "EmberTV/1.0 (Android TV; https://github.com/PrimeN/Ember-Launcher)"
+        /** Where each kind of list comes from. */
+        internal fun traktListsPath(tab: String, query: String): String = when {
+            query.isNotBlank() -> "search/list"
+            tab == "mine" -> "users/me/lists"
+            tab == "liked" -> "users/likes/lists"
+            tab == "trending" -> "lists/trending/personal"
+            tab == "official" -> "lists/popular/official"
+            else -> "lists/popular/personal"
+        }
+
+        /** Lists come wrapped ({"list": …}) from popular, trending, search and likes, and bare from your own. */
         internal fun parseTraktLists(body: JsonElement): List<ListRef> = (body as? JsonArray).orEmpty().mapNotNull { e ->
-            val list = (e as? JsonObject)?.get("list") as? JsonObject ?: return@mapNotNull null
+            val o = e as? JsonObject ?: return@mapNotNull null
+            val list = (o["list"] as? JsonObject) ?: o.takeIf { it["ids"] is JsonObject } ?: return@mapNotNull null
             val id = ((list["ids"] as? JsonObject)?.get("trakt") as? JsonPrimitive)?.longOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
             fun text(o: JsonObject?, name: String) = (o?.get(name) as? JsonPrimitive)?.contentOrNull.orEmpty()
             fun number(name: String) = (list[name] as? JsonPrimitive)?.intOrNull ?: 0
@@ -94,7 +123,9 @@ internal class CollectionRequests(
         withResponse(http.newCall(request)) { response ->
             withContext(Dispatchers.IO) {
                 check(response.isSuccessful) { "The collection provider returned HTTP ${response.code}." }
-                Reply(json.parseToJsonElement(response.body.string()),
+                // #246: an empty answer (HTTP 204) is no titles, not a broken page.
+                val text = response.body.string()
+                Reply(if (text.isBlank()) JsonArray(emptyList()) else json.parseToJsonElement(text),
                     response.header("X-Pagination-Page-Count")?.toIntOrNull()?.takeIf { it >= 0 })
             }
         }
@@ -181,8 +212,8 @@ internal class CollectionRequests(
         val page = skip / 100 + 1
         val url = "https://api.trakt.tv/lists/$id/items/$type/$sort/$how".toHttpUrl().newBuilder()
             .addQueryParameter("limit", "100").addQueryParameter("page", page.toString()).build()
-        val result = request(Request.Builder().url(url).header("trakt-api-version", "2").header("trakt-api-key", clientId)
-            .header("Content-Type", "application/json").header("User-Agent", TRAKT_AGENT).build())
+        // #246: signed in, so your private lists load too.
+        val result = traktRequest(url, clientId)
         val raw = result.body as? JsonArray ?: error("The collection provider returned an unreadable page.")
         val items = raw.mapNotNull { e ->
             val o = (e as? JsonObject)?.get(type) as? JsonObject ?: return@mapNotNull null
