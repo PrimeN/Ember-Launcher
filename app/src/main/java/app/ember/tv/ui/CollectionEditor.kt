@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,7 +44,7 @@ internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, clo
             returnFolder = edited.id; folder = null
         }, close = { returnFolder = folder?.id?.takeIf { id -> draft.folders.any { it.id == id } }; folder = null })
     } else MediaDialog(if (original == null) "Create collection" else "Edit collection", ::dismiss, resizeForKeyboard = true, initialFocus = restoreFocus.takeIf { returnFolder != null }, wide = true) {
-        Text("Create folders from catalogs and Discover searches.", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_create_folders_from_catalogs_and_discover), color = Mute, fontSize = 13.sp)
         TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Collection name")
         ButtonRow {
             Chip(if (saving) "Saving…" else "Save collection") {
@@ -61,11 +64,11 @@ internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, clo
             }
         }
         TvTextField(draft.backdropImageUrl.orEmpty(), { draft = draft.copy(backdropImageUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Backdrop URL (optional)")
-        if (draft.folders.isEmpty()) Text("Add at least one folder, then save the collection.", color = Mute)
+        if (draft.folders.isEmpty()) Text(stringResource(R.string.tx_add_at_least_one_folder_then), color = Mute)
         draft.folders.forEachIndexed { index, item ->
             Column(Modifier.fillMaxWidth().background(PanelHi, RoundedCornerShape(12.dp)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(item.title, fontSize = 16.sp)
-                Text("${item.allSources.size} sources · ${item.shape}", color = Mute, fontSize = 12.sp)
+                Text(stringResource(R.string.tx_sources, item.allSources.size, item.shape), color = Mute, fontSize = 12.sp)
                 ButtonRow(spacing = 6.dp) {
                     Chip("Edit", modifier = if (returnFolder == item.id) Modifier.focusRequester(restoreFocus) else Modifier) { folder = item }
                     MoveButton(item.title, index, draft.folders.lastIndex) { step -> draft = draft.copy(folders = draft.folders.moved(index, step)) }
@@ -131,7 +134,7 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
         } }
         if (step == FolderSteps.LOOK) {
         TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Folder name")
-        Text("Tile shape", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_tile_shape), color = Mute, fontSize = 13.sp)
         ButtonRow { FolderSteps.shapes.forEach { (shape, name) -> ShapeTile(shape, name, draft.tileShape == shape) { draft = draft.copy(tileShape = shape) } } }
         TvTextField(draft.coverEmoji.orEmpty(), { draft = draft.copy(coverEmoji = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover emoji (optional)")
         SwitchChip("Hide folder title", draft.hideTitle) { draft = draft.copy(hideTitle = !draft.hideTitle) }
@@ -151,7 +154,7 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
         }
         if (step == FolderSteps.SOURCES) {
         ButtonRow { Chip("Add source") { picker = true } }
-        if (draft.allSources.isEmpty()) Text("Add a catalog or search to this folder.", color = Mute)
+        if (draft.allSources.isEmpty()) Text(stringResource(R.string.tx_add_a_catalog_or_search_to), color = Mute)
         draft.allSources.forEachIndexed { index, source ->
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(Collections.label(source, vm.allCatalogs), fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -271,13 +274,13 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
         if (mode == "Catalogs") {
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find catalogs")
             val matches = vm.collectionCatalogs.filter { (it.label + it.addon.name).contains(query, true) }
-            Text("${matches.size} catalogs" + if (matches.size > 60) " · First 60 shown; search to narrow the list." else "", fontSize = 12.sp, color = Mute)
+            Text(stringResource(R.string.tx_catalogs, matches.size) + if (matches.size > 60) " · First 60 shown; search to narrow the list." else "", fontSize = 12.sp, color = Mute)
             matches.take(60).forEach { c -> Chip(c.label + " · " + c.addon.name) {
                 if (c.extras.isEmpty()) onChoose(CollectionDrafts.catalog(c)) else catalog = c
             } }
         } else if (mode == "Saved searches") {
             val saved = vm.collectionSearches
-            if (saved.isEmpty()) Text("Save a search in Discover first, or use Add to collection on your current Discover results.", color = Mute)
+            if (saved.isEmpty()) Text(stringResource(R.string.tx_save_a_search_in_discover_first), color = Mute)
             saved.forEach { search -> Chip(search.name) { onChoose(CollectionDrafts.discover(search.name, search.query, vm.profiles.profileId)) } }
         } else {
             if (mode == "TMDB") ButtonRow {

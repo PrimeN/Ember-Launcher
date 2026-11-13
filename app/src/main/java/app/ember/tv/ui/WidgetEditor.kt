@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,7 +71,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                 if (vm.hiddenHomeTitleCount > 0) Chip("Restore ${vm.hiddenHomeTitleCount} hidden Home titles") { vm.restoreHomeTitles() }
             }
             // #195: one press sets every built-in row; a row can still be given its own shape in its Edit.
-            Text("Rows that come with Ember", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_rows_that_come_with_ember), color = Mute, fontSize = 13.sp)
             ButtonRow {
                 val own = vm.sections.rowShapes.size
                 Chip("All wide", selected = own == 0 && vm.look.modernCards != "poster") { vm.look.updateModernCards("wide"); vm.sections.clearShapes() }
@@ -251,14 +254,14 @@ private fun BuiltInWidgetDialog(vm: HomeViewModel, section: String, label: Strin
             section == HomeViewModel.HOME_HERO -> {
                 SettingValueRow("Catalog", catalogSourceLabel(vm, vm.look.heroCatalog)) { catalogs = true }
                 Note("Any addon catalog, or a mix of the Home catalogs. Up to ten titles with artwork are shown, with Watch now and watchlist.")
-                Text("Artwork", color = Mute, fontSize = 13.sp)
+                Text(stringResource(R.string.ui_artwork), color = Mute, fontSize = 13.sp)
                 ButtonRow { HomeWidgets.arts.forEach { (value, name) -> Chip(name, vm.look.heroArtworkMode == value) { vm.look.updateHeroArtworkMode(value) } } }
                 Note(if (vm.look.heroArtworkMode == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos; missing images fall back to standard artwork."
                     else "Standard TMDB and catalog backgrounds and logos.")
                 if (vm.look.heroArtworkMode == HeroArtworkMode.FANART) Chip("Fanart API key") { close(); vm.openSettingsPage("KEYS") }
             }
             section == HomeViewModel.HOME_APPS -> {
-                Text("Rows of apps", color = Mute, fontSize = 13.sp)
+                Text(stringResource(R.string.ui_rows_of_apps), color = Mute, fontSize = 13.sp)
                 ButtonRow {
                     Chip("One row", selected = vm.homeAppRows == 1) { vm.updateHomeAppRows(1) }
                     Chip("Two rows", selected = vm.homeAppRows == 2) { vm.updateHomeAppRows(2) }
@@ -267,12 +270,12 @@ private fun BuiltInWidgetDialog(vm: HomeViewModel, section: String, label: Strin
             }
         }
         WidgetDrafts.personalList(section)?.let { list ->
-            Text("Show as", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_show_as), color = Mute, fontSize = 13.sp)
             ButtonRow { listOf("row" to "A row of titles", "button" to "A button") .forEach { (value, name) ->
                 Chip(name, vm.sections.listStyle(section) == value) { if (vm.sections.listStyle(section) != value) vm.sections.toggleListStyle(section) }
             } }
             // #197: what the list includes, for this profile; it used to be on a page of its own.
-            Text("Include from", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_include_from), color = Mute, fontSize = 13.sp)
             ButtonRow { PersonalListSources.sources.forEach { (source, name) ->
                 SwitchChip(name, vm.sections.sourceEnabled(vm.profiles.profileId, list, source)) { vm.sections.toggleSource(vm.profiles.profileId, list, source) }
             } }
@@ -280,7 +283,7 @@ private fun BuiltInWidgetDialog(vm: HomeViewModel, section: String, label: Strin
             if (list != "recent") Chip("Restore hidden items") { LocalLibrary.restoreList(list) }
         }
         if (app.ember.tv.state.HomeSectionsState.hasShape(section) && (WidgetDrafts.personalList(section) == null || vm.sections.listStyle(section) == "row")) {
-            Text("Card shape", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_card_shape), color = Mute, fontSize = 13.sp)
             val now = vm.sections.shape(section) ?: "default"
             ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> CardShapeTile(value, name, now == value) { vm.sections.setShape(section, value.takeIf { it != "default" }) } } }
         }
@@ -352,7 +355,7 @@ private fun WidgetImportDialog(vm: HomeViewModel, close: () -> Unit, done: (Stri
     var pending by remember { mutableStateOf<Pair<String, List<HomeWidget>>?>(null) }
     val scope = rememberCoroutineScope()
     MediaDialog("Import widgets", close, resizeForKeyboard = true) {
-        Text("A link to a widget pack exported from Ember. Widgets with the same id are updated; the rest are added.", color = Mute)
+        Text(stringResource(R.string.tx_a_link_to_a_widget_pack), color = Mute)
         TvTextField(url, { url = it; pending = null; message = null }, Modifier.fillMaxWidth(), placeholder = "Pack link (https://…)")
         message?.let { Text(it, color = Mute) }
         val found = pending
@@ -367,7 +370,7 @@ private fun WidgetImportDialog(vm: HomeViewModel, close: () -> Unit, done: (Stri
             pending = text.getOrNull()?.let { raw -> widgets?.getOrNull()?.let { raw to it } }
             busy = false
         } } } else {
-            Text("${found.second.size} widget" + (if (found.second.size == 1) "" else "s") + ": " + found.second.take(6).joinToString(", ") { it.title } + if (found.second.size > 6) "…" else "", fontSize = 15.sp)
+            Text(stringResource(R.string.tx_widget, found.second.size) + (if (found.second.size == 1) "" else "s") + ": " + found.second.take(6).joinToString(", ") { it.title } + if (found.second.size > 6) "…" else "", fontSize = 15.sp)
             ButtonRow {
                 Chip("Import ${found.second.size}") { done(vm.importWidgets(found.first)); close() }
                 Chip("Cancel") { close() }
@@ -408,7 +411,7 @@ internal fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> 
         TvTextField(query, { query = it.take(100) }, Modifier.fillMaxWidth(), placeholder = "Search Trakt lists")
         val lists = found
         when {
-            lists == null -> Text("Loading…", color = Mute)
+            lists == null -> Text(stringResource(R.string.tx_loading), color = Mute)
             failed != null -> Text(failed.orEmpty(), color = Mute)
             lists.isEmpty() -> Text(if (tab == "mine" && query.isBlank()) "Your Trakt account has no lists yet." else "No lists found.", color = Mute)
             // #178: cards, two across, instead of thirty full-width buttons.

@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -222,7 +225,7 @@ private fun SettingPicture(picture: String, ink: Color) {
             else -> if (picture.substringBefore('-') in EffectPictures.groups) EffectPicture(picture, ink)
                 else if (picture.startsWith("uisize-")) SizePicture(UiSizes.screen(picture.removePrefix("uisize-")) / UiSizes.screen("xlarge"), ink)
                 else if (picture.startsWith("textsize-")) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aa", fontSize = (30f * UiSizes.text(picture.removePrefix("textsize-"))).sp, fontWeight = FontWeight.SemiBold, color = strong, maxLines = 1)
+                    Text(stringResource(R.string.tx_aa), fontSize = (30f * UiSizes.text(picture.removePrefix("textsize-"))).sp, fontWeight = FontWeight.SemiBold, color = strong, maxLines = 1)
                 }
                 else Box(Modifier.fillMaxSize().block(soft, 4))
         }

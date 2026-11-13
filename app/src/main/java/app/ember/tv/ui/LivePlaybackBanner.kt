@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +25,7 @@ fun LivePlaybackBanner(info: LiveBanner?) {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         info.channel.logo?.let { AsyncImage(it, null, modifier = Modifier.size(64.dp)) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("LIVE · " + (info.channel.number?.let { "$it · " } ?: "") + info.channel.name, fontSize = 20.sp, color = Color.White)
+            Text(stringResource(R.string.tx_live_2) + (info.channel.number?.let { "$it · " } ?: "") + info.channel.name, fontSize = 20.sp, color = Color.White)
             Text(info.now?.let { it.title + " · " + timeOf(it.start) + "–" + timeOf(it.stop) } ?: "No current programme information", fontSize = 16.sp, color = Color.White)
             info.now?.let { programme ->
                 val progress = ((info.clock - programme.start).toFloat() / (programme.stop - programme.start).coerceAtLeast(1)).coerceIn(0f, 1f)

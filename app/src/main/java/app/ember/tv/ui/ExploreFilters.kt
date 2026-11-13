@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -97,7 +100,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                     .floatingPanelSurface().padding(horizontal = 24.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Filters", color = Fg, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.search_filters_button), color = Fg, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
                         // #251: the title type lives here only.
                         KindSegments(draft.kind) { k -> draft = FilterLook.withKind(draft, k) }
                         Spacer(Modifier.weight(1f))
@@ -119,7 +122,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                                 "Genre" -> {
                                     GenreTiles(draft) { key -> draft = draft.copy(genres = if (key in draft.genres) draft.genres - key else draft.genres + key) }
                                     if (draft.genres.size > 1) Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Titles must have", color = Mute, fontSize = 14.sp)
+                                        Text(stringResource(R.string.tx_titles_must_have), color = Mute, fontSize = 14.sp)
                                         Chip("Any of these", !draft.allGenres) { draft = draft.copy(allGenres = false) }
                                         Chip("All of these", draft.allGenres) { draft = draft.copy(allGenres = true) }
                                     }
@@ -140,7 +143,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                                     StepSlider("At most", FilterSteps.maxScore, FilterSteps.tenths(draft.maxRating) ?: 100, FilterSteps::maxLabel, width = 520.dp) { t ->
                                         draft = draft.copy(maxRating = t.takeIf { it < 100 }?.div(10.0))
                                     }
-                                    Text("Votes needed for Highest rated", color = Fg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                    Text(stringResource(R.string.tx_votes_needed_for_highest_rated), color = Fg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                                     StepSlider("Movies", FilterSteps.movieVotes, draft.minMovieVotes, FilterSteps::votesLabel, width = 520.dp) { draft = draft.copy(minMovieVotes = it) }
                                     StepSlider("Shows", FilterSteps.showVotes, draft.minTvVotes, FilterSteps::votesLabel, width = 520.dp) { draft = draft.copy(minTvVotes = it) }
                                     Hint("TMDB audience score out of 10. Vote minimums keep tiny samples from leading Highest rated.")
@@ -197,7 +200,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                         }
                         Chip("Reset all") { draft = ExploreQuery(sort = draft.sort); error = null }
                         Spacer(Modifier.weight(1f))
-                        Text("Every category must match; within one, any choice can.", color = Mute, fontSize = 12.sp)
+                        Text(stringResource(R.string.tx_every_category_must_match_within_one), color = Mute, fontSize = 12.sp)
                     }
                 }
             }
@@ -257,6 +260,6 @@ internal fun PrimaryButton(label: String, modifier: Modifier = Modifier, onClick
 
 @Composable
 private fun SelectedRefs(refs: List<ExploreRef>, onRemove: (Long) -> Unit) {
-    if (refs.isEmpty()) Text("Any", color = Mute, fontSize = 13.sp)
+    if (refs.isEmpty()) Text(stringResource(R.string.tx_any), color = Mute, fontSize = 13.sp)
     else ButtonRow { refs.forEach { ref -> Chip("${ref.name} ×", true) { onRemove(ref.id) } } }
 }

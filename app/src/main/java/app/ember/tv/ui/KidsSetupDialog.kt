@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.runtime.*
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
@@ -30,7 +33,7 @@ import app.ember.tv.data.LocalActivity
     }
     MediaDialog(if(stage==3)"Kids profile ready" else "Set up a Kids profile",close,resizeForKeyboard=true) {
         if(stage==3) {
-            Text("Administrator PIN verified. ${draft.name} has local playback history, restricted app access and PIN-protected settings.")
+            Text(stringResource(R.string.tx_administrator_pin_verified_has_local_playback, draft.name))
             Note(KidsContentPolicy.summary(draft))
             Chip("Save Kids profile") {if(verified && verifiedRevision==vm.pin.revision && vm.profiles.completeKidsSetup(draft)){onReady(draft.id);close()}}
             if(verifiedRevision!=vm.pin.revision)Chip("Verify administrator PIN again") {stage=2}
@@ -39,7 +42,7 @@ import app.ember.tv.data.LocalActivity
             TextInput(draft.name,{draft=draft.copy(name=it.take(60))},"Profile name")
             KidsContentSettings(draft){change->draft=change(draft)}
             Note("${draft.apps?.size ?: vm.apps.size} allowed apps · ${draft.catalogs?.size ?: vm.allCatalogs.size} allowed catalogs. Adjust these in Profiles after setup. Other apps retain their own parental controls.")
-            Text("Next, configure the administrator PIN if needed and test the PIN used to return to a parent profile.")
+            Text(stringResource(R.string.tx_next_configure_the_administrator_pin_if))
             Chip("Continue") {draft=draft.copy(name=draft.name.trim().ifBlank {"Kids"});stage=if(vm.pin.pinSet)2 else 1}
         }
     }

@@ -240,10 +240,10 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
                     " Auto never picks Ultra.",color=Mute,fontSize=13.sp)
                 Chip("Reset Auto observations") {RuntimeBudgets.reset(performanceContext)}
             }
-            Text("Pictures up to ${effective.heroMaxWidth} × ${effective.heroMaxHeight} · Glass: "+glassModeLabel(effective),color=Mute,fontSize=13.sp)
+            Text(stringResource(R.string.tx_pictures_up_to_glass, effective.heroMaxWidth, effective.heroMaxHeight)+glassModeLabel(effective),color=Mute,fontSize=13.sp)
             if(!Art.display4K)Note("Ultra appears on a 4K display.")
             if(vm.look.devicePerformance=="custom") {
-                Text("Image quality",fontSize=15.sp)
+                Text(stringResource(R.string.tx_image_quality),fontSize=15.sp)
                 ButtonRow(spacing = 10.dp) { listOf("economy" to "Economy","balanced" to "Balanced","high" to "High").forEach { (value, label) ->
                     Chip(label, selected = vm.look.artworkQuality == value) { vm.look.updateArtworkQuality(value) }
                 } }

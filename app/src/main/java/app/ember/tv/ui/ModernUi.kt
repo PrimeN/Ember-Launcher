@@ -1026,7 +1026,7 @@ fun LiveNowRow(iptv:IptvController,modifier:Modifier=Modifier,onOptions:(Channel
     val providers=remember(iptv.sources){iptv.sources.associate {it.id to it.name}}
     if(list.isEmpty())return
     Column(modifier,verticalArrangement=Arrangement.spacedBy(4.dp)) {
-        Text("On now",fontSize=16.sp,fontWeight=FontWeight.Medium,color=Fg,modifier=Modifier.padding(start=4.dp).semantics {heading()})
+        Text(stringResource(R.string.tx_on_now),fontSize=16.sp,fontWeight=FontWeight.Medium,color=Fg,modifier=Modifier.padding(start=4.dp).semantics {heading()})
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val width=CardSizes.width(maxWidth,3.25f,18.dp,6.dp)
             LazyRow(horizontalArrangement=Arrangement.spacedBy(18.dp),contentPadding=PaddingValues(horizontal=6.dp,vertical=10.dp)) {
@@ -1062,9 +1062,9 @@ internal fun LiveFeaturedCard(channel:Channel,programme:app.ember.tv.iptv.Progra
                 }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.5f to Color.Transparent,1f to Color(0x88000000))))
                 Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start=12.dp,end=12.dp,bottom=20.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Text("LIVE",color=Color.White,fontSize=TvTokens.Type.Caption.sp,fontWeight=FontWeight.Bold,modifier=Modifier.clip(RoundedCornerShape(3.dp)).background(LiveRed).padding(horizontal=6.dp,vertical=2.dp))
+                    Text(stringResource(R.string.tx_live),color=Color.White,fontSize=TvTokens.Type.Caption.sp,fontWeight=FontWeight.Bold,modifier=Modifier.clip(RoundedCornerShape(3.dp)).background(LiveRed).padding(horizontal=6.dp,vertical=2.dp))
                     Spacer(Modifier.weight(1f))
-                    remaining?.let {Text("$it min left",color=Color.White,fontSize=12.sp,fontWeight=FontWeight.Medium)}
+                    remaining?.let {Text(stringResource(R.string.tx_min_left, it),color=Color.White,fontSize=12.sp,fontWeight=FontWeight.Medium)}
                 }
                 progress?.let {fraction ->Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=12.dp,vertical=10.dp).fillMaxWidth().height(3.dp).clip(CircleShape).background(Color.White.copy(alpha=.35f))) {
                     Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(MaterialTheme.colorScheme.primary))

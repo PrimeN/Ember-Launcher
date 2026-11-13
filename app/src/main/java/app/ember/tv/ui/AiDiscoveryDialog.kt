@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.focus.FocusRequester
@@ -36,11 +39,11 @@ internal fun AiDiscoveryDialog(repository: ExploreRepository, region: String, on
     }
     TvDialog(onClose, width = 610.dp, resizeForKeyboard = true, scrollContent = true) {
         DialogHeading("Describe what to watch")
-        Text("Mistral suggests filters; you review before applying. Only this description is sent. Your provider may charge for each request.", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_mistral_suggests_filters_you_review_before), color = Mute, fontSize = 13.sp)
         TvTextField(prompt, {
             cancelRequest(); prompt = it.take(1000); result = null; error = null
         }, placeholder = "e.g. Animated movies from 2010 onwards, rated 7+", focusRequester = first)
-        if (busy) Text("Preparing suggested filters…", color = Mute, fontSize = 13.sp)
+        if (busy) Text(stringResource(R.string.tx_preparing_suggested_filters), color = Mute, fontSize = 13.sp)
         error?.let { Text(it, color = Mute, fontSize = 13.sp) }
         result?.let { suggestion ->
             Text((listOf(suggestion.query.kind.label, suggestion.query.sort.label) + suggestion.query.summary()).joinToString(" · "), fontSize = 14.sp)

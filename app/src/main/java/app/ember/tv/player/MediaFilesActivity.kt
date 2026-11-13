@@ -1,5 +1,8 @@
 package app.ember.tv.player
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -57,8 +60,8 @@ class MediaFilesActivity:ComponentActivity() {
             CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides app.ember.tv.ui.Fg) {
             Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState()).padding(40.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
-                Text("Open media",fontSize=26.sp)
-                Text("Play files from this device, a USB drive, or a network folder. Select several files to create a queue.")
+                Text(stringResource(R.string.tx_open_media),fontSize=26.sp)
+                Text(stringResource(R.string.tx_play_files_from_this_device_a))
                 Chip(if(preparing) "Preparing files…" else "Choose files") {
                     if(!preparing)runCatching {picker.launch(arrayOf("video/*","audio/*","application/octet-stream"))}.onFailure {Toast.makeText(this@MediaFilesActivity,"No file picker is installed on this TV.",Toast.LENGTH_LONG).show()}
                 }

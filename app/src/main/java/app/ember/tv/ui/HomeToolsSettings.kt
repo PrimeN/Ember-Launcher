@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
@@ -87,7 +90,7 @@ internal object AppChoices {
             val on=vm.sections.sectionOn(HomeViewModel.HOME_APPS)
             SettingToggle("Show apps on Home","The Apps widget. Its place among Home's widgets is set in Widgets & collections.",on){vm.sections.toggleSection(HomeViewModel.HOME_APPS)}
             SettingValueRow("Apps on Home",AppChoices.count(vm.apps.count {it.pkg !in vm.hidden},vm.apps.size)){chooseApps="home"}
-            Text("Rows of apps",fontSize=15.sp)
+            Text(stringResource(R.string.ui_rows_of_apps),fontSize=15.sp)
             ButtonRow(spacing=10.dp) {
                 Chip("One row",selected=vm.homeAppRows==1){vm.updateHomeAppRows(1)}
                 Chip("Two rows",selected=vm.homeAppRows==2){vm.updateHomeAppRows(2)}
@@ -103,7 +106,7 @@ internal object AppChoices {
                 Chip("Edit ${f.name}"){vm.homeFeatureAction="edit:folder:${f.id}"}
                 if(index>0)Chip("Move earlier"){vm.personalHomes.update {p->val folders=p.folders.toMutableList();java.util.Collections.swap(folders,index,index-1);p.copy(folders=folders)}}
             }}
-            Text("Hold OK on an app to choose artwork, move it to a folder or set a PIN lock.",color=Mute,fontSize=14.sp)
+            Text(stringResource(R.string.tx_hold_ok_on_an_app_to),color=Mute,fontSize=14.sp)
             if(vm.launcherExtras.options.lockedApps.isNotEmpty())Chip("Remove all app PIN locks") {vm.pin.withPin("Enter the administrator PIN"){vm.launcherExtras.update {it.copy(lockedApps=emptySet())}}}
         }
         if(part==HomeToolsPart.FOLDERS)HiddenAppsSection(vm)
@@ -116,7 +119,7 @@ internal object AppChoices {
                     else->vm.launcherExtras.update {it.copy(destination=kind,target="")}
                 }
             }
-            now?.let {Text("Opens $it",color=Mute,fontSize=13.sp)}
+            now?.let {Text(stringResource(R.string.tx_opens, it),color=Mute,fontSize=13.sp)}
             SettingToggle("At startup",null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
             SettingToggle("After standby","Wake launching requires Ember to be the active Home, or its Home button service to be enabled.",opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
         }
@@ -133,9 +136,9 @@ internal object AppChoices {
                 Chip("Choose media on TV"){vm.homeFeatureAction="edit:presentation-add"}
                 if(opts.slides.isNotEmpty())Chip("Start presentation"){if(!vm.profiles.profile.kids)PresentationActivity.start(context) else vm.showNotice("Switch to an adult profile to use presentation mode.")}
             }
-            Text("Small photos and videos can also be sent through the existing 15-minute Phone setup session, with approval on the TV.",color=Mute,fontSize=13.sp)
+            Text(stringResource(R.string.tx_small_photos_and_videos_can_also),color=Mute,fontSize=13.sp)
             SettingToggle("Keep screen awake","Applies only while the presentation is open.",opts.keepAwake){vm.launcherExtras.update {it.copy(keepAwake=!it.keepAwake)}}
-            Text("Photo duration",fontSize=15.sp)
+            Text(stringResource(R.string.tx_photo_duration),fontSize=15.sp)
             StepSlider("Seconds per slide",listOf(5,10,20,30,60),opts.slideSeconds,{"${it}s"}){seconds->vm.launcherExtras.update {it.copy(slideSeconds=seconds)}}
             opts.slides.forEachIndexed {index,item->
                 Text("${index+1}. ${item.name}",fontSize=14.sp,maxLines=2)
@@ -173,7 +176,7 @@ internal object AppChoices {
         fun choose(kind:String,target:String=""){vm.launcherExtras.update {it.copy(destination=kind,target=target)};chooseStartup=false}
         if(startupKind=="input") {
             val inputs=rememberLightInputs(0)
-            if(inputs.isEmpty())Text("This TV has no inputs to start on.",color=Mute,fontSize=13.sp)
+            if(inputs.isEmpty())Text(stringResource(R.string.tx_this_tv_has_no_inputs_to),color=Mute,fontSize=13.sp)
             ButtonRow {inputs.forEach {input->Chip(input.label,selected=vm.launcherExtras.options.target==input.id){choose("input",input.id)}}}
         } else Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
             // The app picker's icons, one press to choose.
@@ -192,7 +195,7 @@ internal object AppChoices {
     val allowed=vm.appAccess.page(false).map {it.pkg}.toSet()
     val current=rememberNowPlaying(enabled,allowed)
     if(!enabled)return
-    if(current==null)Text("No active supported media session.",color=Mute,fontSize=14.sp) else Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    if(current==null)Text(stringResource(R.string.tx_no_active_supported_media_session),color=Mute,fontSize=14.sp) else Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Text(current.title,fontSize=17.sp,maxLines=2)
         Text(vm.apps.firstOrNull {it.pkg==current.pkg}?.label ?: current.pkg,color=Mute,fontSize=13.sp)
         val actions=current.controller.playbackState?.actions ?: 0L
@@ -215,7 +218,7 @@ internal object AppChoices {
     val apps=vm.appAccess.page(true).filter {it.pkg in offHome || it.pkg in hiddenApps}
     val pages=app.ember.tv.data.LightNavigation.entries(vm.visibleTabs).filter {it.pkg in vm.personalHomes.current.lightNavHidden}
     Section("Hidden apps","Apps taken off Home or hidden, and Ember Light page tiles you hid. Show one to put it back.",id="hidden-apps") {
-        if(apps.isEmpty() && pages.isEmpty())Text("Nothing is hidden.",color=Mute,fontSize=14.sp)
+        if(apps.isEmpty() && pages.isEmpty())Text(stringResource(R.string.tx_nothing_is_hidden),color=Mute,fontSize=14.sp)
         apps.forEach {a->HiddenAppRow(a.label,if(a.pkg in hiddenApps)"Hidden" else "Not on Home") {
             if(a.pkg in hiddenApps)vm.toggleAppsPage(a.pkg)
             if(a.pkg in vm.hidden)vm.toggleHidden(a.pkg)

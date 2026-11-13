@@ -121,7 +121,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
             DiscoverSection.EXPLORE -> Column(Modifier.fillMaxWidth().weight(1f).padding(horizontal = TvTokens.Space.Page.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // #244: each filter in use as a tag to remove.
                 if (!kids) ActiveFilterTags(state.query, Modifier.fillMaxWidth()) { state.apply(it) }
-                Text("${state.results.size}/100 titles" + when {
+                Text(stringResource(R.string.tx_100_titles, state.results.size) + when {
                         state.loading -> " · Finding matches…"
                         state.complete -> if (state.pagingLimit) " · Provider limit reached" else " · Complete"
                         else -> ""
@@ -147,7 +147,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                         isSaved = { vm.isSaved(it) }, onOpen = { state.pause(); onOpen(it) }, modifier = Modifier.fillMaxWidth().weight(1f), state = grid,
                         footer = if (state.complete || state.loading) null else ({ Chip("Keep finding matches") { state.more() } }),
                     ) else if (!state.loading && !state.complete && state.error == null) {
-                        Text("No matches in the candidates checked so far. Your filters are kept.", color = Mute, fontSize = TvTokens.Type.Compact.sp)
+                        Text(stringResource(R.string.tx_no_matches_in_the_candidates_checked), color = Mute, fontSize = TvTokens.Type.Compact.sp)
                         Chip("Keep finding matches") { state.more() }
                     }
                 }
@@ -185,7 +185,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
     if ((panel || aiReview) && !kids) ExploreFilters(aiDraft ?: state.query, vm.watch.watchRegion, vm.exploreRepository,
         onApply = { state.apply(it); panel = false; aiDraft = null }, onClose = { panel = false; aiDraft = null },
         searchTools=if(aiReview)null else ({
-            Text("Apply any filter changes before saving a search.",color=Mute,fontSize=TvTokens.Type.Compact.sp)
+            Text(stringResource(R.string.tx_apply_any_filter_changes_before_saving),color=Mute,fontSize=TvTokens.Type.Compact.sp)
             if(aiConfigured)MenuActionRow("Describe what to watch") {panel=false;aiOpen=true}
             MenuActionRow("Save current search",icon=androidx.compose.material.icons.Icons.Outlined.Add) {panel=false;save=true}
             MenuActionRow("Saved searches (${state.saved.size})") {panel=false;presets=true}
@@ -201,9 +201,9 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
     if (presets && !kids) SavedExploreDialog(state.saved, onOpen = { state.load(it); presets = false }, onDelete = state::delete,
         onHome = state::toggleHome, onClose = { presets = false })
     if (info && !kids) MediaDialog("Search details", { info = false }) {
-        Text("${vm.watch.watchRegion} · TMDB · ${state.pagesChecked} pages checked", color = Mute, fontSize = TvTokens.Type.Compact.sp)
-        if (state.query.providers.isNotEmpty()) Text("Availability from JustWatch", color = Mute, fontSize = TvTokens.Type.Compact.sp)
-        if (state.query.oscars != OscarMode.ANY) Text("Oscar records: Wikidata. Coverage may be incomplete; missing records do not count as matches.", color = Mute, fontSize = TvTokens.Type.Compact.sp)
+        Text(stringResource(R.string.tx_tmdb_pages_checked, vm.watch.watchRegion, state.pagesChecked), color = Mute, fontSize = TvTokens.Type.Compact.sp)
+        if (state.query.providers.isNotEmpty()) Text(stringResource(R.string.tx_availability_from_justwatch), color = Mute, fontSize = TvTokens.Type.Compact.sp)
+        if (state.query.oscars != OscarMode.ANY) Text(stringResource(R.string.tx_oscar_records_wikidata_coverage_may_be), color = Mute, fontSize = TvTokens.Type.Compact.sp)
         exploreTags(state.query).forEach { (label, query) -> Chip("$label ×", selected = true) { state.apply(query) } }
     }
     RestoreToolbarFocus(panel || catalogFilters || save || presets || info || aiOpen || aiReview || recovery, filterFocus)
@@ -248,7 +248,7 @@ private fun SaveExploreDialog(onClose: () -> Unit, onSave: (String) -> String?) 
     TvDialog(onClose,width=430.dp,resizeForKeyboard=true,scrollContent=true) {
         DialogHeading("Save this search")
         TvTextField(name, { name = it.take(80) }, placeholder = "e.g. DreamWorks favourites", focusRequester = first)
-        Text("An existing name updates that search. Results refresh from its saved filters.", color = Mute, fontSize = TvTokens.Type.Compact.sp)
+        Text(stringResource(R.string.tx_an_existing_name_updates_that_search), color = Mute, fontSize = TvTokens.Type.Compact.sp)
         error?.let { Text(it, color = Mute, fontSize = TvTokens.Type.Compact.sp) }
         ButtonRow { Chip("Save") { error = onSave(name); if (error == null) onClose() }; Chip("Cancel", onClick = onClose) }
 
@@ -265,7 +265,7 @@ private fun SavedExploreDialog(saved: List<SavedExplore>, onOpen: (String) -> Un
             DialogHeading("Saved searches",Modifier.weight(1f))
             DialogClose(onClose, Modifier.focusRequester(first))
         }
-        if (saved.isEmpty()) Text("Apply your filters, then choose Save search. Saved searches belong to this profile.", color = Mute, fontSize = 14.sp)
+        if (saved.isEmpty()) Text(stringResource(R.string.tx_apply_your_filters_then_choose_save), color = Mute, fontSize = 14.sp)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             items(saved, key = { it.id }) { item ->
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

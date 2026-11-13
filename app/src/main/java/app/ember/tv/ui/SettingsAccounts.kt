@@ -139,7 +139,7 @@ private fun ApiKeyDialog(vm: HomeViewModel, s: ApiKeys.Service, close: () -> Uni
             Text(if (ApiKeys.ready(s)) "Key set" else "No key yet", fontSize = 14.sp)
         }
         Text(s.usedFor, fontSize = 14.sp)
-        ApiKeys.LIMITS[s.name]?.let { Text("Limits: $it", color = Mute, fontSize = 13.sp) }
+        ApiKeys.LIMITS[s.name]?.let { Text(stringResource(R.string.tx_limits, it), color = Mute, fontSize = 13.sp) }
         Text(stringResource(R.string.ui_get_one, s.where), color = Mute, fontSize = 13.sp)
         vm.keysMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
         s.fields.forEach { f -> KeyField(vm, f) }
@@ -212,10 +212,10 @@ internal fun ProfilePhotoPicker(name: String, close: () -> Unit, onPick: (String
         if (allowed) pictures = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Photos.slides(context, null, ProfilePhotos.MAX).map { it.image } }.getOrDefault(emptyList()) }
     }
     MediaDialog("Photo for $name", close, resizeForKeyboard = true, wide = true) {
-        Text("From this TV's pictures", fontSize = 15.sp)
+        Text(stringResource(R.string.tx_from_this_tv_s_pictures), fontSize = 15.sp)
         when {
             !allowed -> Chip(stringResource(R.string.ui_allow_access_to_pictures)) { ask.launch(Photos.permission) }
-            pictures == null -> Text("Loading…", color = Mute, fontSize = 13.sp)
+            pictures == null -> Text(stringResource(R.string.tx_loading), color = Mute, fontSize = 13.sp)
             pictures!!.isEmpty() -> Text(stringResource(R.string.ui_no_pictures_found_on_this_tv), color = Mute, fontSize = 13.sp)
             else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 pictures!!.chunked(ProfilePhotos.PER_ROW).forEach { line ->
@@ -229,7 +229,7 @@ internal fun ProfilePhotoPicker(name: String, close: () -> Unit, onPick: (String
                 }
             }
         }
-        Text("Or a link to a picture", fontSize = 15.sp)
+        Text(stringResource(R.string.tx_or_a_link_to_a_picture), fontSize = 15.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             TextInput(link, { link = it.take(500) }, "https://…")
             Chip("Use this picture") { Profile.usablePhoto(link)?.let(onPick) ?: run { message = "Enter a link that starts with https://." } }

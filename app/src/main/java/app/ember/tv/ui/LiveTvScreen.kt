@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import app.ember.tv.isSaved
 
 import androidx.compose.foundation.focusGroup
@@ -227,8 +230,8 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
                     onSearch = { if (activeChoice.kind == "addons") searchAll = true; searchOpen = true },
                     onNow = { guideEngaged = true; guideJump = iptv.clock }, onMore = { moreOpen = true },
                     showViews = activeChoice.kind != "addons" || searching)
-                if (iptv.loading) Text("Updating channels…", color = Mute, fontSize = 12.sp)
-                if(digits.isNotEmpty())Text("Channel $digits",color=LiveColors.Text,fontSize=18.sp)
+                if (iptv.loading) Text(stringResource(R.string.tx_updating_channels), color = Mute, fontSize = 12.sp)
+                if(digits.isNotEmpty())Text(stringResource(R.string.tx_channel, digits),color=LiveColors.Text,fontSize=18.sp)
                 numberMessage?.let {Text(it,color=LiveColors.Muted,fontSize=12.sp)}
                 if(iptv.message!=null && available.isEmpty())Text(iptv.message.orEmpty(),color=LiveColors.Muted,fontSize=13.sp)
                 if(searching)Row(horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -338,7 +341,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
 
                     }
                 }
-                if(!canvas && activeChoice.kind!="addons" && selected.isNotEmpty())Text("Select a channel to watch · Hold OK for channel options",
+                if(!canvas && activeChoice.kind!="addons" && selected.isNotEmpty())Text(stringResource(R.string.tx_select_a_channel_to_watch_hold),
                     color=LiveColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(vertical=4.dp))
             }
         }
@@ -379,7 +382,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     if(searchOpen)LiveDialog("Search channels",{searchOpen=false}) {
         TextInput(query,{query=it},"Channel name",width=500)
         SwitchChip("Search all playlists",searchAll) {searchAll=!searchAll}
-        Text("${selected.size} matching channels",color=Mute,fontSize=13.sp)
+        Text(stringResource(R.string.tx_matching_channels, selected.size),color=Mute,fontSize=13.sp)
         ButtonRow {ToolbarIcon("Show results",Icons.Outlined.Check) {searchOpen=false;enterGuide()};ToolbarIcon("Clear search",Icons.Outlined.Clear) {query="";searchAll=false}}
     }
     programmeInfo?.let { (channel, programme) ->
@@ -388,7 +391,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
             programme?.let {
                 Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(it.start)) + "–" + timeOf(it.stop))
                 Text(it.description ?: "No description available")
-                if (it.start > iptv.clock) Text("Upcoming programme. Watch live opens the channel's current broadcast.", color = Mute)
+                if (it.start > iptv.clock) Text(stringResource(R.string.tx_upcoming_programme_watch_live_opens_the), color = Mute)
             } ?: Text(iptv.guideMessage(channel), color = Mute)
             ButtonRow {
                 ToolbarIcon("Watch live",Icons.Outlined.PlayArrow) { programmeInfo = null; play(available, available.indexOfFirst { it.key == channel.key }) }
@@ -401,7 +404,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     schedule?.let { channel ->
         LiveDialog(channel.name + " · Schedule", { schedule = null }) {
             val upcoming = iptv.upcoming(channel)
-            if (upcoming.isEmpty()) Text("No programme information available", color = Mute)
+            if (upcoming.isEmpty()) Text(stringResource(R.string.tx_no_programme_information_available), color = Mute)
             upcoming.forEach { programme ->
                 Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(programme.start)) + " · " + programme.title)
             }
@@ -414,7 +417,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
             MenuActionRow(labels[0],modifier=Modifier.focusRequester(first),icon=Icons.Outlined.Star,selected=channel.key in iptv.favourites) { toggleFavourite(channel) }
             MenuActionRow(labels[1],icon=Icons.AutoMirrored.Outlined.EventNote) { options = null; vm.openSettingsGuarded { guideChannel = channel; guideTools = true } }
             MenuActionRow(labels[2],icon=Icons.Outlined.Info) { options = null; programmeInfo = channel to iptv.nowNext(channel).first }
-            if(iptv.library.lists.isNotEmpty())Text("Custom lists", color = Mute,fontSize=12.sp)
+            if(iptv.library.lists.isNotEmpty())Text(stringResource(R.string.tx_custom_lists), color = Mute,fontSize=12.sp)
             iptv.library.lists.forEachIndexed { i,list ->
                 MenuActionRow(labels[4+i],icon=Icons.Outlined.Folder,selected=channel.key in list.channelKeys) { iptv.toggleListChannel(list.id, channel.key) }
             }
@@ -444,7 +447,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
     },close={moreOpen=false})
     if (guideTools) EpgTools(iptv, guideChannel) { guideTools = false }
     if (displayOptions) LiveDialog("Guide display", { displayOptions = false }) {
-        Text("Target row count; larger text keeps a readable minimum row height.", color = Mute)
+        Text(stringResource(R.string.tx_target_row_count_larger_text_keeps), color = Mute)
         StepSlider("Guide rows", (5..7).toList(), iptv.library.guideRows, { "$it rows" }) { rows -> iptv.guideDisplay(rows = rows) }
         SwitchChip("Channel logos", iptv.library.guideLogos) { iptv.guideDisplay(logos = !iptv.library.guideLogos) }
         SwitchChip("Show programme panel", iptv.library.showProgrammePanel) { iptv.guideDisplay(panel = !iptv.library.showProgrammePanel) }
@@ -481,7 +484,7 @@ private fun ChannelListEditor(iptv: IptvController, list: ChannelList?, seed: St
             if (ok) close() else error = "Enter a unique, non-empty name."
         }
         if (list != null) {
-            Text("Hold OK on channels to add or remove them from this list.", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_hold_ok_on_channels_to_add), color = Mute, fontSize = 13.sp)
             Chip("Reorder channels") { ordering = true }
             Chip(if (deleting) "Confirm delete list" else "Delete list") {
                 if (deleting) { iptv.deleteList(list.id); close() } else deleting = true
@@ -522,7 +525,7 @@ private fun LiveManagement(vm: HomeViewModel, close: () -> Unit) {
                 if (selectedKeys.isNotEmpty()) ToolbarIcon("Clear selection",Icons.Outlined.Clear) { done.requestFocus(); selectedKeys = emptySet() }
             }
             if (selectedKeys.isNotEmpty()) {
-                Text("${selectedKeys.size} channels selected", color = Mute, fontSize = 13.sp)
+                Text(stringResource(R.string.tx_channels_selected, selectedKeys.size), color = Mute, fontSize = 13.sp)
                 ButtonRow(spacing = 8.dp) {
                     ToolbarIcon("Hide selected channels",Icons.Outlined.VisibilityOff) { vm.hideChannelsWithUndo(selectedKeys, true) }
                     ToolbarIcon("Restore selected channels",Icons.Outlined.Visibility) { vm.hideChannelsWithUndo(selectedKeys, false) }
@@ -534,7 +537,7 @@ private fun LiveManagement(vm: HomeViewModel, close: () -> Unit) {
                     }
                 }
             }
-            Text("Select channels, then apply an action to the selection.", color = Mute, fontSize = 12.sp)
+            Text(stringResource(R.string.tx_select_channels_then_apply_an_action), color = Mute, fontSize = 12.sp)
         }
         LaunchedEffect(Unit) { withFrameNanos { }; done.requestFocus() }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -567,7 +570,7 @@ private fun LiveManagement(vm: HomeViewModel, close: () -> Unit) {
                     SettingToggle(catalog.label, catalog.addon.name, vm.isOnLive(catalog)) { vm.toggleCatalogLive(catalog) }
                 }
             } else {
-                if (channels.isEmpty()) item { Text("No matching or hidden channels.", color = Mute) }
+                if (channels.isEmpty()) item { Text(stringResource(R.string.tx_no_matching_or_hidden_channels), color = Mute) }
                 items(channels, key = { it.key }) { channel ->
                     val hidden = channel.key in iptv.library.hiddenChannels
                     val source = iptv.sources.firstOrNull { it.id == channel.sourceId }?.name.orEmpty()
@@ -580,7 +583,7 @@ private fun LiveManagement(vm: HomeViewModel, close: () -> Unit) {
 
     }
     if (bulkLists) LiveDialog("Selected channels · Custom lists", { bulkLists = false }) {
-        if (iptv.library.lists.isEmpty()) Text("Create a custom list from Live TV first.", color = Mute)
+        if (iptv.library.lists.isEmpty()) Text(stringResource(R.string.tx_create_a_custom_list_from_live), color = Mute)
         iptv.library.lists.forEach { list ->
             val keys = iptv.channels.filter { it.key in selectedKeys }.map { it.key }
             Chip("Add to ${list.name}") { iptv.setListChannels(list.id, keys, true); bulkLists = false }

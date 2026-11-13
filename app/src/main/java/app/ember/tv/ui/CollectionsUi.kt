@@ -253,7 +253,7 @@ fun FolderScreen(vm: HomeViewModel, onOpenTitle: (Meta) -> Unit) {
                     withAll && tab == 0 && tabs.any { it.loading } -> LoadingCards(wide = false)
                     withAll && tab == 0 && tabs.any { it.failed } -> RecoveryPanel("Collection sources unavailable",
                         "Could not load some sources. Retry to check again.", "Retry sources", { vm.collections.loadMore(-1) })
-                    withAll && tab == 0 -> Text("Nothing here.", color = Mute, fontSize = TvTokens.Type.Card.sp)
+                    withAll && tab == 0 -> Text(stringResource(R.string.tx_nothing_here), color = Mute, fontSize = TvTokens.Type.Card.sp)
                     current?.loading == true -> LoadingCards(wide = false)
                     current?.failed == true -> RecoveryPanel("Collection source unavailable", current.error.orEmpty(), "Retry", { vm.collections.loadMore(index) })
                     else -> Text(current?.error ?: "Nothing here.", color = Mute, fontSize = TvTokens.Type.Card.sp)
@@ -290,13 +290,13 @@ fun FolderScreen(vm: HomeViewModel, onOpenTitle: (Meta) -> Unit) {
     }
     RestoreToolbarFocus(tools, toolsFocus)
     if (tools) MediaDialog("Folder options", { tools = false }, resizeForKeyboard = true) {
-        Text("${tabs.sumOf { it.items.size }} titles loaded" + (if (tabs.any { it.failed }) " · ${tabs.count { it.failed }} unavailable sources" else ""), color = Mute, fontSize = 12.sp)
+        Text(stringResource(R.string.tx_titles_loaded, (tabs.sumOf { it.items.size })) + (if (tabs.any { it.failed }) " · ${tabs.count { it.failed }} unavailable sources" else ""), color = Mute, fontSize = 12.sp)
         SwitchChip("Animated collections", vm.collections.heroPreviews) { vm.collections.enableHeroPreviews(!vm.collections.heroPreviews) }
-        Text("Muted videos and GIFs start after focus settles and stop when you leave. Off or reduced motion keeps static covers.", color = Mute, fontSize = 12.sp)
+        Text(stringResource(R.string.tx_muted_videos_and_gifs_start_after), color = Mute, fontSize = 12.sp)
         TvTextField(search, { search = it }, Modifier.fillMaxWidth(), placeholder = "Search loaded titles")
         if (c.viewMode.uppercase() == "TABBED_GRID") SwitchChip("Load more as I scroll", vm.collections.autoPage) { vm.collections.updateAutoPage(!vm.collections.autoPage) }
         Chip("Refresh sources") { tools = false; vm.refreshCollection() }
-        Text("Search filters the titles already loaded. Load more or refresh to find additional titles.", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_search_filters_the_titles_already_loaded), color = Mute, fontSize = 13.sp)
     }
 
 }

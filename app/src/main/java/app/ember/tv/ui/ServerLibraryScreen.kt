@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import app.ember.tv.isSaved
 
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -59,7 +62,7 @@ internal fun ServerLibraryScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onBa
         }
         b.error?.let { RecoveryPanel("Library unavailable", it, "Retry page") { b.retry() } }
         if (b.loading && b.items.isEmpty()) LoadingCards()
-        if (!b.loading && b.items.isEmpty() && b.error == null) Text("No titles match these filters.", color = Mute, fontSize = 15.sp)
+        if (!b.loading && b.items.isEmpty() && b.error == null) Text(stringResource(R.string.tx_no_titles_match_these_filters), color = Mute, fontSize = 15.sp)
         if (b.items.isNotEmpty()) TitleGrid(b.items, vm::isSaved, { meta -> if (meta.type == "collection") b.enterCollection(meta, grid.firstVisibleItemIndex, grid.firstVisibleItemScrollOffset) else onOpen(meta) }, Modifier.fillMaxWidth().weight(1f), state = grid,
             densityDelta = when(b.density) { "comfortable" -> -2; "dense" -> 2; else -> 0 },
             // The footer stays present during paging, preserving D-pad focus.

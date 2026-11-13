@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,7 +30,7 @@ internal fun CollectionSourceEditor(vm: HomeViewModel, initial: CollectionSource
         TvTextField(draft.title.orEmpty(), { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Source name")
         Chip("Choose replacement source") { replacement = true }
         if (draft.provider == "addon") {
-            if (def == null) Text("This catalog needs an installed, enabled add-on. Choose a replacement or repair the add-on.", color = Mute)
+            if (def == null) Text(stringResource(R.string.tx_this_catalog_needs_an_installed_enabled), color = Mute)
             else {
                 Text(def.addon.name + " · " + def.label, color = Mute)
                 if (def.extras.isNotEmpty()) Chip("Edit catalog filters") {
@@ -49,7 +52,7 @@ internal fun CollectionSourceEditor(vm: HomeViewModel, initial: CollectionSource
             }
             if (!isTmdb) ButtonRow { listOf("rank" to "List order", "title" to "Title", "added" to "Recently added").forEach { (sort, label) -> Chip(label, draft.sortBy == sort) { draft = draft.copy(sortBy = sort) } } }
             if (isTmdb && draft.tmdbSourceType !in setOf("LIST", "COLLECTION")) {
-                Text("Filters", fontSize = 16.sp)
+                Text(stringResource(R.string.search_filters_button), fontSize = 16.sp)
                 ButtonRow { listOf("popularity.desc" to "Popular", "vote_average.desc" to "Highest rated", "primary_release_date.desc" to "Newest").forEach { (sort, label) ->
                     Chip(label, draft.sortBy == sort) { draft = draft.copy(sortBy = sort) }
                 } }

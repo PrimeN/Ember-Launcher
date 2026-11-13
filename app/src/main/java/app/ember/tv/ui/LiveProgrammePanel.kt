@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,7 +40,7 @@ internal fun LiveProgrammePanel(channel: Channel?, programme: Programme?, clock:
             .padding(12.dp).testTag("live_programme_panel"), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (channel == null) {
-                    Text("Your channel guide", color = Fg, fontSize = 22.sp, modifier = Modifier.semantics { heading() })
+                    Text(stringResource(R.string.tx_your_channel_guide), color = Fg, fontSize = 22.sp, modifier = Modifier.semantics { heading() })
                 } else {
                     Text(listOf(source, channel.name).filter(String::isNotBlank).distinct().joinToString(" · "),
                         color = Mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -31,15 +34,15 @@ internal fun EpgTools(iptv: IptvController, initial: Channel? = null, close: () 
             ButtonRow { iptv.sources.forEach { item -> Chip(item.name, selected = source == item.id) { source = item.id; query = "" } } }
             val feeds = iptv.availableFeeds()
             val assigned = iptv.epg.feedIds(source, feeds)
-            Text("Guide sources · priority follows the order enabled", fontSize = 16.sp)
-            if (source.isEmpty()) Text("Add an IPTV playlist in Live TV settings before assigning a guide.", color = Mute)
-            if (feeds.isEmpty()) Text("Add an XMLTV guide below, then enable it for this playlist.", color = Mute)
+            Text(stringResource(R.string.tx_guide_sources_priority_follows_the_order), fontSize = 16.sp)
+            if (source.isEmpty()) Text(stringResource(R.string.tx_add_an_iptv_playlist_in_live), color = Mute)
+            if (feeds.isEmpty()) Text(stringResource(R.string.tx_add_an_xmltv_guide_below_then), color = Mute)
             feeds.forEach { feed ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (source.isNotEmpty()) SwitchChip(feed.name, feed.id in assigned) { iptv.assignGuide(source, feed.id, feed.id !in assigned) }
                     if (feed.id in assigned) {
                         val minutes = iptv.epg.offsets[feed.id] ?: 0
-                        Text("Time offset: ${if (minutes > 0) "+" else ""}$minutes min", color = Mute, fontSize = 12.sp)
+                        Text(stringResource(R.string.tx_time_offset_min, (if (minutes > 0) "+" else ""), minutes), color = Mute, fontSize = 12.sp)
                         var offsetInput by remember(feed.id, minutes) { mutableStateOf(minutes.toString()) }
                         TvTextField(offsetInput, { offsetInput = it.take(6) }, Modifier.width(200.dp), placeholder = "Offset in minutes")
                         Chip("Apply time offset") {
@@ -59,7 +62,7 @@ internal fun EpgTools(iptv: IptvController, initial: Channel? = null, close: () 
                     if (iptv.epg.feeds.any { it.id == feed.id }) Chip("Remove shared guide") { iptv.removeGuide(feed.id) }
                 }
             }
-            Text("Offsets apply immediately. Refresh after a large time correction to refill the guide window.", color = Mute, fontSize = 12.sp)
+            Text(stringResource(R.string.tx_offsets_apply_immediately_refresh_after_a), color = Mute, fontSize = 12.sp)
             ButtonRow {
                 Chip("Add shared guide") { adding = !adding }
                 Chip(if (iptv.guideLoading) "Refreshing…" else "Refresh guides") { iptv.refreshGuide(source.takeIf { it.isNotEmpty() }) }
@@ -75,7 +78,7 @@ internal fun EpgTools(iptv: IptvController, initial: Channel? = null, close: () 
                 }
             }
             message?.let { Text(it, color = Mute) }
-            Text("Repair a channel", fontSize = 16.sp)
+            Text(stringResource(R.string.tx_repair_a_channel), fontSize = 16.sp)
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Search channel names")
             val pool = iptv.visibleChannels.filter { it.sourceId == source && (query.isNotBlank() && it.name.contains(query.trim(), true) ||
                 query.isBlank() && it.key !in iptv.guideMatches) }
@@ -99,12 +102,12 @@ internal fun EpgTools(iptv: IptvController, initial: Channel? = null, close: () 
             ButtonRow { feeds.filter { it.id in assigned }.forEach { feed ->
                 Chip(feed.name, selected = selected == feed.id) { feedChoice = feed.id }
             } }
-            if (assigned.isEmpty()) Text("Enable a guide under Guide sources first.", color = Mute)
+            if (assigned.isEmpty()) Text(stringResource(R.string.tx_enable_a_guide_under_guide_sources), color = Mute)
             TvTextField(epgSearch, { epgSearch = it }, Modifier.fillMaxWidth(), placeholder = "Search guide channel names or IDs")
             val candidates = iptv.parsedFeeds[selected]?.labels.orEmpty().entries.filter {
                 epgSearch.trim().length >= 2 && (it.value.contains(epgSearch.trim(), true) || it.key.contains(epgSearch.trim(), true))
             }.sortedBy { it.value }.take(80)
-            if (epgSearch.trim().length < 2) Text("Type at least two letters. Refresh guides if the channel index is missing.", color = Mute, fontSize = 12.sp)
+            if (epgSearch.trim().length < 2) Text(stringResource(R.string.tx_type_at_least_two_letters_refresh), color = Mute, fontSize = 12.sp)
             candidates.forEach { candidate -> Chip(candidate.value + " · " + candidate.key) {
                 message = if (selected?.let { iptv.matchGuide(item, it, candidate.key) } == true)
                     "Channel matching saved." else "Encrypted storage is unavailable. Matching was not changed."

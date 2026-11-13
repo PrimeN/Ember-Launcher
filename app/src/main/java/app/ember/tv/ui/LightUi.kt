@@ -499,7 +499,7 @@ private fun LightPageTileFace(page: String, name: String, grid: LightLayout.Grid
             if (page == NavTabs.LIVE) Row(Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFE5243B)).padding(horizontal = 6.dp, vertical = 1.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(Modifier.size(6.dp).clip(CircleShape).background(Color.White))
-                Text("LIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(stringResource(R.string.tx_live), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             } else NavGlyph(page, Color.White.copy(alpha = .92f), 18.dp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(start = 10.dp, end = 10.dp, bottom = 8.dp)) {
@@ -559,7 +559,7 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
         val options = vm.look.lightHome
         SettingToggle("Apps’ Continue Watching", null, options.watchNext) { vm.look.updateLightHome { it.copy(watchNext = !it.watchNext) } }
         if (!vm.profiles.profile.kids && !permission) Chip("Allow apps’ Continue Watching") { request.launch(LightMediaProvider.PERMISSION) }
-        Text("App recommendations and Continue Watching depend on your TV and participating apps.", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_app_recommendations_and_continue_watching_dep), color = Mute, fontSize = 13.sp)
         val home=vm.personalHomes.current
         SettingToggle("Wallpaper colours", "Cached colour sampling; device performance settings take priority.",home.wallpaperColours) {vm.personalHomes.update {it.copy(wallpaperColours=!it.wallpaperColours)}}
         SettingToggle("Hide short clips", "Exclude external resume items shorter than 10 minutes.",home.hideShortClips) {vm.personalHomes.update {it.copy(hideShortClips=!it.hideShortClips)}}
@@ -576,12 +576,12 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
         }
         if (options.appRows) {
             if (!permission && !vm.profiles.profile.kids) Chip("Allow apps’ rows") { request.launch(LightMediaProvider.PERMISSION) }
-            Text("Plex, Jellyfin and Emby show your server's rows when the server is connected in Ember. Other apps show only the rows they share with Android TV; on Google TV many apps (Plex among them) share none with other launchers.",
+            Text(stringResource(R.string.tx_plex_jellyfin_and_emby_show_your),
                 color = Mute, fontSize = 13.sp)
         }
         LightCarouselCatalog(vm)
         SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
-        Text("Full-screen carousel when idle", fontSize = 15.sp)
+        Text(stringResource(R.string.tx_full_screen_carousel_when_idle), fontSize = 15.sp)
         StepSlider("Idle time", listOf(0, 15, 30, 60, 120), options.idleSeconds, { if (it == 0) "Off" else "${it}s" }) { seconds -> vm.look.updateLightHome { it.copy(idleSeconds = seconds) } }
     }
 }
@@ -593,7 +593,7 @@ private fun LightCarouselCatalog(vm: HomeViewModel) {
     val focus = remember { FocusRequester() }
     val chosen = vm.look.lightHome.heroCatalog
     SettingValueRow("Carousel catalog", catalogSourceLabel(vm, chosen), modifier = Modifier.focusRequester(focus)) { open = true }
-    Text("Its titles play after Continue watching. Choose any addon catalog, or mix the Home catalogs automatically.", color = Mute, fontSize = 13.sp)
+    Text(stringResource(R.string.tx_its_titles_play_after_continue_watching), color = Mute, fontSize = 13.sp)
     if (open) CatalogSourcePicker(vm, "Carousel catalog", chosen, { key -> vm.look.updateLightHome { it.copy(heroCatalog = key) } }) { open = false }
     RestoreToolbarFocus(open, focus)
 }

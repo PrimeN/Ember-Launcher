@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -182,7 +185,7 @@ internal fun GuideGrid(
                 val rowHeight = (maxHeight / desiredRows.coerceIn(5, 7) - 4.dp)
                     .coerceAtLeast(if (LocalDensity.current.fontScale > 1.25f) 72.dp else 52.dp)
                 LazyColumn(Modifier.fillMaxSize(), state = vertical, verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 30.dp)) {
-                    if (channels.isEmpty()) item("none") { Text("No channels here", color = Mute) }
+                    if (channels.isEmpty()) item("none") { Text(stringResource(R.string.tx_no_channels_here), color = Mute) }
                     itemsIndexed(channels, key = { _, c -> "grid:${c.key}" }) { index, channel ->
                         val requester = remember(channel.key) { FocusRequester() }
                         DisposableEffect(channel.key) { requesters[channel.key] = requester; onDispose { requesters.remove(channel.key) } }

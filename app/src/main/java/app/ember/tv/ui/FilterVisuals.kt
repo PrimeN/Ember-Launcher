@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -205,7 +208,7 @@ internal fun YearPane(draft: ExploreQuery, onChange: (ExploreQuery) -> Unit) {
     when (mode) {
         0 -> PaneHint("Titles from every year.")
         1 -> {
-            Text("Year", color = Fg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.tx_year), color = Fg, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             TvTextField(typed, { text ->
                 typed = text.filter(Char::isDigit).take(4)
                 FilterLook.typedYear(typed)?.let { onChange(draft.copy(fromYear = it, toYear = it)) }
@@ -220,7 +223,7 @@ internal fun YearPane(draft: ExploreQuery, onChange: (ExploreQuery) -> Unit) {
             StepSlider("Latest year", FilterSteps.years, draft.toYear ?: 0, { if (it == 0) "Now" else "$it" }, width = 520.dp) { y ->
                 val (from, to) = FilterSteps.ordered(draft.fromYear, y.takeIf { it > 0 }); onChange(draft.copy(fromYear = from, toYear = to))
             }
-            Text("Showing " + FilterSteps.yearSummary(draft).replaceFirstChar { it.lowercase() }, color = Fg, fontSize = 15.sp)
+            Text(stringResource(R.string.tx_showing) + FilterSteps.yearSummary(draft).replaceFirstChar { it.lowercase() }, color = Fg, fontSize = 15.sp)
             PaneHint("Earliest is the first year to include and Latest the last. A movie's release year or a show's first year.")
         }
     }
@@ -262,17 +265,17 @@ internal fun ExplorePicker(type: String, selected: List<ExploreRef>, repository:
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 DialogHeading("Choose ${type.lowercase()}")
                 Spacer(Modifier.weight(1f))
-                Text("${selected.size} selected · up to ${if (type == "Services" || type == "Studios") 12 else 8}", color = Mute, fontSize = 13.sp)
+                Text(stringResource(R.string.tx_selected_up_to, selected.size, (if (type == "Services" || type == "Studios") 12 else 8)), color = Mute, fontSize = 13.sp)
                 PrimaryButton("Done", onClick = onClose)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 TvTextField(text, { text = it.take(100) }, Modifier.width(460.dp),
                     placeholder = if (type == "Services") "Filter services" else "Search names (2+ letters)", focusRequester = first)
                 when {
-                    busy -> Text("Searching…", color = Mute, fontSize = 13.sp)
+                    busy -> Text(stringResource(R.string.search_searching), color = Mute, fontSize = 13.sp)
                     error != null -> { Text(error!!, color = Mute, fontSize = 13.sp); Chip("Retry") { retry++ } }
                     results.isEmpty() -> Text(if (type != "Services" && text.trim().length < 2) "Type a name to search." else "No matches.", color = Mute, fontSize = 13.sp)
-                    else -> Text("Choose to add · choose again to remove", color = Mute, fontSize = 13.sp)
+                    else -> Text(stringResource(R.string.tx_choose_to_add_choose_again_to), color = Mute, fontSize = 13.sp)
                 }
             }
             LazyVerticalGrid(GridCells.Adaptive(if (people) 138.dp else 182.dp), Modifier.fillMaxWidth().weight(1f),

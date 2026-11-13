@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import app.ember.tv.setAppOrder
 import app.ember.tv.lightAppItems
 import app.ember.tv.data.LightNavigation
@@ -73,8 +76,8 @@ fun AppMoveDialog(app: AppEntry, vm: HomeViewModel, close: () -> Unit) {
     TvDialog(close, width = 720.dp) {
         BackHandler(onBack = close)
         DialogHeading("Move ${app.label}")
-        Text("Use the D-pad to place this app. OK saves; Back cancels.", color = Mute, fontSize = 13.sp)
-        Text("Position ${index + 1} of ${order.size}", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        Text(stringResource(R.string.tx_use_the_d_pad_to_place), color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_position_of, (index + 1), order.size), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         Box(Modifier.fillMaxWidth().weight(1f, fill = false).focusRequester(focus)
             .onPreviewKeyEvent { event ->
                 when (event.key) {

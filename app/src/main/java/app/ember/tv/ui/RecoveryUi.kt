@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -63,7 +66,7 @@ fun SourceStatusButton(label: String, statuses: Collection<SourceStatus>, retry:
     var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val failed = statuses.filter { it.failed }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (failed.isNotEmpty()) Text("Unavailable: " + failed.take(3).joinToString { it.name } +
+        if (failed.isNotEmpty()) Text(stringResource(R.string.tx_unavailable) + failed.take(3).joinToString { it.name } +
             if (failed.size > 3) " and ${failed.size - 3} more" else "", color = Mute, fontSize = 13.sp, maxLines = 2)
         Chip(label + when {
             failed.isNotEmpty() -> " · ${failed.size} unavailable"

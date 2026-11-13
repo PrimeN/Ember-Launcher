@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -135,7 +138,7 @@ private fun CollectionExportDialog(vm: HomeViewModel, id: String, close: () -> U
             } }.fold({ "Saved to $it" }, { "Could not export. Use a passphrase of at least 8 characters and restore any missing private source settings." })
             busy = false
         } } }
-        Text("Phone setup also offers encrypted collection downloads.", color = Mute, fontSize = 12.sp)
+        Text(stringResource(R.string.tx_phone_setup_also_offers_encrypted_collection), color = Mute, fontSize = 12.sp)
     }
 }
 
@@ -151,19 +154,19 @@ internal fun ImportCollectionPreview(vm: HomeViewModel, text: String, revision: 
     val missing = sources.filter { s -> s.provider == "addon" && vm.collectionCatalogs.none { Collections.matches(it, s) } }.distinct()
     fun replace(old: CollectionSource, value: CollectionSource) { draft = draft.map { c -> c.copy(folders = c.folders.map { f -> f.copy(sources = f.allSources.map { if (it == old) value else it }, catalogSources = emptyList()) }) } }
     MediaDialog("Review collection import", close) {
-        Text("${draft.size} collections · ${draft.sumOf { it.folders.size }} folders · $conflicts matching IDs", fontSize = 15.sp)
+        Text(stringResource(R.string.tx_collections_folders_matching_ids, draft.size, (draft.sumOf { it.folders.size }), conflicts), fontSize = 15.sp)
         draft.forEach { c -> Text(c.title + " · ${c.folders.size} folders", color = Mute, fontSize = 13.sp) }
         val future = draft.sumOf { it.extensionFields.size + it.folders.sumOf { f -> f.extensionFields.size + f.allSources.sumOf { s -> s.extensionFields.size } } }
-        if (future > 0) Text("$future additional fields will be preserved. Their features may not be displayed in Ember.", color = Mute)
+        if (future > 0) Text(stringResource(R.string.tx_additional_fields_will_be_preserved_their, future), color = Mute)
         missing.forEach { source ->
-            Text("Unavailable catalog: ${source.title ?: source.catalogId.orEmpty()}", color = Mute)
+            Text(stringResource(R.string.tx_unavailable_catalog, (source.title ?: source.catalogId.orEmpty())), color = Mute)
             ButtonRow {
                 vm.addons.firstOrNull { AddonAccess.key(it) == source.addonKey && !vm.addonAvailable(it) }?.let { url -> Chip("Resume add-on") { vm.pauseAddon(url, false) } }
                 Chip("Choose replacement") { repair = source }
             }
         }
-        if (missing.isNotEmpty()) Text("You can keep unavailable references and repair them later in the source editor.", color = Mute, fontSize = 12.sp)
-        if (sources.any { it.secretArgsRef != null }) Text("Some sources need private settings from an Ember backup. Encrypted collection exports include those settings.", color = Mute)
+        if (missing.isNotEmpty()) Text(stringResource(R.string.tx_you_can_keep_unavailable_references_and), color = Mute, fontSize = 12.sp)
+        if (sources.any { it.secretArgsRef != null }) Text(stringResource(R.string.tx_some_sources_need_private_settings_from), color = Mute)
         val foreign = sources.filter { it.provider == "ember" && it.ownerProfile != vm.profiles.profileId }
         if (foreign.isNotEmpty()) Chip("Assign ${foreign.size} Discover searches to this profile") { foreign.forEach { replace(it, it.copy(ownerProfile = vm.profiles.profileId)) } }
         ButtonRow { listOf("merge" to "Merge / update IDs", "copy" to "Keep both", "replace" to "Replace all").forEach { (value,label) -> Chip(label, mode == value) { mode = value } } }

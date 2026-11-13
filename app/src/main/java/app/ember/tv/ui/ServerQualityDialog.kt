@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
@@ -28,8 +31,8 @@ internal fun ServerQualityDialog(source: StreamOption, onPlay: (StreamOption) ->
     DisposableEffect(Unit) { onDispose { request?.cancel() } }
     MediaDialog("Playback quality", onDismiss) {
         Text("${source.addonName} · ${source.quality} ${source.codec} ${source.audio}".trim(), color = Mute, fontSize = 13.sp)
-        Text("Original preserves the file. Lower qualities require your server to convert video and may change HDR or audio.", color = Mute, fontSize = 13.sp)
-        if (loading) Text("Contacting server…", fontSize = 14.sp)
+        Text(stringResource(R.string.tx_original_preserves_the_file_lower_qualities), color = Mute, fontSize = 13.sp)
+        if (loading) Text(stringResource(R.string.tx_contacting_server), fontSize = 14.sp)
         else qualities.forEach { quality -> Chip(quality.label) {
             request?.cancel()
             request = scope.launch {

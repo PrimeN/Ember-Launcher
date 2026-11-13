@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -43,8 +46,8 @@ internal fun ServerActionsDialog(ref: String, onDismiss: () -> Unit) {
         if(current.inResume)add("Hide from server Continue watching")
     }}.orEmpty()
     CompactActionMenu("Server actions",labels,onDismiss) {first->
-        Text("Updates your selected server user.", color = Mute, fontSize = 13.sp)
-        if (busy) Text("Contacting server…", fontSize = 14.sp)
+        Text(stringResource(R.string.tx_updates_your_selected_server_user), color = Mute, fontSize = 13.sp)
+        if (busy) Text(stringResource(R.string.tx_contacting_server), fontSize = 14.sp)
         else state?.let { current ->
             MenuActionRow(if(current.watched) "Mark unwatched on server" else "Mark watched on server",
                 Modifier.focusRequester(first),Icons.Outlined.Visibility,selected=current.watched) { perform { check(servers.markWatched(ref,!current.watched)) } }

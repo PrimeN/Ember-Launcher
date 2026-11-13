@@ -99,7 +99,7 @@ internal fun BadgesSection(vm: HomeViewModel) {
                 if (f.badgeMode != Badges.LEGACY && hidden > 0) Chip("Show all $hidden hidden badges") { f.showAllBadges(f.badgeMode) }
             }
             if (f.badgeMode == Badges.MODERN) {
-                Text("Detailed categories", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.tx_detailed_categories), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 ButtonRow(spacing = 8.dp) {
                     app.ember.tv.data.DetailedBadgeCategories.groups.forEach { (id, label) ->
                         val on = id !in f.detailedBadgeCategoriesOff
@@ -118,8 +118,8 @@ internal fun BadgesSection(vm: HomeViewModel) {
                             Text("+", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Column(Modifier.weight(1f)) {
-                            Text("Add a pattern", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                            Text("A regular expression matched against each source's name and details.", fontSize = 12.sp, color = LocalContentColor.current.copy(alpha = .72f))
+                            Text(stringResource(R.string.tx_add_a_pattern), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.tx_a_regular_expression_matched_against_each), fontSize = 12.sp, color = LocalContentColor.current.copy(alpha = .72f))
                         }
                     }
                 }
@@ -163,7 +163,7 @@ private fun BadgeCard(b: BadgeFilter, onClick: () -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(b.name.ifBlank { "Untitled" }, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (!b.isEnabled) Text("OFF", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LocalContentColor.current.copy(alpha = .7f))
+                    if (!b.isEnabled) Text(stringResource(R.string.tx_off), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LocalContentColor.current.copy(alpha = .7f))
                 }
                 Text(b.pattern, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = LocalContentColor.current.copy(alpha = .72f), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
@@ -305,7 +305,7 @@ private fun BadgeLinkDialog(vm: HomeViewModel, close: () -> Unit) {
     var url by remember { mutableStateOf("") }
     MediaDialog("Load a badge pack", close, resizeForKeyboard = true) {
         Note(stringResource(R.string.ui_badges_custom_note))
-        Text("This replaces your custom badges.", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_this_replaces_your_custom_badges), color = Mute, fontSize = 13.sp)
         TvTextField(url, { url = it }, Modifier.fillMaxWidth(), placeholder = "https://.../badges.json")
         ButtonRow { Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) { vm.sourceFormat.importBadges(url); close() } }; Chip("Cancel") { close() } }
     }

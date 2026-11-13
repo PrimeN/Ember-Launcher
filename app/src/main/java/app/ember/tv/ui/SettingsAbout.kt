@@ -159,9 +159,9 @@ private fun PrivateUnlockDialog(vm: HomeViewModel, onClose: () -> Unit) {
     }
     MediaDialog("Private set",onClose,resizeForKeyboard=true,initialFocus=if (available) field else null) {
             if (!available) {
-                Text("This build has nothing to unlock.", color = Mute, fontSize = 14.sp)
+                Text(stringResource(R.string.tx_this_build_has_nothing_to_unlock), color = Mute, fontSize = 14.sp)
             } else {
-                Text("Enter the password to load your API keys, addons, IPTV sources and collections.", color = Mute, fontSize = 14.sp)
+                Text(stringResource(R.string.tx_enter_the_password_to_load_your), color = Mute, fontSize = 14.sp)
                 if (!done) {
                     TvTextField(pass, { pass = it }, Modifier.fillMaxWidth().focusRequester(field), placeholder = "Password", password = true, onSubmit = { unlock() })
                 }

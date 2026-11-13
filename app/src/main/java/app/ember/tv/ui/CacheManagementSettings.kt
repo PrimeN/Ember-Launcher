@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -55,7 +58,7 @@ internal fun CacheManagementSettings(part: String) {
             error?.let { Text(it,color=Mute) }
         }
         if (confirm) MediaDialog("Clear Cache Data?",{if(!busy)confirm=false}) {
-            Text("Downloaded images, cached metadata, catalogs and network responses will reload as needed. Your settings, credentials, collections, watchlists and history will stay.",color=Mute)
+            Text(stringResource(R.string.tx_downloaded_images_cached_metadata_catalogs_an),color=Mute)
             ButtonRow {
                 Chip(if(busy)"Clearing…" else "Clear cache data",maxLines=1) {
                     if(!busy) {
@@ -97,7 +100,7 @@ internal fun CacheManagementSettings(part: String) {
         error?.let { Text(it,color=Mute) }
     }
     if(custom)MediaDialog(title,{if(!busy)custom=false},resizeForKeyboard=true) {
-        Text("Enter a value from 1 to $maximum.",color=Mute)
+        Text(stringResource(R.string.tx_enter_a_value_from_1_to, maximum),color=Mute)
         TextInput(draft,{draft=it.take(6)},if(days)"Days" else "Hours",width=240,numeric=true)
         ButtonRow {
             Chip(if(busy)"Saving…" else "Save",maxLines=1){

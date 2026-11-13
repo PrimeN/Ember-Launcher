@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -123,8 +126,8 @@ internal fun CollectionContentDialog(
                 }
             }
         }
-        Text("Folders", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-        if (c.folders.isEmpty()) Text("No folders yet. Choose Edit to add one.", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_folders), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        if (c.folders.isEmpty()) Text(stringResource(R.string.tx_no_folders_yet_choose_edit_to), color = Mute, fontSize = 13.sp)
         ButtonRow(spacing = 12.dp) {
             c.folders.forEach { f ->
                 val on = cs.folderOn(c, f)
@@ -152,7 +155,7 @@ private fun FolderActionsDialog(c: MediaCollection, f: CollectionFolder, on: Boo
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             FolderPreview(f, if (f.shape == "wide") 120.dp else 150.dp, dimmed = !on)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("In ${c.title.ifBlank { "this collection" }}", color = Mute, fontSize = 13.sp)
+                Text(stringResource(R.string.tx_in, (c.title.ifBlank { "this collection" })), color = Mute, fontSize = 13.sp)
                 Text(CollectionPreviews.sources(f), color = Mute, fontSize = 13.sp)
                 f.allSources.take(4).forEach { s -> Text(s.title ?: s.catalogId ?: s.provider, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }

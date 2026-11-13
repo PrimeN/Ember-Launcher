@@ -230,7 +230,7 @@ fun DetailsScreen(
                     if(split && onPlayBest!=null && (d.streams.isNotEmpty() || d.serverStreams.isNotEmpty()))
                         GlassControl("Play best",Icons.Outlined.AutoAwesome,Modifier.testTag("play_best"),onClick=onPlayBest)
                     sources.message?.let { Text(it, color = Mute, fontSize = 14.sp) }
-                    if (sources.total == 0 && sources.loading) {if(flix)Text("Finding sources…",color=Mute) else LoadingCards()}
+                    if (sources.total == 0 && sources.loading) {if(flix)Text(stringResource(R.string.tx_finding_sources),color=Mute) else LoadingCards()}
                     if (app.ember.tv.mediaserver.ServerRef.of(meta) != null && d.serverStreams.isEmpty() && !d.loadingServer) {
                         Chip("Retry server connection", onClick = onRetrySources)
                     }
@@ -319,7 +319,7 @@ fun DetailsScreen(
                             }.focusable(tallHeader)
                             .border(if(headingFocused)2.dp else 0.dp,if(headingFocused)Ring else Color.Transparent,RoundedCornerShape(8.dp)))
                         d.episode?.let {ep ->
-                            Text("S${ep.season} · E${ep.episode}"+ep.title.takeIf {it.isNotBlank()}?.let {" · $it"}.orEmpty(),
+                            Text(stringResource(R.string.tx_s_e, ep.season, ep.episode)+ep.title.takeIf {it.isNotBlank()}?.let {" · $it"}.orEmpty(),
                                 fontSize=if(flix)14.sp else 18.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
                         }
                         Text(listOfNotNull(
@@ -340,17 +340,17 @@ fun DetailsScreen(
                         }
                         if(flix) {
                             meta.genres?.takeIf {it.isNotEmpty()}?.let {genres->
-                                Text("GENRES",fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=6.dp))
+                                Text(stringResource(R.string.tx_genres),fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=6.dp))
                                 ButtonRow(spacing=6.dp) {genres.take(4).forEach {genre->EmberXMetadataPill(genre)}}
                             }
                             val cast=d.credits?.people.orEmpty().filterNot {it.isCrew}.take(3)
                             if(cast.isNotEmpty()) {
-                                Text("CAST",fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
+                                Text(stringResource(R.string.tx_cast),fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
                                 ButtonRow(spacing=6.dp) {cast.forEach {actor->EmberXMetadataPill(actor.name){person=actor}}}
                             }
                             val directors=d.credits?.people.orEmpty().filter {it.role?.contains("director",true)==true}.take(2)
                             if(directors.isNotEmpty()) {
-                                Text("DIRECTORS",fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
+                                Text(stringResource(R.string.tx_directors),fontSize=TvTokens.Type.Caption.sp,letterSpacing=1.sp,color=EmberXColors.Muted,modifier=Modifier.padding(top=8.dp))
                                 ButtonRow(spacing=6.dp) {directors.forEach {director->EmberXMetadataPill(director.name){person=director}}}
                             }
                         }
@@ -455,7 +455,7 @@ fun DetailsScreen(
                         CrewLines(people.filter { it.isCrew }) { person = it }
                         val cast = people.filterNot { it.isCrew }
                         if (cast.isNotEmpty()) {
-                            Text("Cast", fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.padding(top = 8.dp))
+                            Text(stringResource(R.string.tx_cast_2), fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.padding(top = 8.dp))
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                                 contentPadding = PaddingValues(vertical = 10.dp, horizontal = 4.dp),
@@ -529,7 +529,7 @@ fun DetailsScreen(
                             EmberXEpisodeRow(episode,episode.id==d.episode?.id,LocalWatchedUi.current.episode(meta,episode),
                                 Modifier.focusRequester(target)) {onEpisode(episode);panelSources=true;panelNeedsFocus=true}
                         }
-                        if(inSeason.isEmpty() && !d.loadingEpisodes)item {Text("No matching episodes",color=Mute,fontSize=13.sp)}
+                        if(inSeason.isEmpty() && !d.loadingEpisodes)item {Text(stringResource(R.string.tx_no_matching_episodes),color=Mute,fontSize=13.sp)}
                         if(d.episodeCursor!=null && (!autoLoad || d.loadingEpisodes))item(key="more") {if(autoLoad)LoadingListRows(2) else Chip(if(d.loadingEpisodes)"Loading…" else "More episodes",onClick=onMoreEpisodes)}
                     } else sourceItems()
                 }
@@ -562,15 +562,15 @@ fun DetailsScreen(
     if (synopsis) SynopsisDialog(meta.name, meta.description.orEmpty()) { synopsis = false }
     if(more)MediaDialog("About · ${meta.name}",{more=false}) {
         Text(listOfNotNull(meta.releaseInfo,meta.runtime,meta.genres?.joinToString(", ")).plus(d.facts).filter(String::isNotBlank).distinct().joinToString(" · "),color=Mute,fontSize=14.sp)
-        d.episode?.let {ep->Text("Season ${ep.season} · Episode ${ep.episode} · ${ep.title}",fontWeight=FontWeight.SemiBold)}
+        d.episode?.let {ep->Text(stringResource(R.string.tx_season_episode, ep.season, ep.episode, ep.title),fontWeight=FontWeight.SemiBold)}
         detailsSynopsis(d)?.let {Text(it,fontSize=16.sp,lineHeight=23.sp)}
         if(!d.episode?.overview.isNullOrBlank() && !meta.description.isNullOrBlank())Chip("About the series") {more=false;synopsis=true}
-        if(d.metaSources.isNotEmpty())Text("Details from "+d.metaSources.joinToString(" and "),color=Mute,fontSize=12.sp)
+        if(d.metaSources.isNotEmpty())Text(stringResource(R.string.tx_details_from)+d.metaSources.joinToString(" and "),color=Mute,fontSize=12.sp)
         if(isContinue)Chip("Remove from Continue Watching") {more=false;onRemoveContinue()}
         if(canRate)Chip(if(myRating!=null)"Your rating: $myRating/10 · change" else "Rate on your trackers") {more=false;rating=true}
     }
     if(rating)MediaDialog("Rate · ${meta.name}",{rating=false}) {
-        Text("1 is the lowest, 10 the highest. Sent to your trackers that take ratings.",color=Mute,fontSize=14.sp)
+        Text(stringResource(R.string.tx_1_is_the_lowest_10_the),color=Mute,fontSize=14.sp)
         ButtonRow(spacing=6.dp) {
             (1..10).forEach {n-> Chip(n.toString(),n==myRating) {rating=false;onRate(n)} }
         }
@@ -685,7 +685,7 @@ private fun EpisodeCard(ep: Episode, selected: Boolean, width: androidx.compose.
                 )
                 }
                 WatchedBadge(watched,Modifier.align(Alignment.TopEnd))
-                if(blurred)Text("Unwatched",fontSize=TvTokens.Type.Caption.sp,color=Color.White,modifier=Modifier.align(Alignment.BottomStart).padding(6.dp)
+                if(blurred)Text(stringResource(R.string.tx_unwatched),fontSize=TvTokens.Type.Caption.sp,color=Color.White,modifier=Modifier.align(Alignment.BottomStart).padding(6.dp)
                     .background(Color(0xBB202124),RoundedCornerShape(6.dp)).padding(horizontal=6.dp,vertical=3.dp))
                 if (selected) {
                     Text(
@@ -824,7 +824,7 @@ private fun EmberXSourceRow(s:StreamOption,formatted:Pair<String,String>?,allBad
         Text(title,fontSize=16.sp,fontWeight=FontWeight.SemiBold)
         Text(description,fontSize=14.sp,color=Mute)
         Text(listOf(s.qualityLabel,s.kind.label).filter(String::isNotBlank).joinToString(" · "),fontSize=12.sp,color=Mute)
-        if(s.addonName.isNotBlank())Text("Source: ${s.addonName}",fontSize=13.sp,color=Mute)
+        if(s.addonName.isNotBlank())Text(stringResource(R.string.tx_source, s.addonName),fontSize=13.sp,color=Mute)
         if(images.isNotEmpty())BadgeImages(images)
     }
 }

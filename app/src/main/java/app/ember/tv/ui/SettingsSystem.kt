@@ -369,7 +369,7 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                 }
                 if (vm.plexConnected && "plex" in signedOut) {
                     // #94: Plex refused the saved sign-in.
-                    Text("Plex no longer accepts Ember's sign-in (it was revoked or the password changed).", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+                    Text(stringResource(R.string.tx_plex_no_longer_accepts_ember_s), color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
                     Chip("Sign in again") { vm.startPlexLink() }
                 }
                 Text(stringResource(R.string.ui_sign_in_with_a_code_at), color = Mute, fontSize = 13.sp)
@@ -421,7 +421,7 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                     // #97: approve a code from the Jellyfin app instead of typing a password.
                     if (kind == "jellyfin") Chip("Use Quick Connect") { vm.quickConnect(url) }
                 }
-                if (kind == "jellyfin") Text("Quick Connect: enter the address, then approve the code in the Jellyfin app or web (Profile › Quick Connect). No username or password needed.",
+                if (kind == "jellyfin") Text(stringResource(R.string.tx_quick_connect_enter_the_address_then),
                     color = Mute, fontSize = 12.sp)
             }
             ButtonRow { Chip("Done") { open = null } }
@@ -437,7 +437,7 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                         Text(a.name, fontSize = 18.sp)
                         if (a.userName.isNotBlank()) Note("User: ${a.userName}")
                         Text("${a.kind.replaceFirstChar { it.uppercase() }} · ${a.url}", color = Mute, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (a.key in signedOut) Text("This server signed Ember out (device removed or password changed).",
+                        if (a.key in signedOut) Text(stringResource(R.string.tx_this_server_signed_ember_out_device),
                             color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
                     }
                     // #94: fills in the form below with this server, ready for the password or Quick Connect.
@@ -537,8 +537,8 @@ internal fun TrackerSyncCard(vm: HomeViewModel) {
         modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Keep trackers in sync", fontSize = 18.sp)
-        Text("Copies watched history, watchlist and ratings between Trakt, Simkl and WeTrakr and Ember's own watchlist, " +
+        Text(stringResource(R.string.tx_keep_trackers_in_sync), fontSize = 18.sp)
+        Text(stringResource(R.string.tx_copies_watched_history_watchlist_and_ratings) +
             "both ways, including removals. The first sync copies everything each one already has.", color = Mute, fontSize = 13.sp)
         ButtonRow(spacing = 10.dp) {
             SwitchChip("Sync", vm.trackerSyncOn) { vm.toggleTrackerSync() }
@@ -551,7 +551,7 @@ internal fun TrackerSyncCard(vm: HomeViewModel) {
                 color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
             Chip("Copy those removals too") { vm.applyHeldRemovals() }
         }
-        Text("Not synced: Simkl watchlist removals (Simkl would delete the history too) and anime, whose episode numbers differ between services.",
+        Text(stringResource(R.string.tx_not_synced_simkl_watchlist_removals_simkl),
             color = Mute, fontSize = 12.sp)
     }
 }
@@ -689,7 +689,7 @@ internal fun PhoneSetupPage(vm: HomeViewModel) {
             if (l == null) {
                 Note(status)
             } else {
-                Text("Turns off in %02d:%02d".format(seconds / 60, seconds % 60),
+                Text(stringResource(R.string.tx_turns_off_in_02d_02d, seconds / 60, seconds % 60),
                     color = MaterialTheme.colorScheme.primary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
                     QrCode(l, 210.dp)
@@ -763,7 +763,7 @@ private fun PhoneRemoteSection(vm: HomeViewModel, accentHex: String) {
                     Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
                         QrCode(l, 170.dp)
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.width(460.dp)) {
-                            Text("Scan the code, or open this address on a phone on the same network:", fontSize = 15.sp)
+                            Text(stringResource(R.string.tx_scan_the_code_or_open_this), fontSize = 15.sp)
                             Text(l, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                             Note("Add it to your phone's home screen to use it like an app. If the TV's address changes (after a router restart), scan again.")
                         }

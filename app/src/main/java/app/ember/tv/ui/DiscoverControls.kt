@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -99,7 +102,7 @@ internal fun ActiveFilterTags(query: ExploreQuery, modifier: Modifier = Modifier
         if (tags.size > 1) item(key = "clear") {
             Focusable(onClick = { onApply(ExploreQuery(sort = query.sort)) }, radius = TvTokens.Shape.Pill, container = Wash,
                 focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Control) {
-                Text("Clear all", Modifier.padding(horizontal = 12.dp, vertical = 5.dp), fontSize = 13.sp, color = LocalContentColor.current.copy(alpha = .8f))
+                Text(stringResource(R.string.tx_clear_all), Modifier.padding(horizontal = 12.dp, vertical = 5.dp), fontSize = 13.sp, color = LocalContentColor.current.copy(alpha = .8f))
             }
         }
     }

@@ -1,5 +1,8 @@
 package app.ember.tv.player
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import app.ember.tv.data.toHex
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -48,7 +51,7 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
             if(id!=null){browse=accounts.firstOrNull {it.id==id};if(browse==null)error="This saved folder was removed. Add it again to use this shortcut."}
         }
     }
-    Text("Network folders",fontSize=20.sp)
+    Text(stringResource(R.string.tx_network_folders),fontSize=20.sp)
     LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
         item {Chip("Add network folder"){edit=true}}
         items(accounts,key={it.id}) {a->Chip(a.label){browse=a}}
@@ -63,7 +66,7 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
         TvDialog({if(!saving)edit=false},width=540.dp,resizeForKeyboard=true) {
             LazyColumn(Modifier.fillMaxWidth().weight(1f,false),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 item {DialogHeading("Add network folder")}
-                item {Text("SMB3 (encrypted): smb://server/share · SFTP: sftp://server/folder\nWebDAV: https://server/folder · FTPS: ftps://server/folder\nPlain FTP and HTTP do not encrypt network traffic.",fontSize=13.sp)}
+                item {Text(stringResource(R.string.tx_smb3_encrypted_smb_server_share_sftp),fontSize=13.sp)}
                 item {NetworkField("Name",label){label=it}}
                 item {NetworkField("Address",address){address=it}}
                 item {NetworkField("Username",user){user=it}}
@@ -73,7 +76,7 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
                 if(address.trim().startsWith("smb://",ignoreCase=true))item {
                     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                         Chip(if(unencryptedSmb)"SMB encryption: not required" else "SMB encryption: required",selected=unencryptedSmb) {unencryptedSmb=!unencryptedSmb}
-                        if(unencryptedSmb)Text("For older NAS devices without SMB3 encryption. Others on your network could see the files you play; signing still stops them being altered.",fontSize=13.sp)
+                        if(unencryptedSmb)Text(stringResource(R.string.tx_for_older_nas_devices_without_smb3),fontSize=13.sp)
                     }
                 }
                 note?.let {item {Text(it)}}
@@ -169,8 +172,8 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
                 }
             }
             probeNote?.let {Text(it,fontSize=12.sp)}
-            if(busy)Text("Opening folder…")
-            else Text("${entries.size} entries · page ${offset/200+1}",fontSize=12.sp)
+            if(busy)Text(stringResource(R.string.tx_opening_folder))
+            else Text(stringResource(R.string.tx_entries_page, entries.size, (offset/200+1)),fontSize=12.sp)
             note?.let {Text(it)}
             LazyColumn(Modifier.weight(1f,false),verticalArrangement=Arrangement.spacedBy(7.dp)) {
                 items(entries,key={it.name}) {entry->

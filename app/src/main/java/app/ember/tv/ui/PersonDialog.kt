@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -131,7 +134,7 @@ internal fun PersonDialog(person:Person,current:Meta,close:()->Unit,
             message?.let {Text(it,color=Mute,fontSize=14.sp)}
             if(canRetry)Chip("Try again") {attempt++}
         }
-        Text("Filmography from TMDB",fontSize=TvTokens.Type.Caption.sp,color=Mute)
+        Text(stringResource(R.string.tx_filmography_from_tmdb),fontSize=TvTokens.Type.Caption.sp,color=Mute)
     }
 }
 

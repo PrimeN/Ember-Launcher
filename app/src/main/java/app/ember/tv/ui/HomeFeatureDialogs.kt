@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -94,7 +97,7 @@ internal fun HomeFeatureDialogs(vm:HomeViewModel,onLaunch:(AppEntry)->Unit) {
                 val folder=vm.personalHomes.current.folders.firstOrNull {it.id==action.removePrefix("folder:")}
                 if(folder==null)LaunchedEffect(Unit){close()} else MediaDialog(folder.name,close) {
                     val apps=vm.appAccess.page(true).filter {it.pkg in folder.packages}
-                    if(apps.isEmpty())Text("No available apps in this folder.")
+                    if(apps.isEmpty())Text(stringResource(R.string.tx_no_available_apps_in_this_folder))
                     LazyRow(horizontalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(8.dp)) {
                         items(apps,key={it.pkg}){app->AppTile(app,onClick={close();onLaunch(app)},onLongClick={close();vm.openSettingsGuarded {vm.homeFeatureAction="edit:assign:${app.pkg}"}})}
                     }

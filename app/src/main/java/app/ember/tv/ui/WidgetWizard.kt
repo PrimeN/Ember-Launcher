@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -180,7 +183,7 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
                     onChoose = ::chosen, onRetry = { retry++ }, onProblem = { message = it })
                 WidgetSteps.STYLE -> LookStep(draft, stepFocus) { draft = it }
                 WidgetSteps.DETAILS -> {
-                    Text("Name", color = Mute, fontSize = 13.sp)
+                    Text(stringResource(R.string.tx_name), color = Mute, fontSize = 13.sp)
                     TvTextField(draft.title, { draft = draft.copy(title = it.take(100)); message = null }, Modifier.width(560.dp).testTag("widget_title"),
                         placeholder = "e.g. Weekend movies", focusRequester = stepFocus)
                     StepSlider("Titles to show", WidgetDrafts.limits, draft.limit, { "$it" }) { n -> draft = draft.copy(limit = n) }
@@ -270,7 +273,7 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
     }
     when (panel) {
         WidgetSteps.LISTS -> {
-            Text("Choose a list", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_choose_a_list), color = Mute, fontSize = 13.sp)
             ButtonRow { vm.widgetLists().take(18).forEach { (id, label) ->
                 Chip(label, draft.source.provider == HomeWidgets.LIST && draft.source.catalogId == id, maxLines = 1) {
                     onChoose(CollectionSource(provider = HomeWidgets.LIST, catalogId = id, title = label), label)
@@ -278,7 +281,7 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
             } }
         }
         WidgetSteps.MDB -> {
-            Text("MDBList list", color = Mute, fontSize = 13.sp)
+            Text(stringResource(R.string.tx_mdblist_list), color = Mute, fontSize = 13.sp)
             var mdb by remember { mutableStateOf(if (draft.source.provider == HomeWidgets.MDBLIST) draft.source.catalogId.orEmpty() else "") }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 TvTextField(mdb, { mdb = it.take(200) }, Modifier.width(520.dp), placeholder = "MDBList link, user/list-name or number")
@@ -351,12 +354,12 @@ private fun LookStep(draft: HomeWidget, first: FocusRequester, change: (HomeWidg
     } }
     // #195: a row is posters or wide cards, shown as pictures. #196: a panel chooses its artwork.
     if (HomeWidgets.isPanel(draft.style)) {
-        Text("Artwork", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.ui_artwork), color = Mute, fontSize = 13.sp)
         ButtonRow { HomeWidgets.arts.forEach { (value, name) -> Chip(name, draft.art == value) { change(draft.copy(art = value)) } } }
         Note(if (draft.art == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos. Add TMDB and Fanart API keys in Settings > Accounts > API keys; missing images fall back to standard artwork."
             else "Standard TMDB and catalog backgrounds and logos.")
     } else {
-        Text("Card shape", color = Mute, fontSize = 13.sp)
+        Text(stringResource(R.string.tx_card_shape), color = Mute, fontSize = 13.sp)
         ButtonRow { HomeWidgets.shapes.forEach { (value, name) -> CardShapeTile(value, name, draft.shape == value) { change(draft.copy(shape = value)) } } }
     }
 }
@@ -375,11 +378,11 @@ private fun ReviewStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(label, Modifier.width(130.dp), fontSize = 13.sp, color = LocalContentColor.current.copy(alpha = .7f))
                 Text(value, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("Change", fontSize = 13.sp, color = LocalContentColor.current.copy(alpha = .7f))
+                Text(stringResource(R.string.tx_change), fontSize = 13.sp, color = LocalContentColor.current.copy(alpha = .7f))
             }
         }
     }
-    Text("On Home", color = Mute, fontSize = 13.sp)
+    Text(stringResource(R.string.tx_on_home), color = Mute, fontSize = 13.sp)
     WidgetPreview(draft, check, titles)
 }
 
@@ -394,8 +397,8 @@ private fun WidgetPreview(draft: HomeWidget, check: WidgetSteps.Check, titles: L
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(draft.title.ifBlank { "Widget name" }, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Fg)
         when {
-            check.error != null -> Text("Could not load: ${check.error}", fontSize = 13.sp)
-            check.titles == null -> Text("Loading…", color = Mute, fontSize = 13.sp)
+            check.error != null -> Text(stringResource(R.string.tx_could_not_load, check.error), fontSize = 13.sp)
+            check.titles == null -> Text(stringResource(R.string.tx_loading), color = Mute, fontSize = 13.sp)
             shown.isEmpty() -> Text(WidgetSteps.status(draft, check), fontSize = 13.sp, color = Mute)
             else -> {
                 val wide = draft.shape == "wide"

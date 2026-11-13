@@ -261,9 +261,9 @@ private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
         radius = TvTokens.Shape.Control, container = Panel, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
         Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else Fg, 22.dp)
-            Text("Back to", fontSize = 13.sp, color = soft, maxLines = 1)
+            Text(stringResource(R.string.tx_back_to), fontSize = 13.sp, color = soft, maxLines = 1)
             Text(title, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("Continue", fontSize = 12.sp, color = soft, maxLines = 1)
+            Text(stringResource(R.string.tx_continue), fontSize = 12.sp, color = soft, maxLines = 1)
         }
     }
 }

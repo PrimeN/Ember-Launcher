@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.res.stringResource
+import app.ember.tv.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
@@ -116,7 +119,7 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
                         .floatingPanelSurface()
                         .verticalScroll(rememberMenuScrollState()).padding(10.dp).focusGroup(),
                         verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("Who's watching?", color = Fg, fontSize = TvTokens.Type.Compact.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                        Text(stringResource(R.string.ui_who_s_watching), color = Fg, fontSize = TvTokens.Type.Compact.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberMenuScrollState()).padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
                             menu.profiles.forEach { p -> key(p.id) {
@@ -147,7 +150,7 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
                                         MaterialGlyph(Icons.Outlined.PersonAdd, androidx.tv.material3.LocalContentColor.current)
                                     }
                                 }
-                                Text("Add", color = Fg, fontSize = TvTokens.Type.Caption.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                                Text(stringResource(R.string.tx_add), color = Fg, fontSize = TvTokens.Type.Caption.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         Text(currentLine, color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)

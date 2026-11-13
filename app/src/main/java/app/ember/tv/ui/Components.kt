@@ -380,7 +380,7 @@ fun TitleRow(items: List<Meta>, isSaved: (Meta) -> Boolean, onSeeAll: (() -> Uni
 fun SeeAllCard(width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
     Focusable(onClick = onClick, modifier = Modifier.width(width).height(height), container = PanelHi) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("See all ›", fontSize = if (width < 120.dp) 13.sp else 15.sp, fontWeight = FontWeight.SemiBold, color = Fg)
+            Text(stringResource(R.string.tx_see_all), fontSize = if (width < 120.dp) 13.sp else 15.sp, fontWeight = FontWeight.SemiBold, color = Fg)
         }
     }
 }

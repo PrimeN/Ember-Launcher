@@ -164,13 +164,13 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "leaving" -> Section("Leaving the player", "What Back and Home do while a video plays.", id = "leaving") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Back button", fontSize = 15.sp)
+            Text(stringResource(R.string.tx_back_button), fontSize = 15.sp)
             Choice(SettingDefinitions.leaving.options, if (c.confirmExit) "ask" else "leave") { v ->
                 vm.playerSettings.updatePlaybackConfig { it.copy(confirmExit = v == "ask") }
             }
             Note("Ask first shows Stop watching? with Keep watching selected. Pressing Back again leaves, so a double press still exits.")
             ToggleRow("Home: keep playing in a small window", null, c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
-            Text("Back to the last video from Home", fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(stringResource(R.string.tx_back_to_the_last_video_from), fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
             Choice(app.ember.tv.player.QuickReturn.keys, app.ember.tv.player.QuickReturn.key(c)) { v ->
                 vm.playerSettings.updatePlaybackConfig { app.ember.tv.player.QuickReturn.choose(it, v) }
             }
@@ -218,10 +218,10 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
         }
     }
         "decoding" -> Section(stringResource(R.string.ui_decoding), stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot)) {
-            Text("Playback engine",fontSize=15.sp)
+            Text(stringResource(R.string.tx_playback_engine),fontSize=15.sp)
             Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
             Note("Automatic keeps Ember's controls and tries compatibility playback when a format needs it.")
-            Text("Compatibility deinterlacing",fontSize=15.sp)
+            Text(stringResource(R.string.tx_compatibility_deinterlacing),fontSize=15.sp)
             Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
             }
@@ -375,8 +375,8 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
                     }
                 }
                 info?.description?.let { Text(it, fontSize = 13.sp, color = Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                info?.originalName?.let { Text("Renamed from $it", fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1) }
-                info?.manifestId?.let { Text("ID: $it", fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                info?.originalName?.let { Text(stringResource(R.string.tx_renamed_from, it), fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1) }
+                info?.manifestId?.let { Text(stringResource(R.string.tx_id, it), fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (info != null) {
                         if (info.catalogs.isNotEmpty()) {
@@ -502,7 +502,7 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
     if (list.isEmpty()) return
     val groups = CatalogBrowse.groups(list, CatalogBrowse.show, CatalogBrowse.type, vm::isOnHome, vm::isOnLive, vm::isInDiscover)
     item(key = "catfilters") { CatalogFilters(list, groups) }
-    if (groups.isEmpty()) item(key = "catnone") { Text("No catalogs match these filters.", color = Mute, fontSize = 14.sp) }
+    if (groups.isEmpty()) item(key = "catnone") { Text(stringResource(R.string.tx_no_catalogs_match_these_filters), color = Mute, fontSize = 14.sp) }
     groups.forEach { g ->
         val open = CatalogBrowse.isOpen(g.id, list.size)
         item(key = "catgroup:${g.id}") { CatalogGroupHeader(vm, g, open) }
@@ -844,7 +844,7 @@ private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.Subtitl
         if (f == app.ember.tv.data.SubtitleFonts.CUSTOM && !hasCustom) message = "Load a font from a link first."
         else vm.playerSettings.updateSubtitleConfig { it.copy(font = f) }
     }
-    Text("Custom font", fontSize = 15.sp)
+    Text(stringResource(R.string.tx_custom_font), fontSize = 15.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         TextInput(link, { link = it.take(500) }, "Link to a .ttf or .otf file")
         Chip(if (busy) "Loading…" else if (hasCustom) "Replace font" else "Load font") {
@@ -1095,7 +1095,7 @@ internal fun UpdatesSection(vm: HomeViewModel) {
     Section(stringResource(R.string.ui_updates), "Ember ${app.ember.tv.BuildConfig.VERSION_NAME} · build ${app.ember.tv.BuildConfig.VERSION_CODE}",id="updates") {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // What is installed now, next to what the check finds.
-            Text("Installed: version ${app.ember.tv.BuildConfig.VERSION_NAME}, build ${app.ember.tv.BuildConfig.VERSION_CODE}" +
+            Text(stringResource(R.string.tx_installed_version_build, app.ember.tv.BuildConfig.VERSION_NAME, app.ember.tv.BuildConfig.VERSION_CODE) +
                 (if (vm.updates.updateBeta) " · beta channel" else " · stable channel"), fontSize = 15.sp, color = Fg)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Chip(stringResource(R.string.ui_check_now)) { vm.updates.checkForUpdate(manual = true) }
@@ -1116,7 +1116,7 @@ internal fun UpdatesSection(vm: HomeViewModel) {
                 vm.updates.updateBeta,
             ) { vm.updates.toggleUpdateBeta() }
             if (vm.updates.updateBeta) {
-                Text("Beta update source", color = Fg, fontSize = 14.sp)
+                Text(stringResource(R.string.tx_beta_update_source), color = Fg, fontSize = 14.sp)
                 Choice(listOf("releases" to "Releases", "actions" to "Actions APK"), vm.updates.updateBetaSource) { vm.updates.updateBetaSource(it) }
                 Note(if (vm.updates.updateBetaSource == "actions")
                     "Latest successful signed public beta build. Downloads use nightly.link; APKs expire after three days."
