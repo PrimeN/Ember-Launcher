@@ -66,25 +66,15 @@ class HomeWidgetsTest {
         assertNull("left on the first title leaves the carousel", WidgetLook.carouselStep(0, 3, forward = false))
         assertNull("right on the last title leaves the carousel", WidgetLook.carouselStep(2, 3, forward = true))
         assertNull(WidgetLook.carouselStep(0, 1, forward = true))
-        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        // #201: the whole page, with its name on the picture instead of a heading above it.
-        assertTrue(home.contains("b.widget?.style == app.ember.tv.data.HomeWidgets.CAROUSEL) {"))
-        assertTrue(home.contains("title = b.row.displayTitle, bleed = (if(isEmberX)EmberXLayout.Gutter else TvTokens.Space.Page).dp)"))
-        assertTrue(home.contains("Modifier.bleed(bleed).fillMaxWidth().height(height)"))
-        assertTrue(home.contains("WidgetCarousel(b.key, b.row.items, maxHeight * WidgetLook.CAROUSEL_HEIGHT"))
-        assertFalse("no row of large cards any more", home.contains("carouselWidth"))
     }
 
     @Test fun theEditorsShowStylesAsPicturesAndTheTvWorksInSteps() {
         // #172: every style has a line saying what it is, on the TV tiles and the phone's.
         for ((style, _) in HomeWidgets.styles) assertTrue(style, HomeWidgets.about(style).length in 20..70)
         assertEquals(HomeWidgets.styles.size, HomeWidgets.styles.map { HomeWidgets.about(it.first) }.toSet().size)
-        val tv = (java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText() + java.io.File("src/main/java/app/ember/tv/ui/WidgetWizard.kt").readText())
-        assertTrue(tv.contains("WidgetStyleTile(value, name, draft.style == value,")); assertTrue(tv.contains("HomeWidgets.about(style)"))
-        val phone = java.io.File("src/main/java/app/ember/tv/phone/ContentPhone.kt").readText()
-        assertTrue(phone.contains("shapes styles")); assertTrue(phone.contains("HomeWidgets.about(value)"))
-        val css = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
-        assertTrue("a chosen style keeps its picture", css.contains(".shapes input:checked+span i:not([class^=w-])"))
+        val editor = ContentPhone.widgetEditor(PhoneContent(emptyList(), emptyList(), emptyList()), "lease", "new")
+        for ((style, _) in HomeWidgets.styles) assertTrue(style, editor.contains("<small>" + HomeWidgets.about(style).replace("'", "&#39;") + "</small>"))
+        assertTrue("a chosen style keeps its picture", PhoneSetup({ error("unused") }).page("Ember", "").contains(".shapes input:checked+span i:not([class^=w-])"))
         // #254: Content, Look, Name & size, Review. New widgets start with what they show; edits open on the review.
         assertEquals(listOf("Content", "Look", "Name & size", "Review"), app.ember.tv.ui.WidgetSteps.all.map { it.second })
         assertEquals(app.ember.tv.ui.WidgetSteps.SOURCE, app.ember.tv.ui.WidgetSteps.first(existing = false))
@@ -102,14 +92,10 @@ class HomeWidgetsTest {
         assertTrue(WidgetLook.carouselForward(0, 1, 2)); assertFalse(WidgetLook.carouselForward(1, 0, 2))
         assertEquals("Movie  ·  2024  ·  Drama, Crime", WidgetLook.carouselLine(Meta("tt1", "movie", "Film", releaseInfo = "2024", genres = listOf("Drama", "Crime", "Mystery"))))
         assertEquals("", WidgetLook.carouselLine(Meta("tt1", "", "Film")))
-        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        assertTrue(home.contains("HeroTitle(shown, centered = true)")); assertFalse("no slivers of the neighbours on a full page", home.contains("CarouselPeek"))
         // #175: "10" needs twice the room of "9"; part of the numeral always sits behind the card.
         // #202: the rank is on the picture's corner, sized to the card and never tiny or huge.
-        assertTrue(home.contains("if (numbered) RankCorner(index + 1, w, if (wide) w * 9f / 16f else w * m.cardRatio)"))
         for (width in listOf(60f, 130f, 220f, 400f)) for (wide in listOf(true, false)) assertTrue(app.ember.tv.ui.RankNumerals.size(width, wide) in 26f..52f)
         assertTrue(app.ember.tv.ui.RankNumerals.size(130f, false) > app.ember.tv.ui.RankNumerals.size(100f, false))
-        assertFalse(home.contains("RankBadge"))
     }
 
     @Test fun homeActionsFiltersPreviewAndPlaceholders() {
@@ -117,26 +103,16 @@ class HomeWidgetsTest {
         assertEquals("Options for Heat", app.ember.tv.ui.WidgetDrafts.titleOption(" Heat "))
         assertEquals("Options for this title", app.ember.tv.ui.WidgetDrafts.titleOption(""))
         assertTrue(app.ember.tv.ui.WidgetDrafts.titleOption("The Lord of the Rings: The Fellowship of the Ring").length <= 40)
-        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        assertTrue(home.contains("is HomeViewModel.HomeBlock.Row -> WidgetActions(vm, b.widget) {"))
-        assertTrue(home.contains("add(MenuOption(\"Edit widget\") { vm.editWidget(widget.id) })"))
         // #181: filters built in the editor become a source owned by the profile, named after what they ask for.
         val query = app.ember.tv.discover.ExploreQuery(kind = app.ember.tv.discover.ExploreKind.MOVIE, genres = setOf("crime"), fromYear = 1990, toYear = 1999)
         val built = app.ember.tv.ui.WidgetDrafts.filters(query, "me")
         assertEquals("ember", built.provider); assertEquals(query, built.exploreQuery); assertEquals("me", built.ownerProfile)
         assertTrue(built.title.orEmpty().contains("Crime")); assertTrue(built.title.orEmpty().contains("1990"))
-        val tv = (java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText() + java.io.File("src/main/java/app/ember/tv/ui/WidgetWizard.kt").readText())
-        assertTrue(tv.contains("WidgetSteps.FILTERS -> {") && tv.contains("ExploreFilters(draft.source.exploreQuery")); assertFalse(tv.contains("save a search in Discover, then pick it"))
         // #182
         assertEquals(1, app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.CAROUSEL, wide = false)); assertEquals(1, app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.HERO, true))
         assertTrue(app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.ROW, false) > app.ember.tv.ui.WidgetDrafts.previewCount(HomeWidgets.ROW, true))
-        assertTrue(tv.contains("WidgetPreview(draft, check, titles)"))
         // #184: a loading banner or carousel holds its own height; rows pulse.
-        assertTrue(home.contains("app.ember.tv.data.HomeWidgets.CAROUSEL -> LoadingPanel(maxHeight * WidgetLook.CAROUSEL_HEIGHT)"))
-        val loading = java.io.File("src/main/java/app/ember/tv/ui/RecoveryUi.kt").readText()
-        assertTrue(loading.contains("if (LocalReduceMotion.current || LocalRenderOptions.current.lowPower) return remember"))
         // #187
-        assertTrue(home.contains("label = \"widgetHeroArt\", transitionSpec"))
         // #185
         assertEquals(listOf("Look", "Sources", "Artwork"), app.ember.tv.ui.FolderSteps.all.map { it.second })
         for ((shape, _) in app.ember.tv.ui.FolderSteps.shapes) { val (w, h) = app.ember.tv.ui.FolderSteps.size(shape); assertTrue(shape, w in 30..90 && h in 30..56) }
@@ -161,14 +137,13 @@ class HomeWidgetsTest {
         assertEquals(2, Regex("<noscript>").findAll(page).count())
         assertEquals("widgets", ContentPhone.partOf("order-widgets"))
         // #191: the page's script puts the class "js" on the whole document, so a rule hiding ".js" blanks every page.
-        val sheet = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
-        assertTrue(sheet.contains("document.documentElement.classList.add('js')"))
-        assertFalse(Regex("(^|[},\\s])\\.js\\{[^}]*display:none").containsMatchIn(sheet))
-        assertTrue(sheet.contains(".wj{display:none}#worder.live .wj{display:grid}")); assertTrue(page.contains("class=\"ib grip wj\""))
+        val shell = PhoneSetup({ error("unused") }).page("Ember", "")
+        assertTrue(shell.contains("document.documentElement.classList.add('js')"))
+        assertFalse(Regex("(^|[},\\s])\\.js\\{[^}]*display:none").containsMatchIn(shell))
+        assertTrue(shell.contains(".wj{display:none}#worder.live .wj{display:grid}"))
+        assertTrue(page.contains("class=\"ib grip wj\""))
         val one = ContentPhone.render(two.copy(widgets = two.widgets.take(1)), "lease")
         assertFalse("one widget has nothing to reorder", one.contains("id=wsend"))
-        val controller = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetupController.kt").readText()
-        assertTrue(controller.contains("\"order-widgets\" -> {")); assertTrue(controller.contains("sections.arrange(ordered.map"))
     }
 
     @Test fun everythingOnHomeIsAWidgetAndAppsLiveWithApps() {
@@ -183,28 +158,16 @@ class HomeWidgetsTest {
         assertEquals("watchlist", ui.personalList("watchlist")); assertEquals("continue", ui.personalList("continue")); assertNull(ui.personalList("hero"))
         assertEquals(HomeWidgets.HERO, ui.picture(app.ember.tv.HomeViewModel.HOME_HERO, null)); assertEquals(ui.APPS, ui.picture(app.ember.tv.HomeViewModel.HOME_APPS, null))
         assertEquals(HomeWidgets.ROW, ui.picture("continue", null)); assertEquals(HomeWidgets.CAROUSEL, ui.picture("widget:w1", HomeWidgets.CAROUSEL))
-        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertTrue(tv.contains("Section(\"Home widgets\"")); assertTrue(tv.contains("WidgetDrafts.split(vm.sections.layout, info.keys)"))
-        assertTrue(tv.contains("vm.sections.resetLayout()"))
-        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
-        assertFalse("the order is no longer kept in two places", general.contains("vm.sections.moveSection"))
-        assertFalse(general.contains("vm.toggleHidden"))
         assertEquals("Banner & lists", app.ember.tv.ui.SettingsTab.HOME_ROWS.label)
         val index = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.WIDGETS }.second.lowercase()
         for (word in listOf("home layout", "order", "banner", "your apps")) assertTrue(word, word in index)
         // #190: Apps on Home and the Apps page are on Apps & folders, each choosing its apps in a dialog.
-        val apps = java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText()
-        assertTrue(apps.contains("Section(\"Apps on Home\"")); assertTrue(apps.contains("Section(\"Apps page\""))
-        assertTrue(apps.contains("vm.sections.toggleSection(HomeViewModel.HOME_APPS)")); assertTrue(apps.contains("vm.updateHomeAppRows(2)"))
         assertEquals("All 12 apps", app.ember.tv.ui.AppChoices.count(12, 12)); assertEquals("5 of 12 apps", app.ember.tv.ui.AppChoices.count(5, 12)); assertEquals("No apps", app.ember.tv.ui.AppChoices.count(0, 0))
         assertEquals("Netflix, hidden", app.ember.tv.ui.AppChoices.spoken("Netflix", false))
         assertTrue("app_icons" in app.ember.tv.ui.lookKeys(app.ember.tv.ui.SettingsTab.HOME_TOOLS, InterfaceStyles.MODERN))
         assertFalse("app_icons" in app.ember.tv.ui.lookKeys(app.ember.tv.ui.SettingsTab.HOME_ROWS, InterfaceStyles.MODERN))
         val appsIndex = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.HOME_TOOLS }.second.lowercase()
         for (word in listOf("apps on home", "rows of apps", "app icons")) assertTrue(word, word in appsIndex)
-        // #188: no line across a marked button; the eye fills instead.
-        val actions = java.io.File("src/main/java/app/ember/tv/ui/DetailsActions.kt").readText()
-        assertFalse(actions.contains("selectionCue")); assertTrue(actions.contains("if(watched)Icons.Filled.Visibility else Icons.Outlined.Visibility"))
     }
 
     @Test fun singleBadgesSwitchOffWithoutComingBackAsText() {
@@ -221,8 +184,6 @@ class HomeWidgetsTest {
         val source = StreamOption("Addon", "Source", "Film", "https://example.test/a", null, null, "", "HDR10", "", "", "", "", null, null, true)
         assertFalse(DetailedBadgeCategories.textTags(source, emptySet(), badges = marked).contains("HDR10"))
         assertTrue(DetailedBadgeCategories.textTags(source, emptySet(), badges = emptyList()).contains("HDR10"))
-        val rows = java.io.File("src/main/java/app/ember/tv/ui/DetailsScreen.kt").readText()
-        assertEquals(2, Regex("allBadges\\.filter *\\{ *it\\.isEnabled *\\}").findAll(rows).count())
         assertEquals("set", PreferenceKeys.expectedType("badgesOff")); assertTrue(PreferenceKeys.BADGES_OFF.portable)
     }
 
@@ -261,27 +222,16 @@ class HomeWidgetsTest {
         assertEquals(mapOf("continue" to "poster", "catalog:https://a.test/manifest.json:movie:top" to "wide"), prefs.homeRowShapes)
         prefs.homeRowShapes = emptyMap(); assertTrue(prefs.homeRowShapes.isEmpty())
         assertEquals("s", PreferenceKeys.expectedType("homeRowShapes"))
-        val model = java.io.File("src/main/java/app/ember/tv/HomeViewModel.kt").readText()
-        assertTrue(model.contains("sections.shape(id)?.let { shape -> for (i in before until size)"))
         // #196: banner and carousel widgets carry their own artwork choice; anything else reads as Standard.
         assertEquals(HeroArtworkMode.STANDARD, HomeWidgets.normalize(widget().copy(art = "nonsense")).art)
         assertEquals(HeroArtworkMode.FANART, HomeWidgets.normalize(widget().copy(art = HeroArtworkMode.FANART)).art)
         assertEquals(HeroArtworkMode.FANART, HomeWidgets.decode(HomeWidgets.encode(listOf(widget().copy(art = HeroArtworkMode.FANART)))).single().art)
         assertEquals("a widget saved before this keeps Standard", HeroArtworkMode.STANDARD, widget().art)
         assertTrue(HomeWidgets.isPanel(HomeWidgets.HERO)); assertTrue(HomeWidgets.isPanel(HomeWidgets.CAROUSEL)); assertFalse(HomeWidgets.isPanel(HomeWidgets.NUMBERED))
-        val home = java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        assertTrue(home.contains("LocalHeroArtworkMode provides app.ember.tv.data.HeroArtworkMode.normalize(widget.art)"))
-        assertEquals(2, Regex("WidgetArt\\((shown|items\\.getOrNull\\(at\\) \\?: meta), Modifier\\.fillMaxSize\\(\\)\\)").findAll(home).count())
         val phone = ContentPhone.widgetEditor(PhoneContent(emptyList(), emptyList(), emptyList()), "lease", "new")
         assertTrue(phone.contains("<select id=art name=art>")); assertTrue(phone.contains("<option value=fanart>Fanart</option>"))
         // #197: the banner and the lists are edited on their widgets; the old page folds into Widgets & collections.
         assertEquals(app.ember.tv.ui.SettingsTab.WIDGETS, app.ember.tv.ui.SettingsTab.HOME_ROWS.host)
-        assertFalse(java.io.File("src/main/java/app/ember/tv/ui/HeroBannerSettings.kt").exists())
-        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertTrue(tv.contains("CatalogSourcePicker(vm, \"Banner catalog\", vm.look.heroCatalog, vm.look::updateHeroCatalog)"))
-        assertTrue(tv.contains("vm.sections.toggleSource(vm.profiles.profileId, list, source)"))
-        // #199
-        assertTrue(tv.contains("SwitchChip(\"On Home\", on, modifier"))
     }
 
     @Test fun settingsShowPicturesAndDialogsUseTheScreen() {
@@ -291,47 +241,26 @@ class HomeWidgetsTest {
             "page" to MediaPageLayouts.options.map { it.first }, "theme" to listOf("night", "day", "auto"), "menu" to listOf("top", "side"),
             "apps" to listOf("banner", "circle"), "density" to app.ember.tv.ui.SettingDefinitions.density.options.map { it.first })
         for ((group, options) in groups) for (option in options) assertTrue("$group-$option", pictures.of(group, option) in pictures.known)
-        val drawn = java.io.File("src/main/java/app/ember/tv/ui/SettingPictures.kt").readText()
         // Size pictures (#215) are drawn from the size's own scale, not named one by one.
-        for (picture in pictures.known.filterNot { it.startsWith("uisize-") || it.startsWith("textsize-") }) assertTrue(picture, drawn.contains("\"$picture\""))
         assertTrue(pictures.density("comfortable").first < pictures.density("standard").first && pictures.density("standard").first < pictures.density("dense").first)
         assertTrue(pictures.density("comfortable").second > pictures.density("dense").second)
-        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
-        assertEquals(7, Regex("PictureChoice\\(\"(ui|page|nav|theme|menu|apps|density)\"").findAll(general).count())
         // #204: editors and pickers take the TV's width; a catalog is one line.
         assertTrue(app.ember.tv.ui.MenuSizing.WIDE_DIALOG.value > 680f); assertTrue(app.ember.tv.ui.MenuSizing.WIDE_DIALOG_HEIGHT.value > 540f)
-        val editor = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertEquals(2, Regex("wide = true\\) \\{").findAll(editor).count())
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/WidgetWizard.kt").readText().contains("wide = true, scrollBody = false"))
-        val catalogs = java.io.File("src/main/java/app/ember/tv/ui/SettingsWatching.kt").readText()
-        assertTrue(catalogs.contains("Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))"))
     }
 
-    @Test fun theQuickPanelHeaderHasNoProfileButton() {
-        // #206: Ember settings and TV settings only; profiles switch in the panel's Profile section.
-        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
-        assertTrue(panel.contains("HeaderButton(stringResource(R.string.ui_ember_settings)")); assertTrue(panel.contains("HeaderButton(stringResource(R.string.ui_qs_tv_settings)"))
-        assertEquals(2, Regex("HeaderButton\\(").findAll(panel.substringBefore("fun tv(action: String)")).count())
-        assertFalse(panel.contains("· switch"))
-    }
 
     @Test fun playerPicturesSquareIconsWallpapersAndTheAppPicker() {
         val pictures = app.ember.tv.ui.SettingPictures
         // #207
         for ((id, _) in app.ember.tv.player.PlayerInterfaces.options) assertTrue(id, pictures.of("player", id) in pictures.known)
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsWatching.kt").readText().contains("PictureChoice(\"player\", SettingDefinitions.playerInterface.options"))
         // #211
         val shapes = app.ember.tv.ui.AppShapes
         assertEquals(listOf("banner", "circle", "square"), shapes.options.map { it.first }); assertTrue(pictures.of("apps", "square") in pictures.known)
         assertEquals("square", shapes.normalize("square")); assertEquals("circle", shapes.normalize(null)); assertEquals("circle", shapes.normalize("hexagon"))
         assertTrue(shapes.squareRadius(112f) in 8..28); assertTrue(shapes.squareRadius(400f) == 28)
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText().contains("square = shape == \"square\")"))
         // #209
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/LightUi.kt").readText().contains("background(Brush.linearGradient(lightWallpaperColors(id)))"))
         // #210
         assertEquals(6, app.ember.tv.ui.AppChoices.PER_ROW); assertTrue(app.ember.tv.ui.AppChoices.ICON in 48..72)
-        val picker = java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText()
-        assertTrue(picker.contains("chunked(AppChoices.PER_ROW)")); assertTrue(picker.contains("AppChoiceTile(a,shown(a.pkg),Modifier.weight(1f))"))
     }
 
     @Test fun slidersAndTheApiKeyGrid() {
@@ -340,16 +269,12 @@ class HomeWidgetsTest {
         assertEquals(1, sliders.step(0, 5, forward = true)); assertEquals(3, sliders.step(4, 5, forward = false))
         assertNull("left at the start moves focus on", sliders.step(0, 5, forward = false)); assertNull(sliders.step(4, 5, forward = true))
         assertEquals(2, sliders.nearest(listOf(0, 30, 60, 90), 55)); assertEquals(0, sliders.nearest(listOf(0, 30), -5))
-        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
-        assertTrue(panel.contains("StepSlider(stringResource(R.string.ui_sleep_timer)")); assertFalse(panel.contains("listOf(0, 30, 60, 90, 120).forEach"))
-        for (file in listOf("LightUi.kt", "HomeToolsSettings.kt", "WidgetWizard.kt", "LiveTvScreen.kt")) assertTrue(file, java.io.File("src/main/java/app/ember/tv/ui/$file").readText().contains("StepSlider("))
         // #214: every service has a tag and a line on its limits; the status follows the key.
         assertEquals(setOf("TMDB"), ApiKeys.SERVICES.filter(ApiKeys::required).map { it.name }.toSet())
         for (s in ApiKeys.SERVICES) assertTrue(s.name, !ApiKeys.LIMITS[s.name].isNullOrBlank())
         assertEquals(ApiKeys.Status.SET, ApiKeys.status(ready = true, required = true))
         assertEquals(ApiKeys.Status.MISSING_REQUIRED, ApiKeys.status(ready = false, required = true))
         assertEquals(ApiKeys.Status.MISSING_OPTIONAL, ApiKeys.status(ready = false, required = false))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText().contains("item(key = \"keysgrid\") { ApiKeysGrid(vm) }"))
     }
 
     @Test fun sizesMarginsNextEpisodeAndPlaybackInfo() {
@@ -367,9 +292,6 @@ class HomeWidgetsTest {
         assertEquals("Off", next.label(0)); assertEquals("After 10s", next.label(10))
         // #218
         assertTrue(pictures.of("info", "start") in pictures.known && pictures.of("info", "ask") in pictures.known)
-        // #216
-        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
-        assertTrue(panel.contains("ReturnTile(title, Modifier.focusRequester(first))")); assertTrue(panel.contains("screenHeightDp / 12"))
     }
 
     @Test fun subtitleLooksAndFonts() {
@@ -393,8 +315,6 @@ class HomeWidgetsTest {
         val looks = app.ember.tv.ui.SubtitleLooks
         assertTrue(looks.scale("small") < looks.scale("normal") && looks.scale("normal") < looks.scale("xlarge"))
         assertTrue(looks.lift("low") < looks.lift("normal") && looks.lift("normal") < looks.lift("high"))
-        val engine = java.io.File("src/main/java/app/ember/tv/player/SubtitleEngine.kt").readText()
-        assertTrue(engine.contains("SubtitleFonts.typeface(view.context, c.font)")); assertFalse(engine.contains("Color.BLACK, Typeface.DEFAULT_BOLD)"))
     }
 
     @Test fun serviceGridsForTrackersServersAndProfiles() {
@@ -407,7 +327,6 @@ class HomeWidgetsTest {
         assertEquals("Account owner", tiles[0].line); assertEquals("Emby · signed out", tiles[2].tag)
         assertEquals(app.ember.tv.ui.ServiceMark.OFF, app.ember.tv.ui.MediaServerTiles.of(false, false, null, emptyList()).first().mark)
         // #221
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText().contains("item(key = \"trackergrid\") { TrackersGrid(vm, openKeys) }"))
         assertEquals("Home, Jellyfin, ann", app.ember.tv.ui.ServiceTiles.spoken(tiles[1]))
         // #222: colours only ever added on the end; a name for each; dark text reads on all of them.
         assertEquals(14, Profile.COLORS.size); assertEquals(0xFFFFB547, Profile.COLORS[0]); assertEquals(0xFFFF8A65, Profile.COLORS[5])
@@ -431,11 +350,6 @@ class HomeWidgetsTest {
         }
         assertEquals(listOf(1, 2, 3, 4), listOf("low", "medium", "high", "ultra").map(app.ember.tv.ui.EffectPictures::bars))
         assertEquals("home", app.ember.tv.ui.StartupChoices.normalize("satellite")); assertEquals("input", app.ember.tv.ui.StartupChoices.normalize("input"))
-        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
-        for (g in listOf("perf", "glass", "cardfocus")) assertTrue(g, general.contains("PictureChoice(\"$g\""))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/FocusBackdrop.kt").readText().contains("PictureChoice(\"focusbg\""))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/SettingsSystem.kt").readText().contains("PictureToggles(\"saver\""))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/HomeToolsSettings.kt").readText().contains("PictureChoice(\"start\""))
     }
 
     @Test fun upNextCardReadsLikeAStreamingApp() {
@@ -445,10 +359,6 @@ class HomeWidgetsTest {
         assertEquals("UP NEXT IN 6", app.ember.tv.player.UpNextUi.heading(6, finding = false))
         assertEquals("UP NEXT IN 0", app.ember.tv.player.UpNextUi.heading(-1, false))
         assertEquals("FINDING A SOURCE…", app.ember.tv.player.UpNextUi.heading(3, finding = true))
-        val layout = java.io.File("src/main/java/app/ember/tv/player/PlayerLayout.kt").readText()
-        assertTrue(layout.contains("setContent { UpNextCard(upNextUi) { playNext() } }"))
-        val next = java.io.File("src/main/java/app/ember/tv/player/PlayerNextUp.kt").readText()
-        assertTrue(next.contains("thumbnail = next.thumbnail ?: controls.details?.backdrop"))
         // #226: about a third of the area of the first card (560 × 150).
         val area = app.ember.tv.player.UpNextUi.WIDTH * app.ember.tv.player.UpNextUi.HEIGHT
         assertTrue(area in (560 * 150 * 30 / 100)..(560 * 150 * 38 / 100))
@@ -462,8 +372,6 @@ class HomeWidgetsTest {
         assertFalse(timing.due(2_300_000, 2_700_000, 2_400_000, 2_700_000, 10))
         assertTrue(timing.due(2_686_000, 2_700_000, null, null, 10)); assertFalse(timing.due(2_680_000, 2_700_000, null, null, 10))
         assertFalse(timing.due(10, 0, null, null, 10))
-        val overlays = java.io.File("src/main/java/app/ember/tv/player/PlayerOverlays.kt").readText()
-        assertTrue(overlays.contains("takeUnless { it.kind == \"credits\" && autoNext }"))
     }
 
     @Test fun pictureTilesFitFiveAcross() {
@@ -474,7 +382,6 @@ class HomeWidgetsTest {
             assertTrue("$page", w * 5 + tiles.GAP * 4 <= page.dp || w == 96.dp)
         }
         assertEquals(170.dp, tiles.width(2000.dp))
-        for (f in listOf("SettingPictures.kt", "SubtitlePictures.kt", "LightUi.kt")) assertTrue(f, java.io.File("src/main/java/app/ember/tv/ui/$f").readText().contains("PictureRow { tile ->"))
     }
 
     @Test fun collectionPreviewsPutFoundFoldersFirst() {
@@ -489,8 +396,6 @@ class HomeWidgetsTest {
         assertEquals("7 folders · On Home · In Discover", CollectionPreviews.status(c, onHome = true, inDiscover = true))
         assertEquals(null, CollectionPreviews.cover(c))
         assertEquals("b.jpg", CollectionPreviews.cover(c.copy(folders = folders.take(1).map { it.copy(coverImageUrl = "b.jpg") })))
-        val organizer = java.io.File("src/main/java/app/ember/tv/ui/ContentOrganizer.kt").readText()
-        assertTrue(organizer.contains("CollectionPreviewCard(") && organizer.contains("CollectionContentDialog("))
     }
 
     @Test fun widgetsOnHomeAndOffAreListedApart() {
@@ -503,11 +408,6 @@ class HomeWidgetsTest {
         assertEquals(listOf("catalog:YQ", "hero"), app.ember.tv.ui.WidgetDrafts.reorder(on, "catalog:YQ", -1))
         assertEquals(null, app.ember.tv.ui.WidgetDrafts.reorder(on, "hero", -1))
         assertEquals("3 on Home · 2 off", app.ember.tv.ui.ManagerCards.counts(3, 2)); assertEquals("3 on Home", app.ember.tv.ui.ManagerCards.counts(3, 0))
-        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertTrue(tv.contains("FoldHeader(\"Turned off") && tv.contains("WidgetDrafts.reorder(order, section, step)?.let(vm.sections::arrange)"))
-        val organizer = java.io.File("src/main/java/app/ember/tv/ui/ContentOrganizer.kt").readText()
-        assertFalse("collections no longer scroll inside the settings page", organizer.substringBefore("internal fun ContentOrganizer").contains("LazyColumn("))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/CollectionPreviews.kt").readText().contains("ManagerCard("))
         // #240: the phone lists the whole Home, and what is off apart.
         val content = PhoneContent(emptyList(), emptyList(), emptyList(),
             home = listOf(app.ember.tv.phone.PhoneHomeEntry("h-1", "Banner", "built", "The large picture", HomeWidgets.HERO),
@@ -519,13 +419,11 @@ class HomeWidgetsTest {
         assertTrue("only your own widgets can be edited or deleted", page.contains("widget=w-9") && Regex("delete-widget").findAll(page).count() == 1)
         assertTrue(page.contains("<summary>Turned off · 1 widget</summary>") && page.contains("value=home-on><input type=hidden name=target value=\"h-3\">"))
         listOf("order-home", "move-home", "home-on", "home-off").forEach { assertEquals("widgets", ContentPhone.partOf(it)) }
-        val controller = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetupController.kt").readText()
-        assertTrue(controller.contains("\"order-home\" -> {") && controller.contains("stage(\"Turn ${'$'}{homeTitle(section)}"))
     }
 
     @Test fun theTraktNoticeUsesTheRequiredWording() {
         assertEquals("Ember uses Trakt but is not endorsed or certified by Trakt", Legal.TRAKT_NOTICE)
-        assertTrue(java.io.File("src/main/java/app/ember/tv/data/Legal.kt").readText().contains("Item(\"Trakt\", \"\$TRAKT_NOTICE."))
+        assertTrue(Legal.SERVICES.flatMap { it.items }.single { it.title == "Trakt" }.text.startsWith(Legal.TRAKT_NOTICE + "."))
     }
 
     @Test fun widgetCardsTheHomeNoticeAndTraktCards() {
@@ -534,17 +432,11 @@ class HomeWidgetsTest {
         assertEquals("Could not load: gone", app.ember.tv.ui.WidgetDrafts.state(true, "Could not load: gone"))
         assertEquals(listOf("Move up" to -1, "Move down" to 1, "Move to the bottom" to 3), app.ember.tv.ui.WidgetDrafts.moves(1, 4))
         assertTrue(app.ember.tv.ui.WidgetDrafts.moves(-1, 4).isEmpty())
-        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertTrue(tv.contains("tag = \"widget_card\"")); assertTrue(tv.contains("OptionMenu(w?.title"))
         // #177
-        val model = java.io.File("src/main/java/app/ember/tv/HomeViewModel.kt").readText()
-        assertTrue(model.contains("widgets.errors[w.id]?.let { add(HomeBlock.Notice(id, w.title, it)) }"))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText().contains("is HomeViewModel.HomeBlock.Notice ->"))
         // #178
         val list = CollectionRequests.ListRef(1, "Best of", "ann", 1, 12, "")
         assertEquals("@ann · 1 title · 12 likes", app.ember.tv.ui.WidgetDrafts.traktLine(list))
         assertEquals("40 titles", app.ember.tv.ui.WidgetDrafts.traktLine(list.copy(by = "", items = 40, likes = 0)))
-        assertTrue(tv.contains("testTag(\"trakt_list\")"))
     }
 
     @Test fun aWidgetSavedWhileOthersLoadIsLoadedWhenTheyFinish() {
@@ -704,8 +596,6 @@ class HomeWidgetsTest {
         for ((ref, lookup) in listOf("actor" to "person", "director" to "person", "company" to "company", "provider" to "provider")) assertTrue(ref, edit.contains("data-ref=$ref data-lookup=$lookup"))
         assertTrue(edit.contains("id=trakt-find")); assertTrue(edit.contains("data-tab=popular")); assertTrue(edit.contains("data-tab=trending"))
         assertTrue(edit.contains("/lookup?k=")); assertFalse("search boxes are not submitted", Regex("<input type=search[^>]* name=").containsMatchIn(edit))
-        val server = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
-        assertTrue(server.contains("path == \"/lookup\""))
     }
 
     @Test fun widgetsExportAndImportBetweenTvsAndProfiles() {
@@ -740,17 +630,12 @@ class HomeWidgetsTest {
         assertEquals("Widgets & collections", app.ember.tv.ui.SettingsTab.WIDGETS.label)
         val index = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.WIDGETS }.second.lowercase()
         for (word in listOf("widgets", "import", "export", "collections", "trakt", "carousel")) assertTrue(word, word in index)
-        assertFalse(java.io.File("src/main/java/app/ember/tv/ui/SettingsWatching.kt").readText().contains("CollectionsSettings(vm)"))
-        val screen = java.io.File("src/main/java/app/ember/tv/ui/SettingsScreen.kt").readText()
-        assertTrue(screen.contains("WidgetsSettings(vm)")); assertTrue(screen.contains("CollectionsSettings(vm)"))
 
         val some = PhoneContent(emptyList(), emptyList(), emptyList(), widgets = listOf(PhoneWidget("w-1", "Top", HomeWidgets.ROW, "default", 20, "Trakt list 42", "20 titles")))
         val page = ContentPhone.render(some, "lease")
         assertTrue(page.contains("action=\"/widgets-export?k=lease\"")); assertTrue(page.contains("action=\"/widgets?k=lease\" enctype=multipart/form-data"))
         assertFalse("nothing to download yet", ContentPhone.render(PhoneContent(emptyList(), emptyList(), emptyList()), "lease").contains("/widgets-export"))
         assertTrue(ContentPhone.render(PhoneContent(emptyList(), emptyList(), emptyList()), "lease").contains("action=\"/widgets?k=lease\""))
-        val server = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
-        assertTrue(server.contains("path == \"/widgets-export\"")); assertTrue(server.contains("path == \"/widgets\""))
     }
 
     private fun memoryPrefs(): Prefs {

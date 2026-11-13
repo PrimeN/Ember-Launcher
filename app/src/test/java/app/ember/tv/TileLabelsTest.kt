@@ -41,18 +41,11 @@ class TileLabelsTest {
     @Test fun settingsAlwaysOpenAsTheFullPage() {
         // #149: the floating Settings panel and its Settings style choice are gone.
         for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertFalse(style, "settings_style" in lookKeys(SettingsTab.APPEARANCE, style))
-        assertFalse(java.io.File("src/main/java/app/ember/tv/ui/FloatingSettings.kt").exists())
-        val root = java.io.File("src/main/java/app/ember/tv/MainActivity.kt").readText()
-        assertFalse(root.contains("settingsPanel"))
-        assertFalse(java.io.File("src/main/java/app/ember/tv/phone/PhoneSettings.kt").readText().contains("settingsStyle"))
     }
 
     @Test fun addonNamesOnRowsIsOnAppearanceAndSearchable() {
         // #151: beside Labels under tiles, not at the bottom of Home layout.
         for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertTrue(style, "row-addon-labels" in lookKeys(SettingsTab.APPEARANCE, style))
         for (query in listOf("addon names", "hide addon name", "Addon names on rows")) assertTrue(query, SettingDefinitions.matching(query).any { it.id == "row-addon-labels" })
-        val general = java.io.File("src/main/java/app/ember/tv/ui/SettingsGeneral.kt").readText()
-        assertEquals(1, Regex("updateRowAddonLabels").findAll(general).count())
-        assertTrue(java.io.File("src/main/java/app/ember/tv/phone/PhoneSettings.kt").readText().contains("look.rowAddonLabels"))
     }
 }

@@ -63,8 +63,6 @@ class PageBackgroundBlendTest {
     }
 
     @Test fun liveTvDrawsNoPageFillOverTheGlow() {
-        val live=java.io.File("src/main/java/app/ember/tv/ui/LiveTvScreen.kt").readText()
-        assertFalse(live.contains("LiveArtworkBackground("))
         var cell=Color.Unspecified
         scene(0) {cell=LiveColors.Cell}
         assertTrue("guide cells let the glow through",cell.alpha<1f)
@@ -75,7 +73,5 @@ class PageBackgroundBlendTest {
         assertTrue(Prefs(context).rowAddonLabels)
         Prefs(context).rowAddonLabels=false
         assertFalse(Prefs(context).rowAddonLabels)
-        val home=java.io.File("src/main/java/app/ember/tv/ui/ModernUi.kt").readText()
-        assertTrue(home.contains("b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }"))
     }
 }

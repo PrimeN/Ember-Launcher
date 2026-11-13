@@ -789,7 +789,8 @@ class PhoneSetup(
         entries.forEach { append(it.trim()).append("\n\n----------------------------------------\n\n") }
     }
 
-    private fun page(title: String, body: String) = """<!doctype html><html><head><meta charset=utf-8>
+    /** The page shell sent to the phone: styles, script and [body]. */
+    internal fun page(title: String, body: String) = """<!doctype html><html><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
 :root{color-scheme:dark;--bg:#111215;--card:#1f2024;--line:#2c2d32;--fg:#e8eaed;--mute:#a9adb4;--accent:$accent}
 body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--fg);-webkit-text-size-adjust:100%}

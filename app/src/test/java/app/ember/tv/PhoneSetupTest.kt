@@ -55,6 +55,15 @@ class PhoneSetupTest {
         }finally{server.stop()}
     }
 
+    @Test fun widgetPacksHaveTheirOwnRoutes() {
+        // #163: export and import of widget packs are served, not just linked.
+        val setup = server()
+        try {
+            val uri = URI(setup.start()!!)
+            for (path in listOf("/widgets-export", "/widgets")) assertFalse(path, request(uri, "$path?${uri.rawQuery}", "POST").startsWith("HTTP/1.1 404"))
+        } finally { setup.stop() }
+    }
+
     @Test fun theCrashLogCanBeCopiedFromThePhone() {
         // #257
         val setup = server(crashes = listOf("2026-11-13 09:12  ·  Ember\njava.lang.IllegalStateException: boom"))

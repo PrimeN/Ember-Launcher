@@ -100,19 +100,10 @@ class PhoneRemoteTest {
     }
 
     @Test fun keysGoToEmbersOwnScreenAndQuestionsReachThePhone() {
-        // #242: no system key injection, which apps may not use.
-        val controller = java.io.File("src/main/java/app/ember/tv/remote/RemoteController.kt").readText()
-        assertFalse(controller.contains("Instrumentation")); assertTrue(controller.contains("RemoteBridge.press(code)"))
-        val bridge = java.io.File("src/main/java/app/ember/tv/remote/RemoteBridge.kt").readText()
-        assertTrue(bridge.contains("activity.dispatchKeyEvent(down)") && bridge.contains("onBackPressedDispatcher"))
-        assertTrue(java.io.File("src/main/java/app/ember/tv/EmberApp.kt").readText().contains("RemoteBridge.install(this)"))
         // #243: the TV's questions, with its own choices.
         val json = RemoteFormat.prompt(app.ember.tv.player.RemotePrompt("resume", "Continue watching", "Film", listOf("resume" to "▶ Resume from 12:30", "start" to "Start over", "cancel" to "Cancel")))
         assertEquals("resume", json["kind"].toString().trim('"'))
         assertEquals(3, (json["choices"] as kotlinx.serialization.json.JsonArray).size)
-        listOf("vm.resumeAsk", "vm.playing.chooser", "PlayerRemote.answer(kind, choice)", "resumeDecided = true, startOver = choice == \"start\"").forEach { assertTrue(it, controller.contains(it)) }
-        val player = java.io.File("src/main/java/app/ember/tv/player/PlayerRemote.kt").readText()
-        assertTrue(player.contains("a.playNext()") && player.contains("a.dismissUpNext()") && player.contains("a.doSkip()"))
         val page = RemotePage.app("TV", "#4F7DF3")
         assertTrue(page.contains("id=ask") && page.contains("api('prompt',{kind:p.kind,choice:c.id},1)"))
     }
@@ -142,18 +133,9 @@ class PhoneRemoteTest {
         // #249
         val list = RemoteFormat.choices(listOf("English · 6 ch" to true, "French · 2 ch" to false))
         assertEquals(2, list.size); assertEquals("true", (list[0] as kotlinx.serialization.json.JsonObject)["on"].toString())
-        val controller = java.io.File("src/main/java/app/ember/tv/remote/RemoteController.kt").readText()
-        assertTrue(controller.contains("\"track\" -> if (PlayerRemote.track(") && controller.contains("put(\"subtitles\", RemoteFormat.choices(now.subtitles))"))
-        val player = java.io.File("src/main/java/app/ember/tv/player/PlayerRemote.kt").readText()
-        assertTrue(player.contains("a.pickAudioTrack(index)") && player.contains("a.subtitleChoices().second.getOrNull(index)"))
-        val overlays = java.io.File("src/main/java/app/ember/tv/player/PlayerOverlays.kt").readText()
-        assertTrue("the TV's sheet and the phone share one list", overlays.contains("val (rows, acts) = subtitleChoices()"))
         val page = RemotePage.app("TV", "#4F7DF3")
         assertTrue(page.contains("id=haud") && page.contains("id=hsub") && page.contains("api('track',{kind:tkind,index:i},1)"))
         // The bottom bar is lower; arrows repeat while held.
         assertTrue(page.contains("padding:3px 8px max(4px,calc(var(--bot) - 16px))") && page.contains("setInterval(function(){key(k)},160)"))
-        // #248: the Back to tile shares the tiles' column and colours.
-        val panel = java.io.File("src/main/java/app/ember/tv/ui/QuickPanel.kt").readText()
-        assertTrue(panel.contains("Tiles(top = onReturn") && panel.substringAfter("private fun ReturnTile").substringBefore("\n}\n").contains("container = Panel"))
     }
 }

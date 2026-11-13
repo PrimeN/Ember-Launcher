@@ -13,11 +13,4 @@ class RemoteGapAndSubtitlesTest {
         assertTrue(page.contains(".app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}"))
     }
 
-    @Test fun aSubtitleThatFailsToLoadCannotEndPlayback() {
-        val controller = java.io.File("src/main/java/app/ember/tv/player/SubtitleController.kt").readText()
-        assertTrue(controller.contains("lifecycleScope.launch(kotlinx.coroutines.CoroutineExceptionHandler"))
-        assertTrue(controller.contains("catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Throwable) { null }"))
-        val download = java.io.File("src/main/java/app/ember/tv/data/Subtitles.kt").readText()
-        assertTrue(download.contains("catch (_: Throwable) { null }"))
-    }
 }

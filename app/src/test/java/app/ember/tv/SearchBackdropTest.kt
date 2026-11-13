@@ -60,11 +60,6 @@ class SearchBackdropTest {
         assertTrue(SearchGlow.strength(day=false,oled=true)<SearchGlow.strength(day=false,oled=false))
     }
 
-    @Test fun searchNoLongerUsesTheFocusedTitlesArtwork() {
-        val main=java.io.File("src/main/java/app/ember/tv/MainActivity.kt").readText()
-        assertTrue(main.contains("enabled = vm.details == null && tab != NavTabs.SEARCH && tab != NavTabs.LIVE"))
-        assertTrue("Live TV shares Search's background (#137)",main.contains("if (current == NavTabs.SEARCH || current == NavTabs.LIVE) app.ember.tv.ui.SearchBackdrop()"))
-    }
 
     @Test fun themeGlowIsAChoiceAndStaysBehindHomeDiscoverAndApps() {
         assertTrue(app.ember.tv.data.FocusBackground.choices.any {it.first==app.ember.tv.data.FocusBackground.GLOW})

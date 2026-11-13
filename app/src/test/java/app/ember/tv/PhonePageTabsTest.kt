@@ -181,10 +181,9 @@ class PhonePageTabsTest {
         // #166: the status is named, so a refused client ID is not mistaken for a network problem.
         assertTrue(reason("trakt", IllegalStateException("The collection provider returned HTTP 403.")).contains("HTTP 403"))
         assertTrue(reason("trakt", IllegalStateException("The collection provider returned HTTP 502.")).contains("HTTP 502"))
-        val tv = java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText()
-        assertTrue(tv.contains("PhoneLookups.reason(\"trakt\"")); assertFalse(tv.contains("Check the connection and try again"))
-        // #246: one Trakt request builder now carries it for every Trakt call.
-        assertEquals(1, Regex("header\\(\"User-Agent\", TRAKT_AGENT\\)").findAll(java.io.File("src/main/java/app/ember/tv/data/CollectionRequests.kt").readText()).count())
+        // The phone's search boxes say what went wrong instead of showing nothing.
+        val editor = app.ember.tv.phone.ContentPhone.widgetEditor(app.ember.tv.phone.PhoneContent(emptyList(), emptyList(), emptyList()), "lease", "new")
+        assertTrue(editor.contains("if(j&&j.error)done([],j.error)") && editor.contains("if(err){note(res,err);return}"))
         assertTrue(reason("person", IllegalStateException("TMDB sources need an API key.")).contains("TMDB key"))
         assertTrue(reason("person", IllegalStateException("Switch to an adult profile.")).contains("adult profile"))
         for (kind in listOf("trakt", "person", "company", "provider")) assertFalse(reason(kind, RuntimeException("secret-token-123")).contains("secret-token-123"))
@@ -194,7 +193,5 @@ class PhonePageTabsTest {
             val answer = request(uri, "/lookup?${uri.rawQuery}&kind=trakt&q=marvel")
             assertTrue(answer, answer.contains("Content-Type: application/json") && answer.trimEnd().endsWith("[]"))
         } finally { setup.stop() }
-        val script = java.io.File("src/main/java/app/ember/tv/phone/ContentPhone.kt").readText()
-        assertTrue(script.contains("if(j&&j.error)done([],j.error)") && script.contains("if(err){note(res,err);return}"))
     }
 }
