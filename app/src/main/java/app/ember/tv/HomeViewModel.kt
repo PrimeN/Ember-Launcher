@@ -1,5 +1,6 @@
 package app.ember.tv
 
+import app.ember.tv.data.Collections as CollectionStore
 import app.ember.tv.data.CollectionSource
 import app.ember.tv.data.HomeWidget
 import app.ember.tv.data.HomeWidgets
@@ -216,7 +217,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun onUiInteraction() = refreshQueue.interaction()
     internal suspend fun awaitUiPresentation() = refreshQueue.awaitPresentation()
     internal val client = AddonClient()
-    val hub = TrackerHub(app).also { h -> app.ember.tv.data.Collections.traktToken = { h.trakt()?.listToken() } }
+    val hub = TrackerHub(app).also { h -> CollectionStore.traktToken = { h.trakt()?.listToken() } }
     internal val linkTasks = LinkTasks(viewModelScope)
     // Capture this before any automatic source addition saves the navigation defaults.
     internal var restoreLiveDefault = !prefs.hasSavedNav

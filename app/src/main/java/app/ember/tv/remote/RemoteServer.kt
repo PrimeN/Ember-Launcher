@@ -26,6 +26,8 @@ class RemoteServer(
     private val accent: () -> String = { "#FF7A2F" },
     private val address: () -> String? = { app.ember.tv.phone.PhoneSetup.localAddress() },
     private val port: Int = DEFAULT_PORT,
+    /** #247: the app icon as a PNG of the given size, drawn on the TV; null where pictures cannot be drawn. */
+    private val icon: (Int) -> ByteArray? = { null },
 ) {
     @Volatile private var socket: ServerSocket? = null
     @Volatile var url: String? = null; private set
@@ -60,18 +62,27 @@ class RemoteServer(
     private fun serve(c: Socket) {
         c.soTimeout = 10_000
         val request = read(BufferedInputStream(c.getInputStream())) ?: return respond(c, 400, "text/plain", "Bad request")
-        val (status, type, body, extra) = route(request)
-        respond(c, status, type, body, extra)
+        val answer = route(request)
+        respond(c, answer.status, answer.type, answer.bytes ?: answer.body.toByteArray(Charsets.UTF_8), answer.headers, text = answer.bytes == null)
     }
 
     /** One answer: status, media type, body and extra headers. */
-    internal data class Answer(val status: Int, val type: String, val body: String, val headers: List<String> = emptyList())
+    internal data class Answer(val status: Int, val type: String, val body: String, val headers: List<String> = emptyList(), val bytes: ByteArray? = null)
 
     internal fun route(r: Request): Answer {
         if (!hostAllowed(r.headers["host"])) return Answer(421, "text/plain", "Open the remote with the address shown on the TV.")
         val token = r.cookie(COOKIE)
         if (r.method == "GET" && r.path == "/") return Answer(200, HTML, if (auth.allows(token)) RemotePage.app(tvName(), accent()) else RemotePage.login(tvName(), accent()))
-        if (r.method == "GET" && r.path == "/favicon.ico") return Answer(404, "text/plain", "")
+        // #247: what a phone needs to keep the remote on its home screen as an app. Nothing private.
+        if (r.method == "GET") when (r.path) {
+            "/manifest.webmanifest" -> return Answer(200, "application/manifest+json", RemotePage.manifest(tvName(), accent()), listOf("Cache-Control: max-age=3600"))
+            "/icon.svg" -> return Answer(200, "image/svg+xml", RemotePage.iconSvg(accent()))
+            "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png", "/favicon.ico" -> {
+                val size = when (r.path) { "/icon-512.png" -> 512; "/apple-touch-icon.png" -> 180; "/favicon.ico" -> 64; else -> 192 }
+                val png = runCatching { icon(size) }.getOrNull() ?: return Answer(404, "text/plain", "")
+                return Answer(200, "image/png", "", bytes = png)
+            }
+        }
         if (r.method != "POST" && r.method != "GET") return Answer(405, "text/plain", "")
         // Changes must come from the remote page itself.
         if (r.method == "POST" && r.headers[HEADER] != "1") return Answer(403, JSON, error("Open the remote page to do that."))
@@ -126,13 +137,16 @@ class RemoteServer(
         return Request(parts[0], target.substringBefore('?'), form(target.substringAfter('?', "")), headers, String(body, Charsets.UTF_8))
     }
 
-    private fun respond(c: Socket, status: Int, type: String, body: String, extra: List<String> = emptyList()) {
-        val bytes = body.toByteArray(Charsets.UTF_8)
+    private fun respond(c: Socket, status: Int, type: String, body: String, extra: List<String> = emptyList()) =
+        respond(c, status, type, body.toByteArray(Charsets.UTF_8), extra, text = true)
+
+    private fun respond(c: Socket, status: Int, type: String, bytes: ByteArray, extra: List<String>, text: Boolean) {
         val reason = when (status) { 200 -> "OK"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 405 -> "Method Not Allowed"; 421 -> "Misdirected Request"; 429 -> "Too Many Requests"; else -> "Error" }
         val head = buildString {
-            append("HTTP/1.1 $status $reason\r\nContent-Type: $type; charset=utf-8\r\nContent-Length: ${bytes.size}\r\n")
-            append("Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nX-Frame-Options: DENY\r\n")
-            append("Content-Security-Policy: default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'\r\n")
+            append("HTTP/1.1 $status $reason\r\nContent-Type: $type${if (text) "; charset=utf-8" else ""}\r\nContent-Length: ${bytes.size}\r\n")
+            if (extra.none { it.startsWith("Cache-Control") }) append("Cache-Control: no-store\r\n")
+            append("Referrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nX-Frame-Options: DENY\r\n")
+            append("Content-Security-Policy: default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'\r\n")
             extra.forEach { append(it).append("\r\n") }
             append("Connection: close\r\n\r\n")
         }

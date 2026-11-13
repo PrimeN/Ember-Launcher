@@ -31,7 +31,7 @@ internal object PhoneRemote {
         if (server?.running == true && owner === vm) return server?.url.also { url = it }
         stop()
         val controller = RemoteController(vm)
-        val s = RemoteServer(auth(context), controller::call, { tvName(context) }, { accent })
+        val s = RemoteServer(auth(context), controller::call, { tvName(context) }, { accent }, icon = { size -> icon(size, accent) })
         val started = runCatching { s.start() }.getOrNull()
         if (started == null) { s.stop(); return null }
         server = s; owner = vm; url = started
@@ -49,4 +49,22 @@ internal object PhoneRemote {
     @Synchronized fun stop() { server?.stop(); server = null; owner = null; url = null }
 
     private const val ON = "on"
+
+    /** #247: the home-screen icon: a rounded square in the accent colour with a play mark. */
+    private fun icon(size: Int, accent: String): ByteArray {
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        paint.color = android.graphics.Color.parseColor("#121316")
+        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
+        paint.color = runCatching { android.graphics.Color.parseColor(accent) }.getOrDefault(android.graphics.Color.parseColor("#FF7A2F"))
+        val inset = size * .16f
+        canvas.drawRoundRect(inset, inset, size - inset, size - inset, size * .2f, size * .2f, paint)
+        paint.color = android.graphics.Color.parseColor("#121316")
+        val path = android.graphics.Path().apply {
+            moveTo(size * .43f, size * .36f); lineTo(size * .66f, size * .5f); lineTo(size * .43f, size * .64f); close()
+        }
+        canvas.drawPath(path, paint)
+        return java.io.ByteArrayOutputStream().use { out -> bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out); bitmap.recycle(); out.toByteArray() }
+    }
 }

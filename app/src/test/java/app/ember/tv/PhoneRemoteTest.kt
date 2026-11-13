@@ -61,7 +61,7 @@ class PhoneRemoteTest {
         assertEquals(421, server.route(req("GET", "/", host = null)).status)
         assertTrue(server.hostAllowed("10.0.0.5:8642")); assertTrue(server.hostAllowed("localhost:8642")); assertFalse(server.hostAllowed("ember.local:8642"))
         // No password: the app page and its requests work, but changes still need the page's header.
-        assertTrue(server.route(req("GET", "/")).body.contains("id=now"))
+        assertTrue(server.route(req("GET", "/")).body.contains("id=hero"))
         assertEquals(403, server.route(req("POST", "/api/player", body = "action=toggle")).status)
         assertEquals(200, server.route(req("POST", "/api/player", body = "action=toggle", headers = change)).status)
         assertEquals("toggle", calls.last().second["action"])
@@ -77,7 +77,7 @@ class PhoneRemoteTest {
         val cookie = signed.headers.single().substringAfter("${RemoteServer.COOKIE}=").substringBefore(';')
         assertTrue(signed.headers.single().contains("HttpOnly") && signed.headers.single().contains("SameSite=Strict"))
         assertEquals(200, server.route(req("GET", "/api/state", cookie = cookie)).status)
-        assertTrue(server.route(req("GET", "/", cookie = cookie)).body.contains("id=now"))
+        assertTrue(server.route(req("GET", "/", cookie = cookie)).body.contains("id=hero"))
         assertEquals(200, server.route(req("POST", "/api/logout", headers = change, cookie = cookie)).status)
         assertEquals(401, server.route(req("GET", "/api/state", cookie = cookie)).status)
     }
@@ -95,7 +95,7 @@ class PhoneRemoteTest {
         val page = RemotePage.app("<Living room>", "#123456\"")
         assertTrue(page.contains("&lt;Living room&gt;") && !page.contains("<Living room>"))
         assertTrue("a bad accent falls back", page.contains("--accent:#FF7A2F"))
-        assertFalse("the page draws text, never markup from the TV", Regex("innerHTML=(?!n\\.|'&)").containsMatchIn(page))
+        assertFalse("the page draws text, never markup from the TV", Regex("innerHTML=(?!I\\[)").containsMatchIn(page))
         assertTrue(page.contains("'X-Ember-Remote':'1'"))
     }
 
@@ -115,5 +115,26 @@ class PhoneRemoteTest {
         assertTrue(player.contains("a.playNext()") && player.contains("a.dismissUpNext()") && player.contains("a.doSkip()"))
         val page = RemotePage.app("TV", "#4F7DF3")
         assertTrue(page.contains("id=ask") && page.contains("api('prompt',{kind:p.kind,choice:c.id},1)"))
+    }
+
+    @Test fun theRemoteCanBeKeptOnTheHomeScreenAsAnApp() {
+        // #247
+        val auth = RemoteAuth(MemoryStore(), iterations = 1_000).apply { setPassword("sofa-time") }
+        val server = RemoteServer(auth, { _, _ -> null }, { "Den" }, { "#4F7DF3" }, icon = { size -> ByteArray(size) })
+        val manifest = server.route(req("GET", "/manifest.webmanifest"))
+        assertEquals("needs no sign-in, holds nothing private", 200, manifest.status)
+        val json = kotlinx.serialization.json.Json.parseToJsonElement(manifest.body).let { it as kotlinx.serialization.json.JsonObject }
+        assertEquals("\"standalone\"", json["display"].toString()); assertEquals("\"/\"", json["start_url"].toString())
+        assertTrue(manifest.body.contains("/icon-512.png"))
+        assertEquals(192, server.route(req("GET", "/icon-192.png")).bytes!!.size)
+        assertEquals(180, server.route(req("GET", "/apple-touch-icon.png")).bytes!!.size)
+        assertTrue(server.route(req("GET", "/icon.svg")).body.contains("#4F7DF3"))
+        assertEquals("still only on the TV's own address", 421, server.route(req("GET", "/manifest.webmanifest", host = "evil.example")).status)
+        val noPictures = RemoteServer(auth, { _, _ -> null })
+        assertEquals(404, noPictures.route(req("GET", "/icon-192.png")).status)
+        val page = RemotePage.app("Den", "#4F7DF3")
+        listOf("rel=manifest", "apple-touch-icon", "viewport-fit=cover", "class=tabs", "id=pad", "touch-action:none", "id=mini", "env(safe-area-inset-bottom)")
+            .forEach { assertTrue(it, page.contains(it)) }
+        assertTrue(RemotePage.login("Den", "#4F7DF3").contains("rel=manifest"))
     }
 }
