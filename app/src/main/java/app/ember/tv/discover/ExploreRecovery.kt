@@ -11,7 +11,7 @@ object ExploreRecovery {
         if(q.actors.isNotEmpty())add(Choice("Any cast",q.copy(actors=emptyList())))
         if(q.directors.isNotEmpty())add(Choice("Any director",q.copy(directors=emptyList())))
         if(q.companies.isNotEmpty())add(Choice("Any studio",q.copy(companies=emptyList())))
-        if(q.oscars!=OscarMode.ANY || q.bestPicture)add(Choice("Any awards",q.copy(oscars=OscarMode.ANY,bestPicture=false)))
+        if(q.oscars!=OscarMode.ANY || q.bestPicture)add(Choice("Any awards",q.copy(oscars=OscarMode.ANY,bestPicture=false,award="oscars")))
         if(q.sort==ExploreSort.RATING && (q.minMovieVotes>0 || q.minTvVotes>0))add(Choice("Include titles with fewer votes",q.copy(minMovieVotes=0,minTvVotes=0)))
     }
     fun explanation(q: ExploreQuery, region: String, limited: Boolean): String = buildString {

@@ -6,8 +6,35 @@ import java.time.LocalDate
 
 @Serializable enum class ExploreKind(val label: String, val path: String) { ALL("All", ""), MOVIE("Movies", "movie"), TV("Shows", "tv") }
 @Serializable enum class ExploreSort(val label: String, val api: String) { POPULAR("Popular", "popularity.desc"), RATING("Highest rated", "vote_average.desc"), NEWEST("Newest", "") }
-@Serializable enum class OscarMode(val label: String) { ANY("Any awards"), WIN("Oscar winners"), NOMINATED("Oscar winners & nominees") }
-@Serializable data class ExploreRef(val id: Long, val name: String, val image: String? = null)
+@Serializable enum class OscarMode(val label: String) { ANY("Any awards"), WIN("Winners"), NOMINATED("Winners & nominees") }
+
+/**
+ * #252: awards Discover can filter by, each a Wikidata item whose categories (and itself) are
+ * recognised; [films]/[shows] say what it is given to. [best] is the top category, where one exists.
+ */
+data class AwardBody(val key: String, val name: String, val short: String, val qid: String, val films: Boolean, val shows: Boolean,
+    val best: Pair<String, String>? = null)
+
+object AwardBodies {
+    val all = listOf(
+        AwardBody("oscars", "Academy Awards", "Oscars", "Q19020", films = true, shows = false, best = "Q102427" to "Best Picture"),
+        AwardBody("globes", "Golden Globes", "Golden Globes", "Q1011547", films = true, shows = true),
+        AwardBody("bafta", "BAFTA Film Awards", "BAFTA", "Q732997", films = true, shows = false),
+        AwardBody("cannes", "Palme d'Or · Cannes", "Palme d'Or", "Q179808", films = true, shows = false),
+        AwardBody("venice", "Golden Lion · Venice", "Golden Lion", "Q209459", films = true, shows = false),
+        AwardBody("berlin", "Golden Bear · Berlin", "Golden Bear", "Q154590", films = true, shows = false),
+        AwardBody("emmys", "Primetime Emmys", "Emmys", "Q1044427", films = false, shows = true),
+        AwardBody("actors", "Actor Awards (SAG)", "Actor Awards", "Q268200", films = true, shows = true),
+    )
+    fun of(key: String): AwardBody = all.firstOrNull { it.key == key } ?: all.first()
+    fun kinds(body: AwardBody): List<ExploreKind> = listOfNotNull(ExploreKind.MOVIE.takeIf { body.films }, ExploreKind.TV.takeIf { body.shows })
+    /** "Golden Globes winners", for tags and summaries. */
+    fun label(q: ExploreQuery): String = of(q.award).short + when (q.oscars) { OscarMode.WIN -> " winners"; OscarMode.NOMINATED -> " winners & nominees"; else -> "" } +
+        (of(q.award).best?.takeIf { q.bestPicture }?.let { " · " + it.second } ?: "")
+}
+@Serializable data class ExploreRef(val id: Long, val name: String, val image: String? = null,
+    /** #253: "Acting · Inception", shown while choosing; never saved. */
+    @kotlinx.serialization.Transient val note: String? = null)
 @Serializable data class ExploreQuery(
     val kind: ExploreKind = ExploreKind.ALL,
     val sort: ExploreSort = ExploreSort.POPULAR,
@@ -24,6 +51,8 @@ import java.time.LocalDate
     val companies: List<ExploreRef> = emptyList(),
     val oscars: OscarMode = OscarMode.ANY,
     val bestPicture: Boolean = false,
+    /** #252: which award [oscars] filters by (the field keeps its name for saved searches). */
+    val award: String = "oscars",
     val minMovieVotes: Int = 500,
     val minTvVotes: Int = 200,
 ) {
@@ -37,12 +66,13 @@ import java.time.LocalDate
         (providers + actors + directors + companies).any { it.id <= 0 } -> "Choose an entry from the search results."
         genres.any { key -> ExploreGenres.all.none { it.key == key } } -> "Choose a supported genre."
         genres.isNotEmpty() && kinds().isEmpty() -> "Those genres do not apply to the selected type. Change the genres or content type."
-        kind == ExploreKind.TV && oscars != OscarMode.ANY -> "Oscars apply to films. Choose All or Movies, or clear Awards."
+        oscars != OscarMode.ANY && AwardBodies.kinds(AwardBodies.of(award)).none { kind == ExploreKind.ALL || it == kind } ->
+            AwardBodies.of(award).short + (if (AwardBodies.of(award).films) " are film awards. Choose All or Movies, or clear Awards." else " are TV awards. Choose All or Shows, or clear Awards.")
         else -> null
     }
     val hasFilters get() = copy(kind = ExploreKind.ALL, sort = ExploreSort.POPULAR) != ExploreQuery()
     fun kinds(): List<ExploreKind> = (when {
-        oscars != OscarMode.ANY -> listOf(ExploreKind.MOVIE)
+        oscars != OscarMode.ANY -> AwardBodies.kinds(AwardBodies.of(award)).filter { kind == ExploreKind.ALL || it == kind }
         kind == ExploreKind.ALL -> listOf(ExploreKind.MOVIE, ExploreKind.TV)
         else -> listOf(kind)
     }).filter { type ->
@@ -58,7 +88,7 @@ import java.time.LocalDate
         addAll(providers.map { it.name }); if (providers.isNotEmpty()) add(if (includeRentBuy) "Subscription, free, rent or buy" else "Subscription or free")
         addAll(actors.map { "Actor: ${it.name}" }); addAll(directors.map { "Director: ${it.name}" })
         addAll(companies.map { it.name })
-        if (oscars != OscarMode.ANY) add(oscars.label + if (bestPicture) " · Best Picture" else "")
+        if (oscars != OscarMode.ANY) add(AwardBodies.label(this))
     }
 }
 

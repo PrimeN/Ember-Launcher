@@ -21,6 +21,8 @@ interface ExploreSource {
     suspend fun matchesExtras(title: ExploreTitle, query: ExploreQuery, kind: ExploreKind, region: String): Boolean
     suspend fun invalidate() {}
     suspend fun awards(ids: List<Long>, query: ExploreQuery): Set<Long>
+    /** #252: shows are matched by their TMDB TV id. */
+    suspend fun awards(ids: List<Long>, query: ExploreQuery, kind: ExploreKind): Set<Long> = awards(ids, query)
 }
 data class ExplorePage(val titles: List<ExploreTitle>, val totalPages: Int, val limited: Boolean = false)
 
@@ -141,7 +143,9 @@ class ExploreRepository(
             .arr("results")?.filter { it.bool("adult") != true }?.take(20)?.mapNotNull { p ->
                 val id = p.long("id") ?: return@mapNotNull null
                 val name = p.str("name") ?: return@mapNotNull null
-                ExploreRef(id, name, (p.str("profile_path") ?: p.str("logo_path"))?.let { "https://image.tmdb.org/t/p/w185$it" })
+                val known = p.arr("known_for")?.firstOrNull()?.let { it.str("title") ?: it.str("name") }
+                val note = if (company) p.str("origin_country")?.takeIf { it.isNotBlank() } else listOfNotNull(p.str("known_for_department"), known).joinToString(" · ").ifBlank { null }
+                ExploreRef(id, name, (p.str("profile_path") ?: p.str("logo_path"))?.let { "https://image.tmdb.org/t/p/w185$it" }, note)
             } ?: emptyList()
     }
     /** Bio, birth and what they're known for, for the cast & crew popup (#92). Cached a day. */
@@ -178,18 +182,20 @@ class ExploreRepository(
         }
     }
 
-    override suspend fun awards(ids: List<Long>, query: ExploreQuery): Set<Long> {
+    override suspend fun awards(ids: List<Long>, query: ExploreQuery): Set<Long> = awards(ids, query, ExploreKind.MOVIE)
+
+    override suspend fun awards(ids: List<Long>, query: ExploreQuery, kind: ExploreKind): Set<Long> {
         if (ids.isEmpty() || query.oscars == OscarMode.ANY) return ids.toSet()
-        val sparql = awardQuery(ids, query)
+        val sparql = awardQuery(ids, query, kind)
         val response = cached("wikidata:$sparql", 7 * 24 * 60 * 60_000L) { gate.withPermit {
             val data = get("https://query.wikidata.org/sparql?format=json&query=${enc(sparql)}", mapOf(
                 "Accept" to "application/sparql-results+json",
                 "User-Agent" to "EmberTV/1.0 (Android TV; https://github.com/PrimeN/Ember-Launcher)",
             ))
-            check(data.obj("results").arr("bindings") != null) { "Oscar records are unavailable." }
+            check(data.obj("results").arr("bindings") != null) { "Award records are unavailable." }
             data
         } }
-        val bindings = response.obj("results").arr("bindings") ?: error("Oscar records are unavailable. Retry without changing your filters.")
+        val bindings = response.obj("results").arr("bindings") ?: error("Award records are unavailable. Retry without changing your filters.")
         return bindings.mapNotNull { it.obj("tmdb").str("value")?.toLongOrNull() }.filter { it in ids }.toSet()
     }
     companion object {
@@ -231,14 +237,19 @@ class ExploreRepository(
                 r.arr("genre_ids").list().mapNotNull { (it as? JsonPrimitive)?.intOrNull }.toSet(), date,
                 r.dbl("popularity")?.takeIf { it.isFinite() } ?: 0.0, score, votes, r.bool("adult") == true)
         }
-        fun awardQuery(ids: List<Long>, query: ExploreQuery): String {
+        fun awardQuery(ids: List<Long>, query: ExploreQuery, kind: ExploreKind = ExploreKind.MOVIE): String {
             require(ids.size <= 40 && ids.all { it > 0 })
             val properties = if (query.oscars == OscarMode.WIN) listOf("P166") else listOf("P166", "P1411")
             val branches = properties.flatMap { p -> listOf(
                 "{ ?film wdt:$p ?award . }",
                 "{ ?recipient p:$p ?statement . ?statement ps:$p ?award ; pq:P1686 ?film . FILTER NOT EXISTS { ?statement wikibase:rank wikibase:DeprecatedRank } }",
             ) }.joinToString(" UNION ")
-            val category = if (query.bestPicture) "?award (wdt:P31|wdt:P279)* wd:Q102427 ." else "?award (wdt:P361|wdt:P31|wdt:P279)+ wd:Q19020 ."
+            // #252: any category of the chosen award, or the award itself (a festival's top prize is a single award).
+            val body = AwardBodies.of(query.award)
+            val category = body.best?.takeIf { query.bestPicture }?.let { "?award (wdt:P31|wdt:P279)* wd:${it.first} ." }
+                ?: "?award (wdt:P361|wdt:P31|wdt:P279)* wd:${body.qid} ."
+            // Films by their TMDB movie id (P4947), shows by their TMDB TV id (P4983).
+            val tmdbProperty = if (kind == ExploreKind.TV) "P4983" else "P4947"
             return """PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX p: <http://www.wikidata.org/prop/>
@@ -247,7 +258,7 @@ PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
 SELECT DISTINCT ?tmdb WHERE {
 VALUES ?tmdb { ${ids.distinct().joinToString(" ") { "\"$it\"" }} }
-?film wdt:P4947 ?tmdb .
+?film wdt:$tmdbProperty ?tmdb .
 { $branches }
 $category
 } LIMIT 5000"""

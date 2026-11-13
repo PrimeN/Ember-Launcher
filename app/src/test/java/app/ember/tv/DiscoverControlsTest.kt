@@ -39,11 +39,15 @@ class DiscoverControlsTest {
         ExploreSort.entries.forEach { assertTrue(DiscoverLook.sortNote(it).isNotBlank()) }
         assertEquals("Filters", DiscoverLook.filtersLabel(0)); assertEquals("Filters · 3", DiscoverLook.filtersLabel(3))
         val ui = java.io.File("src/main/java/app/ember/tv/ui/ExploreUi.kt").readText()
-        assertTrue(ui.contains("KindSegments(state.query.kind") && ui.contains("SortSheet(state.query.sort") && ui.contains("ActiveFilterTags(state.query"))
+        assertTrue(ui.contains("SortSheet(state.query.sort") && ui.contains("ActiveFilterTags(state.query"))
+        assertFalse("#251: the title type is chosen in Filters only", ui.contains("KindSegments("))
         assertFalse("sorting is no longer a plain list", ui.contains("OptionMenu(\"Sort by\""))
         val filters = java.io.File("src/main/java/app/ember/tv/ui/ExploreFilters.kt").readText()
         assertFalse("no typed years or scores", filters.contains("placeholder = \"From year\"") || filters.contains("placeholder = \"Minimum score\""))
-        assertTrue(filters.contains("FilterRailItem(") && filters.contains("StepSlider(\"From\""))
+        assertTrue(filters.contains("FilterRailItem(") && filters.contains("KindSegments(draft.kind)") && filters.contains("YearPane(draft)"))
+        val visuals = java.io.File("src/main/java/app/ember/tv/ui/FilterVisuals.kt").readText()
+        assertTrue(visuals.contains("StepSlider(\"Earliest year\"") && visuals.contains("StepSlider(\"Latest year\""))
+        assertFalse("#251: no decade chips", filters.contains("\"1980s\""))
         assertEquals(3, ExploreKind.entries.size)
     }
 

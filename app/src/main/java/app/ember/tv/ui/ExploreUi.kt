@@ -94,11 +94,8 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                 when (section) {
                     // #244: type as one switch; Sort and Filters say what they are set to.
                     DiscoverSection.EXPLORE -> if (!kids) {
-                        KindSegments(state.query.kind, first = kindFocus) { kind ->
-                            state.apply(state.query.copy(kind = kind, oscars = if (kind == ExploreKind.TV) OscarMode.ANY else state.query.oscars,
-                                bestPicture = kind != ExploreKind.TV && state.query.bestPicture))
-                        }
-                        ToolbarPill("Sort", state.query.sort.label, DiscoverLook.sortIcon(state.query.sort), Modifier.focusRequester(sortFocus)) { sortMenu = true }
+                        // #251: the title type is chosen in Filters and shown as a tag.
+                        ToolbarPill("Sort", state.query.sort.label, DiscoverLook.sortIcon(state.query.sort), Modifier.focusRequester(sortFocus).focusRequester(kindFocus)) { sortMenu = true }
                         ToolbarPill(DiscoverLook.filtersLabel(exploreTags(state.query).size), null, androidx.compose.material.icons.Icons.Outlined.Tune,
                             Modifier.focusRequester(filterFocus).testTag("discover_filters"), active = exploreTags(state.query).isNotEmpty()) { panel = true }
                     }
@@ -233,14 +230,15 @@ private fun DiscoverCollections(vm: HomeViewModel) {
 
 
 internal fun exploreTags(q: ExploreQuery): List<Pair<String, ExploreQuery>> = buildList {
+    if (q.kind != ExploreKind.ALL) add(q.kind.label to FilterLook.withKind(q, ExploreKind.ALL))
     ExploreGenres.selected(q).forEach { add(it.label to q.copy(genres = q.genres - it.key)) }
-    if (q.fromYear != null || q.toYear != null) add("${q.fromYear ?: "Any"}–${q.toYear ?: "Now"}" to q.copy(fromYear = null, toYear = null))
+    if (q.fromYear != null || q.toYear != null) add((if (q.fromYear != null && q.fromYear == q.toYear) "${q.fromYear}" else "${q.fromYear ?: "Any"}–${q.toYear ?: "Now"}") to q.copy(fromYear = null, toYear = null))
     if (q.minRating != null || q.maxRating != null) add("TMDB ${q.minRating ?: 0.0}–${q.maxRating ?: 10.0}" to q.copy(minRating = null, maxRating = null))
     q.providers.forEach { r -> add(r.name to q.copy(providers = q.providers.filterNot { it.id == r.id })) }
     q.actors.forEach { r -> add("Actor: ${r.name}" to q.copy(actors = q.actors.filterNot { it.id == r.id })) }
     q.directors.forEach { r -> add("Director: ${r.name}" to q.copy(directors = q.directors.filterNot { it.id == r.id })) }
     q.companies.forEach { r -> add(r.name to q.copy(companies = q.companies.filterNot { it.id == r.id })) }
-    if (q.oscars != OscarMode.ANY) add((q.oscars.label + if (q.bestPicture) " · Best Picture" else "") to q.copy(oscars = OscarMode.ANY, bestPicture = false))
+    if (q.oscars != OscarMode.ANY) add(AwardBodies.label(q) to FilterLook.withAward(q, null))
 }
 
 @Composable

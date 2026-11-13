@@ -31,7 +31,7 @@ import kotlinx.coroutines.delay
 internal object FilterSteps {
     private val thisYear = java.time.LocalDate.now().year
     /** 0 means any year. */
-    val years: List<Int> = (listOf(0) + (1920..2020 step 10) + listOf(2025, thisYear)).distinct().sorted()
+    val years: List<Int> = (listOf(0) + (1920..1990 step 10) + listOf(1995) + (2000..thisYear)).distinct().sorted()
     /** Tenths of a TMDB score; 0 means any. */
     val minScore = listOf(0, 50, 55, 60, 65, 70, 75, 80, 85, 90)
     /** Tenths; 100 means no upper limit. */
@@ -50,6 +50,7 @@ internal object FilterSteps {
 
     fun yearSummary(q: ExploreQuery) = when {
         q.fromYear == null && q.toYear == null -> "Any year"
+        q.fromYear != null && q.fromYear == q.toYear -> "${q.fromYear}"
         q.toYear == null -> "${q.fromYear} onward"
         q.fromYear == null -> "Up to ${q.toYear}"
         else -> "${q.fromYear}–${q.toYear}"
@@ -83,7 +84,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
         add(Triple("Actors", androidx.compose.material.icons.Icons.Outlined.Person, FilterSteps.names(draft.actors, "Anyone")))
         add(Triple("Directors", androidx.compose.material.icons.Icons.Outlined.Movie, FilterSteps.names(draft.directors, "Anyone")))
         add(Triple("Studios", androidx.compose.material.icons.Icons.Outlined.Business, FilterSteps.names(draft.companies, "Any studio")))
-        add(Triple("Awards", androidx.compose.material.icons.Icons.Outlined.EmojiEvents, draft.oscars.label + if (draft.bestPicture) " · Best Picture" else ""))
+        add(Triple("Awards", androidx.compose.material.icons.Icons.Outlined.EmojiEvents, if (draft.oscars == OscarMode.ANY) "Any awards" else AwardBodies.label(draft)))
         if (searchTools != null) add(Triple("Search tools", androidx.compose.material.icons.Icons.Outlined.Tune, "Save, load, refresh"))
     }
     val active = exploreTags(draft).size
@@ -97,10 +98,8 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("Filters", color = Fg, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-                        KindSegments(draft.kind) { k ->
-                            draft = draft.copy(kind = k, oscars = if (k == ExploreKind.TV) OscarMode.ANY else draft.oscars,
-                                bestPicture = if (k == ExploreKind.TV) false else draft.bestPicture)
-                        }
+                        // #251: the title type lives here only.
+                        KindSegments(draft.kind) { k -> draft = FilterLook.withKind(draft, k) }
                         Spacer(Modifier.weight(1f))
                         DialogClose(onClose)
                     }
@@ -118,9 +117,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                             Text(current, color = Fg, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
                             when (current) {
                                 "Genre" -> {
-                                    ButtonRow { ExploreGenres.all.filter { g -> g.key in draft.genres || draft.kind == ExploreKind.ALL || g.ids(draft.kind).isNotEmpty() }.forEach { g ->
-                                        Chip(g.label, g.key in draft.genres) { draft = draft.copy(genres = if (g.key in draft.genres) draft.genres - g.key else draft.genres + g.key) }
-                                    } }
+                                    GenreTiles(draft) { key -> draft = draft.copy(genres = if (key in draft.genres) draft.genres - key else draft.genres + key) }
                                     if (draft.genres.size > 1) Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Titles must have", color = Mute, fontSize = 14.sp)
                                         Chip("Any of these", !draft.allGenres) { draft = draft.copy(allGenres = false) }
@@ -130,17 +127,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                                     Hint("Genres follow the movie or show catalog; some exist for only one type.")
                                 }
                                 "Year" -> {
-                                    ButtonRow {
-                                        listOf("Any" to (null to null), "1980s" to (1980 to 1989), "1990s" to (1990 to 1999), "2000s" to (2000 to 2009), "2010s" to (2010 to 2019), "2020 onward" to (2020 to null))
-                                            .forEach { (label, range) -> Chip(label, draft.fromYear == range.first && draft.toYear == range.second) { draft = draft.copy(fromYear = range.first, toYear = range.second) } }
-                                    }
-                                    StepSlider("From", FilterSteps.years, draft.fromYear ?: 0, FilterSteps::yearLabel, width = 520.dp) { y ->
-                                        val (from, to) = FilterSteps.ordered(y.takeIf { it > 0 }, draft.toYear); draft = draft.copy(fromYear = from, toYear = to)
-                                    }
-                                    StepSlider("To", FilterSteps.years, draft.toYear ?: 0, { if (it == 0) "Now" else "$it" }, width = 520.dp) { y ->
-                                        val (from, to) = FilterSteps.ordered(draft.fromYear, y.takeIf { it > 0 }); draft = draft.copy(fromYear = from, toYear = to)
-                                    }
-                                    Hint("A movie's release year or a show's first year.")
+                                    YearPane(draft) { draft = it }
                                 }
                                 "Score" -> {
                                     ButtonRow {
@@ -182,13 +169,18 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                                     Hint("Choose exact companies, such as DreamWorks Animation or DreamWorks Pictures.")
                                 }
                                 "Awards" -> {
-                                    ButtonRow { OscarMode.entries.forEach { mode -> Chip(mode.label, draft.oscars == mode) {
-                                        draft = draft.copy(oscars = mode, kind = if (mode != OscarMode.ANY && draft.kind == ExploreKind.TV) ExploreKind.MOVIE else draft.kind)
-                                    } } }
-                                    if (draft.oscars != OscarMode.ANY) ToggleRow("Best Picture only", "Off includes any Oscar category.", draft.bestPicture) {
-                                        draft = draft.copy(bestPicture = !draft.bestPicture)
+                                    // #252: each award as a picture tile; then winners or nominees too.
+                                    AwardTiles(draft) { key -> draft = FilterLook.withAward(draft, key) }
+                                    if (draft.oscars != OscarMode.ANY) {
+                                        val body = AwardBodies.of(draft.award)
+                                        Segments(listOf("Winners", "Winners & nominees"), if (draft.oscars == OscarMode.NOMINATED) 1 else 0) { i ->
+                                            draft = draft.copy(oscars = if (i == 1) OscarMode.NOMINATED else OscarMode.WIN)
+                                        }
+                                        body.best?.let { (_, name) -> ToggleRow("$name only", "Off includes any ${body.short} category.", draft.bestPicture) {
+                                            draft = draft.copy(bestPicture = !draft.bestPicture)
+                                        } }
                                     }
-                                    Hint("Oscars are film awards, from Wikidata records; coverage may be incomplete.")
+                                    Hint("From Wikidata records; coverage may be incomplete. Film awards show movies, TV awards show series.")
                                 }
                                 "Search tools" -> searchTools?.invoke(this)
                             }
@@ -203,7 +195,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                             error = value.error()
                             if (error == null) onApply(value)
                         }
-                        Chip("Reset all") { draft = ExploreQuery(kind = draft.kind, sort = draft.sort); error = null }
+                        Chip("Reset all") { draft = ExploreQuery(sort = draft.sort); error = null }
                         Spacer(Modifier.weight(1f))
                         Text("Every category must match; within one, any choice can.", color = Mute, fontSize = 12.sp)
                     }
@@ -267,53 +259,4 @@ internal fun PrimaryButton(label: String, modifier: Modifier = Modifier, onClick
 private fun SelectedRefs(refs: List<ExploreRef>, onRemove: (Long) -> Unit) {
     if (refs.isEmpty()) Text("Any", color = Mute, fontSize = 13.sp)
     else ButtonRow { refs.forEach { ref -> Chip("${ref.name} ×", true) { onRemove(ref.id) } } }
-}
-
-@Composable
-private fun ExplorePicker(type: String, selected: List<ExploreRef>, repository: ExploreRepository, region: String,
-    onSelect: (ExploreRef) -> Unit, onClose: () -> Unit) {
-    var text by remember { mutableStateOf("") }
-    var results by remember { mutableStateOf<List<ExploreRef>>(emptyList()) }
-    var services by remember { mutableStateOf<List<ExploreRef>?>(null) }
-    var busy by remember { mutableStateOf(false) }; var error by remember { mutableStateOf<String?>(null) }
-    var retry by remember { mutableIntStateOf(0) }
-    val first = remember { FocusRequester() }
-    LaunchedEffect(text, retry, type, region) {
-        busy = true; error = null
-        try {
-            if (type == "Services") {
-                val all = services ?: repository.providers(region).also { services = it }
-                results = all.filter { it.name.contains(text.trim(), ignoreCase = true) }
-            } else {
-                results = emptyList()
-                if (text.trim().length >= 2) { delay(350); results = repository.search(text, type == "Studios") }
-            }
-        } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { error = "Could not load $type. Check the connection and TMDB key, then retry." }
-        finally { busy = false }
-    }
-    TvDialog(onClose,width=520.dp,height=450.dp,resizeForKeyboard=true) {
-        CompositionLocalProvider(LocalFocusScene provides null) {
-            DialogHeading("Choose ${type.lowercase()}")
-            TvTextField(text, { text = it.take(100) }, placeholder = if (type == "Services") "Filter services" else "Search names (2+ letters)", focusRequester = first)
-            Text("${selected.size} selected · Up to ${if (type == "Services" || type == "Studios") 12 else 8} · Choose again to remove", color = Mute, fontSize = 12.sp)
-            if (busy) Text("Searching…", color = Mute, fontSize = 13.sp)
-            error?.let { Text(it, color = Mute, fontSize = 13.sp); Chip("Retry") { retry++ } }
-            if (!busy && error == null && results.isEmpty()) Text(if (type != "Services" && text.trim().length < 2) "Enter a name to search." else "No matches.", color = Mute, fontSize = 13.sp)
-            LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(5.dp)) {
-                items(results, key = { it.id }) { ref ->
-                    Focusable(onClick = { onSelect(ref) }, modifier = Modifier.fillMaxWidth(), radius = TvTokens.Shape.Control, container = if (selected.any { it.id == ref.id }) WashHi else Wash,
-                        focusedContainer = PillColor, focusedContent = OnPillColor) {
-                        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(ref.image, contentDescription = null, modifier = Modifier.size(40.dp), contentScale = ContentScale.Fit)
-                            Text((if (selected.any { it.id == ref.id }) "✓ " else "") + ref.name, fontSize = 15.sp)
-                        }
-                    }
-                }
-            }
-            Chip("Done", onClick = onClose)
-
-        }
-        LaunchedEffect(Unit) { withFrameNanos { }; runCatching { first.requestFocus() } }
-    }
 }

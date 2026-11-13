@@ -97,7 +97,7 @@ internal fun ActiveFilterTags(query: ExploreQuery, modifier: Modifier = Modifier
             }
         }
         if (tags.size > 1) item(key = "clear") {
-            Focusable(onClick = { onApply(ExploreQuery(kind = query.kind, sort = query.sort)) }, radius = TvTokens.Shape.Pill, container = Wash,
+            Focusable(onClick = { onApply(ExploreQuery(sort = query.sort)) }, radius = TvTokens.Shape.Pill, container = Wash,
                 focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Control) {
                 Text("Clear all", Modifier.padding(horizontal = 12.dp, vertical = 5.dp), fontSize = 13.sp, color = LocalContentColor.current.copy(alpha = .8f))
             }

@@ -49,7 +49,7 @@ class ExploreSession(
                     .awaitAll().filterNotNull()
             } else basic
             val awards = if (query.oscars == OscarMode.ANY) verified else {
-                val ids = source.awards(verified.map { it.tmdb }, query)
+                val ids = source.awards(verified.map { it.tmdb }, query, stream.kind)
                 verified.filter { it.tmdb in ids }
             }
             currentCoroutineContext().ensureActive()
