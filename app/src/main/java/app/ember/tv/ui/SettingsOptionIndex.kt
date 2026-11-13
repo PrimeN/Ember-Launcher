@@ -37,12 +37,14 @@ internal object SettingsOptionIndex {
         return Entry(tab, p[1].ifBlank { null }, p[2].ifBlank { null }, p[3])
     }
 
-    fun load(context: Context) {
-        if (loaded) return
+    /** Reads the seed and saved entries once; true when they are in memory. */
+    fun load(context: Context): Boolean {
+        if (loaded) return true
         loaded = true
         SettingsOptionSeed.entries.forEach { entries[id(it)] = it }
         val sp = context.applicationContext.getSharedPreferences(STORE, Context.MODE_PRIVATE).also { store = it }
         sp.getStringSet(KEY, emptySet()).orEmpty().mapNotNull(::parse).forEach { entries[id(it)] = it }
+        return true
     }
 
     fun record(tab: SettingsTab, anchor: String?, section: String?, label: String) {
