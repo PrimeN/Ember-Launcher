@@ -64,7 +64,8 @@ class HeroArtworkSelectionTest {
     @Test fun enrichmentPreservesCatalogPlaybackProgressAndEpisodeIdentity() {
         val original = Meta(id="server:one",type="series",name="Title",poster="poster",background="old",description="Plot",
             tmdbId=1,season=2,episode=3,progress=.4f,serverRef="native-reference",serverName="My server")
-        val enriched = HeroArtwork(listOf("new"),"logo").applyTo(original)
+        // #263: with the addon's metadata first turned off, public artwork replaces the catalog's.
+        val enriched = try { app.ember.tv.data.AddonMetadata.first = false; HeroArtwork(listOf("new"),"logo").applyTo(original) } finally { app.ember.tv.data.AddonMetadata.first = true }
         assertEquals(original.copy(background="new",logo="logo"), enriched)
         assertEquals(original, HeroArtwork().applyTo(original))
     }

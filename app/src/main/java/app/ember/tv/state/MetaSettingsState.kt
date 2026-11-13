@@ -12,11 +12,12 @@ import app.ember.tv.data.Ratings
 
 /** Settings > Metadata, Ratings and Posters. Split out of HomeViewModel. */
 class MetaSettingsState(private val prefs: Prefs) {
-    var metaConfig by mutableStateOf(prefs.metaConfig); private set
+    var metaConfig by mutableStateOf(prefs.metaConfig.also { app.ember.tv.data.AddonMetadata.first = it.addonFirst }); private set
 
     fun updateMetaConfig(change: (MetaConfig) -> MetaConfig) {
         metaConfig = change(metaConfig)
         prefs.metaConfig = metaConfig
+        app.ember.tv.data.AddonMetadata.first = metaConfig.addonFirst
     }
 
     // ---- ratings ----

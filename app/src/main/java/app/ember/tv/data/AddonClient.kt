@@ -138,7 +138,7 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
         val extra = if (parts.isEmpty()) "" else "/" + parts.joinToString("&")
         return getJson(endpoint(def.addon.base, "catalog/${def.type}/${def.id}$extra.json"), def.addon.url, CacheKind.CATALOGS, refresh).arr("metas").list().map {value->
             json.decodeFromJsonElement<Meta>(value).copy(ageRating=addonAgeRating(value))
-        }
+        }.also { AddonMetadata.listed(def.addon.url, it) }
     }
 
     /** Like JavaScript's encodeURIComponent, which Stremio addons expect. */

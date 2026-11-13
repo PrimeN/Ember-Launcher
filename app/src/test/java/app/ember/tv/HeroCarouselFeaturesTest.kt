@@ -112,7 +112,10 @@ class HeroCarouselFeaturesTest {
         val meta = title(1).copy(tmdbId = 42, serverRef = "native", progress = .4f)
         val art = repo.resolve(meta, "en", "tmdb-dummy", "fanart-dummy", HeroArtworkMode.FANART)
         assertTrue(art.backgrounds.first().contains("standard.jpg"))
-        assertEquals(meta.copy(background = art.backgrounds.first(), logo = art.logo), art.applyTo(meta))
+        try {
+            app.ember.tv.data.AddonMetadata.first = false // #263: the old order, public artwork first
+            assertEquals(meta.copy(background = art.backgrounds.first(), logo = art.logo), art.applyTo(meta))
+        } finally { app.ember.tv.data.AddonMetadata.first = true }
     }
 
     @Test fun standardModeWithoutTmdbDoesNotSecretlyUseFanart() = runBlocking {

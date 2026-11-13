@@ -225,7 +225,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
             "tvdbOn" to Field("Use TVDB"), "tvdbDescription" to Field("TVDB description"), "tvdbArtwork" to Field("TVDB artwork"),
             "tvdbEpisodes" to Field("TVDB episodes"), "tvdbDetails" to Field("TVDB details"), "tvdbForAnime" to Field("TVDB for anime"),
             "tvdbLanguage" to Field("TVDB language", listOf("eng" to "English", "fra" to "French", "deu" to "German", "spa" to "Spanish", "ita" to "Italian", "por" to "Portuguese", "jpn" to "Japanese", "kor" to "Korean", "zho" to "Chinese")),
-            "replace" to Field("Replace the addon's metadata")))
+            "replace" to Field("Replace the addon's metadata"), "addonFirst" to Field("Use the addon's metadata first")))
 
         // ---- System
         val SYS = "System"

@@ -41,6 +41,8 @@ data class MetaConfig(
     // ---- both ----
     /** True: replace what the addon gave. False: only fill in what is missing. */
     val replace: Boolean = false,
+    /** #263: the catalog addon's own details, logo, backgrounds and cast come first. */
+    val addonFirst: Boolean = true,
 )
 
 /** What a provider found, before it is merged into the title screen. */

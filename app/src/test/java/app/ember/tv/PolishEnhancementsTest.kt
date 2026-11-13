@@ -161,7 +161,8 @@ class PolishEnhancementsTest {
     }
     @Test fun aPublicArtworkReplacementDoesNotReuseAnotherImagesFocalPoint() {
         val meta=Meta(id="tt1234",type="movie",background="https://fixture.example/original.jpg",backgroundFocusX=.2f,backgroundFocusY=.4f)
-        val replaced=HeroArtwork(backgrounds=listOf("https://fixture.example/other.jpg")).applyTo(meta)
+        // With the addon's metadata first turned off (#263), public artwork replaces the addon's.
+        val replaced=try {app.ember.tv.data.AddonMetadata.first=false;HeroArtwork(backgrounds=listOf("https://fixture.example/other.jpg")).applyTo(meta)} finally {app.ember.tv.data.AddonMetadata.first=true}
         assertNull(replaced.backgroundFocusX);assertNull(replaced.backgroundFocusY)
         val same=HeroArtwork(backgrounds=listOf(meta.background!!)).applyTo(meta)
         assertEquals(meta.backgroundFocusX,same.backgroundFocusX);assertEquals(meta.backgroundFocusY,same.backgroundFocusY)

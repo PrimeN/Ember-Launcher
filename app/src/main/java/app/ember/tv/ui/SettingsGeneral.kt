@@ -489,6 +489,12 @@ internal fun MetadataPage(vm: HomeViewModel, openKeys: () -> Unit) {
     val c = vm.metadata.metaConfig
     val tvdbReady = ApiKeys.get("TVDB_API_KEY").isNotBlank()
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        // #263: a catalog addon that serves its own details and artwork is used as it is.
+        Section(stringResource(R.string.tx_addon_metadata), stringResource(R.string.tx_addon_metadata_about), id = "addon-metadata") {
+            ToggleRow(stringResource(R.string.tx_addon_metadata_first), stringResource(R.string.tx_addon_metadata_first_note), c.addonFirst) {
+                vm.metadata.updateMetaConfig { it.copy(addonFirst = !it.addonFirst) }
+            }
+        }
         Section(stringResource(R.string.ui_metadata), stringResource(R.string.ui_better_details_on_title_screens_anilist)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ButtonRow(spacing = 10.dp) {

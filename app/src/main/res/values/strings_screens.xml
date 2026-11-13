@@ -160,4 +160,8 @@
     <string name="tx_year">Year</string>
     <string name="tx_you_can_keep_unavailable_references_and">You can keep unavailable references and repair them later in the source editor.</string>
     <string name="tx_your_channel_guide">Your channel guide</string>
+    <string name="tx_addon_metadata">Addon metadata</string>
+    <string name="tx_addon_metadata_about">For addons that serve their own details, logos and backgrounds.</string>
+    <string name="tx_addon_metadata_first">Use the addon\'s metadata first</string>
+    <string name="tx_addon_metadata_first_note">Keeps the logo, backgrounds, details and cast your catalog addon gives, and asks that addon for title details. TMDB and Fanart only fill in what it leaves out, so fewer requests are made.</string>
 </resources>

@@ -260,11 +260,16 @@ class TitleState(
             val meta = withImdb(meta)
             ensureActive()
             loadOffers(meta)
-            loadTmdbCredits(meta)
+            // #263: with addon metadata first, TMDB's cast is only asked for when the addon gives none.
+            val addonFirst = app.ember.tv.data.AddonMetadata.first
+            if (!addonFirst) loadTmdbCredits(meta)
             val type = meta.addonType
             val id = meta.lookupId
             val infos = addonInfos()
-            val metaAddon = infos.firstOrNull { it.supports("meta", type, id) }
+            // The addon whose catalog listed the title answers first; then the others, in order.
+            val metaAddon = (if (addonFirst) app.ember.tv.data.AddonMetadata.origin(type, meta.id)
+                ?.let { url -> infos.firstOrNull { it.url == url && it.supports("meta", type, id) } } else null)
+                ?: infos.firstOrNull { it.supports("meta", type, id) }
 
             var full = meta
             var episodes = emptyList<Episode>()
@@ -282,7 +287,17 @@ class TitleState(
                 fetched?.let { (m, eps) ->
                     // Specials are season 0; skip them unless that is all there is.
                     episodes = eps.filter { it.season > 0 }.ifEmpty { eps }
-                    full = meta.copy(
+                    full = if (addonFirst) meta.copy(
+                        description = m.str("description") ?: meta.description,
+                        logo = m.str("logo")?.takeIf { it.isNotBlank() } ?: meta.logo,
+                        background = m.str("background")?.takeIf { it.isNotBlank() } ?: meta.background,
+                        poster = meta.poster ?: m.str("poster"),
+                        releaseInfo = m.str("releaseInfo") ?: meta.releaseInfo,
+                        runtime = m.str("runtime") ?: meta.runtime,
+                        ageRating = app.ember.tv.data.addonAgeRating(m) ?: meta.ageRating,
+                        adult = if(meta.adult==true || m.bool("adult")==true)true else meta.adult,
+                        genres = m.arr("genres").list().mapNotNull { g -> (g as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }.ifEmpty { null } ?: meta.genres,
+                    ) else meta.copy(
                         description = m.str("description") ?: meta.description,
                         background = meta.background ?: m.str("background"),
                         poster = meta.poster ?: m.str("poster"),
@@ -295,6 +310,7 @@ class TitleState(
                 }
             }
 
+            if (addonFirst && details?.addonCredits == null) loadTmdbCredits(full)
             loadRatings(full, addonImdbRating)
             if (meta.playsDirectly || (episodes.isEmpty() && directVideoId != null)) {
                 details = details?.copy(meta = full, loadingEpisodes = false, loadingStreams = true)

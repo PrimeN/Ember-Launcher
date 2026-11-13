@@ -76,7 +76,8 @@ internal fun rememberHeroDecoration(meta: Meta?): HeroArtwork {
         mutableStateOf(HeroArtworkState.peek(meta, locale, revision, mode))
     }
     LaunchedEffect(identity, id, meta?.tmdbId, meta?.imdb, locale, revision, mode, active) {
-        if (meta != null && active) {
+        // #263: nothing to fetch when the addon already gave a background and a logo.
+        if (meta != null && active && !app.ember.tv.data.AddonMetadata.complete(meta)) {
             delay(250) // Decorative enrichment never races every repeated D-pad press.
             art = HeroArtworkState.load(context, meta, locale, revision, mode)
         }

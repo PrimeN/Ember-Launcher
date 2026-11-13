@@ -17,7 +17,8 @@ import kotlin.math.abs
 @Serializable
 data class HeroArtwork(val backgrounds: List<String> = emptyList(), val logo: String? = null, val posters: List<String> = emptyList()) {
     fun applyTo(meta: Meta): Meta {
-        val server = app.ember.tv.mediaserver.ServerRef.of(meta) != null
+        // Media servers, and addons when their metadata comes first (#263), keep their own artwork.
+        val server = app.ember.tv.mediaserver.ServerRef.of(meta) != null || AddonMetadata.first
         val background=if(server)meta.background ?: backgrounds.firstOrNull() else backgrounds.firstOrNull() ?: meta.background
         return meta.copy(background = background,
             backgroundFocusX=meta.backgroundFocusX.takeIf {background==meta.background},backgroundFocusY=meta.backgroundFocusY.takeIf {background==meta.background},

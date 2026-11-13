@@ -190,8 +190,11 @@ data class DetailsUi(
     val credits: Credits?
         get() {
             if (addonCredits == null && tmdbCredits == null) return null
+            // #263: with addon metadata first, the addon's cast is kept when it gives one.
+            val addonPeople = addonCredits?.people?.ifEmpty { null }
+            val tmdbPeople = tmdbCredits?.people?.ifEmpty { null }
             return Credits(
-                people = tmdbCredits?.people?.ifEmpty { null } ?: addonCredits?.people.orEmpty(),
+                people = (if (app.ember.tv.data.AddonMetadata.first) addonPeople ?: tmdbPeople else tmdbPeople ?: addonPeople).orEmpty(),
                 trailer = addonCredits?.trailer ?: tmdbCredits?.trailer,
             )
         }

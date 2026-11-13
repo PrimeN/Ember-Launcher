@@ -85,12 +85,13 @@ fun rememberReadyArtwork(meta: Meta?): ReadyArtwork {
     // logos can appear now, without canceling/restarting a large image already in flight.
     val hasFallback = !meta?.background.isNullOrBlank() || !meta?.poster.isNullOrBlank()
     val selectedBackgrounds = if (!options.progressiveHero && hasFallback) remember(identity,key,meta?.background,ApiKeys.revision,artworkMode) { decoration.backgrounds } else decoration.backgrounds
-    val decorated = meta?.copy(logo = decoration.logo ?: meta.logo)
+    val addonFirst = app.ember.tv.data.AddonMetadata.first
+    val decorated = meta?.copy(logo = if (addonFirst) meta.logo ?: decoration.logo else decoration.logo ?: meta.logo)
     val latest by rememberUpdatedState(decorated)
     val original = listOfNotNull(
         meta?.background?.takeIf { it.isNotBlank() }?.let { it to true },
         meta?.poster?.takeIf { it.isNotBlank() }?.let { it to false })
-    val candidates = (selectedBackgrounds.map {it to true} + original).distinctBy {it.first}.take(4)
+    val candidates = (if (addonFirst) original + selectedBackgrounds.map {it to true} else selectedBackgrounds.map {it to true} + original).distinctBy {it.first}.take(4)
     val latestCandidates by rememberUpdatedState(candidates)
     val imageSelection = candidates.map {it.first}
     LaunchedEffect(identity, decorated) {
@@ -162,7 +163,7 @@ fun PrefetchHeroArtwork(items: List<Meta>, index: Int, enabled: Boolean = true) 
         coroutineScope {
             (1..minOf(if(options.lowPower)1 else options.heroPrefetchCount,items.size-1)).map {step->async {
                 val original = items[(index+step).mod(items.size)]
-                val meta = if(app.ember.tv.mediaserver.ServerRef.of(original)!=null)original
+                val meta = if(app.ember.tv.mediaserver.ServerRef.of(original)!=null || app.ember.tv.data.AddonMetadata.complete(original))original
                     else HeroArtworkState.load(context,original,locale,revision,artworkMode).applyTo(original)
                 val wide = !meta.background.isNullOrBlank()
                 if(count>0)(meta.background?.takeIf {it.isNotBlank()} ?: meta.poster)?.let {url->
