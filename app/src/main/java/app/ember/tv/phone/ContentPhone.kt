@@ -108,7 +108,8 @@ object ContentPhone {
      * own; turned-off widgets in their own list to turn back on. Every change is approved on the TV.
      */
     private fun StringBuilder.widgets(content: PhoneContent, auth: String) {
-        val home = content.home.ifEmpty { content.widgets.map { PhoneHomeEntry(it.id, it.title, "yours", it.source + " · " + it.status, it.style, it.id) } }
+        val home = content.home.ifEmpty { content.widgets.map { PhoneHomeEntry(it.id, it.title, "yours",
+            app.ember.tv.data.HomeWidgets.styleName(it.style) + " · " + it.source + " · " + it.status, it.style, it.id) } }
         append("<section class=\"card lib wide\"><div class=head><h2>Home widgets</h2><span class=m>").append(home.size).append(" on Home")
         if (content.homeOff.isNotEmpty()) append(" · ").append(content.homeOff.size).append(" off")
         append("</span></div>")

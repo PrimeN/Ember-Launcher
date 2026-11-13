@@ -160,8 +160,23 @@ class MainActivity : ComponentActivity() {
 
     private var askedProfile = false
 
+    // #241: what the phone remote can do on this screen.
+    private val remoteScreen = object : app.ember.tv.remote.RemoteBridge.Screen {
+        override fun play(request: PlayRequest) { this@MainActivity.play(request) }
+        override fun search(query: String) { vm.closeDetails(); tab = NavTabs.SEARCH; vm.search.setQuery(query, immediate = true) }
+        override fun home() { vm.closeDetails(); tab = NavTabs.HOME }
+    }
+
+    override fun onDestroy() {
+        if (app.ember.tv.remote.RemoteBridge.screen === remoteScreen) app.ember.tv.remote.RemoteBridge.screen = null
+        if (isFinishing) app.ember.tv.remote.PhoneRemote.release(vm)
+        super.onDestroy()
+    }
+
     override fun onResume() {
         super.onResume()
+        app.ember.tv.remote.RemoteBridge.screen = remoteScreen
+        app.ember.tv.remote.PhoneRemote.sync(this, vm, app.ember.tv.ui.phonePageAccent(vm.look.accent))
         app.ember.tv.ui.Art.update(this)
         app.ember.tv.ui.RemoteSounds.warm(this)
         if (!askedProfile) {

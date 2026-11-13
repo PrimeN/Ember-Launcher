@@ -632,7 +632,7 @@ internal fun TrackerRow(vm: HomeViewModel, t: Tracker, openKeys: () -> Unit) {
 
 // ---------------------------------------------------------------- Phone setup
 
-/** Explicit, non-persistent opt-in. The server independently enforces the same 15-minute lease. */
+/** Explicit, non-persistent opt-in. The server independently enforces the same 30-minute lease. */
 @Composable
 internal fun PhoneSetupPage(vm: HomeViewModel) {
     // #156: the phone page is always dark, so it takes the theme's night accent even in the day theme.
@@ -725,6 +725,57 @@ internal fun PhoneSetupPage(vm: HomeViewModel) {
                 vm.phoneLog.forEach { Text("• $it", fontSize = 14.sp) }
                 vm.iptvSetup.iptvAddMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
             }
+        }
+        PhoneRemoteSection(vm, accentHex)
+    }
+}
+
+/**
+ * #241: the phone remote. Unlike Phone setup it does not time out; a password keeps others on the
+ * network out. Off by default.
+ */
+@Composable
+private fun PhoneRemoteSection(vm: HomeViewModel, accentHex: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val auth = remember { app.ember.tv.remote.PhoneRemote.auth(context) }
+    var on by remember { mutableStateOf(app.ember.tv.remote.PhoneRemote.enabled(context)) }
+    var hasPassword by remember { mutableStateOf(auth.hasPassword) }
+    var phones by remember { mutableStateOf(auth.phones) }
+    var password by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
+    val url = app.ember.tv.remote.PhoneRemote.url
+    LaunchedEffect(on) { if (on) app.ember.tv.remote.PhoneRemote.sync(context, vm, accentHex) }
+    Section("Phone remote", "Control Ember from your phone's browser: search, pick a source, play and pause, seek, volume, your lists, and a keyboard for typing on the TV. It stays on until you switch it off.") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ToggleRow("Phone remote", "Off by default. Works on your home network while Ember is running.", on) {
+                val next = !on
+                val started = app.ember.tv.remote.PhoneRemote.setEnabled(context, vm, next, accentHex)
+                on = next
+                message = if (next && started == null) "This TV has no address on the home network. Connect it to Wi-Fi or Ethernet." else null
+            }
+            if (on) {
+                Text(if (hasPassword) "Password set · ${if (phones == 1) "1 phone signed in" else "$phones phones signed in"}" else "No password: anyone on your home network can use the remote.",
+                    color = if (hasPassword) Mute else MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TvTextField(password, { password = it.take(128) }, Modifier.width(320.dp), placeholder = if (hasPassword) "New password" else "Password (4 characters or more)", password = true)
+                    Chip(if (hasPassword) "Change password" else "Set password") {
+                        message = auth.setPassword(password) ?: "Password saved. Phones sign in with it once.".also { hasPassword = true; phones = 0; password = "" }
+                    }
+                    if (hasPassword) Chip("Remove password") { auth.clearPassword(); hasPassword = false; phones = 0; message = "Password removed." }
+                    if (hasPassword && phones > 0) Chip("Sign out all phones") { auth.signOutAll(); phones = 0; message = "Every phone must sign in again." }
+                }
+                url?.let { l ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
+                        QrCode(l, 170.dp)
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.width(460.dp)) {
+                            Text("Scan the code, or open this address on a phone on the same network:", fontSize = 15.sp)
+                            Text(l, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                            Note("Add it to your phone's home screen to use it like an app. If the TV's address changes (after a router restart), scan again.")
+                        }
+                    }
+                }
+            }
+            message?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
         }
     }
 }
