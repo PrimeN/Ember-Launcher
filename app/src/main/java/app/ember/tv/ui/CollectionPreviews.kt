@@ -75,27 +75,22 @@ internal fun FolderPreview(f: CollectionFolder, height: Dp, modifier: Modifier =
     }
 }
 
-/** One collection in the list: its backdrop, name, where it shows and its first folders. OK opens it. */
+/** One collection in the list: its backdrop, name, where it shows and its first folders. OK opens it. #239: the same card as widgets. */
 @Composable
 internal fun CollectionPreviewCard(vm: HomeViewModel, c: MediaCollection, query: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val cs = vm.collections
-    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().testTag("collection_card"), radius = TvTokens.Shape.Card, container = PanelHi,
-        focusedScale = TvTokens.Focus.None) {
-        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.width(128.dp).height(72.dp).clip(RoundedCornerShape(8.dp)).background(WashHi), contentAlignment = Alignment.Center) {
-                val cover = CollectionPreviews.cover(c)
-                if (cover != null) CollectionImage(cover, c.title, Modifier.fillMaxSize())
-                else Text(CollectionPreviews.mark(c.title, null), color = Fg, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(c.title.ifBlank { "Untitled collection" }, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(CollectionPreviews.status(c, c.id !in cs.hidden, c.id in cs.inDiscover), color = LocalContentColor.current.copy(alpha = .7f), fontSize = 13.sp, maxLines = 1)
-            }
+    val onHome = c.id !in cs.hidden
+    ManagerCard(c.title.ifBlank { "Untitled collection" }, listOf(CollectionPreviews.status(c, onHome, c.id in cs.inDiscover)), onClick, modifier, tag = "collection_card",
+        trailing = { SwitchChip("On Home", onHome) { cs.toggle(c.id) } },
+        extra = {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                CollectionPreviews.folders(c, query).forEach { f -> FolderPreview(f, 60.dp, dimmed = !cs.folderOn(c, f), showTitle = false) }
+                CollectionPreviews.folders(c, query).forEach { f -> FolderPreview(f, 52.dp, dimmed = !cs.folderOn(c, f), showTitle = false) }
                 CollectionPreviews.more(c).takeIf { it > 0 }?.let { Text("+$it", color = LocalContentColor.current.copy(alpha = .7f), fontSize = 13.sp) }
             }
-        }
+        }) {
+        val cover = CollectionPreviews.cover(c)
+        if (cover != null) CollectionImage(cover, c.title, Modifier.fillMaxSize())
+        else Text(CollectionPreviews.mark(c.title, null), color = Fg, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

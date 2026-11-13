@@ -828,6 +828,7 @@ details.fold{border-top:0;padding:0}details.fold>summary{color:var(--mute);font-
 .shapes .w-numbered,.wt .w-numbered{width:70px;height:36px;border-radius:0;box-sizing:border-box;padding:16px 0 0 3px;font:900 15px/20px ui-monospace,Menlo,Consolas,monospace;font-style:normal;letter-spacing:15px;color:#fff;text-align:left;white-space:pre;overflow:hidden;background:repeating-linear-gradient(90deg,#5b5d63 0 20px,transparent 20px 24px)}
 .shapes .w-numbered::before,.wt .w-numbered::before{content:"123"}
 .shapes .w-carousel,.wt .w-carousel{width:68px;height:38px;border-radius:2px;background:linear-gradient(#d5d8dc,#d5d8dc) 50% 76%/26px 4px no-repeat,linear-gradient(#a9adb3,#a9adb3) 50% 90%/12px 2px no-repeat,#5b5d63}
+.wt .w-apps{width:68px;height:18px;border-radius:0;background:repeating-linear-gradient(90deg,#8a8d93 0 10px,transparent 10px 13px)}
 .shapes .w-hero,.wt .w-hero{width:68px;height:36px;background:linear-gradient(#d5d8dc,#d5d8dc) 8px 14px/26px 4px no-repeat,linear-gradient(#a9adb3,#a9adb3) 8px 21px/18px 3px no-repeat,linear-gradient(#d5d8dc,#d5d8dc) 8px 27px/12px 5px no-repeat,#5b5d63}
 .shapes.styles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.shapes small{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--mute)}
 .tabs2{display:flex;gap:8px}.tabs2 button{flex:1;margin-top:4px;padding:9px;background:#2c2d32;color:var(--fg);font-size:14px}

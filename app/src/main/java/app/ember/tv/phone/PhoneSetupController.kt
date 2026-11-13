@@ -66,6 +66,23 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
             return source.copy(extraArgs = values, genre = values["genre"]?.ifBlank { null })
         }
         fun widgetKey(id: String) = "w-" + AddonAccess.key("widget:$id")
+        /** #240: any Home widget, by an opaque key. */
+        fun homeKey(section: String) = "h-" + AddonAccess.key("home:$section")
+        fun homeSections(): Pair<List<String>, List<String>> =
+            app.ember.tv.ui.WidgetDrafts.split(sections.layout, sections.sectionInfo.map { it.id }.toSet())
+        fun ownWidget(section: String) = if (app.ember.tv.data.HomeWidgets.isSection(section)) widgets.list.firstOrNull { app.ember.tv.data.HomeWidgets.section(it.id) == section } else null
+        fun homeTitle(section: String) = ownWidget(section)?.title ?: sections.sectionInfo.firstOrNull { it.id == section }?.label ?: "Widget"
+        fun homeEntries(): Pair<List<app.ember.tv.phone.PhoneHomeEntry>, List<app.ember.tv.phone.PhoneHomeEntry>> {
+            val info = sections.sectionInfo.associateBy { it.id }
+            fun entry(section: String): app.ember.tv.phone.PhoneHomeEntry {
+                val w = ownWidget(section)
+                val kind = when { w != null -> "yours"; app.ember.tv.state.HomeSectionsState.isCatalogSection(section) -> "catalog"; else -> "built" }
+                val note = if (w != null) app.ember.tv.data.HomeWidgets.styleName(w.style) + " · " + app.ember.tv.data.HomeWidgets.sourceLabel(w.source, collectionCatalogs) else info[section]?.note.orEmpty()
+                return app.ember.tv.phone.PhoneHomeEntry(homeKey(section), homeTitle(section), kind, note, app.ember.tv.ui.WidgetDrafts.picture(section, w?.style), w?.let { widgetKey(it.id) })
+            }
+            val (on, off) = homeSections()
+            return on.map(::entry) to off.map(::entry)
+        }
         fun stage(summary: String, apply: suspend () -> String?): String =
             contentApproval.stage(summary, { access.active && profiles.profileId == owner }, apply)
         val registry = PhoneSettings(vm)
@@ -163,6 +180,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     collections = collections.list.map { targetKey(it.id) to it.title },
                     folderSources = folderSources().map { (id, target) -> id to (target.first.title + " / " + target.second.title + " / " + app.ember.tv.data.Collections.label(target.second.allSources[target.third], collectionCatalogs)) },
                     lists = widgetLists(),
+                    home = homeEntries().first, homeOff = homeEntries().second,
                     widgets = run {
                         // #161: in Home order, which is the order of their sections in the Home layout.
                         val order = sections.layout.map { it.first }
@@ -356,6 +374,28 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         stage("Put your ${ordered.size} Home widgets in this order: ${ordered.joinToString(", ") { it.title }.take(200)}.") {
                             sections.arrange(ordered.map { app.ember.tv.data.HomeWidgets.section(it.id) }); null
                         }
+                    }
+                    // #240: the whole Home: order, one-place moves and on/off, each approved on the TV.
+                    "order-home" -> {
+                        val (on, _) = homeSections()
+                        val byKey = on.associateBy(::homeKey)
+                        val keys = fields["order"].orEmpty().split(',').filter { it.isNotBlank() }
+                        val ordered = keys.mapNotNull { byKey[it] }
+                        if (ordered.size != keys.size || ordered.toSet() != on.toSet() || ordered.size != on.size) return@onPhoneMain "Home changed. Reload the page and try again."
+                        stage("Put Home in this order: ${ordered.joinToString(", ") { homeTitle(it) }.take(240)}.") { sections.arrange(ordered); null }
+                    }
+                    "move-home" -> {
+                        val (on, _) = homeSections()
+                        val section = on.firstOrNull { homeKey(it) == fields["target"] } ?: return@onPhoneMain "That widget is not on Home now. Reload the page."
+                        val up = fields["dir"] == "up"
+                        val next = app.ember.tv.ui.WidgetDrafts.reorder(on, section, if (up) -1 else 1) ?: return@onPhoneMain "It is already ${if (up) "first" else "last"}."
+                        stage("Move ${homeTitle(section)} ${if (up) "up" else "down"} one place on Home.") { sections.arrange(next); null }
+                    }
+                    "home-on", "home-off" -> {
+                        val turnOn = fields["action"] == "home-on"
+                        val (on, off) = homeSections()
+                        val section = (if (turnOn) off else on).firstOrNull { homeKey(it) == fields["target"] } ?: return@onPhoneMain "That widget changed. Reload the page."
+                        stage("Turn ${homeTitle(section)} ${if (turnOn) "on" else "off"} on Home.") { if (sections.sectionOn(section) != turnOn) sections.toggleSection(section); null }
                     }
                     "delete-widget" -> {
                         val w = widgets.list.firstOrNull { widgetKey(it.id) == fields["target"] } ?: return@onPhoneMain "That widget no longer exists. Reload the page."

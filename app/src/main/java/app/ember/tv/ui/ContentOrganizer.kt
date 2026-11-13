@@ -1,6 +1,7 @@
 package app.ember.tv.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,34 +38,35 @@ internal fun CollectionManager(vm: HomeViewModel) {
     var restore by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope(); val cs = vm.collections
     val focus = remember { FocusRequester() }; val createFocus = remember { FocusRequester() }
-    val listState = rememberLazyListState()
     val matches = cs.list.filter { (it.title + it.folders.joinToString { f -> f.title }).contains(query, true) }
     LaunchedEffect(cs.list.map { it.id }, restore) {
         if (restore != null && cs.list.none { it.id == restore }) {
-            restore = matches.getOrNull(listState.firstVisibleItemIndex.coerceAtMost((matches.size - 1).coerceAtLeast(0)))?.id
+            restore = matches.firstOrNull()?.id
             delay(80); runCatching { if (restore == null) createFocus.requestFocus() else focus.requestFocus() }
         }
     }
-    Column(Modifier.fillMaxWidth().heightIn(max = 420.dp).height(400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // #239: like Home widgets: a toolbar, a count, then one card per collection in the page itself (no inner scroll).
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingToggle("Animated collections", "Muted video and GIF previews when focused. Off keeps static covers.", cs.heroPreviews) { cs.enableHeroPreviews(!cs.heroPreviews) }
         ButtonRow {
             Chip("Create collection", modifier = Modifier.focusRequester(createFocus)) { original = null; editing = true }
-            Chip("Import pack") { importing = true }
+            Chip("Import") { importing = true }
             // #157
             if (cs.list.isNotEmpty()) {
                 Chip("Export all") { exporting = EXPORT_ALL }
                 Chip("Delete all", modifier = Modifier.testTag("collections_delete_all")) { removingAll = true }
             }
-            Text("${cs.list.size} collections · ${cs.list.sumOf { it.folders.size }} folders", color = Mute, fontSize = 12.sp)
         }
-        TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find collections or folders")
-        cs.message?.let { Text(it, color = Mute, fontSize = 12.sp) }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, contentPadding = PaddingValues(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(matches, key = { it.id }) { c ->
+        Text(ManagerCards.counts(cs.list.count { it.id !in cs.hidden }, cs.list.count { it.id in cs.hidden }) + " · ${cs.list.sumOf { it.folders.size }} folders", color = Mute, fontSize = 13.sp)
+        if (cs.list.size > 4) TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find collections or folders")
+        cs.message?.let { Text(it, color = Mute, fontSize = 13.sp) }
+        matches.forEach { c ->
+            key(c.id) {
                 // #231: a picture of each collection; OK opens its contents in a dialog.
                 CollectionPreviewCard(vm, c, query, if (restore == c.id) Modifier.focusRequester(focus) else Modifier) { expanded = c.id }
             }
         }
+        if (cs.list.isEmpty()) Note("No collections yet. Create one, or import a pack.")
     }
     expanded?.let { id ->
         val c = cs.list.firstOrNull { it.id == id }
@@ -180,7 +182,8 @@ internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
     var collect by remember { mutableStateOf<CollectionSource?>(null) }; var filters by remember { mutableStateOf<CatalogDef?>(null) }
     MediaDialog("Organize content", close, resizeForKeyboard = true, scrollBody = false, wide = true) {
         ButtonRow { listOf("Add-ons", "Catalogs", "Collections").forEach { value -> Chip(value, mode == value) { mode = value; expanded = null; query = "" } } }
-        if (mode == "Collections") CollectionManager(vm) else {
+        // #239: the manager is a plain list now, so the dialog scrolls it.
+        if (mode == "Collections") Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) { CollectionManager(vm) } else {
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find ${mode.lowercase()}")
             val urls = vm.addons.filter { vm.addonLabel(it).contains(query, true) }
             val catalogs = vm.allCatalogs.filter { (it.label + it.addon.name).contains(query, true) }

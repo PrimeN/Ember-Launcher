@@ -35,6 +35,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var removing by remember(vm.profiles.profileId) { mutableStateOf<HomeWidget?>(null) }
     var importing by remember { mutableStateOf(false) }
     var menu by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
+    var showOff by remember { mutableStateOf(false) }
     // #183: Home's "Edit widget" lands here with the editor already open.
     LaunchedEffect(vm.widgetToEdit) {
         val id = vm.widgetToEdit ?: return@LaunchedEffect
@@ -75,32 +76,35 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                 if (own > 0) Text(if (own == 1) "1 row has its own shape" else "$own rows have their own shape", color = Mute, fontSize = 13.sp)
             }
             message?.let { Text(it, color = Mute, fontSize = 13.sp) }
-            vm.sections.layout.forEach { (section, on) ->
-                val built = info[section] ?: return@forEach
+            // #238/#239: the list is what is on Home; what is off waits below, folded.
+            val (onIds, offIds) = WidgetDrafts.split(vm.sections.layout, info.keys)
+            Text(ManagerCards.counts(onIds.size, offIds.size), color = Mute, fontSize = 13.sp)
+            @Composable fun card(section: String, on: Boolean) {
+                val built = info.getValue(section)
                 val w = own(section)
-                // #176: one card per widget, with a picture of what it is; OK opens its actions.
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Focusable(onClick = { menu = section }, modifier = Modifier.width(600.dp).testTag("widget_card"), radius = TvTokens.Shape.Card, container = PanelHi) {
+                ManagerCard(w?.title ?: built.label, listOf(
+                    if (w != null) "Yours · " + WidgetDrafts.summary(w, vm.allCatalogs) else "Built in · " + built.note,
+                    // #168: why a widget is not on Home, instead of a row that is silently missing.
+                    WidgetDrafts.state(on, if (w == null) null else WidgetDrafts.status(on, w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)),
+                ), onClick = { menu = section }, tag = "widget_card", trailing = {
+                    // #199: hide or show in one press, without the menu.
+                    SwitchChip("On Home", on, modifier = Modifier.semantics { contentDescription = (w?.title ?: built.label) + ", on Home" }) { vm.sections.toggleSection(section) }
+                }) {
                     val ink = androidx.tv.material3.LocalContentColor.current
-                    Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        // The editor's picture at 60%, so a long Home still fits a few to the screen.
-                        Box(Modifier.width(94.dp).height(48.dp), contentAlignment = Alignment.Center) {
-                            Box(Modifier.requiredWidth(156.dp).scale(.6f)) { WidgetStylePreview(WidgetDrafts.picture(section, w?.style), ink) }
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(w?.title ?: built.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (w != null) "Yours · " + WidgetDrafts.summary(w, vm.allCatalogs) else "Built in · " + built.note, color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            // #168: why a widget is not on Home, instead of a row that is silently missing.
-                            Text(WidgetDrafts.state(on, if (w == null) null else WidgetDrafts.status(on, w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)),
-                                color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
-                // #199: hide or show in one press, without the menu.
-                SwitchChip("On Home", on, modifier = Modifier.semantics { contentDescription = (w?.title ?: built.label) + ", on Home" }) { vm.sections.toggleSection(section) }
+                    // The editor's picture, scaled down so a long Home still fits a few to the screen.
+                    Box(Modifier.requiredWidth(156.dp).scale(.68f)) { WidgetStylePreview(WidgetDrafts.picture(section, w?.style), ink) }
                 }
             }
-            Note("The switch beside a widget hides or shows it. Press OK on a widget to edit or move it: the banner's catalog and artwork, what each list includes, a row's card shape. Your own can also be deleted.")
+            onIds.forEach { card(it, true) }
+            if (onIds.isEmpty()) Note("Nothing is on Home. Turn widgets on below.")
+            if (offIds.isNotEmpty()) {
+                FoldHeader("Turned off · ${offIds.size} ${if (offIds.size == 1) "widget" else "widgets"}", showOff, Modifier.testTag("widgets_off")) { showOff = !showOff }
+                if (showOff) WidgetDrafts.offGroups(offIds, { own(it) != null }, { id -> info[id]?.note?.substringBefore(" · ")?.ifBlank { null } ?: "addons" }).forEach { (group, ids) ->
+                    Text(group, color = Mute, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                    ids.forEach { card(it, false) }
+                }
+            }
+            Note("The switch beside a widget hides or shows it; turned-off widgets wait in their own list. Addon catalogs become widgets when they are on Home. Press OK on a widget to edit or move it: the banner's catalog and artwork, what each list includes, a row's card shape. Your own can also be deleted.")
             Chip("Back to the default order") { vm.sections.resetLayout() }
         }
     }
@@ -108,7 +112,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var adjusting by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     menu?.let { section ->
         val w = own(section)
-        val order = vm.sections.layout.map { it.first }
+        val order = vm.sections.layout.filter { it.second && it.first in info }.map { it.first }
         OptionMenu(w?.title ?: info[section]?.label ?: "Widget", buildList {
             WidgetDrafts.actions(w != null && !kids, w == null && WidgetDrafts.editable(section), vm.sections.sectionOn(section)).forEach { label ->
                 add(MenuOption(label) { when (label) {
@@ -118,7 +122,10 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                     else -> vm.sections.toggleSection(section)
                 } })
             }
-            WidgetDrafts.moves(order.indexOf(section), order.lastIndex).forEach { (label, step) -> add(MenuOption(label) { vm.sections.moveSection(section, step) }) }
+            // #239: moves count only the widgets on Home, so every step shows.
+            WidgetDrafts.moves(order.indexOf(section), order.lastIndex).forEach { (label, step) ->
+                add(MenuOption(label) { WidgetDrafts.reorder(order, section, step)?.let(vm.sections::arrange) })
+            }
         }) { menu = null }
     }
     adjusting?.let { section -> BuiltInWidgetDialog(vm, section, info[section]?.label ?: "Widget", rename = { renaming = it }) { adjusting = null } }
@@ -178,6 +185,25 @@ internal object WidgetDrafts {
     fun previewCount(style: String, wide: Boolean) = when (style) { HomeWidgets.CAROUSEL, HomeWidgets.HERO -> 1; else -> if (wide) 4 else 7 }
     /** The last line of a widget's card (#176): what is wrong, or simply whether it is on Home. */
     fun state(on: Boolean, status: String?) = status ?: if (on) "On Home" else "Hidden from Home"
+    /**
+     * #238/#239: the widgets on Home, in order, and the ones switched off. An addon catalog only
+     * counts as a widget while it is on Home; off, it waits in the turned-off list with the rest.
+     */
+    fun split(layout: List<Pair<String, Boolean>>, known: Set<String>): Pair<List<String>, List<String>> =
+        layout.filter { it.first in known }.partition { it.second }.let { (on, off) -> on.map { it.first } to off.map { it.first } }
+    /** Turned-off widgets in groups: what comes with Ember, yours, then each addon's catalogs. */
+    fun offGroups(off: List<String>, own: (String) -> Boolean, addon: (String) -> String): List<Pair<String, List<String>>> {
+        val (catalogs, rest) = off.partition { app.ember.tv.state.HomeSectionsState.isCatalogSection(it) }
+        val (yours, built) = rest.partition(own)
+        return listOfNotNull(built.takeIf { it.isNotEmpty() }?.let { "Built in" to it }, yours.takeIf { it.isNotEmpty() }?.let { "Your widgets" to it }) +
+            catalogs.groupBy(addon).toList().sortedBy { it.first.lowercase() }.map { (name, ids) -> "Catalogs from $name" to ids }
+    }
+    /** The Home order after moving [id] by [step] among the widgets on Home; null when it does not move. */
+    fun reorder(on: List<String>, id: String, step: Int): List<String>? {
+        val from = on.indexOf(id); if (from < 0) return null
+        val to = (from + step).coerceIn(0, on.lastIndex); if (to == from) return null
+        return on.toMutableList().apply { add(to, removeAt(from)) }
+    }
     /** "Move up", "Move to the top"… for a widget at [index] of the Home layout; none when it has no place there. */
     fun moves(index: Int, lastIndex: Int): List<Pair<String, Int>> =
         if (index < 0) emptyList() else moveOptions(index, lastIndex).map { (label, step) -> "Move " + label.replaceFirstChar { it.lowercase() } to step }

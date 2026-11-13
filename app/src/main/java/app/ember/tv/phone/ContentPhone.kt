@@ -16,9 +16,17 @@ data class PhoneContent(
     val library: List<PhoneCollection> = emptyList(),
     /** Your Home widgets in Home order (#161). */
     val widgets: List<PhoneWidget> = emptyList(),
+    /** #240: everything on Home in order, and what is switched off. */
+    val home: List<PhoneHomeEntry> = emptyList(),
+    val homeOff: List<PhoneHomeEntry> = emptyList(),
     /** Your lists a widget can show: the built-in three and what your trackers offer right now. */
     val lists: List<Pair<String, String>> = app.ember.tv.data.HomeWidgets.lists,
 )
+/**
+ * #240: one Home widget for the phone list. [id] is opaque; [kind] is "built", "yours" or "catalog";
+ * [style] picks its picture; [widget] is the widget's own id when it is yours.
+ */
+data class PhoneHomeEntry(val id: String, val title: String, val kind: String, val note: String, val style: String, val widget: String? = null)
 /** One result of a search made from the widget editor: a person, studio, service or Trakt list. */
 data class PhoneLookup(val id: String, val name: String, val note: String = "")
 /** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
@@ -93,31 +101,52 @@ object ContentPhone {
             .append(if (disabled) " disabled" else "").append(">").append(glyph).append("</button></form>")
     }
 
-    /** Your Home widgets (#161), in Home order, with move, edit and delete, and Add a widget. */
+    private fun kindName(kind: String) = when (kind) { "yours" -> "Yours"; "catalog" -> "Catalog"; else -> "Built in" }
+
+    /**
+     * Home widgets (#161, #240): everything on Home in order, with move, off, and edit or delete for your
+     * own; turned-off widgets in their own list to turn back on. Every change is approved on the TV.
+     */
     private fun StringBuilder.widgets(content: PhoneContent, auth: String) {
-        append("<section class=\"card lib wide\"><div class=head><h2>Home widgets</h2><span class=m>").append(content.widgets.size).append(if (content.widgets.size == 1) " widget" else " widgets").append("</span></div>")
-        append("<p class=m>Your own rows on the Ember Home. The banner, apps, catalogs and collections keep their place in Settings &gt; Home on the TV, where widgets can also be switched off.</p>")
+        val home = content.home.ifEmpty { content.widgets.map { PhoneHomeEntry(it.id, it.title, "yours", it.source + " · " + it.status, it.style, it.id) } }
+        append("<section class=\"card lib wide\"><div class=head><h2>Home widgets</h2><span class=m>").append(home.size).append(" on Home")
+        if (content.homeOff.isNotEmpty()) append(" · ").append(content.homeOff.size).append(" off")
+        append("</span></div>")
+        append("<p class=m>Everything on the Ember Home, in order: the banner, your apps and lists, catalogs and your own widgets. Drag or use the arrows, then send the order; switch a widget off with &#8856;. The TV asks you to approve each change.</p>")
         // #186: a picture of each widget's style; drag (or the arrows) reorders here, then one approval sends the order.
         append("<div id=worder>")
-        content.widgets.forEach { w ->
-            val name = w.title.ifBlank { "Widget" }
-            append("<div class=row data-id=\"").append(esc(w.id)).append("\"><button type=button class=\"ib grip wj\" aria-label=\"Drag ").append(esc(name)).append(" to reorder\" title=\"Drag to reorder\">&#8645;</button>")
-            append("<span class=\"thumb wt\"><i class=\"w-").append(esc(w.style)).append("\"></i></span>")
-            append("<div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(esc(app.ember.tv.data.HomeWidgets.styleName(w.style))).append("</span>")
-                .append(esc(w.source)).append(" · ").append(esc(w.status)).append("</small></div><div class=acts>")
+        home.forEachIndexed { index, e ->
+            val name = e.title.ifBlank { "Widget" }
+            append("<div class=row data-id=\"").append(esc(e.id)).append("\"><button type=button class=\"ib grip wj\" aria-label=\"Drag ").append(esc(name)).append(" to reorder\" title=\"Drag to reorder\">&#8645;</button>")
+            append("<span class=\"thumb wt\"><i class=\"w-").append(esc(e.style)).append("\"></i></span>")
+            append("<div class=t><b>").append(esc(name)).append("</b><small><span class=chip>").append(kindName(e.kind)).append("</span>").append(esc(e.note)).append("</small></div><div class=acts>")
             append("<button type=button class=\"ib up wj\" aria-label=\"Move ").append(esc(name)).append(" up\">&uarr;</button><button type=button class=\"ib down wj\" aria-label=\"Move ").append(esc(name)).append(" down\">&darr;</button>")
             // Without scripts, the one-place moves still work.
             append("<noscript>")
-            post(auth, "move-widget", w.id, "<input type=hidden name=dir value=up>", "Move $name up on Home", "&uarr;", disabled = !w.canMoveUp)
-            post(auth, "move-widget", w.id, "<input type=hidden name=dir value=down>", "Move $name down on Home", "&darr;", disabled = !w.canMoveDown)
+            post(auth, "move-home", e.id, "<input type=hidden name=dir value=up>", "Move $name up on Home", "&uarr;", disabled = index == 0)
+            post(auth, "move-home", e.id, "<input type=hidden name=dir value=down>", "Move $name down on Home", "&darr;", disabled = index == home.lastIndex)
             append("</noscript>")
-            append("<a class=ib href=\"/content?k=$auth&amp;widget=").append(esc(w.id)).append("\" aria-label=\"Edit ").append(esc(name)).append("\" title=\"Edit ").append(esc(name)).append("\">&#9998;</a>")
-            post(auth, "delete-widget", w.id, "", "Delete $name", "&#10005;", danger = true)
+            if (e.widget != null) append("<a class=ib href=\"/content?k=$auth&amp;widget=").append(esc(e.widget)).append("\" aria-label=\"Edit ").append(esc(name)).append("\" title=\"Edit ").append(esc(name)).append("\">&#9998;</a>")
+            post(auth, "home-off", e.id, "", "Switch $name off on Home", "&#8856;")
+            if (e.widget != null) post(auth, "delete-widget", e.widget, "", "Delete $name", "&#10005;", danger = true)
             append("</div></div>")
         }
         append("</div>")
-        if (content.widgets.size > 1) append("<form id=wsend class=flat method=post action=\"/content?k=$auth\" hidden><input type=hidden name=action value=order-widgets><input type=hidden name=target value=\"\"><input type=hidden name=order value=\"\">")
+        if (home.size > 1) append("<form id=wsend class=flat method=post action=\"/content?k=$auth\" hidden><input type=hidden name=action value=order-home><input type=hidden name=target value=\"\"><input type=hidden name=order value=\"\">")
             .append("<p class=m>The order changed. Send it to the TV and approve it there.</p><button>Send new order to the TV</button></form><script>").append(REORDER).append("</script>")
+        if (content.homeOff.isNotEmpty()) {
+            append("<details class=fold><summary>Turned off · ").append(content.homeOff.size).append(if (content.homeOff.size == 1) " widget" else " widgets").append("</summary>")
+            content.homeOff.groupBy { kindName(it.kind) }.forEach { (group, rows) ->
+                append("<h3>").append(group).append("</h3>")
+                rows.forEach { e ->
+                    val name = e.title.ifBlank { "Widget" }
+                    append("<div class=row><span class=\"thumb wt\"><i class=\"w-").append(esc(e.style)).append("\"></i></span><div class=t><b>").append(esc(name)).append("</b><small>").append(esc(e.note)).append("</small></div><div class=acts>")
+                    append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=home-on><input type=hidden name=target value=\"").append(esc(e.id)).append("\"><button class=quiet aria-label=\"Turn ").append(esc(name)).append(" on\">Turn on</button></form>")
+                    append("</div></div>")
+                }
+            }
+            append("</details>")
+        }
         append("<a class=btn href=\"/content?k=$auth&amp;widget=new\">Add a widget</a>")
         // #163: move widgets between TVs and profiles as a file, like collections.
         append("<details><summary>Import or export widgets</summary>")
@@ -273,7 +302,7 @@ object ContentPhone {
     fun title(part: String) = when (part) { "widgets" -> "Home widgets"; "collections" -> "Collections"; else -> "Sources and addon tools" }
     /** The page a change belongs to, so the answer to a form shows the page it was sent from. */
     fun partOf(action: String?) = when (action) {
-        "save-widget", "move-widget", "order-widgets", "delete-widget" -> "widgets"
+        "save-widget", "move-widget", "order-widgets", "delete-widget", "order-home", "move-home", "home-on", "home-off" -> "widgets"
         "save-folder", "move-folder", "delete" -> "collections"
         else -> "tools"
     }
