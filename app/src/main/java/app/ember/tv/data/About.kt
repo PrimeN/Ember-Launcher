@@ -14,6 +14,22 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "0.9.9", "Home widgets and a phone remote",
+            listOf(
+                "Everything on Home is a widget: your own rows, numbered lists, carousels and banners.",
+                "A step-by-step widget creator with a preview; widgets move between TVs as a file.",
+                "Phone remote: an installable web app with search, playback, sound and subtitles.",
+                "Discover: new filters and sorting, more awards, genre tiles and photo pickers.",
+                "Settings show pictures for choices, and sliders instead of rows of numbers.",
+                "Edit badge patterns and icons on the TV or the phone.",
+                "Up next card in the corner, with a countdown you set.",
+                "Collections with previews, and Home organized from the phone.",
+                "Profile colours and photos; tiles for trackers, servers and API keys.",
+                "Crash log on the phone, and screen-reader labels.",
+                "Fixed a crash when a downloaded subtitle cannot be loaded.",
+            ),
+        ),
+        Release(
             "0.9.8", "Trackers in sync and a cleaner Home",
             listOf(
                 "Fixed freezes when addons refresh or a catalog is renamed.",
