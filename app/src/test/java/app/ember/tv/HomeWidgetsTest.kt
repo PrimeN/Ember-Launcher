@@ -80,7 +80,7 @@ class HomeWidgetsTest {
         for ((style, _) in HomeWidgets.styles) assertTrue(style, HomeWidgets.about(style).length in 20..70)
         assertEquals(HomeWidgets.styles.size, HomeWidgets.styles.map { HomeWidgets.about(it.first) }.toSet().size)
         val tv = (java.io.File("src/main/java/app/ember/tv/ui/WidgetEditor.kt").readText() + java.io.File("src/main/java/app/ember/tv/ui/WidgetWizard.kt").readText())
-        assertTrue(tv.contains("WidgetStyleTile(value, name, draft.style == value)")); assertTrue(tv.contains("HomeWidgets.about(style)"))
+        assertTrue(tv.contains("WidgetStyleTile(value, name, draft.style == value,")); assertTrue(tv.contains("HomeWidgets.about(style)"))
         val phone = java.io.File("src/main/java/app/ember/tv/phone/ContentPhone.kt").readText()
         assertTrue(phone.contains("shapes styles")); assertTrue(phone.contains("HomeWidgets.about(value)"))
         val css = java.io.File("src/main/java/app/ember/tv/phone/PhoneSetup.kt").readText()
