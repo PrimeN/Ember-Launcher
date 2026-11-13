@@ -1,5 +1,10 @@
 package app.ember.tv.phone
 
+import app.ember.tv.addAddon
+import app.ember.tv.addonLabel
+import app.ember.tv.pauseAddon
+import app.ember.tv.saveApiKeyAndWait
+
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

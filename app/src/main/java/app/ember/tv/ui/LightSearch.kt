@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.openSettingsGuarded
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier

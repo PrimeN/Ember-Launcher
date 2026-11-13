@@ -152,6 +152,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
+    /** The addon list has been read from storage (addons are loaded lazily). */
+    @Volatile internal var addonsLoaded = false
     internal val prefs = Prefs(app)
     internal val deviceCaps: DevicePerformance.Capabilities by lazy { DevicePerformance.capabilities(app) }
     internal fun lowPowerDevice(): Boolean = deviceCaps.let {

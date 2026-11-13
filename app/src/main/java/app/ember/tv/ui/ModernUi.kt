@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.openHomeShortcut
+
 import app.ember.tv.data.TileLabels
 
 import app.ember.tv.isSaved

@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.toggleFeature
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.automirrored.outlined.Label

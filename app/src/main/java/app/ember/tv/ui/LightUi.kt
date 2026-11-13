@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.openSettingsGuarded
+
 import app.ember.tv.data.TileLabels
 
 import androidx.activity.compose.rememberLauncherForActivityResult

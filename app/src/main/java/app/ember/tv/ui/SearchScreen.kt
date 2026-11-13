@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.submitSearch
+
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent

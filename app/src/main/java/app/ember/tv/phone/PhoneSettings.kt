@@ -1,5 +1,9 @@
 package app.ember.tv.phone
 
+import app.ember.tv.toggleBackgroundRefresh
+import app.ember.tv.toggleFeature
+import app.ember.tv.updateAddonTimeout
+
 import app.ember.tv.HomeViewModel
 import app.ember.tv.data.CardFocusStyle
 import app.ember.tv.data.DevicePerformance

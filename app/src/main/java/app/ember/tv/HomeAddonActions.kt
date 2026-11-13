@@ -148,7 +148,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 
-@Volatile private var addonsLoaded = false
 /** Before a change is saved: never save over the stored list before it has been read. */
 internal fun HomeViewModel.ensureAddons() { if (!addonsLoaded) { addons = prefs.addons; addonsLoaded = true } }
 

@@ -1,5 +1,9 @@
 package app.ember.tv.ui
 
+import app.ember.tv.phoneHandler
+import app.ember.tv.resetTabs
+import app.ember.tv.toggleTab
+
 import app.ember.tv.addServer
 import app.ember.tv.disconnectPlex
 import app.ember.tv.disconnectTracker

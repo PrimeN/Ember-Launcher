@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.openSettingsGuarded
+
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult

@@ -1,5 +1,7 @@
 package app.ember.tv.remote
 
+import app.ember.tv.playRequest
+
 import android.app.Application
 import android.media.AudioManager
 import app.ember.tv.HomeViewModel

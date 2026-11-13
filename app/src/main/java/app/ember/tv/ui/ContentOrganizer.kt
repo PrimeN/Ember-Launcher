@@ -1,5 +1,9 @@
 package app.ember.tv.ui
 
+import app.ember.tv.addonLabel
+import app.ember.tv.pauseAddon
+import app.ember.tv.refreshAddon
+
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 

@@ -1,5 +1,8 @@
 package app.ember.tv.ui
 
+import app.ember.tv.toggleBackgroundRefresh
+import app.ember.tv.toggleFeature
+
 import app.ember.tv.toggleHidden
 import app.ember.tv.updateHomeAppRows
 

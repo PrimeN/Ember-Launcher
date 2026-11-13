@@ -118,7 +118,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     prefs = Prefs(this)
     watchProfileId=app.ember.tv.data.WatchedStore.playProfile(prefs.currentProfile,intent.getStringExtra(PlayRequest.EXTRA_PROFILE)) ?: run {finish();return}
     if(!contentPlaybackAllowed()){finish();return}
-    getSharedPreferences("ember",MODE_PRIVATE).registerOnSharedPreferenceChangeListener(contentProfileListener)
+    getSharedPreferences("ember",android.content.Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(contentProfileListener)
     hub = TrackerHub(applicationContext).also { h ->
         // Trackers switched off in Settings > Features: no reports at all.
         // A Kids profile (or one without personal rows) never reports to your trackers.

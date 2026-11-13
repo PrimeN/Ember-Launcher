@@ -1,5 +1,13 @@
 package app.ember.tv.ui
 
+import app.ember.tv.addAddon
+import app.ember.tv.addonLabel
+import app.ember.tv.pauseAddon
+import app.ember.tv.refreshAddon
+import app.ember.tv.removeAddon
+import app.ember.tv.renameAddon
+import app.ember.tv.updateAddonTimeout
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.automirrored.outlined.Label
