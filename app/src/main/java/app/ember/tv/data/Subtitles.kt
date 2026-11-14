@@ -157,26 +157,39 @@ object Subtitles {
      * 64 KB. Read with two range requests, so a streamed file works too. Null if the server does not
      * allow ranges. Returns the hash and the file size.
      */
-    suspend fun movieHash(url: String): Pair<String, Long>? = withContext(Dispatchers.IO) {
-        runCatching {
-            val chunk = 65536L
-            fun range(from: Long, to: Long) = http.newCall(
-                Request.Builder().url(url).header("Range", "bytes=$from-$to").header("User-Agent", "EmberTV/0.9").build(),
-            ).execute()
-            val (head, size) = range(0, chunk - 1).use { r ->
-                if (r.code != 206) return@runCatching null
-                val total = r.header("Content-Range")?.substringAfter('/')?.toLongOrNull() ?: return@runCatching null
-                (r.body?.bytes() ?: return@runCatching null) to total
-            }
-            if (size < chunk * 2 || head.size < chunk) return@runCatching null
-            val tail = range(size - chunk, size - 1).use { r -> if (r.code != 206) null else r.body?.bytes() } ?: return@runCatching null
+    suspend fun movieHash(url: String): Pair<String, Long>? = kotlinx.coroutines.coroutineScope {
+        val chunk = 65536L
+        suspend fun range(from: Long, to: Long, expectedSize: Long? = null): Pair<ByteArray, Long>? {
+            val call = http.newCall(Request.Builder().url(url).header("Range", "bytes=$from-$to")
+                .header("User-Agent", "EmberTV/0.9").build())
+            return withResponse(call) { r -> withContext(Dispatchers.IO) {
+                if (r.code != 206) return@withContext null
+                val fields = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matchEntire(r.header("Content-Range").orEmpty())
+                    ?.groupValues?.drop(1)?.map { it.toLongOrNull() ?: return@withContext null } ?: return@withContext null
+                val (first, last, total) = fields
+                if (first != from || last != to || total <= to || total < chunk * 2 || expectedSize != null && total != expectedSize) return@withContext null
+                val body = r.body ?: return@withContext null
+                val count = to - from + 1
+                if (body.contentLength() >= 0 && body.contentLength() != count) return@withContext null
+                val source = body.source()
+                // Bound the read even when the server omits or lies about Content-Length.
+                if (source.request(count + 1)) return@withContext null
+                val bytes = source.readByteArray()
+                if (bytes.size.toLong() != count) null else bytes to total
+            } }
+        }
+        try {
+            val head = range(0, chunk - 1) ?: return@coroutineScope null
+            val size = head.second
+            val tail = range(size - chunk, size - 1, size) ?: return@coroutineScope null
             var hash = size
-            for (b in listOf(head, tail)) {
-                val buf = ByteBuffer.wrap(b, 0, chunk.toInt()).order(ByteOrder.LITTLE_ENDIAN)
+            for (b in listOf(head.first, tail.first)) {
+                val buf = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN)
                 while (buf.remaining() >= 8) hash += buf.long
             }
             String.format("%016x", hash) to size
-        }.getOrNull()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (_: Exception) { null }
     }
 
     // ---- search ----
