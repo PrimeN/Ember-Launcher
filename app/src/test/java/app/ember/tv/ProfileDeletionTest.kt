@@ -25,9 +25,12 @@ class ProfileDeletionTest {
             WatchedStore(c).mark(person.id,film,true)
             LocalLibrary.started("film",film,LocalActivity.scope(person))
         }
+        val keptHidden = HomeTitleVisibility.key(kept.id,film)
+        p.homeHiddenTitles=setOf(keptHidden,HomeTitleVisibility.key(retired.id,film))
         PositionStore(c).put("shared",1000,100000)
         LocalLibrary.started("shared",film)
         ProfilesState(p,{emptyList()},{emptyList()},{_,go->go()},{},{ }).deleteProfile(retired.id)
+        assertEquals(setOf(keptHidden),p.homeHiddenTitles)
         assertTrue(p.recentSearches(retired.id).isEmpty());assertFalse(p.recentSearchesEnabled(retired.id));assertNull(p.homeWidgets(retired.id))
         assertNull(PositionStore(c,LocalActivity.scope(retired)).get("film"));assertNull(TrackMemory(c,LocalActivity.scope(retired)).get("show"))
         assertTrue(WatchedStore(c).load(retired.id).yes.isEmpty())

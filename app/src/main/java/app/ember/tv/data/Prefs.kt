@@ -98,6 +98,7 @@ class Prefs(context: Context) {
 
     internal fun removeProfileData(id: String) {
         val hash = HomeTitleVisibility.prefix(id)
+        homeHiddenTitles = homeHiddenTitles.filterNot { it.startsWith(hash) }.toSet()
         val prefixes = listOf("search:$hash", "explore:$hash", "widgets:$hash")
         sp.edit { sp.all.keys.filter { key -> prefixes.any(key::startsWith) }.forEach(::remove) }
         val scope = LocalActivity.prefix("local:$id")

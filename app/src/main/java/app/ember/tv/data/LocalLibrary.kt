@@ -84,7 +84,7 @@ object LocalLibrary {
         }
     }
 
-    internal fun removeProfile(id: String) {
+    @Synchronized internal fun removeProfile(id: String) {
         val scope = "local:$id"
         removedScopes.add(scope)
         update { it.copy(activities = it.activities - scope) }

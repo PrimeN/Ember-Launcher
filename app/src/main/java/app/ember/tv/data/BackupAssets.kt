@@ -124,15 +124,17 @@ internal class BackupAssetTransaction(private val context: Context, private val 
                 else AtomicFile.replace(target) { copy.copyTo(it, overwrite = true) }.getOrThrow()
             }.isFailure) restored = false
         }
-        staging?.deleteRecursively()
+        if (restored) runCatching { staging?.deleteRecursively() }
         return restored
     }
     fun finish() {
-        runCatching { staging?.deleteRecursively() }
-        val incoming = assets ?: return
+      runCatching {
+        staging?.deleteRecursively()
+        val incoming = assets ?: return@runCatching
         val directory = File(context.filesDir, "presentation")
         if (!Files.isSymbolicLink(directory.toPath())) directory.listFiles().orEmpty()
             .filter { it.isFile && "presentation/${it.name}" !in incoming }
             .forEach { it.delete() }
+      }
     }
 }

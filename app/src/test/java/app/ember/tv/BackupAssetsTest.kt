@@ -64,4 +64,18 @@ class BackupAssetsTest {
         BackupPersistence(to,FixtureSecrets()).restore(BackupPersistence(from,FixtureSecrets()).snapshot())
         assertFalse(SubtitleFonts.hasCustom(to));assertFalse(File(to.filesDir,"presentation/one.png").exists())
     }
+    @Test fun failedAssetRollbackKeepsRecoveryCopiesForRetry() {
+        val c=source();val target=SubtitleFonts.file(c)
+        val transaction=BackupAssetTransaction(c,mapOf(BackupAssets.FONT to byteArrayOf(0,1,0,0,99))){file,bytes->
+            if(bytes==null)file.delete() else AtomicFile.write(file,bytes).getOrThrow()
+        }
+        transaction.apply()
+        assertTrue(target.delete());assertTrue(target.mkdir())
+        File(target,"blocker").writeText("Cannot replace a nonempty directory")
+        assertFalse(transaction.rollback())
+        assertTrue(c.cacheDir.listFiles().orEmpty().any {it.name.startsWith("restore-assets-") && it.listFiles().orEmpty().any {copy->copy.readBytes().contentEquals(font)}})
+        target.deleteRecursively()
+        assertTrue(transaction.rollback());assertArrayEquals(font,target.readBytes())
+    }
+
 }
