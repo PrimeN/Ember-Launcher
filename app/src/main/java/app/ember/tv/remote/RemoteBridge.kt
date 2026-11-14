@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * #241: how the phone remote reaches the screen. The text field being edited registers itself so
@@ -64,11 +65,26 @@ internal object RemoteBridge {
     /** Runs [block] on the main thread and waits for it, at most [timeoutMs]; null if it did not finish. */
     fun <T> onMain(timeoutMs: Long = 3000, block: () -> T): T? {
         if (Looper.myLooper() == Looper.getMainLooper()) return block()
+        if (Thread.currentThread().isInterrupted) throw InterruptedException()
         var result: T? = null
         var error: Throwable? = null
         val done = CountDownLatch(1)
-        main.post { try { result = block() } catch (t: Throwable) { error = t } finally { done.countDown() } }
-        if (!done.await(timeoutMs, TimeUnit.MILLISECONDS)) return null
+        // Only a pending callback can be cancelled; one already running cannot be rolled back.
+        val state = AtomicInteger(0) // pending, running, cancelled
+        val task = Runnable {
+            if (state.compareAndSet(0, 1)) {
+                try { result = block() } catch (t: Throwable) { error = t } finally { done.countDown() }
+            }
+        }
+        fun cancelPending() { if (state.compareAndSet(0, 2)) main.removeCallbacks(task) }
+        if (!main.post(task)) return null
+        try {
+            if (!done.await(timeoutMs, TimeUnit.MILLISECONDS)) { cancelPending(); return null }
+        } catch (e: InterruptedException) {
+            cancelPending()
+            Thread.currentThread().interrupt()
+            throw e
+        }
         error?.let { throw it }
         return result
     }

@@ -8,6 +8,9 @@ import java.net.Socket
 import java.net.SocketException
 import java.net.URLDecoder
 import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.Semaphore
 import kotlin.concurrent.thread
 
@@ -29,39 +32,65 @@ class RemoteServer(
     /** #247: the app icon as a PNG of the given size, drawn on the TV; null where pictures cannot be drawn. */
     private val icon: (Int) -> ByteArray? = { null },
 ) {
-    @Volatile private var socket: ServerSocket? = null
+    private class Run(val socket: ServerSocket) {
+        val workers: ExecutorService = Executors.newFixedThreadPool(3) { r -> Thread(r, "ember-remote").apply { isDaemon = true } }
+        val clients = ConcurrentHashMap.newKeySet<Socket>()
+        val slots = Semaphore(6)
+    }
+    @Volatile private var active: Run? = null
     @Volatile var url: String? = null; private set
-    private val workers = Executors.newFixedThreadPool(3) { r -> Thread(r, "ember-remote").apply { isDaemon = true } }
-    private val slots = Semaphore(6)
 
-    val running: Boolean get() = socket?.isClosed == false
+    val running: Boolean get() = active?.socket?.isClosed == false
 
     @Synchronized fun start(): String? {
         if (running) return url
         val ip = address() ?: return null
         // A fixed port, so a bookmark keeps working; another one only when it is taken.
         val s = runCatching { ServerSocket(port) }.getOrElse { ServerSocket(0) }
-        socket = s
+        val run = Run(s)
+        active = run
         url = "http://$ip:${s.localPort}/"
         thread(name = "ember-remote-accept", isDaemon = true) {
             while (!s.isClosed) {
                 val client = try { s.accept() } catch (_: SocketException) { break } catch (_: Exception) { continue }
-                if (!slots.tryAcquire()) { runCatching { client.close() }; continue }
-                workers.execute { try { client.use { serve(it) } } catch (_: Exception) { } finally { slots.release() } }
+                synchronized(this@RemoteServer) {
+                    if (active !== run || !run.slots.tryAcquire()) runCatching { client.close() }
+                    else {
+                        run.clients.add(client)
+                        try {
+                            run.workers.execute {
+                                try { client.use { if (active === run) serve(it, run) } }
+                                catch (_: Exception) { }
+                                finally { run.clients.remove(client); run.slots.release() }
+                            }
+                        } catch (_: RejectedExecutionException) {
+                            run.clients.remove(client); run.slots.release(); runCatching { client.close() }
+                        }
+                    }
+                }
             }
         }
         return url
     }
 
-    @Synchronized fun stop() { runCatching { socket?.close() }; socket = null; url = null }
+    @Synchronized fun stop() {
+        val run = active
+        active = null; url = null
+        if (run == null) return
+        runCatching { run.socket.close() }
+        run.clients.forEach { runCatching { it.close() } }
+        run.workers.shutdownNow()
+        run.clients.clear()
+    }
 
     internal class Request(val method: String, val path: String, val query: Map<String, String>, val headers: Map<String, String>, val body: String) {
         fun cookie(name: String): String? = headers["cookie"]?.split(';')?.map { it.trim() }?.firstOrNull { it.startsWith("$name=") }?.substringAfter('=')
     }
 
-    private fun serve(c: Socket) {
+    private fun serve(c: Socket, run: Run) {
         c.soTimeout = 10_000
         val request = read(BufferedInputStream(c.getInputStream())) ?: return respond(c, 400, "text/plain", "Bad request")
+        if (active !== run || Thread.currentThread().isInterrupted) return
         val answer = route(request)
         respond(c, answer.status, answer.type, answer.bytes ?: answer.body.toByteArray(Charsets.UTF_8), answer.headers, text = answer.bytes == null)
     }
