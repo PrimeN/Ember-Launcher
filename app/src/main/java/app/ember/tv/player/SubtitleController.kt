@@ -87,7 +87,7 @@ class SubtitleController(
         searchJob = activity.lifecycleScope.launch {
             // The addon's own file hash when it gave one (#74): no need to download parts of the file.
             val hashed: Pair<String, Long?>? = if (!config.hashMatch || !anyProvider) null
-                else query.hash?.let { it to query.size } ?: if (url.startsWith("http")) Subtitles.movieHash(url) else null
+                else query.hash?.let { it to query.size } ?: if (url.startsWith("http")) kotlinx.coroutines.withTimeoutOrNull(5000) { Subtitles.movieHash(url) } else null
             val found = if (anyProvider) Subtitles.search(query.copy(hash = hashed?.first, size = hashed?.second), config) { batch ->
                 candidates=Subtitles.rank((candidates+batch).distinctBy { it.url ?: it.fileId.toString() },config,release,player()?.videoFormat?.frameRate?.takeIf { it>0 })
                 searched=true;onChange();autoSelect()
@@ -103,6 +103,16 @@ class SubtitleController(
             onChange()
             autoSelect()
         }
+    }
+
+    /** Late add-on results extend this visit without clearing a manual subtitle choice. */
+    fun addOptions(options: List<SubtitleOption>) {
+        val found = Subtitles.fromOptions(options.filter { it.server || config.addonSubs })
+        candidates = Subtitles.rank((candidates + found).distinctBy { it.url ?: it.fileId.toString() },
+            config, release, player()?.videoFormat?.frameRate?.takeIf { it > 0 })
+        searched = true
+        onChange()
+        autoSelect()
     }
 
     /** Call when the player is ready: the audio language is known then. */

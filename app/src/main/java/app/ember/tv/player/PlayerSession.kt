@@ -1,5 +1,8 @@
 package app.ember.tv.player
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+
 import androidx.core.view.isVisible
 import androidx.compose.ui.graphics.toArgb
 import app.ember.tv.iptv.*
@@ -66,6 +69,7 @@ import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 @OptIn(UnstableApi::class)
 /** Loads a source into the player and starts it. Used for the first episode and every next one. */
 internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<SubtitleOption>, release: String?) {
+    supplementarySubtitles?.cancel(); supplementarySubtitles = null
     cancelRecovery()
     cancelNextEpisodeLookup()
     playbackVisit++
@@ -151,26 +155,17 @@ internal fun PlayerActivity.askToLeave() {
     val p = player ?: return
     val name = controls.title.ifBlank { if (itemInitialized) item.title else "" }
     val where = playbackDuration(p).takeIf { it > 0 }?.let { "${time(p.currentPosition)} of ${time(it)}" }
-    leaveDialog = android.app.AlertDialog.Builder(this)
-        .setTitle("Stop watching?")
-        .setMessage(listOfNotNull(name.takeIf { it.isNotBlank() }, where).joinToString(" · ").ifBlank { null })
-        .setPositiveButton("Keep watching", null)
-        .setNegativeButton("Stop") { _, _ -> endPlayback() }
-        .setOnKeyListener { d, code, e ->
-            if (code != KeyEvent.KEYCODE_BACK) return@setOnKeyListener false
-            if (e.action == KeyEvent.ACTION_UP) { d.dismiss(); endPlayback() }
-            true
-        }
-        .create().also { d ->
-            d.setOnShowListener { runCatching { d.getButton(android.app.AlertDialog.BUTTON_POSITIVE).requestFocus() } }
-            d.setOnDismissListener { if (leaveDialog === d) leaveDialog = null }
-            d.show()
-        }
+    leaveDialog = showPlayerActions("Stop watching?", listOf(
+        PlayerDialogAction("Keep watching", Icons.Outlined.PlayArrow) {},
+        PlayerDialogAction("Stop", Icons.Outlined.StopCircle, destructive = true) { endPlayback() },
+    ), message = listOfNotNull(name.takeIf { it.isNotBlank() }, where).joinToString(" · ").ifBlank { null },
+        cancel = { endPlayback() })
 }
 
 @OptIn(UnstableApi::class)
 /** Saves where you are, reports the stop, releases the player and (normally) closes the screen. */
 internal fun PlayerActivity.endPlayback(finishActivity: Boolean = true) {
+    supplementarySubtitles?.cancel(); supplementarySubtitles = null
     cancelRecovery()
     cancelNextEpisodeLookup()
     playbackVisit++

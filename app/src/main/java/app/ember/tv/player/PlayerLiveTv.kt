@@ -1,5 +1,8 @@
 package app.ember.tv.player
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+
 import app.ember.tv.iptv.*
 import android.widget.Toast
 
@@ -73,7 +76,9 @@ internal fun PlayerActivity.showRecentChannels() {
     handler.removeCallbacks(commitNumber); numberDigits = ""; numberToast?.cancel()
     val channels = liveSession?.recent().orEmpty()
     if (channels.isEmpty()) return
-    android.app.AlertDialog.Builder(this).setTitle("Recent channels")
-        .setItems(channels.map { (it.number?.let { n -> "$n · " } ?: "") + it.name + " · " + liveSession?.sourceLabel(it).orEmpty() }.toTypedArray()) { _, index -> tuneChannel(channels[index].key) }
-        .setNegativeButton("Close", null).show()
+    showPlayerActions("Recent channels", channels.map { channel ->
+        PlayerDialogAction((channel.number?.let { "$it · " } ?: "") + channel.name + " · " + liveSession?.sourceLabel(channel).orEmpty(), Icons.Outlined.LiveTv) {
+            tuneChannel(channel.key)
+        }
+    })
 }

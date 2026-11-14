@@ -1,5 +1,8 @@
 package app.ember.tv.player
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+
 import app.ember.tv.iptv.*
 import app.ember.tv.R
 import android.view.View
@@ -42,12 +45,17 @@ internal fun PlayerActivity.playFile(media:QueueMedia) {
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.showFileQueue() {
     val queue=fileQueue?:return
-    android.app.AlertDialog.Builder(this).setTitle("Queue").setItems(queue.items.mapIndexed {i,m->(if(i==queue.index)"▶ " else "")+m.title}.toTypedArray()) {_,index->
-        val operations=listOf("Play","Move earlier","Move later","Remove")
-        android.app.AlertDialog.Builder(this).setTitle(queue.items[index].title).setItems(operations.toTypedArray()) {_,choice->
-            when(choice){0->queue.select(index)?.let { playFile(it) };1->queue.move(index,index-1);2->queue.move(index,index+1);3->queue.remove(index)};changed()
-        }.show()
-    }.setNegativeButton("Close",null).show()
+    showPlayerActions("Queue", queue.items.mapIndexed { index, media ->
+        PlayerDialogAction(media.title, Icons.Outlined.PlayArrow, selected = index == queue.index) {
+            val currentIndex = queue.items.indexOf(media)
+            if (currentIndex >= 0) showPlayerActions(media.title, listOf(
+                PlayerDialogAction("Play", Icons.Outlined.PlayArrow) { queue.select(queue.items.indexOf(media))?.let { playFile(it) } },
+                PlayerDialogAction("Move earlier", Icons.Outlined.ArrowUpward) { val at = queue.items.indexOf(media); queue.move(at, at - 1); changed() },
+                PlayerDialogAction("Move later", Icons.Outlined.ArrowDownward) { val at = queue.items.indexOf(media); queue.move(at, at + 1); changed() },
+                PlayerDialogAction("Remove", Icons.Outlined.DeleteOutline, destructive = true) { queue.remove(queue.items.indexOf(media)); changed() },
+            ))
+        }
+    })
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
@@ -109,16 +117,16 @@ internal fun PlayerActivity.playNext() {
     upNextUi.finding = true
     nextEpisodeJob = lifecycleScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
       try {
-        val found = runCatching { NextEpisodeLoader(this@playNext, servers).load(next, prevAddon, prevQuality, serverPlayback?.quality ?: app.ember.tv.mediaserver.ServerQuality.ORIGINAL, prevBingeGroup) }.getOrNull()
+        val found = runCatching { NextEpisodeLoader(this@playNext, servers).select(next, prevAddon, prevQuality, serverPlayback?.quality ?: app.ember.tv.mediaserver.ServerQuality.ORIGINAL, prevBingeGroup) }.getOrNull()
         // Leaving the player cancels the lookup; that is not a missing source.
         ensureActive()
         if (revision != nextEpisodeRevision || visit != playbackVisit || nextEpisodes.firstOrNull() != next) return@launch
-        if (found == null || found.first.url == null) {
+        if (found == null || found.stream.url == null) {
             Toast.makeText(this@playNext, getString(R.string.pl_no_playable_source_for_the_next), Toast.LENGTH_LONG).show()
             finish()
             return@launch
         }
-        val (stream, subs) = found
+        val stream = found.stream
         rememberTracks()
         if (!ended) { savePosition(); scrobble(ScrobbleState.STOP, progress()) }
         nextEpisodes.removeAt(0)
@@ -150,7 +158,13 @@ internal fun PlayerActivity.playNext() {
         controls.details = controls.details?.copy(episodeTitle = next.title.takeIf { it.isNotBlank() }, synopsis = null)
         refreshControlsTitle()
         nextEpisodeJob = null
-        start(stream.url!!, title, (stream.subtitles + subs).distinctBy { it.url }, stream.info?.filename ?: stream.title.lineSequence().firstOrNull())
+        start(stream.url!!, title, stream.subtitles, stream.info?.filename ?: stream.title.lineSequence().firstOrNull())
+        val startedVisit = playbackVisit
+        supplementarySubtitles = lifecycleScope.launch {
+            val extra = found.subtitles()
+            ensureActive()
+            if (playbackVisit == startedVisit && resumeKey == next.id && subsInitialized) subs.addOptions(extra)
+        }
         findNextServerEpisode()
         view.requestFocus()
       } finally {
@@ -198,15 +212,15 @@ internal fun PlayerActivity.showServerRecovery() {
         if (transport.quality != app.ember.tv.mediaserver.ServerQuality.ORIGINAL) add("Play Original")
         add("Back to versions")
     }
-    android.app.AlertDialog.Builder(this).setTitle("Server playback unavailable")
-        .setItems(choices.toTypedArray()) { _, index ->
+    showPlayerActions("Server playback unavailable", choices.map { choice ->
+        PlayerDialogAction(choice, if (choice == "Retry connection") Icons.Outlined.Refresh else if (choice == "Play Original") Icons.Outlined.PlayArrow else Icons.Outlined.VideoLibrary) {
             serverRecoveryShowing = false
-            if (choices[index] == "Back to versions") { endPlayback(); return@setItems }
+            if (choice == "Back to versions") { endPlayback(); return@PlayerDialogAction }
             savePosition(); serverReport(ReportState.STOP)
             lifecycleScope.launch {
                 val s = servers ?: return@launch
                 s.refreshConnections()
-                val quality = if (choices[index] == "Play Original") app.ember.tv.mediaserver.ServerQuality.ORIGINAL else transport.quality
+                val quality = if (choice == "Play Original") app.ember.tv.mediaserver.ServerQuality.ORIGINAL else transport.quality
                 try {
                     val source = s.playback(transport.ref.value, transport.sourceId, quality)
                     serverPlayback = source.serverPlayback
@@ -216,7 +230,8 @@ internal fun PlayerActivity.showServerRecovery() {
                 } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                 catch (_: Exception) { showServerRecovery() }
             }
-        }.setOnCancelListener { serverRecoveryShowing = false; endPlayback() }.show()
+        }
+    }, cancel = { serverRecoveryShowing = false; endPlayback() })
 }
 
 /** Keep server autoplay on this account, including across season boundaries. */

@@ -1,5 +1,8 @@
 package app.ember.tv.player
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+
 import androidx.core.view.isVisible
 
 import androidx.compose.ui.graphics.toArgb
@@ -97,6 +100,7 @@ class PlayerActivity : ComponentActivity() {
     internal var nextEpisodeJob: Job? = null
     internal var nextEpisodeRevision = 0L
     internal var playbackVisit = 0L
+    internal var supplementarySubtitles: Job? = null
     internal var pendingRecovery: Runnable? = null
 
     // Media server titles report progress back to Plex, Jellyfin or Emby.
@@ -198,9 +202,9 @@ class PlayerActivity : ComponentActivity() {
         when (matches.size) {
             0 -> Toast.makeText(this, "No channel $entered in this list", Toast.LENGTH_SHORT).show()
             1 -> tuneChannel(matches.single().key)
-            else -> android.app.AlertDialog.Builder(this).setTitle("Choose channel $entered")
-                .setItems(matches.map { it.name + " · " + liveSession?.sourceLabel(it).orEmpty() }.toTypedArray()) { _, index -> tuneChannel(matches[index].key) }
-                .setNegativeButton("Cancel", null).show()
+            else -> showPlayerActions("Choose channel $entered", matches.map { channel ->
+                PlayerDialogAction(channel.name + " · " + liveSession?.sourceLabel(channel).orEmpty(), Icons.Outlined.LiveTv) { tuneChannel(channel.key) }
+            })
         }
     }
 
@@ -322,7 +326,8 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onDestroy() {
         // A dialog still showing would leak its window when the player closes (#77).
-        leaveDialog?.let { runCatching { it.dismiss() } }; leaveDialog = null
+        actionDialog?.dismiss(); actionDialog = null
+        leaveDialog?.dismiss(); leaveDialog = null
         getSharedPreferences("ember",MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(contentProfileListener)
         handler.removeCallbacks(closeKept)
         handler.removeCallbacks(hideLiveBanner)
@@ -605,6 +610,7 @@ class PlayerActivity : ComponentActivity() {
     /** While the "Up next" card is open, its buttons get the remote; otherwise the player controls do. */
     @android.annotation.SuppressLint("RestrictedApi") // super.dispatchKeyEvent is the normal Activity path
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (actionDialog?.dispatch(event) == true) return true
         if(fileQueue!=null && event.keyCode in setOf(KeyEvent.KEYCODE_MEDIA_NEXT,KeyEvent.KEYCODE_MEDIA_PREVIOUS)){
             if(event.action==KeyEvent.ACTION_UP)(if(event.keyCode==KeyEvent.KEYCODE_MEDIA_NEXT)fileQueue?.next() else fileQueue?.previous())?.let { playFile(it) }
             return true
@@ -739,7 +745,8 @@ class PlayerActivity : ComponentActivity() {
         endPlayback()
     }
 
-    internal var leaveDialog: android.app.AlertDialog? = null
+    internal var actionDialog: PlayerActionDialog? = null
+    internal var leaveDialog: PlayerActionDialog? = null
 
     /** The accent colour (Settings > Appearance) as a colour int, for the panel's buttons and the simple look's progress bar. */
     internal var accentArgb = 0xFFFF7A2F.toInt()
