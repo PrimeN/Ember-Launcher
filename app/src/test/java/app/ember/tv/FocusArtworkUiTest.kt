@@ -116,8 +116,18 @@ class FocusArtworkUiTest {
         scene(state)
         awaitColor(android.graphics.Color.BLUE)
         assertEquals(listOf("fixture://backdrop","fixture://poster"),attempts.toList())
-        val pixels=compose.onNodeWithTag("scene").captureToImage().toPixelMap()
-        val clear=pixels[pixels.width*9/10,pixels.height/2]
+        var clear=Color.Unspecified
+        try {
+            // Publishing a drawable precedes AsyncImage's presentation of it. Wait for the
+            // actual frame; persistent blank/washed-out artwork still fails the same check.
+            compose.waitUntil(5000) {
+                val pixels=compose.onNodeWithTag("scene").captureToImage().toPixelMap()
+                clear=pixels[pixels.width*9/10,pixels.height/2]
+                clear.blue>.95f && clear.red<.05f && clear.green<.05f
+            }
+        } catch (_:ComposeTimeoutException) {
+            fail("Day mode must render the selected backdrop without washing it white: $clear")
+        }
         assertTrue("Day mode must not wash the background white: $clear",clear.blue>.95f && clear.red<.05f && clear.green<.05f)
         val text=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
         compose.onNodeWithTag("caption").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) {it(text)}
