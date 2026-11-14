@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 
 /** Small local store for the user's launcher choices. */
 class Prefs(context: Context) {
+    private val application = context.applicationContext
     private val sp = context.getSharedPreferences("ember", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
     init { CatalogIdentity.migrateOnce(sp) }
@@ -93,6 +94,27 @@ class Prefs(context: Context) {
     fun setHomeWidgets(profile: String, value: String) { sp.edit { putString("widgets:" + HomeTitleVisibility.prefix(profile), value) } }
     fun setExplorePresets(profile: String, value: List<app.ember.tv.discover.SavedExplore>) {
         sp.edit { putString("explore:" + HomeTitleVisibility.prefix(profile), json.encodeToString(value)) }
+    }
+
+    internal fun removeProfileData(id: String) {
+        val hash = HomeTitleVisibility.prefix(id)
+        val prefixes = listOf("search:$hash", "explore:$hash", "widgets:$hash")
+        sp.edit { sp.all.keys.filter { key -> prefixes.any(key::startsWith) }.forEach(::remove) }
+        val scope = LocalActivity.prefix("local:$id")
+        for (store in listOf("positions", "trackMemory")) {
+            val saved = application.getSharedPreferences(store, Context.MODE_PRIVATE)
+            saved.edit { saved.all.keys.filter { it.startsWith(scope) }.forEach(::remove) }
+        }
+        WatchedStore.remove(application, id)
+        LocalLibrary.removeProfile(id)
+        app.ember.tv.tracker.TokenStore(application).remove("server.home.$id")
+        app.ember.tv.tracker.SyncSnapshots(application.filesDir).let { snapshots ->
+            for (key in listOf("ember:$id", "+ember:$id", "-ember:$id")) snapshots.forget(key)
+        }
+        personalHomesJson = runCatching {
+            val homes = json.decodeFromString<Map<String, app.ember.tv.home.PersonalHome>>(personalHomesJson)
+            json.encodeToString(homes - id)
+        }.getOrDefault(personalHomesJson)
     }
 
     var hidden: Set<String>

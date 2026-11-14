@@ -119,6 +119,7 @@ class ProfilesState(
         val remaining = all.filterNot { it.id == id }
         if (remaining.isEmpty() || remaining.size == all.size) return
         saveProfiles(remaining)
+        prefs.removeProfileData(id)
         onRemoved(id)
         app.ember.tv.data.ArtworkCaches.accessChanged()
         if (id == profileId) {

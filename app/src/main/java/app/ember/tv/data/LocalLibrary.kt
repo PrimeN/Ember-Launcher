@@ -73,13 +73,22 @@ object LocalLibrary {
     private val dismissedIndices = LinkedHashMap<Pair<String, String>, Pair<List<Meta>, TitleIndex>>()
     @Volatile private var data = Data()
 
+    private val removedScopes = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private var selectedScope by androidx.compose.runtime.mutableStateOf(LocalActivity.SHARED)
     fun selectScope(scope:String) {selectedScope=scope}
     private fun view(d:Data,scope:String=selectedScope):Data = if(scope==LocalActivity.SHARED)d else d.activities[scope].let {d.copy(plays=it?.plays.orEmpty(),hidden=it?.hidden.orEmpty(),dismissed=it?.dismissed.orEmpty())}
     private fun updateActivity(scope:String=selectedScope,change:(Data)->Data)=update {root->
-        if(scope==LocalActivity.SHARED)change(root) else change(view(root,scope)).let {changed->
+        if (scope in removedScopes) root
+        else if(scope==LocalActivity.SHARED)change(root) else change(view(root,scope)).let {changed->
             root.copy(activities=root.activities+(scope to Activity(changed.plays,changed.hidden,changed.dismissed,hiddenVersion=1)))
         }
+    }
+
+    internal fun removeProfile(id: String) {
+        val scope = "local:$id"
+        removedScopes.add(scope)
+        update { it.copy(activities = it.activities - scope) }
+        dismissedIndices.keys.removeAll { it.first == scope }
     }
 
     /** Changes whenever the lists change, so screens reading it redraw. */
@@ -194,6 +203,7 @@ object LocalLibrary {
             runCatching { json.decodeFromString(Data.serializer(), f.readText()) }.getOrNull()
         } ?: Data()
         data = protect(migrateHidden(data))
+        removedScopes.clear()
         file?.let { f -> app.ember.tv.data.AtomicFile.write(f, json.encodeToString(Data.serializer(), data)) }
         android.os.Handler(android.os.Looper.getMainLooper()).post { version++ }
     }
@@ -298,6 +308,7 @@ object LocalLibrary {
         data = Data()
         dismissedIndices.clear()
         selectedScope=LocalActivity.SHARED
+        removedScopes.clear()
     }
 
     /** Part-way through, newest first; one entry per title (a show's latest episode). */

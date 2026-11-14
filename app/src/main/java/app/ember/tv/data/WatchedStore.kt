@@ -97,6 +97,7 @@ internal class WatchedStore(context:Context) {
         save(profile,before,after)
     }
     private fun save(profile:String,before:WatchedIndex,after:WatchedIndex):WatchedIndex {
+        if (profile in removedProfiles) return WatchedIndex()
         if(after!=before) {
             val prefix=HomeTitleVisibility.prefix(profile)
             prefs.edit { putStringSet(prefix+"yes",after.yes); putStringSet(prefix+"no",after.no) }
@@ -108,13 +109,24 @@ internal class WatchedStore(context:Context) {
         const val FILE="ember_watched"
         fun playProfile(current:String,requested:String?)=current.takeIf {requested==null || requested==current}
         private val lock=Any()
+        private val removedProfiles=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
         var version by mutableIntStateOf(0);private set
         private val writer by lazy {java.util.concurrent.Executors.newSingleThreadExecutor {r->Thread(r,"ember-watched").apply {isDaemon=true}}}
         fun record(context:Context,profile:String,meta:Meta) {
             val app=context.applicationContext
             writer.execute {runCatching {WatchedStore(app).mark(profile,meta,true)}.onFailure {CrashLog.note("Could not save watched status",it)}}
         }
+        fun remove(context: Context, profile: String) {
+            removedProfiles.add(profile)
+            drain()
+            synchronized(lock) {
+                val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+                val prefix = HomeTitleVisibility.prefix(profile)
+                prefs.edit { prefs.all.keys.filter { it.startsWith(prefix) }.forEach(::remove) }
+                version++
+            }
+        }
         fun drain(){writer.submit {}.get()}
-        fun restored(){synchronized(lock){version++}}
+        fun restored(){synchronized(lock){removedProfiles.clear();version++}}
     }
 }
