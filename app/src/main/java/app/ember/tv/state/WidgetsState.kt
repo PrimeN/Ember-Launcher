@@ -43,6 +43,8 @@ class WidgetsState(
     var revision by mutableLongStateOf(0L); private set
     private val loadedAt = HashMap<String, Long>()
     private val loadedSource = HashMap<String, List<CollectionSource>>()
+    // Keep a bounded full page so count edits can be applied without another network request.
+    private val loadedItems = HashMap<String, List<Meta>>()
     private var job: Job? = null
 
     /** The profile changed, or a backup was restored. */
@@ -51,7 +53,7 @@ class WidgetsState(
         owner = profileId()
         list = HomeWidgets.decode(prefs.homeWidgets(owner))
         items = emptyMap(); loading = emptySet(); failed = emptySet(); errors = emptyMap(); waiting = null
-        loadedAt.clear(); loadedSource.clear()
+        loadedAt.clear(); loadedSource.clear(); loadedItems.clear()
         revision++
     }
 
@@ -74,19 +76,22 @@ class WidgetsState(
                     val pages = w.sources.map { s -> try { page(s) } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) } }
                     val loadedPages = pages.mapNotNull { it.getOrNull() }
                     val result = if (loadedPages.isEmpty()) Result.failure(pages.first().exceptionOrNull() ?: IllegalStateException("Nothing loaded."))
-                        else Result.success(HomeWidgets.merge(loadedPages.map { it.items }, w.limit))
+                        else Result.success(HomeWidgets.merge(loadedPages.map { it.items }, HomeWidgets.LIMITS.last))
                     ensureActive()
                     if (profileId() != id || owner != id) return@launch
+                    val current = list.firstOrNull { it.id == w.id }
+                    if (current == null || current.sources != w.sources) { loading = loading - w.id; continue }
                     result.onSuccess { loaded ->
-                        items = items + (w.id to loaded)
+                        loadedItems[w.id] = loaded
+                        items = items + (w.id to loaded.take(current.limit))
                         loadedAt[w.id] = clock(); loadedSource[w.id] = w.sources
                         failed = failed - w.id; errors = errors - w.id
                     }.onFailure { failed = failed + w.id; errors = errors + (w.id to reason(it)) }
                     loading = loading - w.id
                 }
-                val done = batch.map { it.id }.toSet()
+                val done = batch.associate { it.id to it.sources }
                 // What was asked for meanwhile, less what this pass just tried (a failure is not retried at once).
-                batch = waiting?.let { asked -> waiting = null; due(false, asked).filterNot { it.id in done } }.orEmpty()
+                batch = waiting?.let { asked -> waiting = null; due(false, asked).filterNot { done[it.id] == it.sources } }.orEmpty()
                 loading = loading + batch.map { it.id }
             }
         }
@@ -132,13 +137,19 @@ class WidgetsState(
         if (list.none { it.id == id }) return false
         persist(list.filterNot { it.id == id })
         items = items - id; loading = loading - id; failed = failed - id; errors = errors - id
-        loadedAt.remove(id); loadedSource.remove(id)
+        loadedAt.remove(id); loadedSource.remove(id); loadedItems.remove(id)
         return true
     }
 
     private fun persist(next: List<HomeWidget>) {
         prefs.setHomeWidgets(owner, HomeWidgets.encode(next))
         list = next
+        val cached = next.filter { loadedSource[it.id] == it.sources }
+        val ids = cached.mapTo(hashSetOf()) { it.id }
+        loadedAt.keys.retainAll(ids); loadedSource.keys.retainAll(ids); loadedItems.keys.retainAll(ids)
+        items = cached.associate { it.id to loadedItems[it.id].orEmpty().take(it.limit) }
+        val present = next.mapTo(hashSetOf()) { it.id }
+        loading = loading.intersect(present); failed = failed.intersect(present); errors = errors.filterKeys { it in present }
         revision++
         onChanged()
     }
