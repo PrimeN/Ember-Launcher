@@ -22,7 +22,8 @@ class ServerHttp(client: OkHttpClient = Net.client(5,15), private val maxRespons
     suspend fun rawGet(url:String,headers:Map<String,String> = emptyMap()) = text(url,headers,"GET",null)
     suspend fun rawPost(url:String,headers:Map<String,String> = emptyMap()) = text(url,headers,"POST",null)
     private suspend fun json(url: String,headers: Map<String,String>,method: String,body: JsonObject?): JsonElement {
-        val text=text(url,headers,method,body); return if(text.isBlank()) JsonNull else Json.parseToJsonElement(text)
+        val text=text(url,headers,method,body)
+        return withContext(Dispatchers.Default) { if(text.isBlank()) JsonNull else Json.parseToJsonElement(text) }
     }
     private suspend fun text(url: String,headers: Map<String,String>,method: String,body: JsonObject?): String = coroutineScope {
         var target=url.toHttpUrl(); val origin=target; val auth=headers

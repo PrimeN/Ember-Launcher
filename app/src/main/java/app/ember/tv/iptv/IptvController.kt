@@ -124,6 +124,8 @@ class IptvController(
     private var playlistGuides: Map<String, String> = emptyMap()
     private var guideSavedAt = 0L
     private var refreshJob: Job? = null
+    private var matchRevision = 0L
+    private var matchJob: Job? = null
 
     @Serializable
     private data class Cache(val channels: List<Channel>, val guides: Map<String, String> = emptyMap(), val at: Long = 0,val generation:String="")
@@ -289,6 +291,7 @@ class IptvController(
     fun refresh(force: Boolean, only: String? = null) {
         refreshJob?.cancel()
         guideJob?.cancel()
+        matchRevision++; matchJob?.cancel()
         loading = false
         guideLoading = false
         health.cancelLoading()
@@ -325,6 +328,7 @@ class IptvController(
                 // Migration/re-encryption changes file mtime; freshness follows the original import.
                 val guideAge = if (guideSavedAt > 0) System.currentTimeMillis() - guideSavedAt else Long.MAX_VALUE
                 if (force || guideAge > 12 * 3600_000L || guide.isEmpty()) refreshGuide(only)
+                else rebuildGuide()
             } finally {
                 if (refreshJob == coroutineContext[Job]) loading = false
             }
@@ -403,25 +407,28 @@ class IptvController(
         epg = value
         guideJob?.cancel()
         health.cancelLoading(health.entries.keys.filter { it.endsWith(":guide") }.toSet())
-        rebuildGuide()
+        scheduleGuideRebuild()
         if (refresh) refreshGuide() else guideProgress = "${guideMatches.size} channels matched · time offsets updated"
         return true
     }
-    private fun rebuildGuide() {
+    private fun scheduleGuideRebuild() {
+        matchJob?.cancel()
+        matchJob = scope.launch { rebuildGuide() }
+    }
+    private suspend fun rebuildGuide() {
+        val revision = ++matchRevision
+        val selectedChannels = channels
+        val selectedSources = sources
+        val settings = epg
         val feeds = availableFeeds()
-        val valid = parsedFeeds.filter { (id, data) -> feeds.any { it.id == id && fingerprint(it) == data.fingerprint } }
-        val matches = mutableMapOf<String, EpgMatch>()
-        val result = mutableMapOf<String, List<Programme>>()
-        val from = System.currentTimeMillis() - 2 * 3600_000L
-        val to = System.currentTimeMillis() + 36 * 3600_000L
-        for (channel in channels.filter { c -> sources.any { it.id == c.sourceId && it.enabled } }) {
-            EpgMatching.select(channel, epg.feedIds(channel.sourceId, feeds), epg, valid)?.let { match ->
-                matches[channel.key] = match
-                result[channel.key] = EpgMatching.shifted(valid[match.feedId]?.programmes?.get(match.channelId).orEmpty(),
-                    epg.offset(match.feedId), from, to)
-            }
+        val parsed = parsedFeeds
+        val now = System.currentTimeMillis()
+        val result = buildGuideProjection(selectedChannels, selectedSources.filter { it.enabled }.mapTo(hashSetOf()) { it.id },
+            feeds, settings, parsed, now)
+        currentCoroutineContext().ensureActive()
+        if (revision == matchRevision && channels === selectedChannels && sources == selectedSources && epg == settings && parsedFeeds === parsed) {
+            guideMatches = result.matches; guide = result.guide
         }
-        guideMatches = matches; guide = result
     }
     private suspend fun loadGuide(list: List<Channel>, only: String?) {
         val enabled = sources.filter { it.enabled }

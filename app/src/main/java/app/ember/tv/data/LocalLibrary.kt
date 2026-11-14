@@ -167,29 +167,38 @@ object LocalLibrary {
             hidden = if (a.hiddenVersion == 0) migrateHidden(a.hidden, a.plays.map { it.meta } + d.trackerHistory) else a.hidden,
             hiddenVersion = 1) })
 
-    private fun protect(d: Data): Data = d.copy(
-        dismissed = protectDismissed(d.dismissed),
-        activities=d.activities.mapValues {(_,a)->a.copy(plays=a.plays.take(MAX_TITLES).map {it.copy(meta=app.ember.tv.mediaserver.ServerMetadata.safe(it.meta))},hidden=a.hidden.take(MAX_HIDDEN),dismissed=protectDismissed(a.dismissed))},
-        plays=d.plays.map { it.copy(meta=app.ember.tv.mediaserver.ServerMetadata.safe(it.meta)) },
-        trackerProgress=d.trackerProgress.map(app.ember.tv.mediaserver.ServerMetadata::safe),
-        trackerHistory=d.trackerHistory.map(app.ember.tv.mediaserver.ServerMetadata::safe),
-        trackerWatchlist=d.trackerWatchlist.map(app.ember.tv.mediaserver.ServerMetadata::safe),
-        pending=d.pending.map { it.copy(meta=app.ember.tv.mediaserver.ServerMetadata.safe(it.meta)) })
+    private fun protect(d: Data, previous: Data? = null): Data = d.copy(
+        dismissed = if (d.dismissed === previous?.dismissed) d.dismissed else protectDismissed(d.dismissed),
+        activities = if (d.activities === previous?.activities) d.activities else d.activities.mapValues { (key, a) ->
+            if (a === previous?.activities?.get(key)) a else a.copy(
+                plays = a.plays.take(MAX_TITLES).map { it.copy(meta = app.ember.tv.mediaserver.ServerMetadata.safe(it.meta)) },
+                hidden = a.hidden.take(MAX_HIDDEN), dismissed = protectDismissed(a.dismissed))
+        },
+        plays = if (d.plays === previous?.plays) d.plays else d.plays.map { it.copy(meta = app.ember.tv.mediaserver.ServerMetadata.safe(it.meta)) },
+        trackerProgress = if (d.trackerProgress === previous?.trackerProgress) d.trackerProgress else d.trackerProgress.map(app.ember.tv.mediaserver.ServerMetadata::safe),
+        trackerHistory = if (d.trackerHistory === previous?.trackerHistory) d.trackerHistory else d.trackerHistory.map(app.ember.tv.mediaserver.ServerMetadata::safe),
+        trackerWatchlist = if (d.trackerWatchlist === previous?.trackerWatchlist) d.trackerWatchlist else d.trackerWatchlist.map(app.ember.tv.mediaserver.ServerMetadata::safe),
+        pending = if (d.pending === previous?.pending) d.pending else d.pending.map { it.copy(meta = app.ember.tv.mediaserver.ServerMetadata.safe(it.meta)) })
 
     private fun protectDismissed(values: Map<String, List<Meta>>) = values.filterKeys { it in setOf("continue", "watchlist") }
         .mapValues { (_, list) -> list.take(MAX_HIDDEN).map { it.withoutServerSecrets() } }
+
+    private data class Write(val file: File, val data: Data)
+    private val writes = LatestWriteQueue<Write>(writer, { snapshot ->
+        AtomicFile.write(snapshot.file, json.encodeToString(Data.serializer(), snapshot.data)).getOrThrow()
+    }, { CrashLog.note("Could not save the local library", it) })
 
     @Synchronized
     private fun update(change: (Data) -> Data) {
         // Early actions wait for the queued read instead of overwriting saved progress/watchlists.
         finishInitialization()
-        data = change(data)
-        data=protect(data)
+        val previous = data
+        val changed = change(previous)
+        if (changed == previous) return
+        data = protect(changed, previous)
         val snapshot = data
         val f = file ?: return
-        writer.execute {
-            AtomicFile.write(f,json.encodeToString(Data.serializer(),snapshot))
-        }
+        writes.submit(Write(f, snapshot))
         onMain {version++}
     }
 
