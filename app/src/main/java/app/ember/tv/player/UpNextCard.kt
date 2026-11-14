@@ -80,7 +80,7 @@ internal fun UpNextCard(ui: UpNextUi, onPlay: () -> Unit) {
                         ok
                     }
                     .focusable()
-                    .semantics { contentDescription = "Up next: ${ui.series}, $line"; onClick { onPlay(); true } }
+                    .semantics { contentDescription = "Up next: ${ui.series}, $line"; onClick { if (!ui.finding) onPlay(); true } }
                     .testTag("up_next_card"),
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
             ) {

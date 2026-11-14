@@ -91,6 +91,7 @@ internal fun PlayerActivity.showUpNext(next: Episode) {
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.dismissUpNext() {
     handler.removeCallbacks(tick)
+    cancelNextEpisodeLookup()
     upNextUi.visible = false
     upNext.visibility = View.GONE
     upNextDismissed = true
@@ -100,13 +101,18 @@ internal fun PlayerActivity.dismissUpNext() {
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.playNext() {
     fileQueue?.let {q->q.next()?.let { playFile(it) };return}
+    if (nextEpisodeJob?.isActive == true || upNextUi.finding) return
     handler.removeCallbacks(tick)
     val next = nextEpisodes.firstOrNull() ?: return finish()
+    val revision = ++nextEpisodeRevision
+    val visit = playbackVisit
     upNextUi.finding = true
-    lifecycleScope.launch {
+    nextEpisodeJob = lifecycleScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
+      try {
         val found = runCatching { NextEpisodeLoader(this@playNext, servers).load(next, prevAddon, prevQuality, serverPlayback?.quality ?: app.ember.tv.mediaserver.ServerQuality.ORIGINAL, prevBingeGroup) }.getOrNull()
         // Leaving the player cancels the lookup; that is not a missing source.
         ensureActive()
+        if (revision != nextEpisodeRevision || visit != playbackVisit || nextEpisodes.firstOrNull() != next) return@launch
         if (found == null || found.first.url == null) {
             Toast.makeText(this@playNext, getString(R.string.pl_no_playable_source_for_the_next), Toast.LENGTH_LONG).show()
             finish()
@@ -143,10 +149,22 @@ internal fun PlayerActivity.playNext() {
         view.useController = !advanced
         controls.details = controls.details?.copy(episodeTitle = next.title.takeIf { it.isNotBlank() }, synopsis = null)
         refreshControlsTitle()
+        nextEpisodeJob = null
         start(stream.url!!, title, (stream.subtitles + subs).distinctBy { it.url }, stream.info?.filename ?: stream.title.lineSequence().firstOrNull())
         findNextServerEpisode()
         view.requestFocus()
-    }
+      } finally {
+        if (revision == nextEpisodeRevision) { nextEpisodeJob = null; upNextUi.finding = false }
+      }
+    }.also { it.start() }
+}
+
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.cancelNextEpisodeLookup() {
+    nextEpisodeRevision++
+    nextEpisodeJob?.cancel()
+    nextEpisodeJob = null
+    upNextUi.finding = false
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])

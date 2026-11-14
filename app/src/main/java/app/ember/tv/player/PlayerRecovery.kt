@@ -123,13 +123,20 @@ internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
         lastRetryAt = android.os.SystemClock.elapsedRealtime()
         Toast.makeText(this, getString(R.string.pl_the_connection_dropped_trying_again), Toast.LENGTH_SHORT).show()
         val at = p.currentPosition
-        handler.postDelayed({
-            player?.let {
-                it.seekTo(at)
-                it.prepare()
-                it.playWhenReady = true
+        val visit = playbackVisit
+        val media = p.currentMediaItem
+        val key = resumeKey
+        cancelRecovery()
+        val retry = Runnable {
+            pendingRecovery = null
+            if (player === p && playbackVisit == visit && resumeKey == key && p.currentMediaItem == media) {
+                p.seekTo(at)
+                // prepare retains playWhenReady, including a pause made during the retry delay.
+                p.prepare()
             }
-        }, 1_500L * ioRetries)
+        }
+        pendingRecovery = retry
+        handler.postDelayed(retry, 1_500L * ioRetries)
         return true
     }
     val outputFailure=PlaybackErrors.audioOutput(e.errorCode)
@@ -167,4 +174,10 @@ internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
 internal fun PlayerActivity.useFfmpegVideo(p: ExoPlayer) {
     codecs.ffmpegVideo=true
     decoderManager.selectVideoDecoder(DecoderMode.FFMPEG)
+}
+
+@OptIn(UnstableApi::class)
+internal fun PlayerActivity.cancelRecovery() {
+    pendingRecovery?.let(handler::removeCallbacks)
+    pendingRecovery = null
 }

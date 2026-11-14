@@ -66,6 +66,9 @@ import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 @OptIn(UnstableApi::class)
 /** Loads a source into the player and starts it. Used for the first episode and every next one. */
 internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<SubtitleOption>, release: String?) {
+    cancelRecovery()
+    cancelNextEpisodeLookup()
+    playbackVisit++
     val p = player ?: return
     hdr10PlusMetadata = false
     liveRetryJob?.cancel(); liveRetryJob = null
@@ -168,6 +171,9 @@ internal fun PlayerActivity.askToLeave() {
 @OptIn(UnstableApi::class)
 /** Saves where you are, reports the stop, releases the player and (normally) closes the screen. */
 internal fun PlayerActivity.endPlayback(finishActivity: Boolean = true) {
+    cancelRecovery()
+    cancelNextEpisodeLookup()
+    playbackVisit++
     handler.removeCallbacks(saver)
     handler.removeCallbacks(tick)
     handler.removeCallbacks(infoUpdater)

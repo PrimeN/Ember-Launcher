@@ -94,6 +94,10 @@ class PlayerActivity : ComponentActivity() {
     internal var prevBingeGroup: String? = null
     internal var sourceHash: Pair<String, Long?>? = null
     internal val nextEpisodes = ArrayList<Episode>()
+    internal var nextEpisodeJob: Job? = null
+    internal var nextEpisodeRevision = 0L
+    internal var playbackVisit = 0L
+    internal var pendingRecovery: Runnable? = null
 
     // Media server titles report progress back to Plex, Jellyfin or Emby.
     internal var serverRef: String? = null
@@ -405,9 +409,11 @@ class PlayerActivity : ComponentActivity() {
                 playNext()
             },
             playEpisode = { i ->
+                if (nextEpisodeJob?.isActive != true && !upNextUi.finding) {
                 repeat(i.coerceAtMost(nextEpisodes.size - 1)) { nextEpisodes.removeAt(0) }
                 Toast.makeText(this, getString(R.string.pl_finding_a_source), Toast.LENGTH_SHORT).show()
                 playNext()
+                }
             },
             touched = { scheduleHide() },
             queue = {showFileQueue()},
@@ -704,6 +710,8 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        cancelRecovery()
+        cancelNextEpisodeLookup()
         liveRetryJob?.cancel(); liveRetryJob = null
         handler.removeCallbacks(commitNumber); numberDigits = ""; numberToast?.cancel()
         handler.removeCallbacks(hideLiveBanner)
