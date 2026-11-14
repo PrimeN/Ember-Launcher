@@ -280,7 +280,7 @@ function drawTitle(d){var b=q('pbody');var y=q('page').scrollTop;b.textContent='
  else if(!d.sources.length)c.appendChild(el('p','m',d.note||'No sources found.'));
  d.sources.forEach(function(s){var r=el('button','src');var t=el('span','st');t.appendChild(el('b',null,s.title));if(s.desc)t.appendChild(el('small',null,s.desc));
   (s.badges||[]).forEach(function(n){t.appendChild(el('span','bd',n))});r.appendChild(t);var g=el('span','go');g.appendChild(icon('play').firstChild);r.appendChild(g);
-  r.onclick=function(){buzz(15);toast('Starting on the TV…');api('source',{index:s.index},1).then(function(j){if(j.ok)setTimeout(function(){closeTitle();go('home')},900)})};c.appendChild(r)});
+  r.onclick=function(){buzz(15);toast('Starting on the TV…');api('source',{ref:s.ref},1).then(function(j){if(j.ok)setTimeout(function(){closeTitle();go('home')},900);else loadTitle()})};c.appendChild(r)});
  if(d.loading&&d.sources.length)c.appendChild(el('p','m','Still finding more…'));q('page').scrollTop=y}
 // Now playing.
 var dragging=false,volDrag=false;

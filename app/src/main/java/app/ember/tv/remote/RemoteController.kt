@@ -25,6 +25,7 @@ import kotlinx.serialization.json.buildJsonObject
  * the TV. Titles go to the phone as short references; addon links, keys and file paths never do.
  */
 internal class RemoteController(private val vm: HomeViewModel) {
+    private val sources = RemoteSources()
     private val refs = object : LinkedHashMap<String, Meta>(64, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Meta>?) = size > 500
     }
@@ -72,10 +73,10 @@ internal class RemoteController(private val vm: HomeViewModel) {
                 .let { if (it) ok() else RemoteServer.error("That episode is not listed now.") }
         }
         "source" -> {
-            val index = p["index"]?.toIntOrNull() ?: return bad()
+            val reference = p["ref"]?.takeIf { it.length <= 64 } ?: return bad()
             main {
                 val d = vm.details ?: return@main "Open a title first."
-                val s = RemoteFormat.sources(d.serverStreams, d.streams).getOrNull(index) ?: return@main "That source is gone. Reload the list."
+                val s = sources.resolve(vm.profiles.profileId, d, reference) ?: return@main "That source is gone. Reload the list."
                 val request = vm.playRequest(s) ?: return@main "That source cannot play."
                 val screen = RemoteBridge.screen ?: return@main "Open Ember on the TV first."
                 screen.play(request); null
@@ -194,7 +195,10 @@ internal class RemoteController(private val vm: HomeViewModel) {
     }
 
     private fun details(): JsonElement = main {
-        val d = vm.details ?: return@main buildJsonObject { put("open", JsonPrimitive(false)) }
+        val d = vm.details ?: return@main run {
+            sources.choices(vm.profiles.profileId, null)
+            buildJsonObject { put("open", JsonPrimitive(false)) }
+        }
         val m = d.meta
         buildJsonObject {
             put("open", JsonPrimitive(true))
@@ -213,10 +217,11 @@ internal class RemoteController(private val vm: HomeViewModel) {
             put("needsEpisode", JsonPrimitive(m.type != "movie" && d.episode == null && d.episodes.isNotEmpty()))
             d.note?.let { put("note", JsonPrimitive(it)) }
             put("sources", buildJsonArray {
-                RemoteFormat.sources(d.serverStreams, d.streams).take(120).forEachIndexed { i, s ->
+                sources.choices(vm.profiles.profileId, d).forEach { choice ->
+                    val s = choice.source
                     val shown = vm.sourceFormat.formatSource(s)
                     add(buildJsonObject {
-                        put("index", JsonPrimitive(i))
+                        put("ref", JsonPrimitive(choice.ref))
                         put("title", JsonPrimitive(shown?.first ?: s.name.ifBlank { s.addonName }))
                         put("desc", JsonPrimitive((shown?.second ?: s.title).take(300)))
                         put("badges", buildJsonArray { vm.sourceFormat.badgesFor(s).take(8).forEach { b -> add(JsonPrimitive(b.name)) } })
