@@ -10,11 +10,16 @@ build adds BWDIF, YADIF, scale and format filters, keeping that public API and i
 `LIBAVFILTER_11` symbol version. Automatic mpv deinterlacing can now instantiate
 BWDIF for flagged interlaced frames. Off remains the default in Ember.
 
+The shipped ARM builds also enable equalizer, pan, volume, aformat and aresample
+for optional decoded-audio effects. Boosts reserve headroom and audio channel
+mapping retains channel order. The filters link the existing libswresample ABI;
+the locally built resampler is not substituted. Passthrough remains untouched.
+
 Source: FFmpeg n8.1, commit
 `9047fa1b084f76b1b4d065af2d743df1b40dfb56`.
 
 - Source archive: <https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/9047fa1b084f76b1b4d065af2d743df1b40dfb56>
-- Compiler: Android NDK 29.0.14206865, API 26 targets, all four original ABIs.
+- Compiler: Android NDK 29.0.14206865, API 26 targets. Current APKs ship only arm64-v8a and armeabi-v7a.
 - Assembly: NASM 2.16.01 for x86_64; x86 follows upstream's no-assembly choice;
   ARM builds retain their applicable architecture assembly.
 - Licence: built with `--enable-gpl --enable-version3`; GNU GPL v3.
@@ -27,7 +32,7 @@ Source: FFmpeg n8.1, commit
   configuration. Only the stripped filter libraries are shipped. The locally
   built utility/scaling libraries are not substituted into the player.
 - SHA-256 digests are in `checksums.properties` and checked during every AAR
-  transformation. New dependencies resolve to the existing utility/scaling ABI.
+  transformation. New dependencies resolve to the existing utility/scaling/resampling ABI.
 
 ## Rebuild on Linux
 
@@ -38,9 +43,10 @@ repository root:
 scripts/build-native-filters.sh /path/to/android-ndk-29 /path/to/build-directory
 ```
 
-The script downloads the exact source commit and writes all four libraries and
-their checksum index. It does not install SDK packages or accept licence prompts.
-For the same-source host field-handling check, set `NATIVE_FILTER_HOST_CHECK=1`.
+The script downloads the exact source commit and rebuilds the two supported ARM
+libraries and the checksum index. To also rebuild the unused x86 targets,
+set `NATIVE_FILTER_ABIS="x86 x86_64"`; NASM is required only for x86_64. It does not install SDK packages or accept licence prompts.
+For the same-source host field-handling and audio checks, set `NATIVE_FILTER_HOST_CHECK=1`.
 
 ## Verify
 
@@ -48,6 +54,7 @@ For the same-source host field-handling check, set `NATIVE_FILTER_HOST_CHECK=1`.
 python3 scripts/verify-native-filters.py /path/to/upstream-libmpv-1.0.0.aar
 python3 scripts/verify-player-native.py app/build/isolated-mpv/libmpv-1.0.0.aar
 python3 scripts/test-deinterlacing.py /path/to/host-ffmpeg-8.1
+python3 scripts/test-audio-filters.py /path/to/host-ffmpeg-8.1
 ```
 
 Checks cover hashes, ELF machines, public API compatibility, dependency symbols,

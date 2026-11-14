@@ -139,9 +139,9 @@ internal fun PlayerActivity.shiftSound(deltaMs: Int?) {
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.keepSound() {
     val ms = (audioDelay.us / 1000).toInt()
-    config = config.copy(audioDelayMs = ms)
+    config = if (bluetoothOutput) config.copy(bluetoothDelayMs = ms) else config.copy(audioDelayMs = ms)
     prefs.playbackConfig = config
-    Toast.makeText(this, getString(R.string.pl_sound_timing_saved_for_all_videos), Toast.LENGTH_SHORT).show()
+    Toast.makeText(this, if(bluetoothOutput) "Bluetooth timing saved" else getString(R.string.pl_sound_timing_saved_for_all_videos), Toast.LENGTH_SHORT).show()
     updateSoundLabel()
 }
 
@@ -155,7 +155,7 @@ internal fun PlayerActivity.updateSoundLabel() {
         else -> getString(R.string.pl_sound_earlier, -ms)
     }
     val timing = getString(R.string.pl_sound_timing, state)
-    soundLabel.text = if (ms != config.audioDelayMs) getString(R.string.pl_label_pair, timing, getString(R.string.pl_this_video_only)) else timing
+    soundLabel.text = if (ms != config.outputDelay(bluetoothOutput)) getString(R.string.pl_label_pair, timing, getString(R.string.pl_this_video_only)) else timing
 }
 
 /** Switches the display to a refresh rate (and optionally resolution) that fits the video, once per title. */

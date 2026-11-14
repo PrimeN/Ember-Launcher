@@ -10,4 +10,5 @@ internal data class EngineSource(
     val durations: List<Long?> = urls.map { null }, val durationMs: Long? = null,
     val audio: String? = null, val headers: Map<String,String> = emptyMap(), val live: Boolean = false,
     val audioLanguages: List<String> = emptyList(), val subtitleLanguages: List<String> = emptyList(),
+    val filename: String? = null,
 )

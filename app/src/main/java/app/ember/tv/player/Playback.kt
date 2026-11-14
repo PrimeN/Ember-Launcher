@@ -99,6 +99,11 @@ data class PlaybackConfig(
     /** Compatibility engine: off (default), auto for interlaced frames, or always. */
     val deinterlacing: String = "off",
     val scaler: String = "bilinear",
+    val decoderRules: DecoderRules = DecoderRules(),
+    val bluetoothDelayMs: Int? = null,
+    val seekMode: String = "precise",
+    val audioEffects: AudioEffects = AudioEffects(),
+    val quickShortcuts: List<String> = PlayerShortcuts.defaults,
 )
 
 @OptIn(UnstableApi::class)
@@ -124,6 +129,9 @@ object Playback {
 
     /** Which decoders to use; changed while playing when a decoder fails, then the player retries. */
     class CodecChoice {
+        @Volatile var sourceUrl: String = ""
+        @Volatile var sourceFilename: String? = null
+        @Volatile var manualVideo = false
         /** Decode Dolby Vision as its HDR10 (HEVC) base layer. */
         @Volatile var dvAsHevc: Boolean = false
         /** Try software video decoders first (only sensible up to 1080p). */
@@ -169,6 +177,7 @@ object Playback {
         private val delay: AudioDelay = AudioDelay(),
         private val codecs: CodecChoice = CodecChoice(),
         private val manager: DecoderManager = DecoderManager(),
+        private val effects: AudioEffectState = AudioEffectState(),
     ) : NextRenderersFactory(context) {
         init {
             setDecoderManager(manager)
@@ -206,11 +215,17 @@ object Playback {
                             if(!DolbyVisionPolicy.hdr10Base(format.codecs,format.colorInfo?.let { it.hdrStaticInfo!=null && it.colorTransfer==C.COLOR_TRANSFER_ST2084 && it.colorSpace==C.COLOR_SPACE_BT2020 }==true)) emptyList()
                             else selector.getDecoderInfos(MimeTypes.VIDEO_H265,secure,false)
                         } else super.getDecoderInfos(selector,format,secure)
+                        val preference = if (codecs.manualVideo) "inherit" else c.decoderRules.preference(codecs.sourceUrl, format.sampleMimeType, codecs.sourceFilename)
+                        val ordered = when (preference) {
+                            "hardware" -> list.sortedBy { !it.hardwareAccelerated }
+                            "software" -> list.sortedBy { !it.softwareOnly }
+                            else -> list
+                        }
                         return when(manager.videoMode) {
                             DecoderMode.HARDWARE -> list.filter { it.hardwareAccelerated }
                             DecoderMode.SOFTWARE -> list.filter { it.softwareOnly }
                             DecoderMode.FFMPEG -> emptyList()
-                            else -> list
+                            else -> ordered
                         }
                     }
                 }
@@ -230,6 +245,7 @@ object Playback {
 
         override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink {
             val b = DefaultAudioSink.Builder(context)
+                .setAudioProcessors(arrayOf(AudioEffectProcessor(effects)))
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
             when {

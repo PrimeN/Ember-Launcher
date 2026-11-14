@@ -81,7 +81,7 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     playbackEngine?.configure(EngineSource(
         urls=serverPlayback?.parts?.map {it.url} ?: listOf(url),title=title,key=resumeKey,
         durations=serverPlayback?.parts?.map {it.durationMs} ?: listOf(null),durationMs=serverPlayback?.durationMs,
-        audio=audioUrl,headers=sourceHeaders,live=live,
+        audio=audioUrl,headers=sourceHeaders,live=live,filename=release,
         audioLanguages=listOfNotNull(showKey()?.let(memory::get)?.audio,java.util.Locale.getDefault().language).distinct(),
         subtitleLanguages=app.ember.tv.data.Subtitles.wanted(prefs.subtitleConfig)))
     serverPartIndex = 0
@@ -105,6 +105,7 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
         )
     }
     decoderRecovery.reset();codecs.pcm=false
+    codecs.sourceUrl=url;codecs.sourceFilename=release;codecs.manualVideo=userVideoMode!=null
     decoderManager.selectVideoDecoder(userVideoMode ?: if(config.ffmpegVideo=="always")DecoderMode.FFMPEG else DecoderMode.AUTO)
     decoderManager.selectAudioDecoder(userAudioMode ?: DecoderMode.AUTO)
     codecs.ffmpegVideo=decoderManager.videoMode==DecoderMode.FFMPEG
@@ -141,6 +142,7 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
         p.setMediaItem(media)
     }
     p.prepare()
+    userVideoMode?.let { mode -> playbackEngine?.compatibility?.softwareVideo(mode == DecoderMode.FFMPEG || mode == DecoderMode.SOFTWARE) }
     p.playWhenReady = true
     loadMarkers()
 }
@@ -178,6 +180,7 @@ internal fun PlayerActivity.endPlayback(finishActivity: Boolean = true) {
     handler.removeCallbacks(controlsTicker)
     handler.removeCallbacks(hideControls)
     handler.removeCallbacks(statsTicker)
+    outputRoute?.close(); outputRoute=null
     loudness?.let { runCatching { it.release() } }
     loudness = null
     val p = player ?: return

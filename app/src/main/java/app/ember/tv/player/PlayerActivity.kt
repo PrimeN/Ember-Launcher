@@ -327,6 +327,7 @@ class PlayerActivity : ComponentActivity() {
     override fun onDestroy() {
         // A dialog still showing would leak its window when the player closes (#77).
         actionDialog?.dismiss(); actionDialog = null
+        outputRoute?.close(); outputRoute=null
         leaveDialog?.dismiss(); leaveDialog = null
         getSharedPreferences("ember",MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(contentProfileListener)
         handler.removeCallbacks(closeKept)
@@ -405,7 +406,7 @@ class PlayerActivity : ComponentActivity() {
     internal val controlActions by lazy {
         ControlsActions(
             playPause = { player?.let { it.playWhenReady = !it.playWhenReady }; showControls() },
-            seekBy = { d -> player?.let { p -> p.seekTo((p.currentPosition + d).coerceIn(0L, (p.duration.takeIf { it > 0 } ?: Long.MAX_VALUE))) }; showControls() },
+            seekBy = { d -> player?.let { p -> navigateSeek((p.currentPosition + d).coerceIn(0L, (p.duration.takeIf { it > 0 } ?: Long.MAX_VALUE))) }; showControls() },
             skip = { doSkip() },
             openMenu = { which, tab -> openMenu(which, tab) },
             options = { which -> optionRows(which) },
@@ -440,6 +441,9 @@ class PlayerActivity : ComponentActivity() {
     // ---- player menus (advanced look): the small menu, the Options page and playback stats ----
     internal var speed = 1f
     internal var boostLevel = 0
+    internal val audioEffectState = AudioEffectState()
+    internal var outputRoute: OutputRouteMonitor? = null
+    internal var bluetoothOutput = false
     internal var loudness: android.media.audiofx.LoudnessEnhancer? = null
     internal var aspect = 0
     internal var chapters: List<app.ember.tv.mediaserver.Chapter> = emptyList()

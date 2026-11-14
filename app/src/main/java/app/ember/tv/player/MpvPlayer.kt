@@ -24,6 +24,12 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     private val handler=Handler(Looper.getMainLooper())
     private var closed=false
     private var requestedSoftwareVideo=config.ffmpegVideo=="always"
+    private var manualSoftwareVideo: Boolean? = null
+    private var navigationSeek = false
+    private var approximateSeek = false
+    private var requestedEffects = config.audioEffects
+    private var appliedEffects: String? = null
+    private var currentVideoMime: String? = null
     private var deinterlacing=config.deinterlacing
     private val native=run {NativePlayerFiles.prepare(context);MPVLib.create(context)} ?: error("Compatibility player could not start.")
     private var status=Player.STATE_IDLE
@@ -109,7 +115,7 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
             picture(config.deband,config.interpolation,config.scaler,config.deinterlacing)
             listOf("time-pos","duration","demuxer-cache-time").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)}
             listOf("pause","paused-for-cache","eof-reached","seekable").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_FLAG)}
-            listOf("track-list","video-params").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_NONE)}
+            listOf("track-list","video-params","audio-out-params").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_NONE)}
             if(Build.VERSION.SDK_INT>=33)context.registerReceiver(noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),Context.RECEIVER_NOT_EXPORTED)
             else @Suppress("DEPRECATION") context.registerReceiver(noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
         } catch(e:Throwable) {transport?.close();native.destroy();throw e}
@@ -148,6 +154,7 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
             val mime=when(codec){
                 "aac"->MimeTypes.AUDIO_AAC;"ac3"->MimeTypes.AUDIO_AC3;"eac3"->MimeTypes.AUDIO_E_AC3;"dts","dca"->MimeTypes.AUDIO_DTS;"truehd"->MimeTypes.AUDIO_TRUEHD
                 "h264"->MimeTypes.VIDEO_H264;"hevc"->MimeTypes.VIDEO_H265;"av1"->MimeTypes.VIDEO_AV1;"vp9"->MimeTypes.VIDEO_VP9
+                "mpeg2video"->MimeTypes.VIDEO_MPEG2;"vp8"->MimeTypes.VIDEO_VP8;"vc1"->MimeTypes.VIDEO_VC1
                 "vvc","h266"->"video/vvc";"ac4"->"audio/ac4";"mpegh_3d_audio"->"audio/mhm1";"iamf"->"audio/iamf"
                 "ass","ssa"->MimeTypes.TEXT_SSA;"hdmv_pgs_subtitle"->MimeTypes.APPLICATION_PGS;"dvd_subtitle"->MimeTypes.APPLICATION_VOBSUB
                 else->when(type){"audio"->"audio/"+codec;"sub"->MimeTypes.APPLICATION_SUBRIP;else->"video/"+codec}
@@ -161,6 +168,8 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
             groups+=Tracks.Group(TrackGroup(format.id!!,format),false,intArrayOf(C.FORMAT_HANDLED),booleanArrayOf(native.getPropertyBoolean(path+"selected")==true))
         }
         tracks=Tracks(groups)
+        currentVideoMime=groups.firstOrNull {it.type==C.TRACK_TYPE_VIDEO}?.getTrackFormat(0)?.sampleMimeType
+        applyVideoDecoder(); applyAudioEffects()
         size=VideoSize(native.getPropertyInt("video-params/w")?:0,native.getPropertyInt("video-params/h")?:0)
     }
     private fun applyTracks(value:TrackSelectionParameters) {
@@ -214,7 +223,7 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     override fun eventProperty(property:String,value:Long) {}
     override fun eventProperty(property:String,value:String)=onMain {refreshTracks();invalidateState()}
     override fun eventProperty(property:String,value:Double)=onMain {
-        when(property){"time-pos"->{val at=(value*1000).toLong();if(!loading && (!waitingSeek || kotlin.math.abs(at-(pendingSeek-prefix(partIndex)))<2000)){waitingSeek=false;partPosition=at;position=prefix(partIndex)+partPosition}};"duration"->{if(value>0)durations[partIndex]=(value*1000).toLong()};"demuxer-cache-time"->buffered=prefix(partIndex)+(value*1000).toLong()};invalidateState()
+        when(property){"time-pos"->{val at=(value*1000).toLong();if(!loading && (!waitingSeek || approximateSeek || kotlin.math.abs(at-(pendingSeek-prefix(partIndex)))<2000)){waitingSeek=false;approximateSeek=false;partPosition=at;position=prefix(partIndex)+partPosition}};"duration"->{if(value>0)durations[partIndex]=(value*1000).toLong()};"demuxer-cache-time"->buffered=prefix(partIndex)+(value*1000).toLong()};invalidateState()
     }
     override fun eventProperty(property:String,value:Boolean)=onMain {
         when(property){"paused-for-cache"->{busy=value;if(!loading && status!=Player.STATE_ENDED && status!=Player.STATE_IDLE)status=if(value)Player.STATE_BUFFERING else Player.STATE_READY};"eof-reached"->if(value)eof();"seekable"->seekable=value};invalidateState()
@@ -244,10 +253,15 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     override fun handlePrepare():ListenableFuture<*> {error=null;load(0,initialPosition);return done()}
     override fun handleSetPlayWhenReady(playWhenReady:Boolean):ListenableFuture<*> {wanted=playWhenReady;if(wanted)focusPaused=audioManager.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         native.setPropertyBoolean("pause",!wanted||focusPaused);return done()}
+    fun seekNavigation(positionMs: Long, fast: Boolean) {
+        navigationSeek=fast
+        try { seekTo(positionMs) } finally { navigationSeek=false }
+    }
     override fun handleSeek(mediaItemIndex:Int,positionMs:Long,seekCommand:Int):ListenableFuture<*> {
+        approximateSeek=navigationSeek
         val target=positionMs.coerceAtLeast(0);var index=0
         while(index<source.urls.lastIndex && durations[index]!=null && target>=prefix(index)+durations[index]!!)index++
-        if(index!=partIndex)load(index,target) else {pendingSeek=target;waitingSeek=true;native.command(arrayOf("seek",((target-prefix(index)).coerceAtLeast(0)/1000.0).toString(),"absolute+exact"));position=target;status=Player.STATE_READY;native.setPropertyBoolean("pause",!wanted||focusPaused)}
+        if(index!=partIndex)load(index,target) else {pendingSeek=target;waitingSeek=true;native.command(arrayOf("seek",((target-prefix(index)).coerceAtLeast(0)/1000.0).toString(),SeekPreference.flags(if(navigationSeek) "fast" else "precise",false)));position=target;status=Player.STATE_READY;native.setPropertyBoolean("pause",!wanted||focusPaused)}
         return done()
     }
     override fun handleSetTrackSelectionParameters(trackSelectionParameters:TrackSelectionParameters):ListenableFuture<*> {parameters=trackSelectionParameters;applyTracks(parameters);refreshTracks();return done()}
@@ -349,12 +363,25 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         val time=native.getPropertyDouble("chapter-list/$i/time")?:return@mapNotNull null
         app.ember.tv.mediaserver.Chapter(native.getPropertyString("chapter-list/$i/title")?:"Chapter ${i+1}",(time*1000).toLong()+prefix(partIndex))
     }
+    val audioEffectsAvailable get() = AudioProcessingPolicy.allowed(
+        tracks.groups.firstOrNull {it.type==C.TRACK_TYPE_AUDIO && it.isSelected}?.getTrackFormat(0)?.sampleMimeType,
+        config.passthrough,isPassthrough(),pcmAttempted)
+    fun audioEffects(value: AudioEffects): Boolean { requestedEffects=value;return applyAudioEffects() }
+    private fun applyAudioEffects(): Boolean {
+        val count=tracks.groups.firstOrNull {it.type==C.TRACK_TYPE_AUDIO && it.isSelected}?.getTrackFormat(0)?.channelCount ?: 2
+        val value=if(audioEffectsAvailable)requestedEffects.nativeFilters(count) else ""
+        if(value==appliedEffects)return true
+        // Unsupported optional processing must not turn a playable title into an error.
+        return runCatching { native.setPropertyString("af",value); appliedEffects=value;true }.getOrDefault(false)
+    }
     fun isPassthrough()=native.getPropertyString("audio-out-params/format")?.startsWith("spdif")==true
     private fun applyVideoDecoder() {
+        val preference=config.decoderRules.preference(source.urls[partIndex],currentVideoMime,source.filename)
+        requestedSoftwareVideo=manualSoftwareVideo ?: when(preference) {"software"->true;"auto","hardware"->false;else->config.ffmpegVideo=="always"}
         val decoder=NativeDeinterlacing.decoder(requestedSoftwareVideo,deinterlacing)
         if(native.getPropertyString("hwdec")!=decoder)native.setPropertyString("hwdec",decoder)
     }
-    fun softwareVideo(enabled:Boolean){requestedSoftwareVideo=enabled;applyVideoDecoder()}
+    fun softwareVideo(enabled:Boolean){manualSoftwareVideo=enabled;applyVideoDecoder()}
     val softwareVideo get()=native.getPropertyString("hwdec")=="no"
     fun diagnostics()=mapOf("Engine" to "Compatibility (libmpv)","Video decoder" to native.getPropertyString("hwdec-current").orEmpty(),
         "Decoded video transfer" to native.getPropertyString("video-params/gamma").orEmpty(),

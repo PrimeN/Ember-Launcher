@@ -27,15 +27,17 @@ with zipfile.ZipFile(a.upstream_aar) as z, tempfile.TemporaryDirectory() as tmp:
         assert struct.unpack_from('<H', data, 18)[0] == machine, abi
         assert hashlib.sha256(data).hexdigest() == properties[abi+'.sha256'], abi
         assert all(x in data for x in (b'bwdif\0', b'yadif\0', b'LIBAVFILTER_11\0')), abi
+        if abi in ('arm64-v8a', 'armeabi-v7a'):
+            assert all(x+b'\0' in data for x in (b'equalizer', b'pan', b'volume', b'aformat', b'aresample')), abi
         deps = subprocess.check_output(['readelf', '-d', str(file)], text=True)
         assert 'Library soname: [libavfilter.so]' in deps
         needed = re.findall(r'\(NEEDED\).*\[(.*?)\]', deps)
-        assert set(needed) <= {'libavutil.so', 'libswscale.so', 'libc.so', 'libm.so'}, (abi, needed)
+        assert set(needed) <= {'libavutil.so', 'libswscale.so', 'libswresample.so', 'libc.so', 'libm.so'}, (abi, needed)
         for line in subprocess.check_output(['readelf', '-lW', str(file)], text=True).splitlines():
             if line.strip().startswith('LOAD'):
                 assert int(line.split()[-1], 16) >= 16384, (abi, line)
         upstream_exports = set()
-        for name in ['libavfilter.so', 'libavutil.so', 'libswscale.so']:
+        for name in ['libavfilter.so', 'libavutil.so', 'libswscale.so', 'libswresample.so']:
             old = pathlib.Path(tmp)/(abi+'-'+name)
             old.write_bytes(z.read('jni/'+abi+'/'+name))
             exports, _ = symbols(old)
@@ -43,6 +45,6 @@ with zipfile.ZipFile(a.upstream_aar) as z, tempfile.TemporaryDirectory() as tmp:
             else: upstream_exports |= exports
         exports, imports = symbols(file)
         assert upstream_filter_exports <= exports, (abi, 'Missing filter API', upstream_filter_exports-exports)
-        linked = {name for name in imports if name.startswith(('av_', 'sws_'))}
+        linked = {name for name in imports if name.startswith(('av_', 'sws_', 'swr_'))}
         assert linked <= upstream_exports, (abi, 'Missing dependency symbol', linked-upstream_exports)
         print(abi+': hash, machine, filters, symbol versions/dependencies, public API and 16 KiB alignment passed')

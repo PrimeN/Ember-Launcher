@@ -55,7 +55,11 @@ internal object SettingDefinitions {
         listOf("leave" to "Leave straight away", "ask" to "Ask first"))
     val skipIntro = SettingDefinition("skip-intro", SettingsTab.PLAYER, "Skip intro", "IntroDB credits recap automatic community fallback",
         listOf("button" to "Show a Skip button", "auto" to "Skip by itself", "off" to "Off"))
-    val audio = SettingDefinition("audio-timing", SettingsTab.AUDIO_VIDEO, "Sound timing", "lip sync audio delay milliseconds")
+    val seeking = SettingDefinition("seek-mode",SettingsTab.PLAYER,"Seeking","fast keyframe precise seek")
+    val shortcuts = SettingDefinition("player-shortcuts",SettingsTab.PLAYER,"Player shortcuts","quick menu customize reorder controls")
+    val decoderRules = SettingDefinition("decoder-rules",SettingsTab.AUDIO_VIDEO,"Decoder preferences","hardware software codec extension local network rules")
+    val audioEffects = SettingDefinition("audio-effects",SettingsTab.AUDIO_VIDEO,"Audio effects","equalizer bass mono swap channels dialogue")
+    val audio = SettingDefinition("audio-timing", SettingsTab.AUDIO_VIDEO, "Sound timing", "lip sync audio delay milliseconds bluetooth headphones")
     val output = SettingDefinition("audio-output", SettingsTab.AUDIO_VIDEO, "Audio output", "passthrough bitstream Atmos TrueHD DTS receiver soundbar")
     val subtitles = SettingDefinition("subtitle-start", SettingsTab.SUBTITLES, "Subtitles at start", "foreign audio automatically language",
         listOf("foreign" to "When the audio is not my language", "always" to "Always", "off" to "Never"))
@@ -72,7 +76,7 @@ internal object SettingDefinitions {
     val remoteSounds = SettingDefinition("remote-sounds", SettingsTab.REMOTE, "Remote sounds", "click navigation sound effects arrows OK beep")
     val autoLoad = SettingDefinition("auto-load", SettingsTab.REMOTE, "Load more as I scroll", "load more pages next page automatically paging infinite scroll Discover collections libraries episodes")
     val hiddenApps = SettingDefinition("hidden-apps", SettingsTab.HOME_TOOLS, "Hidden apps", "unhide show restore apps removed from Home Ember Light page tiles More Apps")
-    val all = listOf(hiddenApps,cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout,navbarStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,rowAddonLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, audio, output, subtitles)
+    val all = listOf(hiddenApps,cacheSize,cacheImages,cacheMetadata,cacheCatalogs,cacheNetwork,remoteSounds,autoLoad,providerDiagnostics,engineeringMenus,calibration,calibrationVideo,deviceMenus,deviceInputs,setup,aiDiscovery,hero,iptvAdvanced,interfaceStyle,mediaPageLayout,navbarStyle, theme, colourTheme, playerInterface, interfaceSize, textSize, performance, density, artwork, focusBackgrounds,cardFocus,tileLabels,rowAddonLabels,watched,spoilers,updates,debug,imageCache,crash, resume, leaving, skipIntro, seeking, shortcuts, decoderRules, audioEffects, audio, output, subtitles)
     fun matching(query: String): List<SettingDefinition> {
         val normalized = query.trim().lowercase(java.util.Locale.ROOT)
         val exact = all.filter { it.title.lowercase(java.util.Locale.ROOT)==normalized || it.options.any { (_,label)->label.lowercase(java.util.Locale.ROOT)==normalized } ||

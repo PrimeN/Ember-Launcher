@@ -48,6 +48,10 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
                 "removeListener" -> {listeners.remove(arguments[0])?.let(active::removeListener);null}
                 // Drop the released libmpv instance: native calls on a destroyed handle crash the process.
                 "release" -> {listeners.values.forEach(active::removeListener);compatibility?.release();active=standard;standard.release();listeners.clear();null}
+                "seekBack", "seekForward" -> {
+                    val delta=if(method.name=="seekBack")-active.seekBackIncrement else active.seekForwardIncrement
+                    navigate(PlaybackSeeking.target(active.currentPosition,delta,active.duration),SeekPreference.fast(config().seekMode));null
+                }
                 "prepare" -> {if(active===standard && (mode=="compatibility" || mode=="auto" && source?.urls?.firstOrNull()?.let {runCatching {PlaybackEnginePolicy.nativeFirst(it)}.getOrDefault(false)}==true)) {
                         if(!switch())standard.prepare()
                     } else active.prepare();null}
@@ -62,6 +66,10 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
             }
         } catch(e:InvocationTargetException){throw e.targetException}
     } as ExoPlayer
+    fun navigate(target: Long, fast: Boolean) {
+        compatibility?.let { it.seekNavigation(target,fast);return }
+        PlaybackSeeking.seek(standard,target,fast)
+    }
     fun configure(value:EngineSource) {
         val old=compatibility
         if(old!=null){listeners.values.forEach(old::removeListener);old.release();active=standard;listeners.values.forEach(standard::addListener)

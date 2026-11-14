@@ -120,8 +120,23 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
         onPick = { i -> speed = speeds[i]; p.setPlaybackSpeed(speed) },
     )
     return when (which) {
-        "quick" -> PlayerMenuLayout.categories.map { (id,label) ->
-            OptionRow(label,icon=when(id){"audio"->MenuIcons.audio;"subtitles"->MenuIcons.subtitles;"playback"->MenuIcons.speed;else->MenuIcons.more},action={openMenu("options",id)})
+        "quick" -> buildList {
+            PlayerShortcuts.normalized(config.quickShortcuts).mapNotNull { id ->
+                when(id) {
+                    "audio" -> audioRow
+                    "subtitles" -> subRow
+                    "speed" -> speedRow
+                    "zoom" -> optionRows("video").firstOrNull {it.title==getString(R.string.pl_zoom)}
+                    "decoder" -> optionRows("video").firstOrNull {it.title==getString(R.string.pl_video_decoder)}
+                    "delay" -> optionRows("audio").firstOrNull {it.title==getString(R.string.pl_delay)}
+                    "effects" -> OptionRow("Audio effects",icon=MenuIcons.audio,action={openMenu("options","audio")})
+                    "chapters" -> optionRows("playback").firstOrNull {it.title==getString(R.string.pl_chapters)}
+                    "queue" -> fileQueue?.let {OptionRow("Queue",icon=MenuIcons.more,action={showFileQueue()})}
+                    else -> null
+                }
+            }.forEach(::add)
+            add(OptionRow("All player options",icon=MenuIcons.more,action={openMenu("options","playback")}))
+            add(OptionRow("Customize shortcuts",icon=MenuIcons.more,action={editPlayerShortcuts()}))
         }
         "video" -> buildList {
             val engines=listOf("auto","standard","compatibility")
@@ -166,6 +181,8 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
                 add(OptionRow(getString(R.string.pl_chapters), clock(chapters[cur].startMs), chapters.map { clock(it.startMs) + "   " + it.name }, cur, onPick = { i -> p.seekTo(chapters[i].startMs) }))
             }
             add(speedRow)
+            add(OptionRow("Seeking",if(SeekPreference.fast(config.seekMode))"Fast / nearby keyframe" else "Precise",listOf("Precise","Fast / nearby keyframe"),if(SeekPreference.fast(config.seekMode))1 else 0,
+                note="Resume positions and chapter/intro jumps stay precise.",onPick={config=config.copy(seekMode=if(it==1)"fast" else "precise");prefs.playbackConfig=config}))
             if(!live) {
                 val modes=listOf("off","one","all");val mode=fileQueue?.repeat ?: if(p.repeatMode==Player.REPEAT_MODE_ONE)"one" else "off"
                 val labels=if(fileQueue!=null)listOf("Off","Repeat item","Repeat queue") else listOf("Off","Repeat item")
@@ -183,14 +200,22 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
             add(audioRow)
             add(OptionRow("Load audio file", "Whole-title soundtrack · compatibility playback", action={pickFile("audio")}))
             add(boostRow)
+            val effectNote=if(pass || playbackEngine?.compatibility?.audioEffectsAvailable==false) "Passthrough is unchanged. Use decoded output to apply effects to this track." else "Decoded audio only; boosts reserve headroom to reduce clipping."
+            add(OptionRow("Equalizer",AudioEffects.presets.firstOrNull {it.first==config.audioEffects.preset}?.second ?: "Off / flat",AudioEffects.presets.map {it.second},AudioEffects.presets.indexOfFirst {it.first==config.audioEffects.preset},note=effectNote,
+                onPick={changeAudioEffects(config.audioEffects.copy(preset=AudioEffects.presets[it].first))}))
+            val bassLevels=listOf(0,2,4,6)
+            add(OptionRow("Bass",if(config.audioEffects.bass==0)"Off" else "+${config.audioEffects.bass} dB",bassLevels.map {if(it==0)"Off" else "+$it dB"},bassLevels.indexOf(config.audioEffects.bass),note=effectNote,
+                onPick={changeAudioEffects(config.audioEffects.copy(bass=bassLevels[it]))}))
+            add(OptionRow("Audio channels",AudioEffects.channelChoices.firstOrNull {it.first==config.audioEffects.channels}?.second.orEmpty(),AudioEffects.channelChoices.map {it.second},AudioEffects.channelChoices.indexOfFirst {it.first==config.audioEffects.channels},note=effectNote,
+                onPick={changeAudioEffects(config.audioEffects.copy(channels=AudioEffects.channelChoices[it].first))}))
             val ms = (audioDelay.us / 1000).toInt()
             val di = delays.indices.minByOrNull { kotlin.math.abs(delays[it] - ms) } ?: 10
             add(
-                OptionRow(getString(R.string.pl_delay), delayLabel(ms), delays.map { delayLabel(it) }, di,
+                OptionRow(getString(R.string.pl_delay), (if(bluetoothOutput)"Bluetooth · " else "") + delayLabel(ms), delays.map { delayLabel(it) }, di,
                     note = getString(R.string.pl_lip_sync_later_sound_fixes_a),
                     onPick = { i -> audioDelay.us = delays[i] * 1000L; playbackEngine?.compatibility?.audioDelay(delays[i].toLong()); updateSoundLabel() }),
             )
-            if (ms != config.audioDelayMs) add(OptionRow(getString(R.string.pl_keep_delay), action = { keepSound(); changed() }))
+            if (ms != config.outputDelay(bluetoothOutput)) add(OptionRow(getString(R.string.pl_keep_delay), action = { keepSound(); changed() }))
         }
         "subtitles" -> buildList {
             add(subRow)
@@ -288,6 +313,7 @@ internal fun PlayerActivity.applyAspect() {
 internal fun PlayerActivity.switchVideoDecoder(ffmpeg: Boolean) {
     val mode=if(ffmpeg)DecoderMode.FFMPEG else DecoderMode.AUTO
     userVideoMode=mode
+    codecs.manualVideo=true
     codecs.ffmpegVideo=ffmpeg
     if(playbackEngine?.compatibility!=null)playbackEngine?.compatibility?.softwareVideo(ffmpeg) else decoderManager.selectVideoDecoder(mode)
 }

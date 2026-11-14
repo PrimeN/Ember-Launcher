@@ -8,6 +8,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.Close
 import app.ember.tv.R
 
 import androidx.compose.foundation.background
@@ -96,9 +99,9 @@ import java.util.Date
 import java.util.Locale
 
 /** Settings > Player: which player and how it behaves. */
-internal val PLAYER_KEYS = listOf("player-choice", "player_look", "resume", "leaving", "skip-intro", "next-episode", "trailers", "playback_info")
+internal val PLAYER_KEYS = listOf("player-choice", "player_look", "player-shortcuts", "resume", "seek-mode", "leaving", "skip-intro", "next-episode", "trailers", "playback_info")
 /** Settings > Audio & video: the built-in player's technical sound and picture options. */
-internal val AUDIO_VIDEO_KEYS = listOf("audio-output", "audio-timing", "decoding", "dolby_vision", "display", "buffer")
+internal val AUDIO_VIDEO_KEYS = listOf("audio-output", "audio-timing", "decoding", "decoder-rules", "audio-effects", "dolby_vision", "display", "buffer")
 /** Settings > Languages & subtitles starts with the preferred sound track. */
 internal val LANGUAGE_KEYS = listOf("audio_track")
 internal fun androidx.compose.foundation.lazy.LazyListScope.playerPage(vm: HomeViewModel, keys: List<String> = PLAYER_KEYS) {
@@ -129,7 +132,55 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
     }
         "audio-timing" -> Section(stringResource(R.string.ui_sound_timing_lip_sync), stringResource(R.string.ui_for_receivers_soundbars_and_projectors_that), id = "audio-timing") {
         AudioTimingControls(c.audioDelayMs) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(audioDelayMs = v) } }
+        ToggleRow("Separate Bluetooth timing", "Automatically follows the selected audio output", c.bluetoothDelayMs != null) {
+            vm.playerSettings.updatePlaybackConfig { it.copy(bluetoothDelayMs = if(it.bluetoothDelayMs == null) it.audioDelayMs else null) }
+        }
+        c.bluetoothDelayMs?.let { ms -> AudioTimingControls(ms) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(bluetoothDelayMs = v) } } }
     }
+        "seek-mode" -> Section("Seeking", "Fast jumps use nearby keyframes; saved resume positions stay precise.", id="seek-mode") {
+            Choice(listOf("precise" to "Precise", "fast" to "Fast / nearby keyframe"), c.seekMode) { value -> vm.playerSettings.updatePlaybackConfig {it.copy(seekMode=value)} }
+        }
+        "decoder-rules" -> Section("Decoder preferences", "Hints for automatic selection. Explicit in-player choices take priority.", id="decoder-rules") {
+            val rules=c.decoderRules
+            val choices=app.ember.tv.player.DecoderRules.choices
+            Choice(choices,rules.local,"Local files") { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(local=value))} }
+            Choice(choices,rules.network,"Network and server streams") { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(network=value))} }
+            var expanded by remember {mutableStateOf(false)}
+            Chip(if(expanded) "Hide format rules" else "Format-specific rules",selected=expanded) {expanded=!expanded}
+            if(expanded) {
+                Note("Codec rules take priority over file extensions. Standard playback orders available device decoders; compatibility playback can use software decoding.")
+                app.ember.tv.player.DecoderRules.codecChoices.forEach { (mime,label) ->
+                    Choice(choices,rules.codecs[mime] ?: "inherit",label) { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(codecs=it.decoderRules.codecs+(mime to value)))} }
+                }
+                app.ember.tv.player.DecoderRules.extensionChoices.forEach { ext ->
+                    Choice(choices,rules.extensions[ext] ?: "inherit",".$ext files") { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(extensions=it.decoderRules.extensions+(ext to value)))} }
+                }
+                Chip("Reset decoder rules") {vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=app.ember.tv.player.DecoderRules())}}
+            }
+        }
+        "audio-effects" -> Section("Audio effects", "For decoded audio. HDMI passthrough remains unchanged.", id="audio-effects") {
+            Choice(app.ember.tv.player.AudioEffects.presets,c.audioEffects.preset,"Equalizer") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(preset=value))}}
+            Choice(listOf("0" to "Off","2" to "+2 dB","4" to "+4 dB","6" to "+6 dB"),c.audioEffects.bass.toString(),"Bass") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(bass=value.toInt()))}}
+            Choice(app.ember.tv.player.AudioEffects.channelChoices,c.audioEffects.channels,"Channels") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(channels=value))}}
+            Note("Boosts reserve headroom to reduce clipping. Disable passthrough to process encoded surround tracks in compatibility playback.")
+        }
+        "player-shortcuts" -> Section("Player shortcuts", "Choose up to eight quick controls; every option remains in the full menu.", id="player-shortcuts") {
+            val selected=app.ember.tv.player.PlayerShortcuts.normalized(c.quickShortcuts)
+            fun save(values:List<String>) {vm.playerSettings.updatePlaybackConfig {it.copy(quickShortcuts=values)}}
+            selected.forEachIndexed { index,id ->
+                val label=app.ember.tv.player.PlayerShortcuts.choices.first {it.first==id}.second
+                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text(label,modifier=Modifier.weight(1f),maxLines=1)
+                    if(index>0)ToolbarIcon("Move $label earlier",Icons.Outlined.ArrowUpward) {val list=selected.toMutableList();java.util.Collections.swap(list,index,index-1);save(list)}
+                    if(index<selected.lastIndex)ToolbarIcon("Move $label later",Icons.Outlined.ArrowDownward) {val list=selected.toMutableList();java.util.Collections.swap(list,index,index+1);save(list)}
+                    ToolbarIcon("Remove $label",Icons.Outlined.Close) {save(selected-id)}
+                }
+            }
+            if(selected.size<8)ButtonRow {
+                app.ember.tv.player.PlayerShortcuts.choices.filter {it.first !in selected}.forEach { (id,label) -> Chip("Add $label") {save(selected+id)} }
+            }
+            Chip("Reset shortcuts") {save(app.ember.tv.player.PlayerShortcuts.defaults)}
+        }
         "dolby_vision" -> Section(stringResource(R.string.ui_dolby_vision), stringResource(R.string.ui_auto_plays_dolby_vision_only_when)) {
         Choice(
             listOf("auto" to "Auto", "always" to "Always use it", "hdr10" to "Always HDR10"),

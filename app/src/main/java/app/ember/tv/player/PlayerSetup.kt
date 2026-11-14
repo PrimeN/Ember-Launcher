@@ -138,6 +138,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         controllerShowTimeoutMs = 4000
     }
     config = prefs.playbackConfig
+    audioEffectState.value = config.audioEffects
     playerInterface = PlayerInterfaces.resolve(config, prefs.uiStyle)
     controls.design = playerInterface
     advanced = PlayerInterfaces.customControls(playerInterface, live, trailer)
@@ -177,7 +178,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         "always" -> false
         else -> !Playback.screenHasDolbyVision(this)
     }
-    val standard = ExoPlayer.Builder(this, Playback.Renderers(this, config, audioDelay, codecs, decoderManager))
+    val standard = ExoPlayer.Builder(this, Playback.Renderers(this, config, audioDelay, codecs, decoderManager, audioEffectState))
         .setTrackSelector(trackSelector)
         .setLoadControl(Playback.loadControl(config, this))
         .setAudioAttributes(androidx.media3.common.AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
@@ -198,11 +199,19 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
             applyZoom();applyAspect()
             playbackEngine?.compatibility?.captionStyle(prefs.subtitleConfig)
             playbackEngine?.compatibility?.audioDelay(audioDelay.us/1000)
+            playbackEngine?.compatibility?.audioEffects(config.audioEffects)
             if(subsInitialized){playbackEngine?.compatibility?.subtitleSpeed(subs.engine.speed);playbackEngine?.compatibility?.subtitleDelay(subs.engine.offsetMs)}
             Toast.makeText(this,"Trying compatibility playback",Toast.LENGTH_SHORT).show()
         }
     }
     val p=playbackEngine!!.player
+    outputRoute?.close()
+    outputRoute = OutputRouteMonitor(this) { bluetooth ->
+        bluetoothOutput = bluetooth
+        audioDelay.us = if (trailer) 0 else config.outputDelay(bluetooth) * 1000L
+        playbackEngine?.compatibility?.audioDelay(audioDelay.us / 1000)
+        changed(); updateSoundLabel()
+    }
     decoderManager.attach(standard)
     if(config.ffmpegVideo=="always")useFfmpegVideo(p)
     // Renderer priority already implements "prefer software". Forcing FFmpeg here

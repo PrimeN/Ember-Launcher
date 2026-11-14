@@ -13,13 +13,15 @@ python3 - "$ndk_path/source.properties" "$ndk_version" <<'PY'
 import pathlib,sys
 assert ('Pkg.Revision = '+sys.argv[2]) in pathlib.Path(sys.argv[1]).read_text(), 'Use the pinned NDK version'
 PY
-command -v nasm >/dev/null # Required for the original x86_64 assembly path; x86 follows upstream's no-asm build.
+if [[ " ${NATIVE_FILTER_ABIS:-arm64-v8a armeabi-v7a} " == *" x86_64 "* ]]; then
+    command -v nasm >/dev/null # Needed only when explicitly rebuilding the unused x86_64 archive.
+fi
 export PATH="$ndk_path/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
 export SOURCE_DATE_EPOCH=1770000000
 mkdir -p "$build_path/source"
 curl --fail --location --retry 2 "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/$source_commit" -o "$build_path/source.tar.gz"
 tar -xzf "$build_path/source.tar.gz" --strip-components=1 -C "$build_path/source"
-for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+for abi in ${NATIVE_FILTER_ABIS:-arm64-v8a armeabi-v7a}; do
     extra=()
     case "$abi" in
         arm64-v8a) triple=aarch64-linux-android; cc=aarch64-linux-android26-clang; arch=aarch64; cpu=armv8-a ;;
@@ -34,8 +36,8 @@ for abi in arm64-v8a armeabi-v7a x86 x86_64; do
             --cc="$cc" --arch="$arch" --cpu="$cpu" "${extra[@]}" \
             --ar=llvm-ar --nm=llvm-nm --ranlib=llvm-ranlib --strip=llvm-strip --pkg-config=false \
             --disable-autodetect --disable-everything --disable-programs --disable-doc --disable-network \
-            --disable-avcodec --disable-avformat --disable-avdevice --disable-swresample \
-            --enable-avfilter --enable-swscale --enable-filter=bwdif,yadif,scale,format \
+            --disable-avcodec --disable-avformat --disable-avdevice --enable-swresample \
+            --enable-avfilter --enable-swscale --enable-filter=bwdif,yadif,scale,format,equalizer,pan,aformat,aresample,volume \
             --enable-gpl --enable-version3 --disable-static --enable-shared --disable-debug \
             --extra-ldflags=-Wl,-z,max-page-size=16384
         make -j"${NATIVE_FILTER_JOBS:-4}" libavfilter/libavfilter.so
@@ -59,11 +61,12 @@ if [[ "${NATIVE_FILTER_HOST_CHECK:-0}" == 1 ]]; then
     (
         cd "$build_path/host-check"
         "$build_path/source/configure" --cc=gcc --disable-autodetect --disable-everything --disable-doc --disable-network \
-            --disable-avdevice --disable-swresample --enable-avcodec --enable-avformat --enable-avfilter --enable-swscale \
-            --enable-filter=bwdif,yadif,scale,format,setfield --enable-decoder=rawvideo --enable-encoder=rawvideo \
-            --enable-demuxer=rawvideo --enable-muxer=rawvideo --enable-protocol=file --enable-ffmpeg --disable-ffprobe \
+            --disable-avdevice --enable-swresample --enable-avcodec --enable-avformat --enable-avfilter --enable-swscale \
+            --enable-filter=bwdif,yadif,scale,format,setfield,equalizer,pan,aformat,aresample,volume --enable-decoder=rawvideo,pcm_s16le --enable-encoder=rawvideo,pcm_s16le \
+            --enable-demuxer=rawvideo,pcm_s16le --enable-muxer=rawvideo,pcm_s16le --enable-protocol=file --enable-ffmpeg --disable-ffprobe \
             --enable-gpl --enable-version3 --disable-shared --enable-static --disable-debug
         make -j"${NATIVE_FILTER_JOBS:-4}" ffmpeg
     )
     python3 "$task_root/scripts/test-deinterlacing.py" "$build_path/host-check/ffmpeg"
+    python3 "$task_root/scripts/test-audio-filters.py" "$build_path/host-check/ffmpeg"
 fi
