@@ -41,7 +41,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 object Backup {
     const val FORMAT = "ember-backup"
-    const val VERSION = 1
+    const val VERSION = 2
 
     /** Files in the app's folder that are settings too: Collections and a custom badge pack. */
     private val DATA_FILES = BackupFormat.dataFiles

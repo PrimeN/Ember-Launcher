@@ -17,6 +17,7 @@ internal data class BackupPlan(
     val preferences:Map<String,Map<String,Any>>,
     val tokens:Map<String,String>,
     val files:Map<String,String>,
+    val assets:Map<String,ByteArray>? = null,
 )
 
 internal object BackupFormat {
@@ -123,7 +124,7 @@ internal object BackupFormat {
             } catch(_:Exception) {invalid("saved file $name")}
             text
         }
-        return BackupPlan(prefs,tokens,files)
+        return BackupPlan(prefs,tokens,files,BackupAssets.decode(payload["assets"]))
     }
 }
 
@@ -145,7 +146,10 @@ internal class BackupPersistence(
 
     fun snapshot():JsonObject=buildJsonObject {
         WatchedStore.drain()
-        currentPrefs().forEach {(name,values)->put("prefs.$name",BackupFormat.preferences(values))}
+        val preferences = currentPrefs()
+        preferences.forEach {(name,values)->put("prefs.$name",BackupFormat.preferences(values))}
+        @Suppress("UNCHECKED_CAST")
+        put("assets", BackupAssets.snapshot(context, preferences.getValue("ember") as Map<String, Any>))
         put("tokens",JsonObject(secrets.read().mapValues {JsonPrimitive(it.value)}))
         put("files",JsonObject(currentFiles().mapNotNull {(name,bytes)->bytes?.let {name to JsonPrimitive(it.toString(Charsets.UTF_8))}}.toMap()))
     }.also {BackupFormat.plan(it)}
@@ -168,12 +172,14 @@ internal class BackupPersistence(
     }
 
     fun restore(payload:JsonObject) {
-        val plan=BackupFormat.plan(payload)
+        val plan=BackupAssets.remap(context, BackupFormat.plan(payload))
         WatchedStore.drain()
         val oldTokens=secrets.read()
         if((plan.tokens.isNotEmpty() || oldTokens.isNotEmpty()) && !secrets.encrypted)throw Backup.BackupException("Encrypted storage is unavailable. Restore was not applied.")
         val oldPrefs=currentPrefs();val oldFiles=currentFiles()
+        val assets = BackupAssetTransaction(context, plan.assets, writeFile)
         try {
+            assets.apply()
             plan.preferences.forEach {(name,values)->writePreferences(name,values)}
             secrets.replace(plan.tokens)
             if(secrets.read()!=plan.tokens)throw Backup.BackupException("Restored credentials could not be verified.")
@@ -185,7 +191,7 @@ internal class BackupPersistence(
             }
             ConfigurationGeneration.advance(context.filesDir)
         } catch(error:Exception) {
-            var recovered=true
+            var recovered=assets.rollback()
             oldPrefs.forEach {(name,values)->if(runCatching {writePreferences(name,values)}.isFailure)recovered=false}
             if(runCatching {secrets.replace(oldTokens);check(secrets.read()==oldTokens)}.isFailure)recovered=false
             oldFiles.forEach {(name,bytes)->if(runCatching {
@@ -195,6 +201,7 @@ internal class BackupPersistence(
             }.isFailure)recovered=false}
             throw Backup.BackupException(if(recovered)"Restore failed. Previous settings and saved data were kept." else "Restore failed and some previous data could not be recovered. Keep your backup and retry.")
         }
+        assets.finish()
         CacheManagement.preferencesRestored(context)
         WatchedStore.restored()
         // Rebuildable caches are excluded from backups; generation checks also reject late old writes.
