@@ -143,6 +143,13 @@ jobs:
           SHOTS_TOKEN: ${{ secrets.SCREENSHOTS_TOKEN }}
         run: |
           if [ -z "$SHOTS_TOKEN" ]; then echo "No SCREENSHOTS_TOKEN secret; skipping."; exit 0; fi
+          # Never send pictures to a repository anyone can see.
+          visible=$(curl -fsS -H "Authorization: Bearer $SHOTS_TOKEN" https://api.github.com/repos/PrimeN/Ember-Screenshots \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('private'))") || visible=unknown
+          if [ "$visible" != "True" ]; then
+            echo "::warning title=Screenshots::Ember-Screenshots is not private (or cannot be checked); nothing was sent."
+            exit 0
+          fi
           python3 -m pip install --quiet pillow
           store="$RUNNER_TEMP/screenshots"
           git clone --quiet --depth 1 "https://x-access-token:${SHOTS_TOKEN}@github.com/PrimeN/Ember-Screenshots.git" "$store"
