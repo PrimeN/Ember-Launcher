@@ -40,6 +40,7 @@ class UpdatesState(
     var installProgress by mutableStateOf<Float?>(null); private set
     private var checkJob: Job? = null
     private var checkRevision = 0L
+    private var failedCheckAt: Long? = null
     internal var checkRelease: suspend (String) -> Result<Updater.Release?> = Updater::check
     internal var nowMillis: () -> Long = System::currentTimeMillis
     internal var installerAllowed: () -> Boolean = { Updater.canInstall(app) }
@@ -92,7 +93,9 @@ class UpdatesState(
     /** Looks for a newer Ember on GitHub. At start it runs once a day, quietly. */
     fun checkForUpdate(manual: Boolean) {
         val last = prefs.updateCheckedAt
-        if (!manual && (!updateAutoCheck || last != 0L && nowMillis() - last in 0L until 20 * 3600_000L)) return
+        val coolingDown = failedCheckAt?.let { nowMillis() - it in 0L until 15 * 60_000L }
+            ?: (last != 0L && nowMillis() - last in 0L until 20 * 3600_000L)
+        if (!manual && (!updateAutoCheck || coolingDown || checkJob?.isActive == true)) return
         checkJob?.cancel()
         val revision = ++checkRevision
         val channel = activeChannel
@@ -103,8 +106,9 @@ class UpdatesState(
                 catch (e: Exception) { Result.failure(e) }
             ensureActive()
             if (revision != checkRevision || channel != activeChannel) return@launch
-            prefs.updateCheckedAt = nowMillis()
             result.onSuccess { r ->
+                prefs.updateCheckedAt = nowMillis()
+                failedCheckAt = null
                 update = r?.takeIf { it.isNewer }
                 updateMessage = when {
                     update != null -> "${update!!.name} is available."
@@ -116,7 +120,10 @@ class UpdatesState(
                 if (!manual && update != null) {
                     android.widget.Toast.makeText(app, "An Ember update is ready: Settings > System > Updates.", android.widget.Toast.LENGTH_LONG).show()
                 }
-            }.onFailure { e -> if (manual) updateMessage = e.message ?: "Could not check for updates." }
+            }.onFailure { e ->
+                failedCheckAt = nowMillis()
+                if (manual) updateMessage = e.message ?: "Could not check for updates."
+            }
         }
     }
 
