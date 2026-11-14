@@ -34,12 +34,14 @@ internal class ImageCacheRetention : Interceptor {
             if(!ArtworkCaches.persistenceAllowed(realm,original.data.toString()))builder.memoryCachePolicy(coil.request.CachePolicy.DISABLED)
         }
         if (original.headers["Cache-Control"] == null) builder.addHeader("Cache-Control", "max-age=${ttl / 1000}")
+        val accessVersion=ArtworkCaches.revision.value
         var result: coil.request.ImageResult? = null
         var scopeValid=true
         try {
             val loaded=chain.proceed(builder.build()).also {result=it}
             scopeValid=privateRef==null || ArtworkCaches.realm(original.context,privateRef)==realm
             if(!scopeValid)throw kotlinx.coroutines.CancellationException("Artwork account changed")
+            if(realm!=null)ArtworkCaches.rememberMemory(realm,(loaded as? SuccessResult)?.memoryCacheKey,accessVersion)
             return loaded
         }
         finally {

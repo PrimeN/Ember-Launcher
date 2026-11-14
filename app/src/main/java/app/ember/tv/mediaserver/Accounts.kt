@@ -47,7 +47,7 @@ class Accounts(private val secrets: ServerSecrets) {
         set(v) = synchronized(sessionLock) {
             if (v == null) secrets.remove("plex.token") else check(secrets.write("plex.token",v)) { "Encrypted sign-in storage is unavailable. Existing sign-in was kept." }
             secrets.remove("plex.home")
-            app.ember.tv.data.ArtworkCaches.accessChanged()
+            app.ember.tv.data.ArtworkCaches.accountsChanged("plex")
         }
 
     internal var plexHome: PlexHomeSession?
@@ -56,7 +56,7 @@ class Accounts(private val secrets: ServerSecrets) {
             if (v == null) secrets.remove("plex.home") else check(secrets.write("plex.home", json.encodeToString(v))) {
                 "Encrypted sign-in storage is unavailable. Existing Plex user was kept."
             }
-            app.ember.tv.data.ArtworkCaches.accessChanged()
+            app.ember.tv.data.ArtworkCaches.accountsChanged("plex")
         }
     val plexAccessToken: String? get() {
         val selected = secrets.read("plex.home") ?: return plexToken
@@ -70,8 +70,14 @@ class Accounts(private val secrets: ServerSecrets) {
         runCatching { json.decodeFromString<List<ServerAccount>>(secrets.read("ms.servers") ?: "[]") }.getOrDefault(emptyList())
 
     fun saveServers(list: List<ServerAccount>) = synchronized(sessionLock) {
+        val previous = servers()
         check(secrets.write("ms.servers",json.encodeToString(list))) { "Encrypted server storage is unavailable. Existing accounts were kept." }
-        app.ember.tv.data.ArtworkCaches.accessChanged()
+        for (kind in setOf("jellyfin", "emby")) {
+            val changed = previous.filter {old -> old.kind==kind && list.none {it==old}}.mapTo(hashSetOf()) {it.key}
+            changed.addAll(list.filter {fresh -> fresh.kind==kind && previous.none {it==fresh}}.map {it.key})
+            changed.addAll(app.ember.tv.data.ArtworkCaches.refusedAccounts(kind).intersect(list.filter {it.kind==kind}.map {it.key}.toSet()))
+            if(changed.isNotEmpty())app.ember.tv.data.ArtworkCaches.accountsChanged(kind,changed)
+        }
     }
 
     /** Local authorization identity: cache hits must never require a Plex resource/network lookup. */

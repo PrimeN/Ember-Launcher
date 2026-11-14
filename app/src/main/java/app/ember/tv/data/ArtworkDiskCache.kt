@@ -23,19 +23,34 @@ internal class ArtworkDiskCache(
     private val clock:()->Long=System::currentTimeMillis,
     private val capacity:()->Long={budget},
     private val maxEntries:Int=1024,
+    private val partition:(String)->String?={null},
 ) {
-    data class Stamp(val epoch:String,val generation:Long,val access:Long)
+    data class Stamp(val epoch:String,val generation:Long,val access:Long,val partition:String?=null,val partitionVersion:Long=0)
     private val generation=AtomicLong()
     private val gate=Mutex()
-    fun stamp()=Stamp(epoch(),generation.get(),access())
-    fun current(ticket:Stamp)=ticket==stamp()
-    private fun name(identity:String,stamp:Stamp)=CachePolicy.digest("artwork-v1:${stamp.epoch}:$identity")
+    private val partitions=java.util.concurrent.ConcurrentHashMap<String,Long>()
+    private val blocked=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    fun stamp(partition:String?=null)=Stamp(epoch(),generation.get(),access(),partition,partition?.let {partitions[it]} ?: 0)
+    fun stampFor(identity:String)=stamp(partition(identity))
+    fun current(ticket:Stamp)=ticket==stamp(ticket.partition)
+    private fun prefix(value:String)=CachePolicy.digest(value)+"-"
+    private fun name(identity:String,stamp:Stamp)=partition(identity)?.let(::prefix).orEmpty()+CachePolicy.digest("artwork-v1:${stamp.epoch}:$identity")
+    suspend fun clearPartition(value:String) {
+        blocked.add(value)
+        partitions.compute(value) {_,old->(old ?: 0)+1}
+        withContext(Dispatchers.IO) {gate.withLock {
+            if(safe())root.listFiles().orEmpty().filter {it.name.startsWith(prefix(value)) || it.name.matches(Regex("[a-f0-9]{64}\\.cache"))}
+                .forEach {check(it.delete() || !it.exists())}
+            check(safe())
+            blocked.remove(value)
+        }}
+    }
     private fun file(name:String)=File(root,"$name.cache")
     private fun safe()=!Files.isSymbolicLink(root.toPath())
 
-    suspend fun read(identity:String,stamp:Stamp=stamp()):ByteArray?=withContext(Dispatchers.IO) {
+    suspend fun read(identity:String,stamp:Stamp=stampFor(identity)):ByteArray?=withContext(Dispatchers.IO) {
         gate.withLock {
-            if(!current(stamp) || !safe())return@withLock null
+            if(stamp.partition?.let {it in blocked}==true || !current(stamp) || !safe())return@withLock null
             val name=name(identity,stamp);val file=file(name)
             try {
                 if(!file.isFile || Files.isSymbolicLink(file.toPath()))return@withLock null
@@ -69,10 +84,10 @@ internal class ArtworkDiskCache(
         }
     }
 
-    suspend fun write(identity:String,value:ByteArray,stamp:Stamp=stamp()):Boolean=withContext(Dispatchers.IO) {
+    suspend fun write(identity:String,value:ByteArray,stamp:Stamp=stampFor(identity)):Boolean=withContext(Dispatchers.IO) {
         if(value.size>entryLimit)return@withContext false
         gate.withLock {
-            if(!current(stamp) || !safe())return@withLock false
+            if(stamp.partition?.let {it in blocked}==true || !current(stamp) || !safe())return@withLock false
             val name=name(identity,stamp);val file=file(name)
             try {
                 val plain=ByteArrayOutputStream(value.size+16).also {out->DataOutputStream(out).use {
@@ -101,7 +116,7 @@ internal class ArtworkDiskCache(
             catch(_:OutOfMemoryError) {false}
         }
     }
-    suspend fun remove(identity:String,stamp:Stamp=stamp())=withContext(Dispatchers.IO) {
+    suspend fun remove(identity:String,stamp:Stamp=stampFor(identity))=withContext(Dispatchers.IO) {
         gate.withLock {if(safe())file(name(identity,stamp)).delete()}
     }
     suspend fun clear() {

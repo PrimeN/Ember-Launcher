@@ -12,7 +12,7 @@ internal class PrivateArtworkCache(private val store:ArtworkDiskCache) {
     private val flights=hashMapOf<String,Flight>()
     suspend fun get(identity:String,valid:suspend ()->Boolean,validate:(ServerImageBytes)->Unit={},load:suspend ()->ServerImageBytes):Pair<ServerImageBytes,Boolean> {
         val flight=synchronized(flights) {flights.getOrPut(identity){Flight()}.also {it.users++}}
-        val stamp=store.stamp()
+        val stamp=store.stampFor(identity)
         try {return flight.gate.withLock {
             suspend fun authorize() {if(!valid())throw CancellationException("Artwork account changed")}
             authorize()

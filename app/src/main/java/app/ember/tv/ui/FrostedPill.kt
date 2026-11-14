@@ -44,6 +44,9 @@ internal object FrostCache {
     private val preparation = Mutex()
     @Volatile private var generation = 0
     fun clear() = synchronized(entries) { generation++; entries.evictAll() }
+    fun clearRealm(realm: String) = synchronized(entries) {
+        entries.snapshot().keys.filter {it.contains(":$realm:")}.forEach {entries.remove(it)}
+    }
     fun get(key: String) = entries.get(key)
     fun put(key: String, value: Bitmap) { entries.put(key, value) }
     suspend fun prepare(source: Bitmap, mode: GlassMode, disk:ArtworkDiskCache?=null,realm:String="public",
@@ -52,7 +55,7 @@ internal object FrostCache {
             if (source.isRecycled || source.config == Bitmap.Config.HARDWARE || mode == GlassMode.TINT) return@withLock null
             val size = GlassPolicy.sampleSize(source.width, source.height) ?: return@withLock null
             val radius = GlassPolicy.radius(mode)
-            val ticket=disk?.stamp()
+            val ticket=disk?.stamp(realm)
             val epoch=CachePolicy.epoch(CacheKind.IMAGES)
             val bucket=System.currentTimeMillis()/CachePolicy.config.millis(CacheKind.IMAGES)
             val key = "glass:" + source.generationId + ":" + size + ":" + radius+":"+realm+":"+epoch+":"+bucket+":"+ticket

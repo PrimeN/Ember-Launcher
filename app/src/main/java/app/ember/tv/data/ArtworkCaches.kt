@@ -54,8 +54,8 @@ internal object ArtworkCaches {
         // account; Android's sandbox and storage encryption protect the files themselves.
         val cipher:app.ember.tv.tracker.SecretCipher?=null
         publicBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[0]),null,8L shl 20,1 shl 20,capacity={budgets().blur})
-        privateBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[1]),cipher,8L shl 20,1 shl 20,access=access::get,capacity={budgets().blur})
-        originals=ArtworkDiskCache(File(ctx.cacheDir,directories[2]),cipher,64L shl 20,(8 shl 20)+1024,access=access::get,capacity={budgets().originals},maxEntries=4096)
+        privateBlur=ArtworkDiskCache(File(ctx.cacheDir,directories[1]),cipher,8L shl 20,1 shl 20,capacity={budgets().blur},partition={it.removePrefix("frost-v1:").substringBefore(':')})
+        originals=ArtworkDiskCache(File(ctx.cacheDir,directories[2]),cipher,64L shl 20,(8 shl 20)+1024,capacity={budgets().originals},maxEntries=4096,partition={it.substringBefore(':')})
     }
     fun blur(private:Boolean)=if(private)privateBlur else publicBlur
     fun originals()=originals
@@ -64,13 +64,21 @@ internal object ArtworkCaches {
      * for it several times, and each answer read the sign-ins and built a Prefs (#31).
      */
     private val realms=java.util.concurrent.ConcurrentHashMap<String,Pair<Long,String?>>()
+    private val retiring=java.util.concurrent.ConcurrentHashMap<String,Deferred<Unit>>()
     suspend fun realm(context:Context,ref:ServerRef):String?=withContext(Dispatchers.IO) {
+        while(true) {
         val profile=context.getSharedPreferences("ember",Context.MODE_PRIVATE).read(PreferenceKeys.CURRENT_PROFILE) ?: Profile.MAIN
         val key="${ref.provider}\u0000${ref.account}\u0000$profile"
         val generation=access.get()
-        realms[key]?.takeIf {it.first==generation}?.let {return@withContext it.second}
-        Accounts(context.applicationContext).artworkRealm(ref,profile).also {realms[key]=generation to it}
+        val value=realms[key]?.takeIf {it.first==generation}?.second
+            ?: Accounts(context.applicationContext).artworkRealm(ref,profile).also {realms[key]=generation to it}
+        value?.let {retiring[it]?.await()}
+        currentCoroutineContext().ensureActive()
+        if(generation==access.get())return@withContext value
+        }
+        @Suppress("UNREACHABLE_CODE") null
     }
+
     fun ref(meta:Meta?,source:String?):ServerRef?=meta?.let(ServerRef::of) ?:
         source?.let(ServerMetadata::artworkParts)?.first
     private fun deniedKey(realm:String,source:String)=CachePolicy.digest("$realm:$source")
@@ -80,27 +88,66 @@ internal object ArtworkCaches {
     private val refusedRealms=java.util.Collections.synchronizedSet(HashSet<String>())
     /**
      * A server answered 401/403 for one image (#26). Reset private artwork once for this sign-in,
-     * not for every refused image: the reset clears every image in memory, the reload asks for the
-     * same refused image again, and the launcher kept clearing and redecoding all artwork. A new
+     * not for every refused image. Other public/account images stay cached, and fresh requests
+     * remain allowed because a single forbidden image need not invalidate the account. A new
      * sign-in or token is a new realm, so it still gets its own reset.
      */
-    fun refused(realm:String):Boolean = refusedRealms.add(realm).also { first -> if(first)accessChanged() }
-
-    /** Called after account/profile mutations. The generation changes synchronously; disk work does not. */
-    fun accessChanged() {
-        revision.value=access.incrementAndGet()
-        val ctx=application ?: return
-        app.ember.tv.ui.FrostCache.clear()
-        io.launch {
-            runCatching {privateBlur?.clear()}
-            runCatching {originals?.clear()}
-            ctx.imageLoader.memoryCache?.clear()
-            revision.value=access.incrementAndGet()
+    private val scopeLock=Any()
+    private val memoryKeys=mutableMapOf<String,MutableSet<coil.memory.MemoryCache.Key>>()
+    fun rememberMemory(realm:String,key:coil.memory.MemoryCache.Key?,version:Long) = synchronized(scopeLock) {
+        if(key==null)return@synchronized
+        if(version!=access.get()) {application?.imageLoader?.memoryCache?.remove(key);return@synchronized}
+        synchronized(memoryKeys) {
+            memoryKeys.getOrPut(realm) {hashSetOf()}.add(key)
+            if(memoryKeys.values.sumOf {it.size}>1024) {
+                val live=application?.imageLoader?.memoryCache?.keys.orEmpty()
+                memoryKeys.values.forEach {it.retainAll(live)}
+                memoryKeys.entries.removeAll {it.value.isEmpty()}
+            }
+        }
+    }
+    private fun evictRealm(realm:String) {
+        if(application==null)return
+        app.ember.tv.ui.FrostCache.clearRealm(realm)
+        val keys=synchronized(memoryKeys) {memoryKeys.remove(realm).orEmpty()}
+        keys.forEach {application?.imageLoader?.memoryCache?.remove(it)}
+        val previous=retiring[realm]
+        val task=io.async(start=CoroutineStart.LAZY) {
+            previous?.join()
+            runCatching {privateBlur?.clearPartition(realm)}
+            runCatching {originals?.clearPartition(realm)}
+            Unit
+        }
+        retiring[realm]=task
+        task.invokeOnCompletion {retiring.remove(realm,task)}
+        task.start()
+    }
+    fun refused(realm:String):Boolean = synchronized(scopeLock) {
+        val first=refusedRealms.add(realm)
+        if(first) {accessChanged();evictRealm(realm)}
+        first
+    }
+    /** Profile changes select another cache realm; unrelated bytes and decoded public images stay. */
+    fun accessChanged() = synchronized(scopeLock) { revision.value=access.incrementAndGet() }
+    fun refusedAccounts(provider:String):Set<String> = realms.entries.filter {entry->
+        entry.key.substringBefore('\u0000')==provider && entry.value.second in refusedRealms
+    }.mapTo(hashSetOf()) {it.key.split('\u0000')[1]}
+    /** Account mutations retire only the previously observed realms of affected accounts. */
+    fun accountsChanged(provider:String,accounts:Set<String>?=null) = synchronized(scopeLock) {
+        accessChanged()
+        val affected=realms.entries.filter { entry ->
+            val parts=entry.key.split('\u0000')
+            parts[0]==provider && (accounts==null || parts[1] in accounts)
+        }
+        affected.forEach {entry->
+            realms.remove(entry.key)
+            entry.value.second?.let {refusedRealms.remove(it);evictRealm(it)}
         }
     }
     suspend fun clear() {
         access.incrementAndGet()
         synchronized(denied){denied.clear()}
+        synchronized(memoryKeys){memoryKeys.clear()}
         var failure:Exception?=null
         listOf(publicBlur,privateBlur,originals).forEach {store->
             try {store?.clear()} catch(cancelled:CancellationException){throw cancelled}
