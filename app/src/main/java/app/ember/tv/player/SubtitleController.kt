@@ -199,9 +199,16 @@ class SubtitleController(
                 // #256: a file the player or the drawing engine cannot take moves on to the next one instead of
                 // ending playback (and the app) with it.
                 val native = try {
-                    val text=if(got.second=="microdvd") app.ember.tv.data.SubtitleFiles.microDvd(got.first,player()?.videoFormat?.frameRate?.takeIf {it>0}) else got.first
-                    if (text?.let {nativeSubtitle(it,if(got.second=="microdvd")"srt" else got.second,false)}==true) true
-                    else if (engine.load(got.first, got.second, player()?.videoFormat?.frameRate?.takeIf { it > 0 })) false
+                    val fps=player()?.videoFormat?.frameRate?.takeIf {it>0}
+                    val text=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {when(got.second) {
+                        "microdvd"->app.ember.tv.data.SubtitleFiles.microDvd(got.first,fps)
+                        "sami"->app.ember.tv.data.SamiSubtitles.toSrt(got.first,Subtitles.wanted(config))
+                        else->got.first
+                    }}
+                    val format=if(got.second in setOf("microdvd","sami"))"srt" else got.second
+                    if(text==null)null
+                    else if (nativeSubtitle(text,format,false)) true
+                    else if (engine.load(text,format,fps)) false
                     else null
                 } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Throwable) { null }
                 if (native != null) {
@@ -222,9 +229,9 @@ class SubtitleController(
         if(!restoring)loadJob?.cancel()
         autoSelection.manual();chosenOff=false
         val fps=player()?.videoFormat?.frameRate?.takeIf {it>0}
-        val converted=if(format=="microdvd")app.ember.tv.data.SubtitleFiles.microDvd(text,fps)?:return false else text
-        if(nativeSubtitle(converted,if(format=="microdvd")"srt" else format,true)){engine.clear();manualBitmap=false;manualFile=text to format;selection=Selection.Manual("Manual subtitle file");status="Manual subtitle file";onChange();return true}
-        if(!engine.load(text,format,fps))return false
+        val converted=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {when(format) {"microdvd"->app.ember.tv.data.SubtitleFiles.microDvd(text,fps)?:return@withContext null;"sami"->app.ember.tv.data.SamiSubtitles.toSrt(text,Subtitles.wanted(config));else->text}} ?: return false
+        if(nativeSubtitle(converted,if(format in setOf("microdvd","sami"))"srt" else format,true)){engine.clear();manualBitmap=false;manualFile=text to format;selection=Selection.Manual("Manual subtitle file");status="Manual subtitle file";onChange();return true}
+        if(!engine.load(converted,if(format in setOf("microdvd","sami"))"srt" else format,fps))return false
         setMedia3Text(false);manualBitmap=false;manualFile=text to format;selection=Selection.Manual("Manual subtitle file");status="Manual subtitle file";onChange();return true
     }
     fun selectManualNative(){autoSelection.manual();loadJob?.cancel();chosenOff=false;manualFile=null;manualBitmap=true;engine.clear();selection=Selection.Manual("Manual bitmap subtitles");status="Manual bitmap subtitles";onChange()}

@@ -169,10 +169,10 @@ internal object PreferenceKeys {
         UPDATE_AUTO_CHECK, UPDATE_BETA, UPDATE_BETA_SOURCE, UPDATE_CHANNEL, UPDATE_CHECKED_AT, WATCH_PROVIDER, WATCH_REGION,
         WEATHER_PLACE, WEATHER_PROVIDER, WEATHER_FALLBACK, WEATHER_CACHE, WL,
     )
-    val stores=listOf("ember","screensaver","positions","trackMemory","server_browser","ember_watched")
+    val stores=listOf("ember","screensaver","positions","trackMemory","server_browser","ember_watched","bookmarks")
     fun expectedType(store:String,name:String):String?=when(store) {
         "ember_watched"->"set"
-        "positions","trackMemory","server_browser"->"s"
+        "positions","trackMemory","server_browser","bookmarks"->"s"
         "screensaver"->when(name) {"sources"->"set";"collectionsAt"->"l";"slides","art","space","photoFolder","weather"->"s";else->null}
         "ember"->expectedType(name) ?: when {
             name.startsWith("explore:") || name.startsWith("folderSource:") || name.startsWith("widgets:")->"s"

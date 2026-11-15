@@ -138,6 +138,10 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         controllerShowTimeoutMs = 4000
     }
     config = prefs.playbackConfig
+    if(config.rememberDecoderChoices)lifecycleScope.launch {
+        val health=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){DecoderHealth.load(this@createPlayer)}
+        if(!isFinishing)codecs.decoderHealth=health
+    }
     audioEffectState.value = config.audioEffects
     playerInterface = PlayerInterfaces.resolve(config, prefs.uiStyle)
     controls.design = playerInterface
@@ -224,6 +228,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     p.addAnalyticsListener(object : AnalyticsListener {
         override fun onVideoInputFormatChanged(eventTime: AnalyticsListener.EventTime, format: Format, decoderReuseEvaluation: DecoderReuseEvaluation?) {
             hdr10PlusMetadata = false
+            decoderStableSince=android.os.SystemClock.elapsedRealtime();decoderLearned=false
         }
         override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
             videoDecoder = decoderName
@@ -323,6 +328,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            decoderStableSince=if(isPlaying)android.os.SystemClock.elapsedRealtime() else 0L
             controls.playing = isPlaying
             // Paused by the user: show the controls (with the synopsis and cast).
             if (advanced && !isPlaying && !p.playWhenReady && p.playbackState == Player.STATE_READY) showControls()
@@ -391,6 +397,11 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
                     " · FFmpeg video ${codecs.ffmpegVideo} · retries $recoveries/$ioRetries · at ${player?.currentPosition ?: 0} ms",
                 error,
             )
+            if(PlaybackErrors.decoding(error.errorCode)) {
+                val failed=(error as? androidx.media3.exoplayer.ExoPlaybackException)?.rendererFormat ?: p.videoFormat
+                if(failed!=null)codecs.decoderHealth?.forget(failed)
+                decoderLearned=false;decoderStableSince=0
+            }
             if (recover(error)) return
             if(playbackEngine?.recover(error.errorCode)==true)return
             if (serverPlayback != null) { showServerRecovery(); return }

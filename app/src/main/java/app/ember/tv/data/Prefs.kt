@@ -102,7 +102,7 @@ class Prefs(context: Context) {
         val prefixes = listOf("search:$hash", "explore:$hash", "widgets:$hash")
         sp.edit { sp.all.keys.filter { key -> prefixes.any(key::startsWith) }.forEach(::remove) }
         val scope = LocalActivity.prefix("local:$id")
-        for (store in listOf("positions", "trackMemory")) {
+        for (store in listOf("positions", "trackMemory", "bookmarks")) {
             val saved = application.getSharedPreferences(store, Context.MODE_PRIVATE)
             saved.edit { saved.all.keys.filter { it.startsWith(scope) }.forEach(::remove) }
         }

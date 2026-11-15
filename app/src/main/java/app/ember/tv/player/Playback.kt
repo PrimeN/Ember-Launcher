@@ -100,6 +100,7 @@ data class PlaybackConfig(
     val deinterlacing: String = "off",
     val scaler: String = "bilinear",
     val decoderRules: DecoderRules = DecoderRules(),
+    val rememberDecoderChoices: Boolean = true,
     val bluetoothDelayMs: Int? = null,
     val seekMode: String = "precise",
     val audioEffects: AudioEffects = AudioEffects(),
@@ -132,6 +133,7 @@ object Playback {
         @Volatile var sourceUrl: String = ""
         @Volatile var sourceFilename: String? = null
         @Volatile var manualVideo = false
+        @Volatile internal var decoderHealth: DecoderHealth? = null
         /** Decode Dolby Vision as its HDR10 (HEVC) base layer. */
         @Volatile var dvAsHevc: Boolean = false
         /** Try software video decoders first (only sensible up to 1080p). */
@@ -216,10 +218,13 @@ object Playback {
                             else selector.getDecoderInfos(MimeTypes.VIDEO_H265,secure,false)
                         } else super.getDecoderInfos(selector,format,secure)
                         val preference = if (codecs.manualVideo) "inherit" else c.decoderRules.preference(codecs.sourceUrl, format.sampleMimeType, codecs.sourceFilename)
+                        val hint=if(c.rememberDecoderChoices && !codecs.manualVideo && manager.videoMode==DecoderMode.AUTO && preference in setOf("inherit","auto"))codecs.decoderHealth?.hint(format) else null
+                        if(hint?.software==true && c.ffmpegVideo!="off" && DecoderHealth.softwareSafe(format))return emptyList()
+                        val preferred=hint?.takeUnless {it.software}?.name
                         val ordered = when (preference) {
                             "hardware" -> list.sortedBy { !it.hardwareAccelerated }
                             "software" -> list.sortedBy { !it.softwareOnly }
-                            else -> list
+                            else -> if(preferred==null)list else list.sortedBy {it.name!=preferred}
                         }
                         return when(manager.videoMode) {
                             DecoderMode.HARDWARE -> list.filter { it.hardwareAccelerated }

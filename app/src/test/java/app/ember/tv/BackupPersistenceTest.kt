@@ -36,7 +36,7 @@ class BackupPersistenceTest {
         val to=context();val target=BackupPersistence(to,FixtureSecrets())
         target.restore(payload)
         assertEquals(payload,target.snapshot())
-        assertEquals(setOf("ember","screensaver","positions","trackMemory","server_browser","ember_watched"),BackupFormat.preferenceFiles.toSet())
+        assertEquals(setOf("ember","screensaver","positions","trackMemory","server_browser","ember_watched","bookmarks"),BackupFormat.preferenceFiles.toSet())
         val loaded=Prefs(to)
         assertEquals("day",loaded.theme);assertEquals("low",loaded.devicePerformance);assertTrue(loaded.navigationGlass)
         assertEquals("large",loaded.textSize);assertEquals("side",loaded.menuPosition)

@@ -48,13 +48,13 @@ class SubtitleEngine(private val view: SubtitleView) {
     }
 
     private fun parse(text:String,format:String,fps:Float?):Pair<List<CuesWithTiming>,CueIndex<CuesWithTiming>>? {
-        val source = if (format == "microdvd") SubtitleFiles.microDvd(text,fps) ?: return null else text
+        val source = when(format) {"microdvd"->SubtitleFiles.microDvd(text,fps) ?: return null;"sami"->app.ember.tv.data.SamiSubtitles.toSrt(text) ?: return null;else->text}
         val bytes = source.toByteArray(Charsets.UTF_8)
         val parser: SubtitleParser = when (format) {
             "vtt" -> WebvttParser()
             "ass" -> SsaParser()
             "ttml" -> TtmlParser()
-            "srt", "microdvd" -> SubripParser()
+            "srt", "microdvd", "sami" -> SubripParser()
             else -> return null
         }
         val out = ArrayList<CuesWithTiming>()

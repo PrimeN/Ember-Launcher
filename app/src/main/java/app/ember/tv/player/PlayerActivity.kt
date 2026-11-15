@@ -156,7 +156,7 @@ class PlayerActivity : ComponentActivity() {
                     if(!subs.loadManual(text,format))error("Unreadable subtitle")
                 }
             } catch(e:kotlinx.coroutines.CancellationException){throw e}
-            catch(_:Exception){Toast.makeText(this@PlayerActivity,"Could not read subtitles. For VobSub, select both IDX and SUB files.",Toast.LENGTH_LONG).show()}
+            catch(_:Exception){Toast.makeText(this@PlayerActivity,"Could not read this subtitle file. Check its format and encoding. For VobSub, select both IDX and SUB files.",Toast.LENGTH_LONG).show()}
             finally {player?.playWhenReady=pickerWasPlaying;changed()}
         } else player?.playWhenReady=pickerWasPlaying
     }
@@ -254,6 +254,8 @@ class PlayerActivity : ComponentActivity() {
     internal var audioPicked = false
     internal var modeApplied = false
     internal var videoDecoder: String? = null
+    internal var decoderStableSince=0L
+    internal var decoderLearned=false
     internal var audioDecoder: String? = null
     internal lateinit var info: TextView
     /** Info and subtitle panel (Info, Menu or Guide). */
@@ -585,6 +587,7 @@ class PlayerActivity : ComponentActivity() {
                 return
             }
             savePosition()
+            rememberWorkingDecoder()
             if (player?.isPlaying == true) serverReport(ReportState.PROGRESS)
             handler.postDelayed(this, 10_000)
         }

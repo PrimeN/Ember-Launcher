@@ -21,7 +21,7 @@ JVM tests and native-file inspection do not establish hardware playback results.
   selections/Off survive part changes. Embedded and external timing/speed controls
   use the same meaning across engines. TTML and frame-rate-aware MicroDVD, bounded
   ZIP matching, UTF-16 text, authored styles, system caption style, native libass,
-  manual SRT/VTT/ASS/TTML and paired IDX+SUB or SUP files are included. Compatibility
+  manual SRT/VTT/ASS/TTML/SAMI and paired IDX+SUB or SUP files are included. Compatibility
   has a secondary subtitle track and its own delay, with an explicit private
   fontconfig file pointing to Android system fonts. No font files are copied or
   redistributed. Normal text files retain the
@@ -31,6 +31,21 @@ JVM tests and native-file inspection do not establish hardware playback results.
   editing, previous/next, repeat item/queue and a repeat range. Local files retain
   positions and track preferences under hashed identities. Local seek thumbnails
   use small, on-demand frames on Android 8.1+; Android 8.0 skips that preview.
+- **Finding a NAS:** Open media → Network folders → Add network folder can find
+  SMB servers advertised on the local network and browse authenticated disk shares.
+  Discovery lasts at most 15 seconds, stops when the dialog closes, and never runs
+  during launcher startup. Manual addresses remain available for servers without
+  discovery or share-enumeration support. Credentials stay encrypted; enumeration
+  uses the same signing/encryption policy as playback.
+- **Scene bookmarks:** Playback options → Bookmarks saves named timestamps, with
+  rename, remove and precise seek. Bookmarks follow the current activity/profile
+  scope and are included in backups. Limits are 50 per title and 512 titles; reaching
+  a limit does not delete saved bookmarks. Live channels and trailers omit this menu.
+- **Decoder memory:** After stable Standard video playback, optional device-local
+  hints remember a working decoder for that codec/resolution/HDR profile. Manual
+  rules take priority. Hints expire after seven days and are invalidated by app,
+  firmware or codec-module changes. Remembered software video shortcuts are limited
+  to SDR up to 1080p. Settings → Player provides a reset; hints are not backed up.
 - **Efficiency:** Normal playback keeps the hardware-first route. Indexed cue lookup
   avoids scanning every earlier subtitle every tick; parsing runs off the UI thread.
   Picture debanding, smoothing and higher-quality scalers are optional and off or
@@ -59,17 +74,40 @@ native binary is required for an ordinary Gradle build.
 | AndroidX Media3 RTSP | 1.11.1 | RTSP source handling |
 | AndroidX Media3 SmoothStreaming | 1.11.1 | SmoothStreaming manifests/segments |
 | `dev.jdtech.mpv:libmpv` | 1.0.0 | Internal compatibility engine and native libass captions |
-| `com.hierynomus:smbj` | 0.14.0 | Encrypted/signed SMB3 file access |
-| `com.github.mwiede:jsch` | 0.2.26 | SFTP with a pinned host key |
-| `commons-net:commons-net` | 3.12.0 | FTP and certificate-verified FTPS |
+| `com.hierynomus:smbj` | 0.15.0 | Encrypted/signed SMB3 file access |
+| `com.rapid7.client:dcerpc` | 0.12.13 | Authenticated SMB share enumeration |
+| `commons-io:commons-io` / `org.apache.commons:commons-lang3` | 2.21.0 / 3.22.0 | RPC I/O and value helpers |
+| `com.github.mwiede:jsch` | 2.28.8 | SFTP with a pinned host key |
+| `commons-net:commons-net` | 3.13.0 | FTP and certificate-verified FTPS |
 
 Existing Media3 core/UI/HLS/DASH stay at **1.11.1** and existing Nextlib stays at
 **1.11.1-0.16.0**. Nextlib bundles AV1/dav1d. Media3 includes an AVI extractor; the compatibility
 engine provides another route for variants the normal pipeline cannot handle.
 
 SMBJ's runtime dependencies include SLF4J API 2.0.9, Bouncy Castle 1.79, mbassador
-1.3.0 and asn-one 0.6.0. Commons Net brings Commons IO 2.20.0. Gradle resolves these;
+1.3.0 and asn-one 0.6.0. Commons IO is pinned to 2.21.0. SMBJ-RPC uses the existing SMBJ 0.15.0 transport; its older transitive dependencies are not imported. Gradle resolves these;
 no logging backend that records private requests was added.
+
+### Android SMB RPC adaptation and rebuild
+
+`PrepareSmbRpc` in `app/build.gradle.kts` downloads the unmodified Maven Central
+`com.rapid7.client:dcerpc:0.12.13` JAR, verifies SHA256
+`ea3f970d4b6f5bedbca843551b9c4fe250de34942aa02e02a7f957a402f5cbb8`,
+then rewrites constant-pool references from desktop-only
+`java.rmi.UnmarshalException` and `java.rmi.MarshalException` to Ember's
+`RpcParseException` (`IOException`).
+Both constructor signatures, protocol instructions and upstream resource files
+remain intact. This is an Ember modification, not an upstream Android release.
+It does not suppress missing-class warnings or bundle a desktop RMI runtime.
+The source for the exact dependency is available from
+[SMBJ-RPC tag dcerpc-0.12.13](https://github.com/rapid7/smbj-rpc/tree/dcerpc-0.12.13)
+and the matching Maven `-sources.jar`; its complete license is bundled in
+`app/src/main/assets/licenses/SMBJ-RPC-BSD.txt` and shown in Legal.
+
+An ordinary `gradle :app:assembleRelease` rebuilds the adapted JAR automatically
+under `app/build/android-smb-rpc/`. No generated JAR is committed. Removing that
+directory and rebuilding reproduces it from the pinned artifact. A unit test
+exercises a malformed RPC response through the adapted exception path.
 
 ## Two FFmpeg ABIs must remain separate
 

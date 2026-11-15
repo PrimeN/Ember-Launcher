@@ -110,6 +110,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.playerPage(vm: HomeV
 @Composable
 private fun PlayerPart(vm: HomeViewModel, key: String) {
     val c = vm.playerSettings.playbackConfig
+    val context=LocalContext.current
     when (key) {
         "player-choice" -> Section(stringResource(R.string.ui_player), stringResource(R.string.ui_used_when_you_pick_a_source)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
@@ -249,6 +250,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
         "decoding" -> Section(stringResource(R.string.ui_decoding), stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot)) {
             Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine, stringResource(R.string.tx_playback_engine)) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
             Note(stringResource(R.string.st_automatic_keeps_ember_s_controls_and))
+            ToggleRow("Remember working video decoders","Learns after stable playback; resets after device or app updates.",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}
+            Chip("Reset learned decoder choices") {app.ember.tv.player.DecoderHealth.clear(context)}
             Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing)) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
             }

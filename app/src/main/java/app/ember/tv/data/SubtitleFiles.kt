@@ -46,7 +46,7 @@ object SubtitleFiles {
                 check(++count <= MAX_ENTRIES) { "Too many subtitle archive entries." }
                 if (!entry.isDirectory) {
                     val data = read(zip, minOf(MAX_DOWNLOAD, MAX_EXPANDED - total)); total += data.size
-                    if (entry.name.substringAfterLast('.').lowercase() in setOf("srt","vtt","ass","ssa","ttml","xml","sub","smi")) files += entry.name to data
+                    if (entry.name.substringAfterLast('.').lowercase() in setOf("srt","vtt","ass","ssa","ttml","xml","sub","smi","sami")) files += entry.name to data
                 }
                 zip.closeEntry()
             }
@@ -67,6 +67,7 @@ object SubtitleFiles {
             head.startsWith("WEBVTT") || ext == "vtt" -> "vtt"
             head.contains("[Script Info]", true) || ext in setOf("ass","ssa") -> "ass"
             ext in setOf("ttml","dfxp") || ttmlRoot.containsMatchIn(head) -> "ttml"
+            ext in setOf("smi","sami") || head.contains("<sami",true) -> "sami"
             microDvdHead.containsMatchIn(head) -> "microdvd"
             bytes.size >= 4 && bytes[0] == 0.toByte() && bytes[1] == 0.toByte() && bytes[2] == 1.toByte() -> "bitmap"
             ext == "srt" || head.contains("-->") -> "srt"

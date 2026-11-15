@@ -147,6 +147,9 @@ object Legal {
                     "https://github.com/Fraunhofer-IIS/mpeghdec/blob/a315faa241dddcef7f849d288e89b810b5a81619/LICENSE.txt",
                     "licenses/Fraunhofer-FDK-MPEG-H.txt"),
                 Item("SMBJ, JSch and Apache Commons Net", "SMB3, SFTP, WebDAV, FTP and FTPS file access. SMBJ and Commons Net: Apache License 2.0. JSch: BSD style license.", "https://github.com/PrimeN/Ember-Launcher/blob/beta/player-dependencies.md"),
+                Item("SMBJ-RPC", "Authenticated SMB share enumeration. Copyright 2017–2021 Rapid7, Inc. BSD 3-clause license; complete upstream license text is bundled below.", "https://github.com/rapid7/smbj-rpc/tree/dcerpc-0.12.13", "licenses/SMBJ-RPC-BSD.txt"),
+                Item("Apache Commons IO and Lang", "Support libraries for network share enumeration. Apache License 2.0; copyright The Apache Software Foundation.", "https://commons.apache.org/", "licenses/Apache-2.0.txt"),
+                Item("Apache Commons IO and Lang notices", "Original bundled copyright notices.", licenseAsset = "licenses/Commons-IO-Lang-NOTICE.txt"),
                 Item(
                     "NewPipe Extractor",
                     "Experimental in-app trailers: finds YouTube trailer streams. GNU GPL v3.",

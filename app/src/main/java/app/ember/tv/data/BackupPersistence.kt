@@ -57,6 +57,7 @@ internal object BackupFormat {
             else->invalid(at)
         }
     }.also {decoded->
+        if(name=="bookmarks" && (decoded.size>512 || decoded.values.any {it !is String || !app.ember.tv.player.PlaybackBookmarks.valid(it)}))invalid("bookmarks")
         if(name=="ember")decoded.forEach {(key,value)->
             if (key in setOf("heroArtworkMode", "heroCatalog") && value !is String) invalid("saved settings $key")
             if(value is String)try {

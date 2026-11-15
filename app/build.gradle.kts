@@ -1,6 +1,8 @@
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import java.util.zip.ZipEntry
@@ -114,6 +116,61 @@ val isolateMpvNative by tasks.registering(IsolateMpvNative::class) {
     upstream.set(layout.file(provider { mpvUpstream.singleFile }))
     filters.set(layout.projectDirectory.dir("native/ffmpeg-filters"))
     output.set(layout.buildDirectory.file("isolated-mpv/libmpv-1.0.0.aar"))
+}
+
+/** Android has no java.rmi. Preserve RPC parsing failures through Ember's IOException
+ * subtype, retaining both upstream constructor signatures and all protocol bytecode.
+ */
+@org.gradle.api.tasks.CacheableTask
+abstract class PrepareSmbRpc : DefaultTask() {
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE)
+    abstract val upstream: org.gradle.api.file.RegularFileProperty
+    @get:OutputFile abstract val output: org.gradle.api.file.RegularFileProperty
+    private fun androidClass(bytes:ByteArray):ByteArray {
+        val result=ByteArrayOutputStream()
+        DataInputStream(bytes.inputStream()).use {input->DataOutputStream(result).use {out->
+            val magic=input.readInt();require(magic==0xCAFEBABE.toInt());out.writeInt(magic)
+            out.writeShort(input.readUnsignedShort());out.writeShort(input.readUnsignedShort())
+            val count=input.readUnsignedShort();out.writeShort(count)
+            var slot=1
+            while(slot<count) {
+                val tag=input.readUnsignedByte();out.writeByte(tag)
+                if(tag==1) {
+                    val data=ByteArray(input.readUnsignedShort());input.readFully(data)
+                    val value=String(data,Charsets.UTF_8)
+                    val names=listOf("java/rmi/UnmarshalException","java/rmi/MarshalException")
+                    require("java/rmi/" !in value || names.any {it in value}) {"Unexpected desktop RMI dependency"}
+                    val patched=if(names.any {it in value})names.fold(value) {text,from->text.replace(from,"app/ember/tv/player/RpcParseException")}.toByteArray(Charsets.UTF_8) else data
+                    out.writeShort(patched.size);out.write(patched)
+                } else {
+                    val size=when(tag) {3,4,9,10,11,12,17,18->4;5,6->8;7,8,16,19,20->2;15->3;else->error("Unknown class constant tag $tag")}
+                    val data=ByteArray(size);input.readFully(data);out.write(data)
+                    if(tag==5 || tag==6)slot++
+                }
+                slot++
+            }
+            input.copyTo(out)
+        }}
+        return result.toByteArray()
+    }
+    @TaskAction fun prepare() {
+        val original=upstream.get().asFile
+        val sha=MessageDigest.getInstance("SHA-256").digest(original.readBytes()).joinToString(""){"%02x".format(it)}
+        require(sha=="ea3f970d4b6f5bedbca843551b9c4fe250de34942aa02e02a7f957a402f5cbb8") {"Unexpected SMB RPC artifact; review before upgrading."}
+        val target=output.get().asFile;target.parentFile.mkdirs()
+        ZipFile(original).use {source->ZipOutputStream(target.outputStream()).use {zip->
+            source.entries().asSequence().forEach {entry->
+                val data=source.getInputStream(entry).use {it.readBytes()}
+                zip.putNextEntry(ZipEntry(entry.name).apply {time=0L})
+                zip.write(if(entry.name.endsWith(".class"))androidClass(data) else data);zip.closeEntry()
+            }
+        }}
+    }
+}
+val smbRpcUpstream by configurations.creating {isCanBeConsumed=false;isTransitive=false}
+val prepareSmbRpc by tasks.registering(PrepareSmbRpc::class) {
+    upstream.set(layout.file(provider {smbRpcUpstream.singleFile}))
+    output.set(layout.buildDirectory.file("android-smb-rpc/dcerpc-0.12.13.jar"))
 }
 
 // MPEG-H is a standalone, statically linked decoder; APK support remains ARM-only.
@@ -340,6 +397,10 @@ dependencies {
 
     // Authenticated network file access; passwords stay in the existing Keystore-backed store.
     implementation("com.hierynomus:smbj:0.15.0")
+    smbRpcUpstream("com.rapid7.client:dcerpc:0.12.13")
+    implementation(files(prepareSmbRpc.flatMap {it.output}))
+    implementation("commons-io:commons-io:2.21.0")
+    implementation("org.apache.commons:commons-lang3:3.22.0")
     implementation("com.github.mwiede:jsch:2.28.8")
     implementation("commons-net:commons-net:3.13.0")
 

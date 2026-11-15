@@ -63,12 +63,49 @@ internal fun NetworkFilesPanel(activity:MediaFilesActivity) {
         var domain by remember {mutableStateOf("")};var fingerprint by remember {mutableStateOf("")}
         var unencryptedSmb by remember {mutableStateOf(false)}
         var saving by remember {mutableStateOf(false)};var note by remember {mutableStateOf<String?>(null)}
+        val editScope=rememberCoroutineScope()
+        var finding by remember {mutableStateOf(false)}
+        var servers by remember {mutableStateOf<List<SmbServer>>(emptyList())}
+        var shares by remember {mutableStateOf<List<String>>(emptyList())}
+        var shareJob by remember {mutableStateOf<Job?>(null)}
+        LaunchedEffect(finding) {
+            if(finding) {
+                val discovery=SmbDiscovery(activity,{servers=it},{failed->finding=false;note=if(failed)"Discovery unavailable. Enter a server address manually." else "Discovery finished. Servers must advertise SMB on your local network; you can also enter an address manually."})
+                try {awaitCancellation()} finally {discovery.close()}
+            }
+        }
+        DisposableEffect(Unit) {onDispose {shareJob?.cancel()}}
+        LaunchedEffect(address,user,password,domain,unencryptedSmb) {shareJob?.cancel();shares=emptyList();note=null}
         TvDialog({if(!saving)edit=false},width=540.dp,resizeForKeyboard=true) {
             LazyColumn(Modifier.fillMaxWidth().weight(1f,false),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 item {DialogHeading("Add network folder")}
                 item {Text(stringResource(R.string.tx_smb3_encrypted_smb_server_share_sftp),fontSize=13.sp)}
                 item {NetworkField("Name",label){label=it}}
                 item {NetworkField("Address",address){address=it}}
+                item {ButtonRow(spacing=8.dp) {
+                    Chip(if(finding)"Stop discovery" else "Find SMB servers") {if(!finding)servers=emptyList();note=null;finding=!finding}
+                    Chip(if(shareJob?.isActive==true)"Cancel share browsing" else "Browse SMB shares") {
+                        if(shareJob?.isActive==true){shareJob?.cancel();shareJob=null;note="Share browsing cancelled."}
+                        else {
+                            val endpoint=runCatching {NetworkLocation.parse(address,allowSmbRoot=true).also {require(it.scheme=="smb")}}.getOrNull()
+                            if(endpoint==null)note="Enter an SMB server address first, for example smb://server."
+                            else {
+                                val account=NetworkAccount(label="",address=address,username=user,password=password,domain=domain,allowUnencryptedSmb=unencryptedSmb)
+                                shareJob=editScope.launch {
+                                    note="Opening shares…";shares=emptyList()
+                                    try {
+                                        val names=withTimeout(20_000) {runInterruptible(Dispatchers.IO) {NetworkFiles.smbShares(account)}}
+                                        ensureActive();shares=names;note=if(names.isEmpty())"No visible disk shares. Enter the share path manually if it is hidden." else "Select a share below."
+                                    } catch(_:TimeoutCancellationException){note="Share browsing timed out. Check the server or enter its share path manually."}
+                                      catch(e:CancellationException){throw e}
+                                      catch(_:Exception){note="Could not browse shares. Check credentials, SMB encryption and server permissions, or enter the share path manually."}
+                                }
+                            }
+                        }
+                    }
+                }}
+                items(servers,key={"server:"+it.address}) {server->Chip(server.name){finding=false;address=server.address;if(label.isBlank())label=server.name}}
+                items(shares,key={"share:"+it}) {share->Chip(share){address=NetworkLocation.parse(address,allowSmbRoot=true).smbShare(share);if(label.isBlank())label=share;shares=emptyList()}}
                 item {NetworkField("Username",user){user=it}}
                 item {NetworkField("Password",password,true){password=it}}
                 item {NetworkField("SMB domain (optional)",domain){domain=it}}

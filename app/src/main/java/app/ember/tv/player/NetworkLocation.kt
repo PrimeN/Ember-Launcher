@@ -15,14 +15,14 @@ internal data class NetworkAccount(
 }
 internal data class NetworkLocation(val scheme:String,val host:String,val port:Int,val root:String) {
     companion object {
-        fun parse(address:String):NetworkLocation {
+        fun parse(address:String,allowSmbRoot:Boolean=false):NetworkLocation {
             val uri=URI(address.trim())
             require(uri.scheme in setOf("smb","sftp","ftp","ftps","https","http")&&uri.host!=null) {"Use smb://, sftp://, ftps://, ftp://, or a WebDAV https:// address."}
             require(uri.rawUserInfo==null && uri.rawQuery==null && uri.rawFragment==null) {"Enter username and password separately, without query parameters."}
             require(uri.port==-1 || uri.port in 1..65535) {"Invalid network port."}
             val root=uri.path.orEmpty().trim('/')
             require(root.split('/').none {it==".."||it=="."||it.contains('\\')||it.any {c->c.isISOControl()}}) {"Invalid folder path."}
-            require(uri.scheme!="smb"||root.isNotEmpty()) {"Include the SMB share name, for example smb://server/Movies."}
+            require(uri.scheme!="smb"||root.isNotEmpty()||allowSmbRoot) {"Include the SMB share name, for example smb://server/Movies."}
             return NetworkLocation(uri.scheme,uri.host,if(uri.port>0)uri.port else when(uri.scheme){"smb"->445;"sftp"->22;"https"->443;"http"->80;else->21},root)
         }
         fun child(path:String,name:String):String {
@@ -37,5 +37,10 @@ internal data class NetworkLocation(val scheme:String,val host:String,val port:I
         }
     }
     fun full(path:String):String=listOf(root,path.trim('/')).filter {it.isNotEmpty()}.joinToString("/")
+    fun smbShare(name:String):String {
+        require(scheme=="smb")
+        child("",name)
+        return URI("smb",null,host,if(port==445)-1 else port,"/$name",null,null).toASCIIString()
+    }
 }
 internal data class NetworkEntry(val name:String,val directory:Boolean,val size:Long)

@@ -27,13 +27,42 @@ internal object NetworkFiles {
         override fun close(){closers.asReversed().forEach {runCatching(it)};closers.clear()}
     }
     private fun <T> owned(block:(Owner)->T):T {val owner=Owner();try{return block(owner)} catch(e:Throwable){owner.close();throw e}}
-    private fun smb(a:NetworkAccount,o:Owner):DiskShare {
-        val l=NetworkLocation.parse(a.address)
+    private fun smbSession(a:NetworkAccount,o:Owner):com.hierynomus.smbj.session.Session {
+        val l=NetworkLocation.parse(a.address,allowSmbRoot=true)
+        require(l.scheme=="smb")
         val client=SMBClient(SmbConfig.builder().withTimeout(20,TimeUnit.SECONDS).withSoTimeout(30_000).withSigningRequired(true).withEncryptData(!a.allowUnencryptedSmb).withAuthenticators(com.hierynomus.smbj.auth.NtlmAuthenticator.Factory()).build());o.add {client.close()}
         val connection=client.connect(l.host,l.port);o.add {connection.close()}
         val session=connection.authenticate(AuthenticationContext(a.username,a.password.toCharArray(),a.domain));o.add {session.close()}
+        return session
+    }
+    private fun smb(a:NetworkAccount,o:Owner):DiskShare {
+        val l=NetworkLocation.parse(a.address)
+        val session=smbSession(a,o)
         val share=session.connectShare(l.root.substringBefore('/')) as? DiskShare ?: error("This is not a disk share.");o.add {share.close()};return share
     }
+    /** Enumerate through authenticated SRVSVC using the same signing/encryption policy as playback. */
+    fun smbShares(a:NetworkAccount):List<String> = owned {o->o.use {
+        val session=smbSession(a,o)
+        val share=session.connectShare("IPC$") as? com.hierynomus.smbj.share.PipeShare ?: error("Share browsing unavailable.")
+        o.add {share.close()}
+        val pipe=share.open("srvsvc",SMB2ImpersonationLevel.Impersonation,EnumSet.of(AccessMask.GENERIC_READ,AccessMask.GENERIC_WRITE),
+            null,SMB2ShareAccess.ALL,SMB2CreateDisposition.FILE_OPEN,null)
+        o.add {pipe.close()}
+        val transport=object:com.rapid7.client.dcerpc.transport.RPCTransport() {
+            private var packets=0
+            private var bytes=0L
+            private val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(20)
+            private fun checkRequest() {
+                if(Thread.currentThread().isInterrupted)throw InterruptedIOException("Share browsing cancelled.")
+                check(++packets<=1024 && bytes<=4L*1024*1024 && System.nanoTime()<deadline) {"Share listing exceeds limits."}
+            }
+            override fun transact(out:ByteArray,input:ByteArray):Int {checkRequest();return pipe.transact(out,input).also {bytes+=it}}
+            override fun read(input:ByteArray):Int {checkRequest();return pipe.read(input).also {bytes+=it}}
+            override fun write(out:ByteArray) {checkRequest();check(pipe.write(out)==out.size) {"Incomplete share request."}}
+        }
+        transport.bind(com.rapid7.client.dcerpc.Interface.SRVSVC_V3_0,com.rapid7.client.dcerpc.Interface.NDR_32BIT_V2)
+        SmbShares.visible(com.rapid7.client.dcerpc.mssrvs.ServerService(transport).shares1.map {it.netName to it.type})
+    }}
     private fun smbPath(l:NetworkLocation,path:String)=listOf(l.root.substringAfter('/',""),path).filter {it.isNotEmpty()}.joinToString("\\").replace('/','\\')
     private fun sftp(a:NetworkAccount,o:Owner):ChannelSftp {
         val l=NetworkLocation.parse(a.address)
