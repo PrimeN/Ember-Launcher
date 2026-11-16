@@ -163,6 +163,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             Choice(app.ember.tv.player.AudioEffects.presets,c.audioEffects.preset,"Equalizer") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(preset=value))}}
             Choice(listOf("0" to "Off","2" to "+2 dB","4" to "+4 dB","6" to "+6 dB"),c.audioEffects.bass.toString(),"Bass") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(bass=value.toInt()))}}
             Choice(app.ember.tv.player.AudioEffects.channelChoices,c.audioEffects.channels,"Channels") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(channels=value))}}
+            // #310
+            Choice(app.ember.tv.player.NightListening.choices,c.audioEffects.compression,"Night listening") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(compression=value))}}
             Note("Boosts reserve headroom to reduce clipping. Disable passthrough to process encoded surround tracks in compatibility playback.")
         }
         "player-shortcuts" -> Section("Player shortcuts", "Choose up to eight quick controls; every option remains in the full menu.", id="player-shortcuts") {
@@ -250,7 +252,11 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
         "decoding" -> Section(stringResource(R.string.ui_decoding), stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot)) {
             Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine, stringResource(R.string.tx_playback_engine)) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
             Note(stringResource(R.string.st_automatic_keeps_ember_s_controls_and))
-            ToggleRow("Remember working video decoders","Learns after stable playback; resets after device or app updates.",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}
+            // #311
+            Choice(app.ember.tv.player.NativeDecoderProfile.choices,app.ember.tv.player.NativeDecoderProfile.normalized(c.compatibilityDecoder),"Compatibility decoding") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityDecoder=value)}}
+            Note("Lighter software decoding skips some deblocking to reduce processor work. Explicit decoder rules and in-player choices take priority.")
+            ToggleRow("Automatic Hi10P fallback","Full-quality software decoding for 10-bit H.264 on NVIDIA Shield, in Automatic mode.",c.hi10pFallback) {vm.playerSettings.updatePlaybackConfig {it.copy(hi10pFallback=!it.hi10pFallback)}}
+            ToggleRow("Remember working video decoders","Learns after stable playback, including which player worked for a title; resets after device or app updates.",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}
             Chip("Reset learned decoder choices") {app.ember.tv.player.DecoderHealth.clear(context)}
             Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing)) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
@@ -304,6 +310,21 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 c.buffer,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(buffer = m) } }
             Note(stringResource(R.string.ui_large_keeps_up_to_two_minutes))
+            // #309: network time limits for both players, and optional custom buffering.
+            val stream = c.stream.normalized()
+            fun saveStream(value: app.ember.tv.player.StreamConfig) = vm.playerSettings.updatePlaybackConfig { it.copy(stream = value.normalized()) }
+            app.ember.tv.player.timeoutFields.forEach { f ->
+                Choice(f.choices(stream).map { it.toString() to "$it ${f.unit}" }, f.read(stream).toString(), f.label) { v -> saveStream(f.write(stream, v.toInt())) }
+            }
+            ToggleRow("Custom buffering", "Set the memory and timing yourself instead of the preset above.", stream.custom) { saveStream(stream.copy(custom = !stream.custom)) }
+            if (stream.custom) {
+                app.ember.tv.player.bufferFields.forEach { f ->
+                    Choice(f.choices(stream).map { it.toString() to "$it ${f.unit}" }, f.read(stream).toString(), f.label) { v -> saveStream(f.write(stream, v.toInt())) }
+                }
+                ToggleRow("Wait for refill", "Pause until the buffer refills after running out.", stream.pauseForBuffer) { saveStream(stream.copy(pauseForBuffer = !stream.pauseForBuffer)) }
+                val plan = remember(c) { app.ember.tv.player.StreamConfig.plan(context, c) }
+                Note("This device allows ${plan.forwardMiB} MiB ahead and ${plan.rewindMiB} MiB behind. Changes apply to the next video.")
+            }
         }
     }
         "audio_track" -> Section(stringResource(R.string.ui_audio_track), stringResource(R.string.ui_which_track_a_title_starts_with)) {

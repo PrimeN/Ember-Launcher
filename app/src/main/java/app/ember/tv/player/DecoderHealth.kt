@@ -34,23 +34,35 @@ internal class DecoderHealth private constructor(private val store:android.conte
     @Synchronized fun hint(format:Format):ProvenDecoder? {syncReset();return profile(format)?.let(memory::get)}
     @Synchronized fun remember(format:Format,name:String,software:Boolean) {syncReset();profile(format)?.let {key->memory.remember(key,ProvenDecoder(name,software,System.currentTimeMillis()));save()}}
     @Synchronized fun forget(format:Format){syncReset();profile(format)?.let {memory.forget(it);save()}}
+    @Synchronized fun engine(key:String):String? {syncReset();return memory.get("engine:$key")?.name?.takeIf {it in setOf("standard","compatibility")}}
+    @Synchronized fun rememberEngine(key:String,engine:String) {syncReset();if(engine in setOf("standard","compatibility")){memory.remember("engine:$key",ProvenDecoder(engine,savedAt=System.currentTimeMillis()));save()}}
+    @Synchronized fun forgetEngine(key:String){syncReset();memory.forget("engine:$key");save()}
     private fun save() {val snapshot=memory.document();val at=generation;writer.execute {if(resets.get()==at)store.edit().putString("records",json.encodeToString(snapshot)).apply()}}
     companion object {
+        @Volatile private var cached:DecoderHealth?=null
         private val resets=java.util.concurrent.atomic.AtomicLong()
         private val json=Json {ignoreUnknownKeys=true}
         private val writer=java.util.concurrent.Executors.newSingleThreadExecutor {r->Thread(r,"ember-decoder-memory").apply {isDaemon=true}}
+        fun current():DecoderHealth?=cached
+        fun loadAsync(context:Context,ready:(DecoderHealth)->Unit) {
+            val app=context.applicationContext
+            writer.execute {runCatching {load(app)}.getOrNull()?.let {health->android.os.Handler(android.os.Looper.getMainLooper()).post {ready(health)}}}
+        }
         /** Call on IO: codec enumeration and preference loading never hold up navigation. */
-        fun load(context:Context):DecoderHealth {
+        @Synchronized fun load(context:Context):DecoderHealth {
+            cached?.let {return it}
             val generation=resets.get()
             val names=runCatching {android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS).codecInfos.map {it.name}.sorted().joinToString("|")}.getOrDefault("")
             val modules=listOf("com.android.media.swcodec","com.google.android.media.swcodec","com.android.media").joinToString("|") {name->runCatching {
                 @Suppress("DEPRECATION") val info=context.packageManager.getPackageInfo(name,if(Build.VERSION.SDK_INT>=29)android.content.pm.PackageManager.MATCH_APEX else 0)
                 @Suppress("DEPRECATION") "$name:${if(Build.VERSION.SDK_INT>=28)info.longVersionCode else info.versionCode.toLong()}"
             }.getOrDefault(name)}
-            val environment=CachePolicy.digest("${Build.FINGERPRINT}|${Build.VERSION.SECURITY_PATCH}|${BuildConfig.VERSION_CODE}|$names|$modules")
+            // Beta installs can replace native decoders without changing the version code.
+            @Suppress("DEPRECATION") val installedAt=runCatching {context.packageManager.getPackageInfo(context.packageName,0).lastUpdateTime}.getOrDefault(0L)
+            val environment=CachePolicy.digest("${Build.FINGERPRINT}|${Build.VERSION.SECURITY_PATCH}|${BuildConfig.VERSION_CODE}|$installedAt|$names|$modules")
             val store=context.applicationContext.getSharedPreferences("decoder_health",Context.MODE_PRIVATE)
             val document=store.getString("records",null)?.takeIf {it.length<=128*1024}?.let {runCatching {json.decodeFromString<DecoderHealthDocument>(it)}.getOrNull()}
-            return DecoderHealth(store,DecoderHealthMemory(environment,document),generation)
+            return DecoderHealth(store,DecoderHealthMemory(environment,document),generation).also {cached=it}
         }
         fun clear(context:Context){resets.incrementAndGet();writer.execute {context.applicationContext.getSharedPreferences("decoder_health",Context.MODE_PRIVATE).edit().clear().apply()}}
         fun profile(f:Format):String? {

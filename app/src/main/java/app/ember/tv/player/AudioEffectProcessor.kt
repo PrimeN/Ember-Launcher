@@ -23,10 +23,11 @@ internal class AudioDsp(private val rate: Int, private val channels: Int, val ef
         Band((1 + alpha * a) / a0, -2 * cos(w) / a0, (1 - alpha * a) / a0,
             -2 * cos(w) / a0, (1 - alpha / a) / a0, DoubleArray(channels), DoubleArray(channels))
     }
-    private val headroom = 10.0.pow(-(effects.gains.maxOrNull()!!.coerceAtLeast(0) + effects.bass.coerceIn(0, 6)) / 20.0)
+    private val compressor = NightListening.preset(effects.compression)?.let { NightCompressor(rate, it) }
+    private val headroom = 10.0.pow(-effects.headroomDb() / 20.0)
     fun frame(samples: FloatArray) {
         for (c in 0 until channels) {
-            var x = samples[c] * headroom
+            var x = (if (samples[c].isFinite()) samples[c] else 0f) * headroom
             for (index in bands.indices) {
                 val b = bands[index]
                 val y = b.b0 * x + b.z1[c]
@@ -40,6 +41,7 @@ internal class AudioDsp(private val rate: Int, private val channels: Int, val ef
             "mono" -> { var total = 0f; for (c in 0 until channels) total += samples[c]; val mono = total / channels; samples.fill(mono) }
             "swap" -> if (channels >= 2) { val left = samples[0]; samples[0] = samples[1]; samples[1] = left }
         }
+        compressor?.frame(samples)
     }
 }
 
@@ -48,6 +50,7 @@ internal class AudioEffectProcessor(private val settings: AudioEffectState) : Ba
     private var dsp: AudioDsp? = null
     private var frame = FloatArray(0)
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        if (inputAudioFormat.channelCount !in 1..8 || inputAudioFormat.sampleRate <= 0) return AudioProcessor.AudioFormat.NOT_SET
         if (inputAudioFormat.encoding !in setOf(C.ENCODING_PCM_16BIT, C.ENCODING_PCM_FLOAT)) return AudioProcessor.AudioFormat.NOT_SET
         return inputAudioFormat
     }

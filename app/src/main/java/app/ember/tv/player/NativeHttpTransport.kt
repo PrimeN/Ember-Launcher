@@ -16,12 +16,12 @@ import javax.xml.transform.stream.StreamResult
  * Adaptive manifests are rewritten to the same transport, including DASH templates.
  * Bodies and credentials never enter a disk cache or exported diagnostics.
  */
-internal class NativeHttpTransport(private val headers:Map<String,String>,origins:List<String>):Closeable {
+internal class NativeHttpTransport(private val headers:Map<String,String>,origins:List<String>,private val timing:StreamConfig=StreamConfig()):Closeable {
     private val relay=MediaRelay()
     private val active=ConcurrentHashMap.newKeySet<Call>()
     private val bases=ConcurrentHashMap<String,String>()
     private val authOrigins=origins.mapNotNull {runCatching {it.toHttpUrl().let(::origin)}.getOrNull()}.toSet()
-    private val http=Net.client(20,30).newBuilder().cache(null).followRedirects(false).followSslRedirects(false).build()
+    private val http=Net.client(timing.normalized().connectSeconds.toLong(),timing.normalized().readSeconds.toLong()).newBuilder().cache(null).followRedirects(false).followSslRedirects(false).build()
     @Volatile private var closed=false
     @Volatile var failureCode:Int?=null;private set
     private fun origin(url:HttpUrl)="${url.scheme}://${url.host}:${url.port}"

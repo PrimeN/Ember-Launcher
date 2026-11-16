@@ -23,7 +23,10 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     private val initialPosition: Long, initialParameters: TrackSelectionParameters) : SimpleBasePlayer(Looper.getMainLooper()), MPVLib.EventObserver {
     private val handler=Handler(Looper.getMainLooper())
     private var closed=false
-    private var requestedSoftwareVideo=config.ffmpegVideo=="always"
+    // #311: how Compatibility playback decodes video.
+    private var requestedDecoderProfile=config.compatibilityDecoder
+    private var allowHi10p=config.hi10pFallback
+    private var appliedDecoder:NativeDecoderChoice?=null
     private var manualSoftwareVideo: Boolean? = null
     private var navigationSeek = false
     private var approximateSeek = false
@@ -96,17 +99,20 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     }
     init {
         try {
-            transport=NativeHttpTransport(source.headers,source.urls+listOfNotNull(source.audio))
+            transport=NativeHttpTransport(source.headers,source.urls+listOfNotNull(source.audio),timing=config.stream)
             fun option(k:String,v:String) { check(native.setOptionString(k,v)>=0) { "Compatibility player option unavailable: $k" } }
             option("config","no");option("load-scripts","no");option("ytdl","no")
             option("msg-level","all=no");option("terminal","no");option("osd-level","0");option("input-default-bindings","no")
             option("vo","gpu");option("gpu-context","android");option("opengl-es","yes")
-            option("hwdec",NativeDeinterlacing.decoder(requestedSoftwareVideo,deinterlacing))
+            option("hwdec",NativeDecoderProfile.choose(requestedDecoderProfile,null,"inherit",config.ffmpegVideo=="always",deinterlacing,false,false,allowHi10p).hardware)
             option("ao","audiotrack,opensles")
             option("load-unsafe-playlists","no");option("access-references","no")
             option("tls-verify","yes");option("tls-ca-file",caFile().absolutePath)
             option("keep-open","yes");option("idle","yes");option("cache","yes")
-            option("demuxer-max-bytes",(48L*1024*1024).toString());option("demuxer-max-back-bytes",(16L*1024*1024).toString())
+            // #309: custom buffering replaces the defaults; the read time limit always applies.
+            if(config.stream.custom)StreamConfig.plan(context,config).nativeOptions().forEach {(key,value)->option(key,value)}
+            else {option("demuxer-max-bytes",(48L*1024*1024).toString());option("demuxer-max-back-bytes",(16L*1024*1024).toString())
+                option("network-timeout",config.stream.normalized().readSeconds.toString())}
             option("audio-pitch-correction","yes");option("volume-max","400")
             if(source.audioLanguages.isNotEmpty())option("alang",source.audioLanguages.joinToString(","))
             if(source.subtitleLanguages.isNotEmpty())option("slang",source.subtitleLanguages.joinToString(","))
@@ -375,14 +381,27 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         return runCatching { native.setPropertyString("af",value); appliedEffects=value;true }.getOrDefault(false)
     }
     fun isPassthrough()=native.getPropertyString("audio-out-params/format")?.startsWith("spdif")==true
-    private fun applyVideoDecoder() {
+    private fun decoderChoice():NativeDecoderChoice {
         val preference=config.decoderRules.preference(source.urls[partIndex],currentVideoMime,source.filename)
-        requestedSoftwareVideo=manualSoftwareVideo ?: when(preference) {"software"->true;"auto","hardware"->false;else->config.ffmpegVideo=="always"}
-        val decoder=NativeDeinterlacing.decoder(requestedSoftwareVideo,deinterlacing)
-        if(native.getPropertyString("hwdec")!=decoder)native.setPropertyString("hwdec",decoder)
+        val count=(native.getPropertyInt("track-list/count")?:0).coerceIn(0,2000)
+        val selected=(0 until count).firstOrNull {native.getPropertyString("track-list/$it/type")=="video" && native.getPropertyBoolean("track-list/$it/selected")==true}
+        val profile=selected?.let {native.getPropertyString("track-list/$it/codec-profile")}
+        return NativeDecoderProfile.choose(requestedDecoderProfile,manualSoftwareVideo,preference,config.ffmpegVideo=="always",deinterlacing,
+            NativeDecoderProfile.shield(Build.MANUFACTURER,Build.MODEL),NativeDecoderProfile.hi10p(currentVideoMime,profile,native.getPropertyString("video-params/pixelformat")),allowHi10p)
     }
+    private fun applyVideoDecoder() {
+        val choice=decoderChoice()
+        if(choice==appliedDecoder)return
+        choice.options.forEach {(key,value)->native.setPropertyString(key,value)}
+        appliedDecoder=choice
+    }
+    fun decoderProfile(value:String,hi10p:Boolean=allowHi10p) {
+        requestedDecoderProfile=NativeDecoderProfile.normalized(value);allowHi10p=hi10p
+        manualSoftwareVideo=null;appliedDecoder=null;applyVideoDecoder()
+    }
+    val decoderProfileLabel get()=if(appliedDecoder?.hi10p==true)"Automatic · Hi10P software fallback" else NativeDecoderProfile.choices.first {it.first==NativeDecoderProfile.normalized(requestedDecoderProfile)}.second
     fun softwareVideo(enabled:Boolean){manualSoftwareVideo=enabled;applyVideoDecoder()}
-    val softwareVideo get()=native.getPropertyString("hwdec")=="no"
+    val softwareVideo get()=native.getPropertyString("hwdec-current")=="no" || native.getPropertyString("hwdec")=="no"
     fun diagnostics()=mapOf("Engine" to "Compatibility (libmpv)","Video decoder" to native.getPropertyString("hwdec-current").orEmpty(),
         "Decoded video transfer" to native.getPropertyString("video-params/gamma").orEmpty(),
         "Deinterlacing mode" to deinterlacing,

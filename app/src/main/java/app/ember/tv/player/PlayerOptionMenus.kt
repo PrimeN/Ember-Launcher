@@ -164,6 +164,13 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
                     onPick = { i -> if ((i == 1) != (playbackEngine?.compatibility?.softwareVideo ?: codecs.ffmpegVideo)) switchVideoDecoder(i == 1) },
                 ),
             )
+            // #311: decoding choices while Compatibility playback is active.
+            playbackEngine?.compatibility?.let { native ->
+                add(OptionRow("Compatibility decoding",native.decoderProfileLabel,NativeDecoderProfile.choices.map {it.second},
+                    NativeDecoderProfile.choices.indexOfFirst {it.first==NativeDecoderProfile.normalized(config.compatibilityDecoder)},
+                    note="Lighter software decoding skips some deblocking to reduce processor work.",
+                    onPick={index->config=config.copy(compatibilityDecoder=NativeDecoderProfile.choices[index].first);prefs.playbackConfig=config;native.decoderProfile(config.compatibilityDecoder,config.hi10pFallback);changed()}))
+            }
             val h = huds.indexOfFirst { it.first == config.hud }.coerceAtLeast(0)
             add(
                 OptionRow(getString(R.string.pl_playback_stats_hud), huds[h].second, huds.map { it.second }, h, onPick = { i ->
@@ -207,6 +214,8 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
             val bassLevels=listOf(0,2,4,6)
             add(OptionRow("Bass",if(config.audioEffects.bass==0)"Off" else "+${config.audioEffects.bass} dB",bassLevels.map {if(it==0)"Off" else "+$it dB"},bassLevels.indexOf(config.audioEffects.bass),note=effectNote,
                 onPick={changeAudioEffects(config.audioEffects.copy(bass=bassLevels[it]))}))
+            add(OptionRow("Night listening",NightListening.choices.firstOrNull {it.first==config.audioEffects.compression}?.second ?: "Off",NightListening.choices.map {it.second},NightListening.choices.indexOfFirst {it.first==config.audioEffects.compression}.coerceAtLeast(0),
+                note="Quieter loud scenes, clearer dialogue. Decoded sound only; passthrough is unchanged.",onPick={index->changeAudioEffects(config.audioEffects.copy(compression=NightListening.choices[index].first))}))
             add(OptionRow("Audio channels",AudioEffects.channelChoices.firstOrNull {it.first==config.audioEffects.channels}?.second.orEmpty(),AudioEffects.channelChoices.map {it.second},AudioEffects.channelChoices.indexOfFirst {it.first==config.audioEffects.channels},note=effectNote,
                 onPick={changeAudioEffects(config.audioEffects.copy(channels=AudioEffects.channelChoices[it].first))}))
             val ms = (audioDelay.us / 1000).toInt()

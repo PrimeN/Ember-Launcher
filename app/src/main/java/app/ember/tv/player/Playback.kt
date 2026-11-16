@@ -105,6 +105,11 @@ data class PlaybackConfig(
     val seekMode: String = "precise",
     val audioEffects: AudioEffects = AudioEffects(),
     val quickShortcuts: List<String> = PlayerShortcuts.defaults,
+    /** #311: Compatibility playback's video decoding. */
+    val compatibilityDecoder: String = "auto",
+    /** #309: network time limits for both players, and optional custom buffering. */
+    val stream: StreamConfig = StreamConfig(),
+    val hi10pFallback: Boolean = true,
 )
 
 @OptIn(UnstableApi::class)
@@ -273,6 +278,15 @@ object Playback {
         val bytes = PlaybackBuffer.bytes(c.buffer, Runtime.getRuntime().maxMemory(), manager.isLowRamDevice || memory.lowMemory)
         val min = if(c.buffer == "normal") 30_000 else if(c.buffer == "huge") 60_000 else 50_000
         val max = if(c.buffer == "normal") 60_000 else if(c.buffer == "huge") 240_000 else 120_000
+        if (c.stream.custom) {
+            // #309: the custom plan, already capped by device memory.
+            val plan = StreamConfig.plan(context, c)
+            val ahead = plan.aheadSeconds * 1000
+            val minimum = plan.readAheadSeconds.coerceAtLeast(1).coerceAtMost(plan.aheadSeconds) * 1000
+            val refill = if (plan.pauseForBuffer) (plan.refillSeconds * 1000).coerceAtMost(minimum) else 500.coerceAtMost(minimum)
+            return DefaultLoadControl.Builder().setBufferDurationsMs(minimum, ahead, 2_500.coerceAtMost(minimum), refill)
+                .setTargetBufferBytes(plan.forwardMiB * 1024 * 1024).setPrioritizeTimeOverSizeThresholds(false).build()
+        }
         return DefaultLoadControl.Builder().setBufferDurationsMs(min,max,2_500,5_000)
             .setTargetBufferBytes(bytes).setPrioritizeTimeOverSizeThresholds(false).build()
     }

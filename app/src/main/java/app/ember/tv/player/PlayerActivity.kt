@@ -130,8 +130,9 @@ class PlayerActivity : ComponentActivity() {
     internal val httpFactory by lazy {
         DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(20_000)
-            .setReadTimeoutMs(30_000)
+            // #309: Settings > Audio & video > Buffer sets these.
+            .setConnectTimeoutMs(prefs.playbackConfig.stream.normalized().connectSeconds*1000)
+            .setReadTimeoutMs(prefs.playbackConfig.stream.normalized().readSeconds*1000)
             .setUserAgent("EmberTV/0.9")
     }
 

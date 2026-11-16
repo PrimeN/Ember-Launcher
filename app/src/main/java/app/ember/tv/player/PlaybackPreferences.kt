@@ -27,14 +27,19 @@ data class DecoderRules(val local: String = "inherit", val network: String = "in
 }
 
 @Serializable
-data class AudioEffects(val preset: String = "off", val bass: Int = 0, val channels: String = "normal") {
+data class AudioEffects(val preset: String = "off", val bass: Int = 0, val channels: String = "normal",
+    /** #310: Gentle or Night compression of decoded sound. */
+    val compression: String = "off") {
     val gains: List<Int> get() = when (preset) {
         "dialogue" -> listOf(-3, -2, 2, 4, 1)
         "warm" -> listOf(3, 2, 0, -1, -2)
         "bright" -> listOf(-2, -1, 0, 2, 3)
         else -> listOf(0, 0, 0, 0, 0)
     }
-    val active get() = preset == "dialogue" || preset == "warm" || preset == "bright" || bass.coerceIn(0, 6) > 0 || channels == "mono" || channels == "swap"
+    val active get() = preset == "dialogue" || preset == "warm" || preset == "bright" || bass.coerceIn(0, 6) > 0 || channels == "mono" || channels == "swap" ||
+        NightListening.preset(compression) != null
+    /** Boosts and compressor make-up gain are taken off first, so peaks are not clipped. */
+    fun headroomDb(): Double = (gains.maxOrNull()!!.coerceAtLeast(0) + bass.coerceIn(0, 6)).toDouble() + (NightListening.preset(compression)?.makeupDb ?: 0.0)
     /** A fixed vocabulary only; no user-entered filter text reaches the native engine. */
     fun nativeFilters(channelCount: Int = 2): String {
         val filters = mutableListOf<String>()
@@ -45,9 +50,10 @@ data class AudioEffects(val preset: String = "off", val bass: Int = 0, val chann
             "mono" -> filters += "aformat=channel_layouts=mono"
             "swap" -> if (channelCount in 2..8) filters += "pan=${channelCount}c|" + (0 until channelCount).joinToString("|") { "c$it=c${if (it == 0) 1 else if (it == 1) 0 else it}" }
         }
+        NightListening.preset(compression)?.let { filters += it.filter() }
         // Leave headroom for boosts instead of clipping peaks.
-        val headroom = gains.maxOrNull()!!.coerceAtLeast(0) + bass.coerceIn(0, 6)
-        if (headroom > 0) filters.add(0, "volume=-${headroom}dB")
+        val headroom = headroomDb()
+        if (headroom > 0) filters.add(0, "volume=-${String.format(java.util.Locale.US, "%.4f", headroom)}dB")
         return if (filters.isEmpty()) "" else "lavfi=[${filters.joinToString(",")}]"
     }
     companion object {
