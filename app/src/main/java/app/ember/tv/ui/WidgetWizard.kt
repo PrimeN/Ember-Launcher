@@ -30,6 +30,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
+import app.ember.tv.deviceWidgetCount
 import app.ember.tv.data.*
 
 /**

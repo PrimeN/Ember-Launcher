@@ -15,7 +15,7 @@ import java.net.URI
 import java.text.Normalizer
 import java.util.Locale
 
-internal data class LightMedia(
+data class LightMedia(
     val id: String, val pkg: String, val title: String, val description: String,
     val artwork: String?, val intent: String?, val progress: Float?, val engaged: Long,
     val continuing: Boolean, val duration: Long = 0, val position: Long = 0, val rank: Long = 0,

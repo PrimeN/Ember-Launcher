@@ -869,7 +869,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         /** "Recently used apps" widget: app banners. */
         data class AppList(override val key: String, val title: String, val apps: List<app.ember.tv.data.AppEntry>, val widget: HomeWidget) : HomeBlock
         /** "Continue watching in your apps" widget: what other apps share with Android TV. */
-        internal data class AppMedia(override val key: String, val title: String, val items: List<app.ember.tv.light.LightMedia>, val widget: HomeWidget) : HomeBlock
+        data class AppMedia(override val key: String, val title: String, val items: List<app.ember.tv.light.LightMedia>, val widget: HomeWidget) : HomeBlock
         /** The same widget before Ember may read it: a button asking for permission. */
         data class AppMediaPermission(override val key: String, val title: String) : HomeBlock
     }
