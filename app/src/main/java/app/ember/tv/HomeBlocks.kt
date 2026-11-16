@@ -191,6 +191,7 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
                     }
                 } else if (HomeWidgets.isSection(id) && !profile.kids) {
                     widgets.list.firstOrNull { HomeWidgets.section(it.id) == id }?.let { w ->
+                        if (w.source.provider == HomeWidgets.DEVICE) { deviceBlock(id, w)?.let(::add); return@let }
                         val items = widgetItems(w)
                         if (items.isNotEmpty()) add(HomeViewModel.HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
                         else if (w.id in widgets.loading && count { it is HomeViewModel.HomeBlock.Loading } < 3) add(HomeViewModel.HomeBlock.Loading(id, w.title, w))

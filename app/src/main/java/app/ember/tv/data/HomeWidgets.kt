@@ -43,6 +43,14 @@ object HomeWidgets {
     /** A tracker row (Up next, recommendations, your tracker lists…) by its Home key, e.g. "smart:upnext". */
     fun isTrackerList(id: String?) = id != null && id.startsWith("smart:") && id.length in 7..200
 
+    /** Things on this TV rather than titles: [CollectionSource.catalogId] is one of [deviceSources]. */
+    const val DEVICE = "device"
+    const val APPS_CONTINUE = "apps-continue"
+    const val APPS_RECENT = "apps-recent"
+    val deviceSources = listOf(APPS_CONTINUE to "Continue watching in your apps", APPS_RECENT to "Recently used apps")
+    /** Read on the TV with no request, and standing alone (no more sources). */
+    fun isLocal(source: CollectionSource) = source.provider == LIST || source.provider == DEVICE
+
     /** MDBList (widgets only): [CollectionSource.catalogId] is the list's number or "user/list-name". */
     const val MDBLIST = "mdblist"
     private val mdbPath = Regex("[0-9]{1,12}|[A-Za-z0-9][A-Za-z0-9_.-]{0,63}/[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
@@ -73,11 +81,12 @@ object HomeWidgets {
     /** Unknown styles and shapes (an older or newer build's) fall back, so a restored widget still shows. */
     fun normalize(w: HomeWidget) = w.copy(
         title = w.title.trim().take(100),
-        style = w.style.takeIf { s -> styles.any { it.first == s } } ?: ROW,
+        // Apps and other apps' programmes draw as a row of their own.
+        style = if (w.source.provider == DEVICE) ROW else w.style.takeIf { s -> styles.any { it.first == s } } ?: ROW,
         shape = w.shape.takeIf { s -> shapes.any { it.first == s } } ?: "default",
         limit = w.limit.coerceIn(LIMITS.first, LIMITS.last),
         art = HeroArtworkMode.normalize(w.art),
-        more = if (w.source.provider == LIST) emptyList() else w.more.filter { it.provider != LIST && it != w.source }.distinct().take(MAX_SOURCES - 1),
+        more = if (isLocal(w.source)) emptyList() else w.more.filter { !isLocal(it) && it != w.source }.distinct().take(MAX_SOURCES - 1),
     )
     /** #264: how many sources one widget may combine. */
     const val MAX_SOURCES = 8
@@ -105,7 +114,8 @@ object HomeWidgets {
 
     /** What is wrong with one of a widget's sources; null when it can be loaded. */
     fun sourceError(source: CollectionSource): String? = when {
-        source.provider !in setOf("addon", "ember", "trakt", "tmdb", LIST, MDBLIST) -> "Choose a source."
+        source.provider !in setOf("addon", "ember", "trakt", "tmdb", LIST, MDBLIST, DEVICE) -> "Choose a source."
+        source.provider == DEVICE && deviceSources.none { it.first == source.catalogId } -> "Choose what to show from this TV."
         source.provider == LIST && lists.none { it.first == source.catalogId } && !isTrackerList(source.catalogId) -> "Choose one of your lists."
         source.provider == MDBLIST && source.catalogId?.let { mdbPath.matches(it) } != true -> "Enter an MDBList list link, user/list-name or number."
         source.provider == "addon" && source.catalogId.isNullOrBlank() -> "Choose a catalog."
@@ -126,6 +136,7 @@ object HomeWidgets {
     /** What the source is, for the widget lists on the TV and the phone. */
     fun sourceLabel(source: CollectionSource, defs: List<CatalogDef>): String = when (source.provider) {
         LIST -> lists.firstOrNull { it.first == source.catalogId }?.second ?: source.title?.takeIf { it.isNotBlank() } ?: "Your list"
+        DEVICE -> deviceSources.firstOrNull { it.first == source.catalogId }?.second ?: "From this TV"
         MDBLIST -> "MDBList ${source.catalogId.orEmpty()}".trim()
         "ember" -> "Filters" + (source.exploreQuery?.let { q -> ": " + summary(q) } ?: "")
         "trakt" -> "Trakt list ${source.traktListId ?: ""}".trim()

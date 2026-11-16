@@ -141,6 +141,10 @@ internal object PreferenceKeys {
     val UPDATE_BETA_SOURCE = PreferenceKey<String?>("updateBetaSource", PreferenceType.STRING, "releases")
     val UPDATE_CHANNEL = PreferenceKey<String?>("updateChannel", PreferenceType.STRING, "releases")
     val UPDATE_CHECKED_AT = PreferenceKey<Long>("updateCheckedAt", PreferenceType.LONG, 0L)
+    /** Automatic backups kept on this TV: "off", "daily" or "weekly". */
+    val AUTO_BACKUP = PreferenceKey<String?>("autoBackup", PreferenceType.STRING, "weekly")
+    val AUTO_BACKUP_AT = PreferenceKey<Long>("autoBackupAt", PreferenceType.LONG, 0L, portable = false)
+    val AUTO_BACKUP_ERROR = PreferenceKey<String?>("autoBackupError", PreferenceType.STRING, null, portable = false)
     val WATCH_PROVIDER = PreferenceKey<String?>("watchProvider", PreferenceType.STRING, "off")
     val WATCH_REGION = PreferenceKey<String?>("watchRegion", PreferenceType.STRING, null)
     val WEATHER_PROVIDER=PreferenceKey<String?>("weatherProvider",PreferenceType.STRING,"openmeteo")
@@ -167,6 +171,7 @@ internal object PreferenceKeys {
         SMART_ROWS_OFF, SOURCES_COMBINED, STREAM_DESC_TEMPLATE, STREAM_FORMAT_ON, STREAM_NAME_TEMPLATE, SUBTITLE_CONFIG,
         SUBTITLES_ON, TEXT_SIZE, THEME, TRACKERS_OFF, TRACKERS_QUIET, TRACKER_SYNC, UI_SIZE, UI_SCALE, UI_STYLE, MEDIA_PAGE_LAYOUT,
         UPDATE_AUTO_CHECK, UPDATE_BETA, UPDATE_BETA_SOURCE, UPDATE_CHANNEL, UPDATE_CHECKED_AT, WATCH_PROVIDER, WATCH_REGION,
+        AUTO_BACKUP, AUTO_BACKUP_AT, AUTO_BACKUP_ERROR,
         WEATHER_PLACE, WEATHER_PROVIDER, WEATHER_FALLBACK, WEATHER_CACHE, WL,
     )
     val stores=listOf("ember","screensaver","positions","trackMemory","server_browser","ember_watched","bookmarks")

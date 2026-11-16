@@ -79,6 +79,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
 import androidx.compose.runtime.setValue
@@ -219,6 +220,10 @@ fun ModernHome(
         MediaRow(items, wide, isSaved = { saved || vm.isSaved(it) }, onFocus = onAmbient, onOpen = onOpenTitle)
     }
     val blocks = vm.homeBlocks
+    // Widgets showing things on this TV: other apps' Continue watching is read only while one is on Home.
+    var appsRefresh by remember { mutableIntStateOf(0) }
+    AppsContinueLoader(vm, appsRefresh)
+    val listingsPermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { appsRefresh++ }
     val heroPosition = HeroLayout.index(blocks.map { it.key })
     val heroVisible by remember(state) { derivedStateOf {
         state.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "hero" }?.let {
@@ -293,6 +298,17 @@ fun ModernHome(
                     // #177: a widget that could not load says so here instead of going missing.
                     is HomeViewModel.HomeBlock.Notice -> ModernSection(b.title) {
                         RecoveryPanel("This widget couldn't load", b.text, "Widget settings") { vm.openSettingsPage("WIDGETS") }
+                    }
+                    is HomeViewModel.HomeBlock.AppList -> ModernSection(b.title) {
+                        RecentAppsRow(vm, b.apps, onLaunch, onAppOptions) { onAmbient(null) }
+                    }
+                    is HomeViewModel.HomeBlock.AppMedia -> ModernSection(b.title) {
+                        AppMediaRow(vm, b.items, onLaunch) { onAmbient(null) }
+                    }
+                    is HomeViewModel.HomeBlock.AppMediaPermission -> ModernSection(b.title) {
+                        RecoveryPanel("Show what you are watching in your apps",
+                            "Netflix, YouTube and other apps share their Continue watching with Android TV. Allow Ember to read it for this row.",
+                            "Allow") { listingsPermission.launch(app.ember.tv.light.LightMediaProvider.PERMISSION) }
                     }
                     is HomeViewModel.HomeBlock.Pinned -> ModernSection("Your shortcuts") {
                         LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(6.dp)) {

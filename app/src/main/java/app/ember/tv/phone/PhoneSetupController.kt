@@ -365,7 +365,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             // #264: catalogs added on the TV stay when the phone edits the widget; #275: unless removed here.
                             more = old?.more.orEmpty().filterIndexed { i, _ -> fields["dropMore:$i"] != "on" } + listOfNotNull(added)))
                         app.ember.tv.data.HomeWidgets.error(widget)?.let { return@onPhoneMain it }
-                        if (widget.source.provider != app.ember.tv.data.HomeWidgets.LIST && !widget.sources.all { collectionSourceAllowed(it) }) return@onPhoneMain "That source is unavailable for this profile."
+                        if (!app.ember.tv.data.HomeWidgets.isLocal(widget.source) && !widget.sources.all { collectionSourceAllowed(it) }) return@onPhoneMain "That source is unavailable for this profile."
                         stage((if (old == null) "Add the Home widget " else "Save the Home widget ") + "$title: ${app.ember.tv.data.HomeWidgets.styleName(widget.style)}, " +
                             "${app.ember.tv.data.HomeWidgets.sourcesLabel(widget, collectionCatalogs)}, up to ${widget.limit} titles.") {
                             widgets.save(widget).also { if (it == null) refreshWidgets() }

@@ -173,7 +173,7 @@ internal fun AppOptionsDialog(app: AppEntry, hidden: Boolean, vm: HomeViewModel,
     val labels=listOf("Move with D-pad",stringResource(R.string.ui_move_earlier),stringResource(R.string.ui_move_later),
         if(hidden)"Show on Home" else "Remove from Home",if(app.pkg in vm.appsPageOff)"Unhide" else "Hide",
         "App folder", "Choose artwork", if(app.pkg in vm.personalHomes.current.artwork)"Restore original artwork" else "Original artwork",
-        if(app.pkg in vm.launcherExtras.options.lockedApps)"Remove PIN lock" else "Require PIN", "Uninstall")
+        if(app.pkg in vm.launcherExtras.options.lockedApps)"Remove PIN lock" else "Require PIN", "Uninstall", "Rename")
     CompactActionMenu(app.label,labels,onClose) {first->
             MenuActionRow(labels[0],modifier=Modifier.focusRequester(first), icon=Icons.Outlined.OpenWith, onClick = onMove)
             MenuActionRow(labels[1],icon=Icons.AutoMirrored.Outlined.KeyboardArrowLeft) { vm.moveApp(app.pkg, -1) }
@@ -187,6 +187,7 @@ internal fun AppOptionsDialog(app: AppEntry, hidden: Boolean, vm: HomeViewModel,
                 onClose()
             }
             MenuActionRow(labels[5],icon=Icons.Outlined.Folder) {onClose();vm.openSettingsGuarded {vm.homeFeatureAction="edit:assign:${app.pkg}"}}
+            MenuActionRow(labels[10],icon=Icons.Outlined.Edit) {onClose();vm.openSettingsGuarded {vm.homeFeatureAction="edit:name:${app.pkg}"}}
             MenuActionRow(labels[6],icon=Icons.Outlined.Image) {onClose();vm.openSettingsGuarded {vm.homeFeatureAction="edit:art:${app.pkg}"}}
             if(app.pkg in vm.personalHomes.current.artwork)MenuActionRow(labels[7],icon=Icons.Outlined.Restore) {onClose();vm.openSettingsGuarded {vm.personalHomes.update {it.copy(artwork=it.artwork-app.pkg)}}}
             MenuActionRow(labels[8],icon=Icons.Outlined.Lock) {

@@ -68,7 +68,7 @@ internal object WidgetSteps {
         if (check.error != null) return "This source could not be loaded: ${check.error}. Try again or choose another."
         val titles = check.titles ?: return "Checking the source…"
         // Your own lists fill in as you watch and add titles; anything else with nothing in it is a mistake.
-        if (titles == 0 && draft.source.provider != HomeWidgets.LIST) return "This source has no titles. Choose another or change the filters."
+        if (titles == 0 && !HomeWidgets.isLocal(draft.source)) return "This source has no titles. Choose another or change the filters."
         return null
     }
 
@@ -91,6 +91,7 @@ internal object WidgetSteps {
     fun showsSave(step: String, existing: Boolean) = existing || step == REVIEW
 
     /** The kinds of source, as cards on the first step. */
+    const val APPS = "apps"
     const val FILTERS = "filters"; const val LISTS = "lists"; const val CATALOG = "catalog"; const val TRAKT = "trakt"; const val MDB = "mdblist"
     /** #264: the picker that adds catalogs to the ones already chosen. */
     const val MORE = "more"
@@ -100,12 +101,14 @@ internal object WidgetSteps {
         CATALOG to ("Catalogs & searches" to "Addon catalogs, saved Discover searches, TMDB"),
         TRAKT to ("Trakt list" to "Popular, trending or your own lists"),
         MDB to ("MDBList" to "A list link, user/list-name or number"),
+        APPS to ("From your apps" to "Continue watching in your apps, recently used apps"),
     )
     /** Which card a chosen source belongs to; null before one is chosen. */
     fun kindOf(source: CollectionSource): String? = when {
         source == CollectionSource() -> null
         source.provider == "ember" -> FILTERS
         source.provider == HomeWidgets.LIST -> LISTS
+        source.provider == HomeWidgets.DEVICE -> APPS
         source.provider == "trakt" -> TRAKT
         source.provider == HomeWidgets.MDBLIST -> MDB
         else -> CATALOG
@@ -117,6 +120,8 @@ internal object WidgetSteps {
         check.error != null -> "Could not load: ${check.error}"
         check.titles == null -> "Checking…"
         check.titles == 0 && draft.source.provider == HomeWidgets.LIST -> "Empty for now. It appears on Home once the list has titles."
+        draft.source.provider == HomeWidgets.DEVICE -> if (check.titles == 0) "Empty for now. It appears on Home once there is something to show."
+            else "${check.titles} item" + (if (check.titles == 1) "" else "s") + " now"
         check.titles == 0 -> "No titles found"
         else -> "${check.titles} title" + (if (check.titles == 1) "" else "s") + " found"
     }
@@ -126,7 +131,7 @@ internal object WidgetSteps {
 internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: () -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var overlay by remember { mutableStateOf<String?>(null) }
-    var panel by remember(initial.id) { mutableStateOf(WidgetSteps.kindOf(initial.source).takeIf { it == WidgetSteps.LISTS || it == WidgetSteps.MDB }) }
+    var panel by remember(initial.id) { mutableStateOf(WidgetSteps.kindOf(initial.source).takeIf { it == WidgetSteps.LISTS || it == WidgetSteps.MDB || it == WidgetSteps.APPS }) }
     var message by remember { mutableStateOf<String?>(null) }
     val existing = remember(initial.id) { vm.widgets.list.any { it.id == initial.id } }
     var step by remember(initial.id) { mutableStateOf(WidgetSteps.first(existing)) }
@@ -142,6 +147,7 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
         check = WidgetSteps.Check(); titles = emptyList()
         if (draft.source == CollectionSource() || HomeWidgets.error(draft.copy(title = "x")) != null) return@LaunchedEffect
         if (draft.source.provider == HomeWidgets.LIST) { titles = vm.widgetItems(draft); check = WidgetSteps.Check(titles.size) }
+        else if (draft.source.provider == HomeWidgets.DEVICE) check = WidgetSteps.Check(vm.deviceWidgetCount(draft))
         else vm.previewWidget(draft).fold({ titles = it; check = WidgetSteps.Check(it.size) },
             { check = WidgetSteps.Check(error = app.ember.tv.state.WidgetsState.reason(it)) })
     }
@@ -151,12 +157,12 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
         val auto = draft.title.isBlank() || draft.title == draft.source.title.orEmpty().take(100)
         draft = WidgetDrafts.withSource(if (auto) draft.copy(title = "") else draft, source, label); message = null; focusNext = true
         // Your own lists are read live and stand alone.
-        if (source.provider == HomeWidgets.LIST) draft = draft.copy(more = emptyList())
+        if (HomeWidgets.isLocal(source)) draft = draft.copy(more = emptyList(), style = if (source.provider == HomeWidgets.DEVICE) HomeWidgets.ROW else draft.style)
     }
     /** #264: several catalogs picked together; the first leads, the rest follow. */
     fun chosenMany(sources: List<CollectionSource>, adding: Boolean) {
         if (sources.isEmpty()) return
-        if (!adding || draft.source == CollectionSource() || draft.source.provider == HomeWidgets.LIST) {
+        if (!adding || draft.source == CollectionSource() || HomeWidgets.isLocal(draft.source)) {
             chosen(sources.first())
             draft = HomeWidgets.normalize(draft.copy(more = sources.drop(1)))
         } else {
@@ -199,7 +205,7 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
             }
             when (step) {
                 WidgetSteps.SOURCE -> SourceStep(vm, draft, check, titles, panel, stepFocus,
-                    onKind = { kind -> message = null; if (kind == WidgetSteps.LISTS || kind == WidgetSteps.MDB) panel = kind else { panel = null; overlay = kind } },
+                    onKind = { kind -> message = null; if (kind == WidgetSteps.LISTS || kind == WidgetSteps.MDB || kind == WidgetSteps.APPS) panel = kind else { panel = null; overlay = kind } },
                     onChoose = ::chosen, onRetry = { retry++ }, onProblem = { message = it },
                     onAddMore = { overlay = WidgetSteps.MORE }, onRemove = { i -> draft = draft.copy(more = draft.more.filterIndexed { j, _ -> j != i }) })
                 WidgetSteps.STYLE -> LookStep(draft, stepFocus) { draft = it }
@@ -302,6 +308,16 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
                 }
             } }
         }
+        WidgetSteps.APPS -> {
+            Text("Show something from this TV. These rows are optional and appear only where you put them.", color = Mute, fontSize = 13.sp)
+            ButtonRow { HomeWidgets.deviceSources.forEach { (id, label) ->
+                Chip(label, draft.source.provider == HomeWidgets.DEVICE && draft.source.catalogId == id, maxLines = 1, modifier = Modifier.testTag("widget_device_$id")) {
+                    onChoose(CollectionSource(provider = HomeWidgets.DEVICE, catalogId = id, title = label), label)
+                }
+            } }
+            if (draft.source.catalogId == HomeWidgets.APPS_CONTINUE) Note("Netflix, YouTube and other apps share what you are watching with Android TV. Ember asks once for permission to read it.")
+            if (draft.source.catalogId == HomeWidgets.APPS_RECENT) Note("Apps you open from Ember, most recent first, for this profile.")
+        }
         WidgetSteps.MDB -> {
             Text(stringResource(R.string.tx_mdblist_list), color = Mute, fontSize = 13.sp)
             var mdb by remember { mutableStateOf(if (draft.source.provider == HomeWidgets.MDBLIST) draft.source.catalogId.orEmpty() else "") }
@@ -324,6 +340,7 @@ private fun SourceKindCard(kind: String, name: String, about: String, on: Boolea
     val icon: ImageVector = when (kind) {
         WidgetSteps.FILTERS -> Icons.Outlined.Tune; WidgetSteps.LISTS -> Icons.Outlined.Bookmarks
         WidgetSteps.CATALOG -> Icons.Outlined.Widgets; WidgetSteps.TRAKT -> Icons.Outlined.PlaylistPlay
+        WidgetSteps.APPS -> Icons.Outlined.Apps
         else -> Icons.Outlined.FormatListNumbered
     }
     Focusable(onClick = onClick, modifier = modifier.width(172.dp).height(128.dp).semantics { this.selected = on }
@@ -364,7 +381,7 @@ private fun ChosenSource(vm: HomeViewModel, draft: HomeWidget, check: WidgetStep
             if (check.error != null) Chip("Try again") { onRetry() }
         }
         // #264: more catalogs in the same widget, their titles taken in turn.
-        if (draft.source.provider != HomeWidgets.LIST) {
+        if (!HomeWidgets.isLocal(draft.source)) {
             draft.more.forEachIndexed { i, s ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("+ " + HomeWidgets.sourceLabel(s, vm.allCatalogs), Modifier.weight(1f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -381,6 +398,11 @@ private fun ChosenSource(vm: HomeViewModel, draft: HomeWidget, check: WidgetStep
 
 @Composable
 private fun LookStep(draft: HomeWidget, first: FocusRequester, change: (HomeWidget) -> Unit) {
+    if (draft.source.provider == HomeWidgets.DEVICE) {
+        Chip("Row", true, modifier = Modifier.focusRequester(first)) {}
+        Note("Apps and what you watch in them show as a row of their own.")
+        return
+    }
     // #172: each style as a small picture of itself.
     ButtonRow { HomeWidgets.styles.forEachIndexed { i, (value, name) ->
         WidgetStyleTile(value, name, draft.style == value, if (i == 0) Modifier.focusRequester(first) else Modifier) { change(draft.copy(style = value)) }

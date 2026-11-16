@@ -100,7 +100,7 @@ class WidgetsState(
     private fun due(force: Boolean, visible: (String) -> Boolean): List<HomeWidget> {
         val now = clock()
         return list.filter { w ->
-            w.source.provider != HomeWidgets.LIST && visible(HomeWidgets.section(w.id)) &&
+            !HomeWidgets.isLocal(w.source) && visible(HomeWidgets.section(w.id)) &&
                 (force || loadedSource[w.id] != w.sources || now - (loadedAt[w.id] ?: Long.MIN_VALUE / 2) > FRESH_MILLIS)
         }
     }

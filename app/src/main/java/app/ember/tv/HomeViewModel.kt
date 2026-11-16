@@ -70,6 +70,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import app.ember.tv.home.AppNames
+import app.ember.tv.data.RecentApps
 import androidx.lifecycle.viewModelScope
 import app.ember.tv.data.AddonClient
 import app.ember.tv.data.LocalLibrary
@@ -391,7 +393,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal var photosJob: Job? = null
     internal var artCollectionsJob: Job? = null
 
-    val appAccess: AppAccess by derivedStateOf { AppAccess(apps, profile.apps, hidden, appsPageOff) }
+    val appAccess: AppAccess by derivedStateOf { AppAccess(AppNames.apply(apps, personalHomes.current.names), profile.apps, hidden, appsPageOff) }
     val visibleApps: List<AppEntry> by derivedStateOf { appAccess.home }
 
     /** Up to ten allowed titles from the chosen Home catalog, or a balanced automatic mix. */
@@ -864,7 +866,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             val shape: String? = null) : HomeBlock
         /** A Collection: a row of folder tiles. */
         data class Collection(override val key: String, val collection: app.ember.tv.data.MediaCollection) : HomeBlock
+        /** "Recently used apps" widget: app banners. */
+        data class AppList(override val key: String, val title: String, val apps: List<app.ember.tv.data.AppEntry>, val widget: HomeWidget) : HomeBlock
+        /** "Continue watching in your apps" widget: what other apps share with Android TV. */
+        internal data class AppMedia(override val key: String, val title: String, val items: List<app.ember.tv.light.LightMedia>, val widget: HomeWidget) : HomeBlock
+        /** The same widget before Ember may read it: a button asking for permission. */
+        data class AppMediaPermission(override val key: String, val title: String) : HomeBlock
     }
+
+    // ---- widgets showing things on this TV ----
+    internal val recentApps = RecentApps(app)
+    /** Bumped when an app is opened, so "Recently used apps" redraws. */
+    var recentAppsVersion by mutableIntStateOf(0); internal set
+    /** Other apps' Continue watching, read while a widget shows it. */
+    internal var appsContinue by mutableStateOf<List<app.ember.tv.light.LightMedia>>(emptyList())
+    var appsContinueAllowed by mutableStateOf(true); internal set
 
     val homeBlocks: List<HomeBlock> by derivedStateOf { buildHomeBlocks() }
 

@@ -66,6 +66,7 @@ import app.ember.tv.screensaver.ScreensaverFeed
 import app.ember.tv.HomeViewModel
 import app.ember.tv.data.NavTabs
 import app.ember.tv.data.Prefs
+import app.ember.tv.data.AutoBackup
 import app.ember.tv.tracker.SmartRows
 import app.ember.tv.tracker.LinkMode
 import app.ember.tv.tracker.Tracker
@@ -149,6 +150,17 @@ internal fun BackupPage(vm: HomeViewModel) {
                 BackupStatus(vm)
             }
         }
+        // Automatic backups, kept privately on this TV.
+        LaunchedEffect(Unit) { vm.backup.refreshAutoBackups() }
+        Section("Automatic backups", "Kept on this TV, encrypted, newest ${AutoBackup.KEEP}. They restore on this TV only and are removed if Ember is uninstalled.", id = "auto-backup") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Choice(AutoBackup.choices, vm.backup.autoBackupMode, "Back up automatically") { vm.backup.setAutoBackupMode(it) }
+                val latest = vm.backup.autoBackups.firstOrNull()
+                Note(listOfNotNull(latest?.let { "Last: " + AutoBackup.label(it) } ?: "None yet.",
+                    vm.backup.autoBackupError?.let { "The last attempt failed: $it" }).joinToString(" "))
+                Chip("Back up now") { vm.backup.autoBackupNow() }
+            }
+        }
         Section(stringResource(R.string.ui_passphrase)) { PassphraseField(passphrase, { passphrase = it }, restoring = false) }
         Section(stringResource(R.string.ui_save)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -204,6 +216,23 @@ internal fun RestorePage(vm: HomeViewModel) {
                 ButtonRow(spacing = 10.dp) {
                     Chip(stringResource(R.string.ui_restore_and_restart)) { vm.backup.confirmRestore() }
                     Chip(stringResource(R.string.ui_cancel)) { vm.backup.cancelRestore() }
+                }
+            }
+        }
+
+        // Automatic backups need no passphrase: they are tied to this TV.
+        LaunchedEffect(Unit) { vm.backup.refreshAutoBackups() }
+        if (vm.backup.autoBackups.isNotEmpty()) Section("Automatic backups", "Made on this TV; no passphrase needed.", id = "auto-restore") {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                vm.backup.autoBackups.forEach { saved ->
+                    Row(
+                        modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(AutoBackup.label(saved), fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1)
+                        Chip(stringResource(R.string.ui_restore)) { vm.backup.openAutoBackup(saved) }
+                    }
                 }
             }
         }

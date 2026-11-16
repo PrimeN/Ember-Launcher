@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.net.Uri
 import app.ember.tv.data.Backup
+import app.ember.tv.data.AutoBackup
+import app.ember.tv.data.PreferenceKeys
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
 
@@ -28,6 +30,36 @@ class BackupState(
     var restartNeeded by mutableStateOf(false); private set
 
     val backupPickerAvailable: Boolean by lazy { Backup.pickerAvailable(app) }
+
+    // ---- automatic backups kept on this TV ----
+    internal var autoBackups by mutableStateOf<List<AutoBackup.Saved>>(emptyList()); private set
+    var autoBackupMode by mutableStateOf(AutoBackup.mode(app)); private set
+    var autoBackupError by mutableStateOf<String?>(null); private set
+
+    fun refreshAutoBackups() {
+        scope.launch {
+            autoBackups = withContext(Dispatchers.IO) { AutoBackup.list(app) }
+            autoBackupError = withContext(Dispatchers.IO) { AutoBackup.lastError(app) }
+        }
+    }
+
+    fun setAutoBackupMode(mode: String) {
+        if (AutoBackup.choices.none { it.first == mode }) return
+        app.getSharedPreferences("ember", android.content.Context.MODE_PRIVATE).edit()
+            .putString(PreferenceKeys.AUTO_BACKUP.name, mode).apply()
+        autoBackupMode = mode
+    }
+
+    fun autoBackupNow() = backupJob {
+        withContext(Dispatchers.IO) { AutoBackup.backUp(app) }
+        refreshAutoBackups()
+        "Automatic backup made."
+    }
+
+    internal fun openAutoBackup(saved: AutoBackup.Saved) = backupJob {
+        pendingRestore = withContext(Dispatchers.IO) { AutoBackup.read(saved) }
+        null
+    }
 
     fun refreshBackupFiles() {
         scope.launch {

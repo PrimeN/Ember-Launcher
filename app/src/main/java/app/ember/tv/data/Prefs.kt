@@ -108,6 +108,7 @@ class Prefs(context: Context) {
         }
         WatchedStore.remove(application, id)
         LocalLibrary.removeProfile(id)
+        RecentApps(application).removeProfile(id)
         app.ember.tv.tracker.TokenStore(application).remove("server.home.$id")
         app.ember.tv.tracker.SyncSnapshots(application.filesDir).let { snapshots ->
             for (key in listOf("ember:$id", "+ember:$id", "-ember:$id")) snapshots.forget(key)

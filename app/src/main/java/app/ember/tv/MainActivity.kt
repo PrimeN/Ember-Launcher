@@ -289,7 +289,7 @@ class MainActivity : ComponentActivity() {
     private fun launchApp(app: AppEntry) {
         if (!vm.appAccess.canLaunch(app.pkg)) return
         val owner=vm.profiles.profileId
-        val open={if(owner==vm.profiles.profileId && vm.appAccess.canLaunch(app.pkg))launchInstalledApp({startActivity(app.intent)}) {
+        val open={if(owner==vm.profiles.profileId && vm.appAccess.canLaunch(app.pkg))launchInstalledApp({startActivity(app.intent);vm.recordAppLaunch(app.pkg)}) {
             Toast.makeText(this,getString(R.string.launcher_app_unavailable,app.label),Toast.LENGTH_SHORT).show();vm.refreshApps(force=true)
         }}
         withAppPin(app.pkg,app.label){open()}

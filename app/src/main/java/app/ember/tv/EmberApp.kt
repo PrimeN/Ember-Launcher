@@ -37,6 +37,7 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         app.ember.tv.data.CatalogNames.load(prefs.catalogNames)
         // Home rows and the IPTV guide refresh every few hours (Settings > Features).
         runCatching { app.ember.tv.work.RefreshWorker.schedule(this) }
+        runCatching { app.ember.tv.work.AutoBackupWorker.schedule(this) }
     }
 
     override fun onTrimMemory(level:Int) {

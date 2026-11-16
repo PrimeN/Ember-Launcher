@@ -68,6 +68,21 @@ internal fun HomeFeatureDialogs(vm:HomeViewModel,onLaunch:(AppEntry)->Unit) {
                 if(vm.profiles.profile.kids)vm.showNotice("Switch to an adult profile to add presentation media.")
                 else runCatching {mediaPicker.launch(arrayOf("image/*","video/*"))}.onFailure {presentationOwner=null;vm.showNotice("Install a document picker to select media.")}
             }
+            action.startsWith("edit:name:") -> {
+                val pkg=action.removePrefix("edit:name:")
+                val original=vm.apps.firstOrNull {it.pkg==pkg}?.label ?: pkg
+                var name by remember {mutableStateOf(vm.personalHomes.current.names[pkg] ?: original)}
+                TvDialog(close,width=560.dp,resizeForKeyboard=true,scrollContent=true) {
+                    DialogHeading("Rename app")
+                    Text(original,color=Mute,fontSize=13.sp)
+                    TextInput(name,{name=it.take(app.ember.tv.home.AppNames.LENGTH)},"App name",width=500)
+                    ButtonRow(spacing=10.dp) {
+                        Chip(stringResource(R.string.ui_save)) {if(vm.profiles.allowsApp(pkg))vm.personalHomes.rename(pkg,if(name.trim()==original)"" else name);close()}
+                        Chip(stringResource(R.string.ui_use_original)) {vm.personalHomes.rename(pkg,"");close()}
+                        Chip(stringResource(R.string.ui_cancel)) {close()}
+                    }
+                }
+            }
             action.startsWith("edit:art:") -> LaunchedEffect(action) {
                 val pkg=action.removePrefix("edit:art:")
                 importFor=vm.profiles.profileId to pkg;close()

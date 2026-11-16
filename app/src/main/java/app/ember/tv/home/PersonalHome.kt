@@ -24,6 +24,8 @@ import kotlinx.serialization.encodeToString
     val dismissed: Map<String,Long> = emptyMap(), val hideShortClips: Boolean = false, val hideCredits: Boolean = true,
     val wallpaperColours: Boolean = true,
     val lightOrder: List<String> = emptyList(), val lightNavHidden: Set<String> = emptySet(),
+    /** Your own names for apps, by package. */
+    val names: Map<String, String> = emptyMap(),
 )
 
 /** Existing preferences remain the active desktop; inactive desktops are retained separately for backward-compatible restores. */
@@ -58,5 +60,10 @@ class PersonalHomes(private val prefs: Prefs) {
             p.copy(folders=if(folders.any {it.id==key})folders else folders+replacement) }
     }
     fun removeFolder(id:String) = update {it.copy(folders=it.folders.filterNot {f->f.id==id})}
+    /** A blank name restores the app's own. */
+    fun rename(pkg:String, name:String) = update {p->
+        val clean=AppNames.clean(name)
+        if(clean.isEmpty())p.copy(names=p.names-pkg) else p.copy(names=(p.names+(pkg to clean)).entries.toList().takeLast(AppNames.MAX).associate {it.toPair()})
+    }
     fun assign(pkg:String, folder:String?) = update {p->p.copy(folders=p.folders.map {f->f.copy(packages=if(f.id==folder)(f.packages+pkg).distinct() else f.packages-pkg)})}
 }
