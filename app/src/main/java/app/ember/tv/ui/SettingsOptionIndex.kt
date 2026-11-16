@@ -27,6 +27,15 @@ internal object SettingsOptionIndex {
     private val entries = mutableStateMapOf<String, Entry>()
     private var loaded = false
     private var store: android.content.SharedPreferences? = null
+    // #305: new labels are written together a moment later, not one full rewrite per label.
+    private const val SAVE_DELAY_MS = 3000L
+    private val unsaved = linkedSetOf<String>()
+    private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+    private val flush = Runnable { save() }
+    // #306: answers shared by many settings say nothing on their own.
+    private val generic = setOf("off", "on", "auto", "automatic", "always", "never", "normal", "standard", "default",
+        "none", "ask", "ask first", "yes", "no", "enabled", "disabled", "use default")
+    internal fun meaningful(label: String) = label.lowercase() !in generic && label.count { it.isLetter() } >= 2
 
     private fun id(e: Entry) = listOf(e.tab.name, e.anchor.orEmpty(), e.section.orEmpty(), e.label).joinToString(SEP.toString())
 
@@ -43,21 +52,28 @@ internal object SettingsOptionIndex {
         loaded = true
         SettingsOptionSeed.entries.forEach { entries[id(it)] = it }
         val sp = context.applicationContext.getSharedPreferences(STORE, Context.MODE_PRIVATE).also { store = it }
-        sp.getStringSet(KEY, emptySet()).orEmpty().mapNotNull(::parse).forEach { entries[id(it)] = it }
+        sp.getStringSet(KEY, emptySet()).orEmpty().mapNotNull(::parse).filter { meaningful(it.label) }.forEach { entries[id(it)] = it }
         return true
     }
 
     fun record(tab: SettingsTab, anchor: String?, section: String?, label: String) {
         val text = label.trim()
-        if (text.isBlank() || tab == SettingsTab.SEARCH) return
+        if (text.isBlank() || tab == SettingsTab.SEARCH || !meaningful(text)) return
         val e = Entry(tab, anchor, section?.trim()?.ifBlank { null }, text)
         val key = id(e)
         if (key in entries || entries.size >= LIMIT) return
         entries[key] = e
-        store?.let { sp ->
-            val saved = sp.getStringSet(KEY, emptySet()).orEmpty()
-            sp.edit().putStringSet(KEY, saved + key).apply()
-        }
+        if (store == null) return
+        synchronized(unsaved) { unsaved.add(key) }
+        main.removeCallbacks(flush)
+        main.postDelayed(flush, SAVE_DELAY_MS)
+    }
+
+    private fun save() {
+        val sp = store ?: return
+        val batch = synchronized(unsaved) { unsaved.toSet().also { unsaved.clear() } }
+        if (batch.isEmpty()) return
+        sp.edit().putStringSet(KEY, sp.getStringSet(KEY, emptySet()).orEmpty() + batch).apply()
     }
 
     /** Entries whose label or section contain every word. */
@@ -71,7 +87,7 @@ internal object SettingsOptionIndex {
             .sortedWith(compareBy({ !it.label.lowercase().startsWith(words.first()) }, { it.tab.ordinal }, { it.label }))
     }
 
-    internal fun clearForTest() { entries.clear(); loaded = false; store = null }
+    internal fun clearForTest() { main.removeCallbacks(flush); synchronized(unsaved) { unsaved.clear() }; entries.clear(); loaded = false; store = null }
 }
 
 /** Records [label] under the page and section it is drawn in; does nothing outside Settings. */

@@ -56,6 +56,23 @@ class SettingsRoundTest {
         }
     }
 
+    /** #305/#306: new labels are saved together later; generic answers are not indexed. */
+    @Test fun indexSavesInOneBatchAndSkipsGenericAnswers() {
+        val app = RuntimeEnvironment.getApplication()
+        SettingsOptionIndex.load(app)
+        val saved = app.getSharedPreferences("ember_settings_index", Context.MODE_PRIVATE)
+        SettingsOptionIndex.record(SettingsTab.PLAYER, "fixture", "Fixture", "First fixture qx")
+        SettingsOptionIndex.record(SettingsTab.PLAYER, "fixture", "Fixture", "Second fixture qx")
+        SettingsOptionIndex.record(SettingsTab.PLAYER, "fixture", "Fixture", "Off")
+        SettingsOptionIndex.record(SettingsTab.PLAYER, "fixture", "Fixture", "5 s")
+        assertTrue("not written yet", saved.getStringSet("entries", emptySet()).orEmpty().isEmpty())
+        org.robolectric.shadows.ShadowLooper.idleMainLooper(4, java.util.concurrent.TimeUnit.SECONDS)
+        val stored = saved.getStringSet("entries", emptySet()).orEmpty()
+        assertEquals(2, stored.size)
+        assertEquals(2, SettingsOptionIndex.search("fixture qx").size)
+        assertTrue(SettingsOptionIndex.search("off").none { it.anchor == "fixture" })
+    }
+
     @Test fun seedCoversPagesNotYetOpened() {
         val labels = SettingsOptionSeed.entries.map { it.tab to it.label }
         assertTrue(SettingsTab.AUDIO_VIDEO to "Passthrough (bitstream)" in labels)
