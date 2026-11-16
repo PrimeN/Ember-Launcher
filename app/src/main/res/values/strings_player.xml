@@ -36,7 +36,6 @@
     <string name="pl_sound_timing_saved_for_all_videos">Sound timing saved for all videos.</string>
     <string name="pl_hi">HI</string>
     <string name="pl_no_playable_source_for_the_next">No playable source for the next episode.</string>
-    <string name="pl_play_now">Play now</string>
     <string name="pl_0_5_s">−0.5 s</string>
     <string name="pl_keep_for_all">Keep for all</string>
     <string name="pl_voices_come_before_the_lips_move">Voices come before the lips move: press +. After: press −.</string>
@@ -76,7 +75,6 @@
     <string name="pl_free_disk_space">Free disk space</string>
     <string name="pl_buffer_status">Buffer status</string>
     <string name="pl_buffer_value">%1$s · %2$d s ahead</string>
-    <string name="pl_playing_in">Playing in %1$d…</string>
     <string name="pl_channel_unavailable">This channel is not available right now (%1$s).</string>
     <string name="pl_channel_refused">The provider refused it: check the login, or whether your plan allows another connection.</string>
     <string name="pl_channel_other">Use channel up or down for another.</string>
@@ -99,7 +97,6 @@
     <string name="pl_chosen_option">● %1$s</string>
     <string name="pl_in_the_video">In the video: %1$s</string>
     <string name="pl_episode_n">Episode %1$d</string>
-    <string name="pl_next_episode_title">"Next: S%1$d · E%2$d  %3$s"</string>
     <string name="pl_reset">Reset</string>
     <string name="pl_panel_help">★ = made for this exact file. Timing moves downloaded subtitles; + shows them later. Back closes.</string>
     <string name="player_back">Back</string>

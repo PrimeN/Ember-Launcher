@@ -18,7 +18,6 @@
     <string name="settings_weather">Weather</string>
     <string name="settings_player">Player</string>
     <string name="settings_play_button">Play button</string>
-    <string name="settings_addons">Addons</string>
     <string name="settings_catalogs">Catalogs</string>
     <string name="settings_subtitles">Subtitles</string>
     <string name="settings_live">Live TV</string>
@@ -44,8 +43,6 @@
     <string name="settings_page_remote">Remote</string>
     <string name="settings_page_light_home">Ember Light Home</string>
     <string name="settings_page_apps_folders">Apps &amp; folders</string>
-    <string name="settings_page_startup">Startup</string>
-    <string name="settings_page_extras">Extras</string>
     <string name="settings_page_widgets">Widgets &amp; collections</string>
     <string name="settings_page_extras_weather">Extras &amp; weather</string>
     <string name="settings_page_artwork_metadata">Artwork &amp; metadata</string>
@@ -56,18 +53,13 @@
     <string name="settings_page_audio_video">Audio &amp; video</string>
     <string name="settings_page_languages">Languages &amp; subtitles</string>
     <string name="settings_page_stream_results">Stream results &amp; badges</string>
-    <string name="settings_page_posters">Posters &amp; ratings</string>
     <string name="settings_page_profiles">Profiles &amp; PIN</string>
-    <string name="settings_page_tv_device">TV &amp; device</string>
     <string name="settings_page_backup">Backup &amp; restore</string>
-    <string name="settings_page_diagnostics">Diagnostics</string>
     <string name="settings_summary_size">Interface and text size, screen margins and card spacing.</string>
     <string name="settings_summary_performance">Device profile, image quality, frosted glass and focus effects.</string>
     <string name="settings_summary_remote">The remote\'s Settings button and remote sounds.</string>
     <string name="settings_summary_light_home">Background, carousel, apps\' recommendations and idle timing.</string>
     <string name="settings_summary_apps_folders">Apps on Home and the Apps page, folders, artwork and PIN locks.</string>
-    <string name="settings_summary_startup">Ember as Home, the Home button and what opens when the TV starts.</string>
-    <string name="settings_summary_extras">Now Playing and presentation slideshows.</string>
     <string name="settings_summary_widgets">Everything on Home, in order: show, hide, move, edit and add your own.</string>
     <string name="settings_summary_extras_weather">Now Playing, presentation slideshows and weather.</string>
     <string name="settings_summary_artwork_metadata">Posters, ratings and where title details come from.</string>
@@ -76,5 +68,4 @@
     <string name="settings_summary_startup_screensaver">What opens when the TV starts, and the screensaver.</string>
     <string name="settings_summary_tv_remote">Remote buttons and sounds, TV menus and inputs.</string>
     <string name="settings_summary_audio_video">Audio output, lip sync, decoding, HDR, frame rate and buffering.</string>
-    <string name="settings_summary_tv_device">Calibration, display and input shortcuts, manufacturer and engineering menus.</string>
 </resources>
