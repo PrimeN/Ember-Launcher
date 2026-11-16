@@ -46,7 +46,11 @@ private object LauncherClock {
     }.distinctUntilChanged().shareIn(scope,SharingStarted.WhileSubscribed(stopTimeoutMillis=0,replayExpirationMillis=0),replay=1).also {shared=it}
 }
 
+/** A fixed time for the top bar, so pictures of it stay the same between runs. */
+internal val LocalFixedLauncherTime=androidx.compose.runtime.staticCompositionLocalOf<String?> {null}
+
 @Composable internal fun rememberLauncherTime():String {
+    LocalFixedLauncherTime.current?.let {return it}
     val context=LocalContext.current.applicationContext
     val flow=remember(context){LauncherClock.flow(context)}
     val initial=remember(context){LauncherClock.format(context)}

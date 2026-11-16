@@ -51,7 +51,7 @@ class NavbarUiTest {
     private fun show(width:Int=960,scale:Float=1f,night:Boolean=true,page:Color=Color(0xFF101012)) {
         compose.setContent {
             back=LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
-            CompositionLocalProvider(LocalNavigationFocus provides navigation,LocalNight provides night,LocalReduceMotion provides true,
+            CompositionLocalProvider(LocalFixedLauncherTime provides "9:41 PM",LocalNavigationFocus provides navigation,LocalNight provides night,LocalReduceMotion provides true,
                 LocalRenderOptions provides RenderOptions(device="low"),LocalDensity provides Density(1f,scale)) {
                 EmberTheme(0,launcher) {
                     LauncherNavbarFrame(style,launcher,"top",tabs,current,"18°",Profile(id="main",name="Alex"),

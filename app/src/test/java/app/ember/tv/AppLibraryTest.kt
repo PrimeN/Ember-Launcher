@@ -73,7 +73,16 @@ class AppLibraryTest {
         assertEquals(first.top,sixth.top,.5f);assertTrue(sixth.left>first.right)
         compose.onNodeWithText("App 1").assertExists()
         val file=java.io.File("build/reports/ui/unified-app-library.png").apply {parentFile!!.mkdirs()}
-        file.outputStream().use {compose.onNodeWithTag("scene").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG,100,it)}
+        // App banners decode off the main thread: wait until two captures agree so the picture is the same on every run.
+        var shot=compose.onNodeWithTag("scene").captureToImage().asAndroidBitmap()
+        var same=0
+        for(attempt in 0 until 40) {
+            Thread.sleep(150);compose.waitForIdle()
+            val next=compose.onNodeWithTag("scene").captureToImage().asAndroidBitmap()
+            same=if(next.sameAs(shot))same+1 else 0;shot=next
+            if(same>=2)break
+        }
+        file.outputStream().use {shot.compress(Bitmap.CompressFormat.PNG,100,it)}
     }
     @Test fun aTileLaunchesAndItsLongPressKeepsTheExistingAppOptions() {
         show();choose("App 1");assertEquals("app.1",launched)
