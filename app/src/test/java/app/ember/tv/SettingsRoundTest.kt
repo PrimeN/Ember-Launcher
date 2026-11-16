@@ -8,6 +8,8 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import app.ember.tv.data.PreferenceKeys
 import app.ember.tv.data.Prefs
+import app.ember.tv.home.LauncherExtras
+import app.ember.tv.home.PresentationItem
 import app.ember.tv.player.PlaybackConfig
 import app.ember.tv.ui.*
 import org.junit.*
@@ -115,11 +117,11 @@ class SettingsRoundTest {
     @Test fun resettingStartupOrExtrasKeepsLocksAndSlides() {
         val app = RuntimeEnvironment.getApplication()
         val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-        val slide = app.ember.tv.home.PresentationItem("s1", "Beach", "content://x")
-        Prefs(app).launcherExtrasJson = json.encodeToString(app.ember.tv.home.LauncherExtras.serializer(), app.ember.tv.home.LauncherExtras(
+        val slide = PresentationItem("s1", "Beach", "content://x")
+        Prefs(app).launcherExtrasJson = json.encodeToString(LauncherExtras.serializer(), LauncherExtras(
             destination = "input", target = "hdmi1", atBoot = true, nowPlaying = true, keepAwake = true, slideSeconds = 30,
             slides = listOf(slide), lockedApps = setOf("a.locked")))
-        fun saved() = json.decodeFromString(app.ember.tv.home.LauncherExtras.serializer(), Prefs(app).launcherExtrasJson)
+        fun saved() = json.decodeFromString(LauncherExtras.serializer(), Prefs(app).launcherExtrasJson)
         SettingsReset.apply(app, SettingsTab.HOME_EXTRAS)
         saved().let {
             assertFalse(it.nowPlaying); assertFalse(it.keepAwake); assertEquals(10, it.slideSeconds)
