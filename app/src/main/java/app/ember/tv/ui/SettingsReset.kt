@@ -10,8 +10,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.ember.tv.data.PreferenceKey
+import app.ember.tv.home.LauncherExtras
 import app.ember.tv.data.PreferenceKeys as K
 import app.ember.tv.player.PlaybackConfig
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -25,7 +27,8 @@ internal object SettingsReset {
             K.NAVIGATION_GLASS_METHOD, K.CARD_FOCUS_STYLE, K.MEDIA_FOCUS_BACKGROUND, K.COLLECTION_FOCUS_BACKGROUND, K.APP_FOCUS_COLORS)
         SettingsTab.LIGHT_HOME -> listOf(K.LIGHT_HOME, K.LIGHT_WALLPAPER)
         SettingsTab.DEFAULT_HOME -> listOf(K.HOME_AT_BOOT, K.HOME_OVERRIDE, K.HOME_OVERRIDE_MODE)
-        SettingsTab.HOME_EXTRAS -> listOf(K.LAUNCHER_EXTRAS, K.FAHRENHEIT, K.WEATHER_PROVIDER, K.WEATHER_FALLBACK, K.WEATHER_PLACE)
+        // #320: launcher extras also hold app PIN locks and chosen media, so their pages reset only their own fields.
+        SettingsTab.HOME_EXTRAS -> listOf(K.FAHRENHEIT, K.WEATHER_PROVIDER, K.WEATHER_FALLBACK, K.WEATHER_PLACE)
         SettingsTab.PLAYER -> listOf(K.PLAYER, K.AUTOPLAY, K.COUNTDOWN)
         SettingsTab.SUBTITLES -> listOf(K.SUBTITLE_CONFIG, K.SUBTITLES_ON)
         SettingsTab.PLAY_BUTTON -> listOf(K.PLAY_RULES)
@@ -60,7 +63,17 @@ internal object SettingsReset {
         }
     }
 
-    fun available(tab: SettingsTab) = keys(tab).isNotEmpty() || playback(tab, PlaybackConfig()) != null
+    /** Startup and Extras share one stored record with app locks and slideshow media, which are never reset. */
+    fun extras(tab: SettingsTab, e: LauncherExtras): LauncherExtras? {
+        val d = LauncherExtras()
+        return when (tab) {
+            SettingsTab.DEFAULT_HOME -> e.copy(destination = d.destination, target = d.target, atBoot = d.atBoot, onWake = d.onWake)
+            SettingsTab.HOME_EXTRAS -> e.copy(nowPlaying = d.nowPlaying, slideSeconds = d.slideSeconds, keepAwake = d.keepAwake)
+            else -> null
+        }
+    }
+
+    fun available(tab: SettingsTab) = keys(tab).isNotEmpty() || playback(tab, PlaybackConfig()) != null || extras(tab, LauncherExtras()) != null
 
     /** Written synchronously: Ember restarts straight after. */
     fun apply(context: Context, tab: SettingsTab) {
@@ -68,7 +81,10 @@ internal object SettingsReset {
         val config = playback(tab, app.ember.tv.data.Prefs(context).playbackConfig)
         val e = sp.edit()
         keys(tab).forEach { e.remove(it.name) }
-        if (config != null) e.putString(K.PLAYBACK_CONFIG.name, Json { ignoreUnknownKeys = true }.encodeToString(config))
+        val json = Json { ignoreUnknownKeys = true }
+        if (config != null) e.putString(K.PLAYBACK_CONFIG.name, json.encodeToString(config))
+        val saved = runCatching { json.decodeFromString<LauncherExtras>(sp.getString(K.LAUNCHER_EXTRAS.name, null) ?: "{}") }.getOrDefault(LauncherExtras())
+        extras(tab, saved)?.let { e.putString(K.LAUNCHER_EXTRAS.name, json.encodeToString(it.normalized())) }
         e.commit()
     }
 }

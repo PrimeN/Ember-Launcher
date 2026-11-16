@@ -157,7 +157,6 @@
     <string name="st_organize_add_ons_catalogs_and_collections">Organize add-ons, catalogs and collections</string>
     <string name="st_paintings_come_from_the_cleveland_museum">Paintings come from the Cleveland Museum of Art and Space from NASA.</string>
     <string name="st_passthrough_bitstream">Passthrough (bitstream)</string>
-    <string name="st_personal_home">Personal Home</string>
     <string name="st_phone_remote">Phone remote</string>
     <string name="st_poster_artwork_language_where_rpdb_has">Poster artwork language, where RPDB has one.</string>
     <string name="st_prepared_backgrounds_are_shared_and_reused">. Prepared backgrounds are shared and reused until the image changes.</string>
@@ -278,4 +277,12 @@
     <string name="st_reset_page_ask" formatted="true">Reset %1$s?</string>
     <string name="st_reset_page_message">These settings go back to their defaults and Ember restarts.</string>
     <string name="st_reset_action">Reset</string>
+    <string name="st_app_folders">App folders</string>
+    <string name="st_light_carousel">Carousel</string>
+    <string name="st_light_carousel_about">The large picture at the top of Light Home.</string>
+    <string name="st_light_continue">Apps’ Continue Watching</string>
+    <string name="st_light_recommendations">Recommendations</string>
+    <string name="st_light_recommendations_about">Suggestions your apps share with Android TV.</string>
+    <string name="st_light_recommending_apps">Apps that recommend</string>
+    <string name="st_light_app_rows">App rows</string>
 </resources>

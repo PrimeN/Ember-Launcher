@@ -110,4 +110,26 @@ class SettingsRoundTest {
         assertFalse(SettingsReset.available(SettingsTab.PROFILES))
         assertTrue(SettingsReset.available(SettingsTab.SUBTITLES))
     }
+
+    /** #320: Startup and Extras share a record with app PIN locks and slideshow media; neither page clears those. */
+    @Test fun resettingStartupOrExtrasKeepsLocksAndSlides() {
+        val app = RuntimeEnvironment.getApplication()
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val slide = app.ember.tv.home.PresentationItem("s1", "Beach", "content://x")
+        Prefs(app).launcherExtrasJson = json.encodeToString(app.ember.tv.home.LauncherExtras.serializer(), app.ember.tv.home.LauncherExtras(
+            destination = "input", target = "hdmi1", atBoot = true, nowPlaying = true, keepAwake = true, slideSeconds = 30,
+            slides = listOf(slide), lockedApps = setOf("a.locked")))
+        fun saved() = json.decodeFromString(app.ember.tv.home.LauncherExtras.serializer(), Prefs(app).launcherExtrasJson)
+        SettingsReset.apply(app, SettingsTab.HOME_EXTRAS)
+        saved().let {
+            assertFalse(it.nowPlaying); assertFalse(it.keepAwake); assertEquals(10, it.slideSeconds)
+            assertEquals("input", it.destination); assertTrue(it.atBoot)
+            assertEquals(listOf(slide), it.slides); assertEquals(setOf("a.locked"), it.lockedApps)
+        }
+        SettingsReset.apply(app, SettingsTab.DEFAULT_HOME)
+        saved().let {
+            assertEquals("home", it.destination); assertEquals("", it.target); assertFalse(it.atBoot)
+            assertEquals(listOf(slide), it.slides); assertEquals(setOf("a.locked"), it.lockedApps)
+        }
+    }
 }

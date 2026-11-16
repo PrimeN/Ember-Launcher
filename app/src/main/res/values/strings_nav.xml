@@ -44,11 +44,11 @@
     <string name="settings_page_light_home">Ember Light Home</string>
     <string name="settings_page_apps_folders">Apps &amp; folders</string>
     <string name="settings_page_widgets">Widgets &amp; collections</string>
-    <string name="settings_page_extras_weather">Extras &amp; weather</string>
+    <string name="settings_page_extras_weather">Screensaver &amp; extras</string>
     <string name="settings_page_artwork_metadata">Artwork &amp; metadata</string>
     <string name="settings_page_storage_diagnostics">Storage &amp; diagnostics</string>
     <string name="settings_page_addons_catalogs">Addons &amp; catalogs</string>
-    <string name="settings_page_startup_screensaver">Startup &amp; screensaver</string>
+    <string name="settings_page_startup_screensaver">Startup</string>
     <string name="settings_page_tv_remote">TV &amp; remote</string>
     <string name="settings_page_audio_video">Audio &amp; video</string>
     <string name="settings_page_languages">Languages &amp; subtitles</string>
@@ -61,11 +61,11 @@
     <string name="settings_summary_light_home">Background, carousel, apps\' recommendations and idle timing.</string>
     <string name="settings_summary_apps_folders">Apps on Home and the Apps page, folders, artwork and PIN locks.</string>
     <string name="settings_summary_widgets">Everything on Home, in order: show, hide, move, edit and add your own.</string>
-    <string name="settings_summary_extras_weather">Now Playing, presentation slideshows and weather.</string>
+    <string name="settings_summary_extras_weather">Screensaver, presentation slideshows, Now Playing and weather.</string>
     <string name="settings_summary_artwork_metadata">Posters, ratings and where title details come from.</string>
     <string name="settings_summary_storage_diagnostics">Cache sizes and durations, crash log and build details.</string>
     <string name="settings_summary_addons_catalogs">Add addons and choose where their catalogs show.</string>
-    <string name="settings_summary_startup_screensaver">What opens when the TV starts, and the screensaver.</string>
+    <string name="settings_summary_startup_screensaver">What opens when the TV starts, and making Ember your Home.</string>
     <string name="settings_summary_tv_remote">Remote buttons and sounds, TV menus and inputs.</string>
     <string name="settings_summary_audio_video">Audio output, lip sync, decoding, HDR, frame rate and buffering.</string>
 </resources>

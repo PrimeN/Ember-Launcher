@@ -114,13 +114,15 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
     val active = app.ember.tv.data.InterfaceStyles.home(style)
     return when (tab) {
         SettingsTab.APPEARANCE -> buildList {
-            add("interface"); add("media-page-layout"); add("theme"); add("accent_colour")
+            // #317: the interface, then its colours, then navigation, then pages and labels.
+            add("interface"); add("theme"); add("accent_colour")
             if (active != "light") {add("navbar-style");add("menu")}
             // #245: the tabs sit with the navbar they belong to.
             add("navbar-tabs")
+            add("media-page-layout")
             add("tile-labels"); add("row-addon-labels")
         }
-        SettingsTab.SIZE -> listOf("interface-size", "text-size", "screen_margins", "density")
+        SettingsTab.SIZE -> listOf("interface-size", "text-size", "density", "screen_margins")
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
         SettingsTab.REMOTE -> listOf("remote_s_settings_button", "remote-sounds", "auto-load")
         // #190: how app tiles look sits with the other app settings.
@@ -321,6 +323,22 @@ internal fun PostersPage(vm: HomeViewModel, openKeys: () -> Unit) {
             }
         }
 
+        // #319: the poster service, its own options, a preview of the result, then landscape cards.
+        when (c.provider) {
+            PosterConfig.RPDB -> RpdbOptions(vm, c, openKeys)
+            PosterConfig.BETTER -> BetterPostersOptions(vm, c)
+        }
+
+        if (c.provider != PosterConfig.OFF) {
+            Section(stringResource(R.string.ui_preview)) {
+                ButtonRow(spacing = 14.dp) {
+                    PREVIEW_TITLES.forEach { m ->
+                        PosterImage(m, Modifier.width(120.dp).height(180.dp).clip(RoundedCornerShape(10.dp)), c)
+                    }
+                }
+            }
+        }
+
         Section(stringResource(R.string.ui_landscape_cards), stringResource(R.string.ui_landscape_cards_note)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val tier = Posters.rpdbTier()
@@ -340,21 +358,6 @@ internal fun PostersPage(vm: HomeViewModel, openKeys: () -> Unit) {
                     },
                 )
             }
-        }
-
-        if (c.provider != PosterConfig.OFF) {
-            Section(stringResource(R.string.ui_preview)) {
-                ButtonRow(spacing = 14.dp) {
-                    PREVIEW_TITLES.forEach { m ->
-                        PosterImage(m, Modifier.width(120.dp).height(180.dp).clip(RoundedCornerShape(10.dp)), c)
-                    }
-                }
-            }
-        }
-
-        when (c.provider) {
-            PosterConfig.RPDB -> RpdbOptions(vm, c, openKeys)
-            PosterConfig.BETTER -> BetterPostersOptions(vm, c)
         }
     }
 }

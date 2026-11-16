@@ -39,7 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /** Home tools are split across Settings > Home: Apps & folders, Startup and Extras. */
-internal enum class HomeToolsPart { FOLDERS, STARTUP, EXTRAS }
+internal enum class HomeToolsPart { APPS, FOLDERS, STARTUP, EXTRAS }
 
 /** Wording for the app pickers on Apps & folders (#190). */
 /** One app in the picker (#210): its icon with the name underneath; dimmed when it is hidden. */
@@ -86,7 +86,7 @@ internal object AppChoices {
     var chooseApps by remember {mutableStateOf<String?>(null)}
     Column(verticalArrangement=Arrangement.spacedBy(22.dp)) {
         // #190: the two places apps show, each choosing its apps in a dialog instead of a switch per app down the page.
-        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.ui_apps_on_home),stringResource(R.string.st_the_apps_widget_on_home_all),id="apps-on-home") {
+        if(part==HomeToolsPart.APPS)Section(stringResource(R.string.ui_apps_on_home),stringResource(R.string.st_the_apps_widget_on_home_all),id="apps-on-home") {
             val on=vm.sections.sectionOn(HomeViewModel.HOME_APPS)
             SettingToggle(stringResource(R.string.st_show_apps_on_home),stringResource(R.string.st_the_apps_widget_its_place_among),on){vm.sections.toggleSection(HomeViewModel.HOME_APPS)}
             SettingValueRow(stringResource(R.string.ui_apps_on_home),AppChoices.count(vm.apps.count {it.pkg !in vm.hidden},vm.apps.size)){chooseApps="home"}
@@ -96,11 +96,7 @@ internal object AppChoices {
                 Chip(stringResource(R.string.ui_two_rows),selected=vm.homeAppRows==2){vm.updateHomeAppRows(2)}
             }
         }
-        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.st_apps_page),stringResource(R.string.st_the_page_that_lists_every_app),id="apps-page") {
-            val all=vm.appAccess.page(true)
-            SettingValueRow(stringResource(R.string.st_apps_on_the_apps_page),AppChoices.count(all.count {it.pkg !in vm.appsPageOff},all.size)){chooseApps="page"}
-        }
-        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.st_personal_home), stringResource(R.string.st_app_order_visibility_folders_artwork_and)) {
+        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.st_app_folders), stringResource(R.string.st_app_order_visibility_folders_artwork_and), id="app-folders") {
             Chip(stringResource(R.string.st_new_app_folder)){vm.homeFeatureAction="edit:folder-new"}
             vm.personalHomes.current.folders.forEachIndexed {index,f->ButtonRow {
                 Chip(stringResource(R.string.st_edit, f.name)){vm.homeFeatureAction="edit:folder:${f.id}"}
@@ -108,6 +104,10 @@ internal object AppChoices {
             }}
             Text(stringResource(R.string.tx_hold_ok_on_an_app_to),color=Mute,fontSize=14.sp)
             if(vm.launcherExtras.options.lockedApps.isNotEmpty())Chip(stringResource(R.string.st_remove_all_app_pin_locks)) {vm.pin.withPin("Enter the administrator PIN"){vm.launcherExtras.update {it.copy(lockedApps=emptySet())}}}
+        }
+        if(part==HomeToolsPart.FOLDERS)Section(stringResource(R.string.st_apps_page),stringResource(R.string.st_the_page_that_lists_every_app),id="apps-page") {
+            val all=vm.appAccess.page(true)
+            SettingValueRow(stringResource(R.string.st_apps_on_the_apps_page),AppChoices.count(all.count {it.pkg !in vm.appsPageOff},all.size)){chooseApps="page"}
         }
         if(part==HomeToolsPart.FOLDERS)HiddenAppsSection(vm)
         if(part==HomeToolsPart.STARTUP)Section(stringResource(R.string.st_start_with_the_tv), stringResource(R.string.st_choose_home_an_app_an_input)) {
@@ -122,14 +122,6 @@ internal object AppChoices {
             now?.let {Text(stringResource(R.string.tx_opens, it),color=Mute,fontSize=13.sp)}
             SettingToggle(stringResource(R.string.st_at_startup),null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
             SettingToggle(stringResource(R.string.st_after_standby),stringResource(R.string.st_wake_launching_requires_ember_to_be),opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
-        }
-        if(part==HomeToolsPart.EXTRAS)Section(stringResource(R.string.st_now_playing), stringResource(R.string.st_control_supported_apps_from_light_home)) {
-            SettingToggle(stringResource(R.string.st_show_now_playing),null,opts.nowPlaying){vm.launcherExtras.update {it.copy(nowPlaying=!it.nowPlaying)}}
-            if(opts.nowPlaying) {
-                Text(if(PlaybackAccess.granted(context))"Media control access allowed" else "Media control access needed",color=Mute,fontSize=14.sp)
-                Chip(stringResource(R.string.st_allow_media_controls)){runCatching {context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}.onFailure {vm.showNotice("This TV does not expose notification-listener access.")}}
-                NowPlayingPanel(vm)
-            }
         }
         if(part==HomeToolsPart.EXTRAS)Section(stringResource(R.string.st_presentation), stringResource(R.string.st_loop_photos_and_videos_selected_local)) {
             ButtonRow {
@@ -148,29 +140,21 @@ internal object AppChoices {
                 }
             }
         }
+        if(part==HomeToolsPart.EXTRAS)Section(stringResource(R.string.st_now_playing), stringResource(R.string.st_control_supported_apps_from_light_home)) {
+            SettingToggle(stringResource(R.string.st_show_now_playing),null,opts.nowPlaying){vm.launcherExtras.update {it.copy(nowPlaying=!it.nowPlaying)}}
+            if(opts.nowPlaying) {
+                Text(if(PlaybackAccess.granted(context))"Media control access allowed" else "Media control access needed",color=Mute,fontSize=14.sp)
+                Chip(stringResource(R.string.st_allow_media_controls)){runCatching {context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}.onFailure {vm.showNotice("This TV does not expose notification-listener access.")}}
+                NowPlayingPanel(vm)
+            }
+        }
     }
     chooseApps?.let {where->
         val home=where=="home"
         val all=if(home)vm.apps else vm.appAccess.page(true)
         fun shown(pkg:String)=if(home)pkg !in vm.hidden else pkg !in vm.appsPageOff
         fun toggle(pkg:String){if(home)vm.toggleHidden(pkg) else vm.toggleAppsPage(pkg)}
-        MediaDialog(if(home)"Apps on Home" else "Apps on the Apps page",{chooseApps=null}, wide = true) {
-            Text(AppChoices.count(all.count {shown(it.pkg)},all.size)+". Highlighted apps are shown; press OK to switch one.",color=Mute,fontSize=13.sp)
-            ButtonRow {
-                Chip(stringResource(R.string.st_show_all)){all.forEach {if(!shown(it.pkg))toggle(it.pkg)}}
-                Chip(stringResource(R.string.st_hide_all)){all.forEach {if(shown(it.pkg))toggle(it.pkg)}}
-                Chip(stringResource(R.string.st_done)){chooseApps=null}
-            }
-            // #210: icons, six to a row; a hidden app is dimmed and unticked.
-            Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                all.sortedBy {it.label.lowercase()}.chunked(AppChoices.PER_ROW).forEach {line->
-                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                        line.forEach {a->AppChoiceTile(a,shown(a.pkg),Modifier.weight(1f)){toggle(a.pkg)}}
-                        repeat(AppChoices.PER_ROW-line.size){Spacer(Modifier.weight(1f))}
-                    }
-                }
-            }
-        }
+        AppChooserDialog(if(home)"Apps on Home" else "Apps on the Apps page",all,::shown,::toggle){chooseApps=null}
     }
     if(chooseStartup)MediaDialog(if(startupKind=="input")"Start on a TV input" else "Start with an app",{chooseStartup=false},wide=true) {
         fun choose(kind:String,target:String=""){vm.launcherExtras.update {it.copy(destination=kind,target=target)};chooseStartup=false}
@@ -183,6 +167,26 @@ internal object AppChoices {
             vm.appAccess.page(false).sortedBy {it.label.lowercase()}.chunked(AppChoices.PER_ROW).forEach {line->
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                     line.forEach {a->AppChoiceTile(a,vm.launcherExtras.options.target==a.pkg,Modifier.weight(1f)){choose("app",a.pkg)}}
+                    repeat(AppChoices.PER_ROW-line.size){Spacer(Modifier.weight(1f))}
+                }
+            }
+        }
+    }
+}
+
+/** Pick apps from their icons (#210): six to a row; a highlighted app is on, OK switches one. Shared by Home's app pickers and Light Home (#318). */
+@Composable internal fun AppChooserDialog(title:String,all:List<AppEntry>,shown:(String)->Boolean,toggle:(String)->Unit,onDone:()->Unit) {
+    MediaDialog(title,onDone, wide = true) {
+        Text(AppChoices.count(all.count {shown(it.pkg)},all.size)+". Highlighted apps are shown; press OK to switch one.",color=Mute,fontSize=13.sp)
+        ButtonRow {
+            Chip(stringResource(R.string.st_show_all)){all.forEach {if(!shown(it.pkg))toggle(it.pkg)}}
+            Chip(stringResource(R.string.st_hide_all)){all.forEach {if(shown(it.pkg))toggle(it.pkg)}}
+            Chip(stringResource(R.string.st_done),onClick=onDone)
+        }
+        Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            all.sortedBy {it.label.lowercase()}.chunked(AppChoices.PER_ROW).forEach {line->
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                    line.forEach {a->AppChoiceTile(a,shown(a.pkg),Modifier.weight(1f)){toggle(a.pkg)}}
                     repeat(AppChoices.PER_ROW-line.size){Spacer(Modifier.weight(1f))}
                 }
             }

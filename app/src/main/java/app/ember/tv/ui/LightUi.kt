@@ -540,52 +540,64 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
     val context = LocalContext.current
     var permission by remember { mutableStateOf(LightMediaProvider.granted(context)) }
     val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
-    Section("Light Home") {
-        Text(stringResource(R.string.ui_wallpaper), fontSize = 15.sp)
-        // #209: each wallpaper shows its own colours.
-        PictureRow { tile -> LightLayout.backgrounds.forEach { (id, label) ->
-            val title = when (id) { "art" -> stringResource(R.string.ui_title_art); "black" -> stringResource(R.string.ui_black); "ember" -> stringResource(R.string.ui_ember_glow); else -> label }
-            val chosen = vm.look.lightWallpaper == id
-            Focusable(onClick = { vm.look.updateLightWallpaper(id) }, modifier = Modifier.width(tile).semantics { selected = chosen }.testTag("wallpaper_$id"),
-                radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
-                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(lightWallpaperColors(id)))) {
-                        // Title art changes with your titles; a hint of a picture says so.
-                        if (id == "art") Box(Modifier.align(Alignment.Center).fillMaxWidth(.6f).fillMaxHeight(.5f).clip(RoundedCornerShape(5.dp)).background(Color.White.copy(alpha = .18f)))
+    val options = vm.look.lightHome
+    val home = vm.personalHomes.current
+    val canAsk = !vm.profiles.profile.kids && !permission
+    var chooseApps by remember { mutableStateOf(false) }
+    // #318: one section per part of Light Home instead of a single long list.
+    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        Section(stringResource(R.string.ui_wallpaper), stringResource(R.string.ui_title_art_slowly_changes_between_your), id = "light-wallpaper") {
+            // #209: each wallpaper shows its own colours.
+            PictureRow { tile -> LightLayout.backgrounds.forEach { (id, label) ->
+                val title = when (id) { "art" -> stringResource(R.string.ui_title_art); "black" -> stringResource(R.string.ui_black); "ember" -> stringResource(R.string.ui_ember_glow); else -> label }
+                val chosen = vm.look.lightWallpaper == id
+                Focusable(onClick = { vm.look.updateLightWallpaper(id) }, modifier = Modifier.width(tile).semantics { selected = chosen }.testTag("wallpaper_$id"),
+                    radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
+                    Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(lightWallpaperColors(id)))) {
+                            // Title art changes with your titles; a hint of a picture says so.
+                            if (id == "art") Box(Modifier.align(Alignment.Center).fillMaxWidth(.6f).fillMaxHeight(.5f).clip(RoundedCornerShape(5.dp)).background(Color.White.copy(alpha = .18f)))
+                        }
+                        Text(if (chosen) "$title  ✓" else title, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(if (chosen) "$title  ✓" else title, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+            } }
+            SettingToggle("Wallpaper colours", "Cached colour sampling; device performance settings take priority.",home.wallpaperColours) {vm.personalHomes.update {it.copy(wallpaperColours=!it.wallpaperColours)}}
+        }
+        Section(stringResource(R.string.st_light_carousel), stringResource(R.string.st_light_carousel_about), id = "light-carousel") {
+            LightCarouselCatalog(vm)
+            SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
+            Text(stringResource(R.string.tx_full_screen_carousel_when_idle), fontSize = 15.sp)
+            StepSlider("Idle time", listOf(0, 15, 30, 60, 120), options.idleSeconds, { if (it == 0) "Off" else "${it}s" }) { seconds -> vm.look.updateLightHome { it.copy(idleSeconds = seconds) } }
+            if(home.dismissed.isNotEmpty())Chip("Restore dismissed carousel items"){vm.personalHomes.update {it.copy(dismissed=emptyMap())}}
+        }
+        Section(stringResource(R.string.st_light_continue), stringResource(R.string.tx_app_recommendations_and_continue_watching_dep), id = "light-continue") {
+            SettingToggle("Apps’ Continue Watching", null, options.watchNext) { vm.look.updateLightHome { it.copy(watchNext = !it.watchNext) } }
+            if (options.watchNext && canAsk) Chip("Allow apps’ Continue Watching") { request.launch(LightMediaProvider.PERMISSION) }
+            SettingToggle("Hide short clips", "Exclude external resume items shorter than 10 minutes.",home.hideShortClips) {vm.personalHomes.update {it.copy(hideShortClips=!it.hideShortClips)}}
+            SettingToggle("Hide credits-only items",null,home.hideCredits) {vm.personalHomes.update {it.copy(hideCredits=!it.hideCredits)}}
+        }
+        Section(stringResource(R.string.st_light_recommendations), stringResource(R.string.st_light_recommendations_about), id = "light-recommendations") {
+            SettingToggle("Recommendations", null, options.recommendations) { vm.look.updateLightHome { it.copy(recommendations = !it.recommendations) } }
+            if (options.recommendations) {
+                val apps = vm.appAccess.page(false)
+                SettingValueRow(stringResource(R.string.st_light_recommending_apps), AppChoices.count(apps.count { it.pkg !in home.mutedApps }, apps.size)) { chooseApps = true }
             }
-        } }
-        Text(stringResource(R.string.ui_title_art_slowly_changes_between_your), color = Mute, fontSize = 13.sp)
-        val options = vm.look.lightHome
-        SettingToggle("Apps’ Continue Watching", null, options.watchNext) { vm.look.updateLightHome { it.copy(watchNext = !it.watchNext) } }
-        if (!vm.profiles.profile.kids && !permission) Chip("Allow apps’ Continue Watching") { request.launch(LightMediaProvider.PERMISSION) }
-        Text(stringResource(R.string.tx_app_recommendations_and_continue_watching_dep), color = Mute, fontSize = 13.sp)
-        val home=vm.personalHomes.current
-        SettingToggle("Wallpaper colours", "Cached colour sampling; device performance settings take priority.",home.wallpaperColours) {vm.personalHomes.update {it.copy(wallpaperColours=!it.wallpaperColours)}}
-        SettingToggle("Hide short clips", "Exclude external resume items shorter than 10 minutes.",home.hideShortClips) {vm.personalHomes.update {it.copy(hideShortClips=!it.hideShortClips)}}
-        SettingToggle("Hide credits-only items",null,home.hideCredits) {vm.personalHomes.update {it.copy(hideCredits=!it.hideCredits)}}
-        if(home.dismissed.isNotEmpty())Chip("Restore dismissed carousel items"){vm.personalHomes.update {it.copy(dismissed=emptyMap())}}
-        vm.appAccess.page(false).forEach {app->SettingToggle("${app.label} recommendations",null,app.pkg !in home.mutedApps){vm.personalHomes.update {it.copy(mutedApps=if(app.pkg in it.mutedApps)it.mutedApps-app.pkg else it.mutedApps+app.pkg)}}}
-        Chip("App folders") {vm.openSettingsPage("HOME_TOOLS")}
-        SettingToggle("Recommendations", null, options.recommendations) { vm.look.updateLightHome { it.copy(recommendations = !it.recommendations) } }
-        SettingToggle("App rows", "When an app in the dock is selected, show its own rows above it (Continue watching, Recently added…).",
-            options.appRows) {
-            val on = !options.appRows
-            vm.look.updateLightHome { it.copy(appRows = on) }
-            if (on && !permission && !vm.profiles.profile.kids) request.launch(LightMediaProvider.PERMISSION)
         }
-        if (options.appRows) {
-            if (!permission && !vm.profiles.profile.kids) Chip("Allow apps’ rows") { request.launch(LightMediaProvider.PERMISSION) }
-            Text(stringResource(R.string.tx_plex_jellyfin_and_emby_show_your),
-                color = Mute, fontSize = 13.sp)
+        Section(stringResource(R.string.st_light_app_rows), stringResource(R.string.tx_plex_jellyfin_and_emby_show_your), id = "light-app-rows") {
+            SettingToggle("App rows", "When an app in the dock is selected, show its own rows above it (Continue watching, Recently added…).",
+                options.appRows) {
+                val on = !options.appRows
+                vm.look.updateLightHome { it.copy(appRows = on) }
+                if (on && canAsk) request.launch(LightMediaProvider.PERMISSION)
+            }
+            if (options.appRows && canAsk) Chip("Allow apps’ rows") { request.launch(LightMediaProvider.PERMISSION) }
+            Chip("App folders") {vm.openSettingsPage("HOME_TOOLS")}
         }
-        LightCarouselCatalog(vm)
-        SettingToggle("Motion", "Also respects device performance and reduced-motion settings.", options.motion) { vm.look.updateLightHome { it.copy(motion = !it.motion) } }
-        Text(stringResource(R.string.tx_full_screen_carousel_when_idle), fontSize = 15.sp)
-        StepSlider("Idle time", listOf(0, 15, 30, 60, 120), options.idleSeconds, { if (it == 0) "Off" else "${it}s" }) { seconds -> vm.look.updateLightHome { it.copy(idleSeconds = seconds) } }
     }
+    if (chooseApps) AppChooserDialog(stringResource(R.string.st_light_recommending_apps), vm.appAccess.page(false), { it !in home.mutedApps }, { pkg ->
+        vm.personalHomes.update { it.copy(mutedApps = if (pkg in it.mutedApps) it.mutedApps - pkg else it.mutedApps + pkg) }
+    }) { chooseApps = false }
 }
 
 /** Which Home catalog leads Light's carousel (#61): the same choices as Modern's hero banner. */

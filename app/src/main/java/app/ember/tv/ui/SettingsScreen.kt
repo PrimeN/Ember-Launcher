@@ -109,11 +109,12 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     HOME_TOOLS("Apps & folders", "Home"),
     // #245: the navbar tabs moved to Appearance, beside the navbar style.
     TOP_MENU("Top menu", "Look", "APPEARANCE"),
-    LIGHT_HOME("Ember Light Home", "Home"),
-    DEFAULT_HOME("Startup & screensaver", "Home"),
-    SCREENSAVER("Screensaver", "Home", "DEFAULT_HOME"),
-    HOME_EXTRAS("Extras & weather", "Home"),
+    // #318: startup, then the screensaver beside the presentation slideshow; Light's own page last.
+    DEFAULT_HOME("Startup", "Home"),
+    HOME_EXTRAS("Screensaver & extras", "Home"),
+    SCREENSAVER("Screensaver", "Home", "HOME_EXTRAS"),
     WEATHER("Weather", "Home", "HOME_EXTRAS"),
+    LIGHT_HOME("Ember Light Home", "Home"),
     // Playback: the player and what it picks.
     PLAYER("Player", "Playback"),
     AUDIO_VIDEO("Audio & video", "Playback"),
@@ -123,13 +124,14 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     STREMIO("Stream results & badges", "Playback"),
     WATCH_STATUS("Watched & spoilers", "Playback"),
     // Sources: where titles, streams and their details come from.
+    // #319: addons, then where their catalogs are browsed, how titles look, where to watch, and Live TV.
     ADDONS("Addons & catalogs", "Sources"),
     CATALOGS("Catalogs", "Sources", "ADDONS"),
-    LIVE("Live TV", "Sources"),
-    STREAMING("Where to watch", "Sources"),
+    DISCOVER("Discover", "Sources"),
     POSTERS("Artwork & metadata", "Sources"),
     METADATA("Metadata", "Sources", "POSTERS"),
-    DISCOVER("Discover", "Sources"),
+    STREAMING("Where to watch", "Sources"),
+    LIVE("Live TV", "Sources"),
     PROFILES("Profiles & PIN", "Accounts"),
     TRACKERS("Trackers", "Accounts"),
     SERVERS("Media servers", "Accounts"),
@@ -205,14 +207,16 @@ fun SettingsScreen(vm: HomeViewModel) {
                 }
                 appearancePage(vm, SettingsTab.LIGHT_HOME)
             }
-            SettingsTab.HOME_TOOLS -> { item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)}; appearancePage(vm, SettingsTab.HOME_TOOLS) }
-            SettingsTab.HOME_EXTRAS -> { item(key="home-extras"){HomeToolsPage(vm, HomeToolsPart.EXTRAS)}; item(key = "weather") { WeatherSection(vm) } }
+            // #318: the apps on Home and how they look, then folders, the Apps page and what is hidden.
+            SettingsTab.HOME_TOOLS -> { item(key="home-apps"){HomeToolsPage(vm, HomeToolsPart.APPS)}; appearancePage(vm, SettingsTab.HOME_TOOLS); item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)} }
+            SettingsTab.HOME_EXTRAS -> { item(key = "screensaver") { ScreensaverSection(vm) }; item(key="home-extras"){HomeToolsPage(vm, HomeToolsPart.EXTRAS)}; item(key = "weather") { WeatherSection(vm) } }
             SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE -> appearancePage(vm, tab)
             SettingsTab.POSTERS -> {
+                // #319: artwork, then where details come from, then ratings with their long source list last.
                 item(key = "posters") { PostersPage(vm, openKeys) }
-                ratingsPage(vm, openKeys)
                 // #164: Metadata joins Posters & ratings.
                 item(key = "metadata") { MetadataPage(vm, openKeys) }
+                ratingsPage(vm, openKeys)
             }
             SettingsTab.METADATA -> item(key = "metadata") { MetadataPage(vm, openKeys) }
             SettingsTab.WEATHER -> item(key = "weather") { WeatherSection(vm) }
@@ -255,9 +259,9 @@ fun SettingsScreen(vm: HomeViewModel) {
                 item(key = "keysgrid") { ApiKeysGrid(vm) }
             }
             SettingsTab.DEFAULT_HOME -> {
-                item(key = "defaulthome") { DefaultHomePage() }
+                // #318: the everyday choice first; the one-time Ember as Home steps after it.
                 item(key = "startup") { HomeToolsPage(vm, HomeToolsPart.STARTUP) }
-                item(key = "screensaver") { ScreensaverSection(vm) }
+                item(key = "defaulthome") { DefaultHomePage() }
             }
             SettingsTab.DEVICE_TOOLS -> {
                 // #164: the remote's settings lead the page they joined.
