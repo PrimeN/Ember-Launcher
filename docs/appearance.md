@@ -4,6 +4,8 @@ Ember's appearance is a set of independent choices. A Home layout decides where
 apps and media live; a colour palette changes the interface colours. Changing one
 does not require changing the others.
 
+[See the layouts in the screenshot gallery →](gallery.md)
+
 ## Pick a Home interface
 
 Choose **Settings → Appearance → Interface**.

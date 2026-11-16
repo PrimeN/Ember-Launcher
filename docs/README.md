@@ -2,6 +2,7 @@
 
 | Guide | What it covers |
 | --- | --- |
+| [Screenshot gallery](gallery.md) | Home interfaces, Search, Discover, Apps, Library, Live TV, media pages and settings |
 | [Features](features.md) | Home, discovery, collections, servers, Live TV, playback and everyday tools |
 | [Appearance and layouts](appearance.md) | Independent interfaces, navigation, media pages, player controls and colour choices |
 | [Integrations and credentials](integrations.md) | Included services, what they provide and where to obtain required keys |

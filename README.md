@@ -29,6 +29,7 @@
 
 <p align="center">
   <a href="https://github.com/PrimeN/Ember-Launcher/releases/latest">Latest release</a> ·
+  <a href="#screenshots">Screenshots</a> ·
   <a href="#features">Features</a> ·
   <a href="docs/appearance.md">Appearance</a> ·
   <a href="docs/integrations.md">Integrations &amp; keys</a> ·
@@ -46,6 +47,23 @@ with artwork and controls that suit your TV.
 Start with the media-focused **Ember** interface or the app-focused **Ember Light**.
 Navigation, media pages, playback controls, colours and day/night modes are
 separate choices. You can change the look without replacing your setup.
+
+## Screenshots
+
+![Ember Home with featured artwork, compact navigation and an app row](docs/screenshots/home.png)
+
+| Search | Discover |
+| --- | --- |
+| ![Search results across configured sources](docs/screenshots/search.png) | ![Discover with sorting, filters and a media grid](docs/screenshots/discover.png) |
+
+| Live TV | Settings |
+| --- | --- |
+| ![Live TV programme guide](docs/screenshots/live-guide.png) | ![Settings topics and navigation](docs/screenshots/settings.png) |
+
+Captures rendered from the app with representative sample media. Content and
+effects depend on your configuration and device.
+
+[View the full gallery: Ember Light, Apps, Library, media pages, navigation and more →](docs/gallery.md)
 
 ## Features
 
