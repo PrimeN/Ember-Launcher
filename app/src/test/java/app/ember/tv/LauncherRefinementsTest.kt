@@ -17,7 +17,7 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class LauncherRefinementsTest {
-    private val app get() = RuntimeEnvironment.getApplication()
+    private val ctx get() = RuntimeEnvironment.getApplication()
 
     @Test fun deviceWidgetsAreRowsThatStandAlone() {
         val source = CollectionSource(provider = HomeWidgets.DEVICE, catalogId = HomeWidgets.APPS_RECENT)
@@ -33,7 +33,7 @@ class LauncherRefinementsTest {
     }
 
     @Test fun recentAppsAreKeptPerProfileNewestFirst() {
-        val recent = RecentApps(app)
+        val recent = RecentApps(ctx)
         recent.record("main", "a.one"); recent.record("main", "b.two"); recent.record("main", "a.one")
         recent.record("kid", "c.three")
         assertEquals(listOf("a.one", "b.two"), recent.list("main"))
@@ -68,13 +68,13 @@ class LauncherRefinementsTest {
         assertTrue(AutoBackup.due("weekly", 2 * day, 10 * day))
         assertTrue(AutoBackup.due("daily", 8 * day, 10 * day))
         assertTrue("a clock that went back counts as due", AutoBackup.due("daily", 20 * day, 10 * day))
-        assertEquals("weekly", AutoBackup.mode(app))
+        assertEquals("weekly", AutoBackup.mode(ctx))
 
-        val dir = File(app.filesDir, AutoBackup.DIR).apply { mkdirs() }
+        val dir = File(ctx.filesDir, AutoBackup.DIR).apply { mkdirs() }
         listOf(3L, 1L, 2L).forEach { File(dir, "auto-$it.bin").writeText("x") }
         File(dir, "other.txt").writeText("x")
-        assertEquals(listOf(3L, 2L, 1L), AutoBackup.list(app).map { it.time })
-        val bad = AutoBackup.list(app).first()
+        assertEquals(listOf(3L, 2L, 1L), AutoBackup.list(ctx).map { it.time })
+        val bad = AutoBackup.list(ctx).first()
         AutoBackup.cipher = { object : app.ember.tv.tracker.SecretCipher {
             override fun encrypt(name: String, value: ByteArray) = value
             override fun decrypt(name: String, blob: ByteArray): ByteArray = error("wrong key")
