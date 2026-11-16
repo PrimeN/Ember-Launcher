@@ -49,7 +49,8 @@ class WidgetWizardTest {
         assertEquals(WidgetSteps.LISTS, WidgetSteps.kindOf(list.source))
         assertEquals(WidgetSteps.CATALOG, WidgetSteps.kindOf(catalog.source))
         assertEquals(WidgetSteps.FILTERS, WidgetSteps.kindOf(CollectionSource(provider = "ember")))
-        assertEquals(5, WidgetSteps.kinds.size)
+        assertEquals(6, WidgetSteps.kinds.size)
+        assertEquals(WidgetSteps.APPS, WidgetSteps.kindOf(CollectionSource(provider = HomeWidgets.DEVICE, catalogId = HomeWidgets.APPS_RECENT)))
         assertEquals("12 titles found", WidgetSteps.status(catalog, Check(titles = 12)))
     }
 }

@@ -143,8 +143,8 @@ internal object PreferenceKeys {
     val UPDATE_CHECKED_AT = PreferenceKey<Long>("updateCheckedAt", PreferenceType.LONG, 0L)
     /** Automatic backups kept on this TV: "off", "daily" or "weekly". */
     val AUTO_BACKUP = PreferenceKey<String?>("autoBackup", PreferenceType.STRING, "weekly")
-    val AUTO_BACKUP_AT = PreferenceKey<Long>("autoBackupAt", PreferenceType.LONG, 0L, portable = false)
-    val AUTO_BACKUP_ERROR = PreferenceKey<String?>("autoBackupError", PreferenceType.STRING, null, portable = false)
+    val AUTO_BACKUP_AT = PreferenceKey<Long>("autoBackupAt", PreferenceType.LONG, 0L)
+    val AUTO_BACKUP_ERROR = PreferenceKey<String?>("autoBackupError", PreferenceType.STRING, null)
     val WATCH_PROVIDER = PreferenceKey<String?>("watchProvider", PreferenceType.STRING, "off")
     val WATCH_REGION = PreferenceKey<String?>("watchRegion", PreferenceType.STRING, null)
     val WEATHER_PROVIDER=PreferenceKey<String?>("weatherProvider",PreferenceType.STRING,"openmeteo")
