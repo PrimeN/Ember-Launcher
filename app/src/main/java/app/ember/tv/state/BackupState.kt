@@ -43,7 +43,7 @@ class BackupState(
         }
     }
 
-    fun setAutoBackupMode(mode: String) {
+    fun chooseAutoBackupMode(mode: String) {
         if (AutoBackup.choices.none { it.first == mode }) return
         app.getSharedPreferences("ember", android.content.Context.MODE_PRIVATE).edit()
             .putString(PreferenceKeys.AUTO_BACKUP.name, mode).apply()

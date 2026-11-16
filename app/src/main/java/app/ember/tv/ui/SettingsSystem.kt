@@ -154,7 +154,7 @@ internal fun BackupPage(vm: HomeViewModel) {
         LaunchedEffect(Unit) { vm.backup.refreshAutoBackups() }
         Section("Automatic backups", "Kept on this TV, encrypted, newest ${AutoBackup.KEEP}. They restore on this TV only and are removed if Ember is uninstalled.", id = "auto-backup") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Choice(AutoBackup.choices, vm.backup.autoBackupMode, "Back up automatically") { vm.backup.setAutoBackupMode(it) }
+                Choice(AutoBackup.choices, vm.backup.autoBackupMode, "Back up automatically") { vm.backup.chooseAutoBackupMode(it) }
                 val latest = vm.backup.autoBackups.firstOrNull()
                 Note(listOfNotNull(latest?.let { "Last: " + AutoBackup.label(it) } ?: "None yet.",
                     vm.backup.autoBackupError?.let { "The last attempt failed: $it" }).joinToString(" "))
