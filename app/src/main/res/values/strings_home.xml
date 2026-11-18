@@ -41,7 +41,7 @@
     <string name="home_at_boot">Open Ember when the TV starts</string>
     <string name="home_at_boot_note">The TV starts the service when it powers on; Ember opens then.</string>
     <string name="home_open_stock">Open Google TV home once</string>
-    <string name="home_open_stock_note">Left alone for one minute, e.g. to change Google TV\'s own settings.</string>
+    <string name="home_open_stock_note">Left alone for one minute, for example to change Google TV\'s own settings.</string>
     <string name="home_no_stock">The TV\'s own home screen is turned off or missing.</string>
     <string name="home_m1_fix">If it stops working after a Google TV update: switch Ember Home button off in Accessibility, wait a few seconds and switch it on again. Some updates also switch accessibility services off.</string>
 

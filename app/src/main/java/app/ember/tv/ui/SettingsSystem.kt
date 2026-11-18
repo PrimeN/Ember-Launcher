@@ -341,7 +341,7 @@ internal fun StreamingServicesHeader(vm: HomeViewModel, openKeys: () -> Unit) {
                     Text(stringResource(R.string.ui_region_line, vm.watch.watchRegion), fontSize = 15.sp)
                     vm.watch.servicesMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TextInput(region, { region = it }, "Two-letter country, e.g. US")
+                        TextInput(region, { region = it }, "Two-letter country, for example US")
                         Chip(stringResource(R.string.ui_set_region)) { vm.watch.updateWatchRegion(region) }
                     }
                     Text(stringResource(R.string.ui_your_services_ones_with_an_installed), fontSize = 15.sp)
@@ -443,7 +443,7 @@ internal fun MediaServersSection(vm: HomeViewModel) {
                     Chip(stringResource(R.string.ui_jellyfin), selected = kind == "jellyfin") { kind = "jellyfin" }
                     Chip(stringResource(R.string.ui_emby), selected = kind == "emby") { kind = "emby" }
                 }
-                TextInput(url, { url = it }, "Server address, e.g. 192.168.1.20:8096")
+                TextInput(url, { url = it }, "Server address, for example 192.168.1.20:8096")
                 TextInput(user, { user = it }, "Username")
                 TextInput(password, { password = it }, "Password", password = true)
                 ButtonRow(spacing = 10.dp) {
@@ -542,7 +542,7 @@ internal fun WeatherSection(vm: HomeViewModel) {
                 fontSize = 15.sp,
             )
             vm.weather.weatherMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
-            TextInput(city, { city = it }, "City, e.g. Toronto")
+            TextInput(city, { city = it }, "City, for example Toronto")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
                 item(key = "city") { Chip(stringResource(R.string.ui_use_this_city)) { vm.weather.setWeatherCity(city) } }
                 item(key = "approx") { Chip(stringResource(R.string.ui_use_my_approximate_area)) { vm.weather.useApproximateLocation() } }

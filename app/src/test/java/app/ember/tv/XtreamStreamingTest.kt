@@ -37,6 +37,12 @@ class XtreamStreamingTest {
         assertEquals(50_000, channels.last().number)
     }
 
+    /** #345: a panel that lists a stream under two categories still gives one channel. */
+    @Test fun aRepeatedStreamIsOneChannel() {
+        val json = """[{"stream_id":7,"name":"News","category_id":"0"},{"stream_id":7,"name":"News","category_id":"1"},{"stream_id":8,"name":"Sport"}]"""
+        assertEquals(listOf("src:7", "src:8"), Xtream.streams(json.byteInputStream(), source, mapOf("0" to "News", "1" to "Sports"), "ts").map { it.key })
+    }
+
     @Test fun anErrorObjectInsteadOfAListGivesNoChannels() {
         assertTrue(Xtream.streams("""{"user_info":{"auth":0}}""".byteInputStream(), source, emptyMap(), "ts").isEmpty())
         assertTrue(Xtream.streams("[]".byteInputStream(), source, emptyMap(), "ts").isEmpty())

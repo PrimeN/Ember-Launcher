@@ -66,7 +66,7 @@ internal fun CollectionSourceEditor(vm: HomeViewModel, initial: CollectionSource
                     }
                 } }
 
-                listOf("year" to "Release year", "voteAverageGte" to "Minimum rating (0–10)", "withOriginalLanguage" to "Original language (e.g. en)", "watchRegion" to "Streaming region (e.g. CA)").forEach { (key, label) ->
+                listOf("year" to "Release year", "voteAverageGte" to "Minimum rating (0–10)", "withOriginalLanguage" to "Original language (for example en)", "watchRegion" to "Streaming region (for example CA)").forEach { (key, label) ->
                     TvTextField(draft.filters?.get(key)?.let { (it as? JsonPrimitive)?.content }.orEmpty(), { input ->
                         val current = draft.filters.orEmpty(); draft = draft.copy(filters = if (input.isBlank()) current - key else current + (key to JsonPrimitive(input)))
                     }, Modifier.fillMaxWidth(), placeholder = label)

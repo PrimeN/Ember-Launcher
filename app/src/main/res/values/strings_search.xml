@@ -15,7 +15,7 @@
     <string name="search_no_filtered_matches">No %1$s matches. Try another filter.</string>
     <string name="search_show_all">Show all results</string>
     <string name="search_unavailable">Search unavailable</string>
-    <string name="search_sources">Source settings</string>
+    <string name="search_sources">Addons &amp; catalogs</string>
     <string name="search_retry">Retry search</string>
     <string name="search_no_matches">No matches. Try another title or app.</string>
 </resources>

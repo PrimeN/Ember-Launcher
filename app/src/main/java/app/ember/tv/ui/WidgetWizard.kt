@@ -215,7 +215,7 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
                 WidgetSteps.DETAILS -> {
                     Text(stringResource(R.string.tx_name), color = Mute, fontSize = 13.sp)
                     TvTextField(draft.title, { draft = draft.copy(title = it.take(100)); message = null }, Modifier.width(560.dp).testTag("widget_title"),
-                        placeholder = "e.g. Weekend movies", focusRequester = stepFocus)
+                        placeholder = "for example Weekend movies", focusRequester = stepFocus)
                     StepSlider("Titles to show", WidgetDrafts.limits, draft.limit, { "$it" }) { n -> draft = draft.copy(limit = n) }
                     Note("Home shows up to this many titles in the widget. The source has " + (check.titles?.toString() ?: "some") + ".")
                 }

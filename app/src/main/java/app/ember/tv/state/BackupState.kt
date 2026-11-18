@@ -80,7 +80,7 @@ class BackupState(
             } catch (e: Backup.BackupException) {
                 e.message
             } catch (e: Exception) {
-                "Something went wrong: " + (e.message ?: e.javaClass.simpleName)
+                "The backup could not be completed: " + (e.message ?: e.javaClass.simpleName)
             } finally {
                 backupBusy = false
             }

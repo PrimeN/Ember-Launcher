@@ -7,6 +7,7 @@ import android.text.format.Formatter
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
@@ -57,9 +58,12 @@ internal fun CacheManagementSettings(part: String) {
             }
             error?.let { Text(it,color=Mute) }
         }
-        if (confirm) MediaDialog("Clear cache data?",{if(!busy)confirm=false}) {
+        // Like every other confirmation that deletes something: Cancel first, and focused.
+        if (confirm) { val keep = remember { androidx.compose.ui.focus.FocusRequester() }
+        MediaDialog("Clear cache data?",{if(!busy)confirm=false},initialFocus=keep) {
             Text(stringResource(R.string.tx_downloaded_images_cached_metadata_catalogs_an),color=Mute)
             ButtonRow {
+                Chip(stringResource(R.string.ui_cancel),maxLines=1,modifier=Modifier.focusRequester(keep)){if(!busy)confirm=false}
                 Chip(if(busy)stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data),maxLines=1) {
                     if(!busy) {
                         busy=true;error=null
@@ -71,9 +75,8 @@ internal fun CacheManagementSettings(part: String) {
                         }
                     }
                 }
-                Chip(stringResource(R.string.ui_cancel),maxLines=1){if(!busy)confirm=false}
             }
-        }
+        } }
         return
     }
     val kind = when(part) {

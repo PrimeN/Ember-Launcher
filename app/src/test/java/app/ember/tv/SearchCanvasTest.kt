@@ -120,12 +120,12 @@ class SearchCanvasTest {
         state=state.copy(unavailable=true,note="Some sources failed",rows=listOf(CatalogRow("A","Movies",listOf(movie("tt1")))))
         show()
         compose.onNodeWithText("Some sources failed").assertDoesNotExist()
-        compose.onNodeWithText("Source settings").assertDoesNotExist()
+        compose.onNodeWithText("Addons & catalogs").assertDoesNotExist()
     }
     @Test fun noAvailableResultsOffersRecoveryAndRetry() {
         state=state.copy(unavailable=true,note="No sources available")
         show()
-        compose.onNodeWithText("Source settings").performSemanticsAction(SemanticsActions.OnClick){it()}
+        compose.onNodeWithText("Addons & catalogs").performSemanticsAction(SemanticsActions.OnClick){it()}
         compose.onNodeWithText("Retry search").performSemanticsAction(SemanticsActions.OnClick){it()}
         assertEquals(1,sources);assertEquals(1,retries)
     }
@@ -142,7 +142,7 @@ class SearchCanvasTest {
     @Test fun emptyAppsFilterDoesNotOfferUnrelatedSourceSettings() {
         state=state.copy(unavailable=true,note="No sources available")
         show();click("search_filter_APPS")
-        compose.onNodeWithText("Source settings").assertDoesNotExist()
+        compose.onNodeWithText("Addons & catalogs").assertDoesNotExist()
         compose.onNodeWithText("Show all results").assertExists()
     }
     @Test fun hiddenLocalShortcutsAreNotCountedAsMovieMatches() {

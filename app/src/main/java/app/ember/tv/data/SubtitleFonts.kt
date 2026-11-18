@@ -86,7 +86,7 @@ object SubtitleFonts {
         temp.writeBytes(bytes)
         // Android must be able to read it, or the player would fall back silently.
         runCatching { Typeface.createFromFile(temp) }.getOrNull() ?: run { temp.delete(); error("Android can't read that font.") }
-        check(temp.renameTo(target) || run { target.delete(); temp.renameTo(target) }) { "Couldn't keep the font." }
+        check(temp.renameTo(target) || run { target.delete(); temp.renameTo(target) }) { "Could not keep the font." }
         familyName(bytes) ?: "Custom font"
     }
 }

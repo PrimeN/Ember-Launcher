@@ -58,8 +58,8 @@ object Xtream {
                 userAgent = s.userAgent.ifBlank { null },
             )
         }
-        out.trimToSize()
-        return out
+        // Some panels list a stream once per category; the key identifies a channel on screen, so keep one (as M3U does).
+        return out.distinctBy { it.key }
     }
 
     /** Share a budget between duplicate entries for one host/account, without retaining its password. */

@@ -239,6 +239,6 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
 /** " Sent to Trakt and Simkl." plus anything that could not be sent, for notices. */
 fun TrackerHub.Outcome.describe(): String = buildString {
     if (sent.isNotEmpty()) append(" Sent to ${sent.joinToString(" and ")}.")
-    if (failed.isNotEmpty()) append(" Couldn't reach ${failed.joinToString(" and ")}.")
+    if (failed.isNotEmpty()) append(" Could not reach ${failed.joinToString(" and ")}.")
     refused.forEach { append(" ").append(it) }
 }

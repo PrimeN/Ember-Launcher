@@ -131,7 +131,7 @@ internal fun AddonDiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
         vm.discover.discoverNote?.let { note ->
             if(app.ember.tv.data.KidsContentPolicy.restricted(vm.profile) && !vm.discover.failed)Note(note)
             else RecoveryPanel(if (vm.discover.failed) "Catalog unavailable" else "No titles to show", note,
-                if (vm.discover.failed) "Retry catalog" else "Source settings",
+                if (vm.discover.failed) "Retry catalog" else "Addons & catalogs",
                 if (vm.discover.failed) ({
                     runCatching { navigation?.tab(app.ember.tv.data.NavTabs.DISCOVER)?.requestFocus() }
                     vm.discover.retry()

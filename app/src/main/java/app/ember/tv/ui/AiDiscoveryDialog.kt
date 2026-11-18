@@ -42,7 +42,7 @@ internal fun AiDiscoveryDialog(repository: ExploreRepository, region: String, on
         Text(stringResource(R.string.tx_mistral_suggests_filters_you_review_before), color = Mute, fontSize = 13.sp)
         TvTextField(prompt, {
             cancelRequest(); prompt = it.take(1000); result = null; error = null
-        }, placeholder = "e.g. Animated movies from 2010 onwards, rated 7+", focusRequester = first)
+        }, placeholder = "for example Animated movies from 2010 onwards, rated 7+", focusRequester = first)
         if (busy) Text(stringResource(R.string.tx_preparing_suggested_filters), color = Mute, fontSize = 13.sp)
         error?.let { Text(it, color = Mute, fontSize = 13.sp) }
         result?.let { suggestion ->

@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -90,7 +91,8 @@ internal fun ActiveFilterTags(query: ExploreQuery, modifier: Modifier = Modifier
     val tags = exploreTags(query)
     if (tags.isEmpty()) return
     LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 4.dp, horizontal = 2.dp)) {
-        items(tags, key = { it.first }) { (label, without) ->
+        // A service and a studio can share a name (Netflix), so the position keeps each key unique.
+        itemsIndexed(tags, key = { i, tag -> "$i:${tag.first}" }) { _, (label, without) ->
             Focusable(onClick = { onApply(without) }, radius = TvTokens.Shape.Pill, container = WashHi, focusedContainer = PillColor, focusedContent = OnPillColor,
                 outline = false, focusedScale = TvTokens.Focus.Control) {
                 Row(Modifier.padding(start = 12.dp, end = 10.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

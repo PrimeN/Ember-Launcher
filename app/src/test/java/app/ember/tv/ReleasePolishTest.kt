@@ -51,4 +51,16 @@ class ReleasePolishTest {
                 app.ember.tv.ui.TitleInfoLine.parts("series", "2026-01-01", null, "108 min", listOf("2026")))
         } finally { java.util.Locale.setDefault(previous) }
     }
+
+    /** A server's Continue watching and Recently added can share an episode; the shelf shows it once, so its key is unique. */
+    @Test fun lightShelfShowsEachTitleOnce() {
+        fun card(id: String) = app.ember.tv.light.ShelfCard(id, id, "", null, null)
+        val cards = app.ember.tv.ui.LightShelfCards.flatten(listOf(
+            "Continue watching" to listOf(card("a"), card("b")),
+            "Recently added" to listOf(card("b"), card("c")),
+            "On deck" to listOf(card("a")),
+        ))
+        assertEquals(listOf("a", "b", "c"), cards.map { it.second.id })
+        assertEquals(listOf("Continue watching", null, "Recently added"), cards.map { it.first })
+    }
 }

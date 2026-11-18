@@ -60,7 +60,7 @@ internal object BadgePhone {
         append("</p>")
         // Start: add one, or copy the Detailed set to edit it.
         append("<section class=card><h3>Add a pattern</h3><form class=flat method=post action=\"/badge$auth\" enctype=multipart/form-data><input type=hidden name=action value=add>")
-        append("<input name=name maxlength=60 placeholder=\"Badge name, e.g. REMUX\" required><textarea class=mono name=pattern rows=2 placeholder=\"Pattern (regular expression), e.g. \\bREMUX\\b\" required></textarea>")
+        append("<input name=name maxlength=60 placeholder=\"Badge name, for example REMUX\" required><textarea class=mono name=pattern rows=2 placeholder=\"Pattern (regular expression), for example \\bREMUX\\b\" required></textarea>")
         append("<button>Add pattern</button></form>")
         append("<form class=flat method=post action=\"/badge$auth\" enctype=multipart/form-data><input type=hidden name=action value=copy>")
         append("<label class=tick><input type=checkbox name=confirm required> Replace my badges with a copy of the Detailed badges</label><button class=quiet>Start from the Detailed badges</button></form></section>")
@@ -93,7 +93,7 @@ internal object BadgePhone {
         append("<label class=\"tick sw2\"><span>Show this badge</span><input class=sw type=checkbox role=switch name=enabled value=true${if (f.isEnabled) " checked" else ""}></label>")
         append("<label>Name<input name=name maxlength=60 value=\"${esc(f.name)}\"></label>")
         append("<label>Pattern<textarea class=mono name=pattern rows=3>${esc(f.pattern)}</textarea></label>")
-        append("<label>Try it<input class=try placeholder=\"A source name, e.g. Movie 2160p REMUX\" autocomplete=off></label><small class=tr></small>")
+        append("<label>Try it<input class=try placeholder=\"A source name, for example Movie 2160p REMUX\" autocomplete=off></label><small class=tr></small>")
         append("<fieldset><legend>Colours and shape</legend><div class=cols2>")
         append(colourInput("tag", "Tag colour", BadgeEditor.rgb(f.tagColor), "No tag colour", f.tagColor == null))
         append(range("opacity", "Background opacity", 0, 100, 10, BadgeEditor.nearest(BadgeEditor.opacitySteps, BadgeEditor.opacity(f.tagColor).toFloat(), 100), "%"))

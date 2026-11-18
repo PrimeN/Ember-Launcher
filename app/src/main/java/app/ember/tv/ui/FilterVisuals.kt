@@ -212,7 +212,7 @@ internal fun YearPane(draft: ExploreQuery, onChange: (ExploreQuery) -> Unit) {
             TvTextField(typed, { text ->
                 typed = text.filter(Char::isDigit).take(4)
                 FilterLook.typedYear(typed)?.let { onChange(draft.copy(fromYear = it, toYear = it)) }
-            }, Modifier.width(220.dp).testTag("year_typed"), placeholder = "e.g. 1994", keyboardType = KeyboardType.Number)
+            }, Modifier.width(220.dp).testTag("year_typed"), placeholder = "for example 1994", keyboardType = KeyboardType.Number)
             PaneHint(if (typed.isNotEmpty() && FilterLook.typedYear(typed) == null) "Enter a year from 1870 to ${java.time.LocalDate.now().year}."
                 else "Only titles released that year.")
         }

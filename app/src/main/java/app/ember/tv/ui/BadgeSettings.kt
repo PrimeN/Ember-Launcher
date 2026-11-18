@@ -226,7 +226,7 @@ private fun BadgeOptionsDialog(vm: HomeViewModel, id: String, close: () -> Unit)
                 ToggleRow(stringResource(R.string.st_show_this_badge), null, b.isEnabled) { edit { it.copy(isEnabled = !it.isEnabled) } }
                 MoveButton(b.name, all.indexOfFirst { it.id == id }, all.lastIndex) { step -> f.moveBadge(id, step) }
                 OptionLabel("Try it")
-                TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "A source name, e.g. Movie 2160p REMUX DV")
+                TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "A source name, for example Movie 2160p REMUX DV")
                 if (sample.isNotBlank()) {
                     val hit = BadgeEditor.matches(pattern, sample)
                     Text(when (hit) { true -> "Matches: this badge shows."; false -> "No match."; null -> "The pattern cannot run." },
@@ -289,8 +289,8 @@ private fun BadgeAddDialog(vm: HomeViewModel, close: () -> Unit) {
     var problem by remember { mutableStateOf<String?>(null) }
     MediaDialog("Add a pattern", close, resizeForKeyboard = true) {
         Note(stringResource(R.string.st_the_badge_shows_under_every_source))
-        TvTextField(name, { name = it.take(60) }, Modifier.fillMaxWidth(), placeholder = "Badge name, e.g. REMUX")
-        TvTextField(pattern, { pattern = it; problem = null }, Modifier.fillMaxWidth(), placeholder = "Pattern, e.g. \\bREMUX\\b", fontSize = 14.sp)
+        TvTextField(name, { name = it.take(60) }, Modifier.fillMaxWidth(), placeholder = "Badge name, for example REMUX")
+        TvTextField(pattern, { pattern = it; problem = null }, Modifier.fillMaxWidth(), placeholder = "Pattern, for example \\bREMUX\\b", fontSize = 14.sp)
         TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "Try it on a source name (optional)")
         if (sample.isNotBlank() && pattern.isNotBlank()) Text(when (BadgeEditor.matches(pattern, sample)) { true -> "Matches."; false -> "No match."; null -> "The pattern cannot run." }, color = Mute, fontSize = 13.sp)
         problem?.let { Text(it, color = Color(0xFFFFB4AB), fontSize = 13.sp) }

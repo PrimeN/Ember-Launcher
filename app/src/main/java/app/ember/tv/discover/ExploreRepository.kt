@@ -150,7 +150,7 @@ class ExploreRepository(
                 val known = p.arr("known_for")?.firstOrNull()?.let { it.str("title") ?: it.str("name") }
                 val note = if (company) p.str("origin_country")?.takeIf { it.isNotBlank() } else listOfNotNull(p.str("known_for_department"), known).joinToString(" · ").ifBlank { null }
                 ExploreRef(id, name, (p.str("profile_path") ?: p.str("logo_path"))?.let { "https://image.tmdb.org/t/p/w185$it" }, note)
-            } ?: emptyList()
+            }?.distinctBy { it.id } ?: emptyList() // ids key the result grid, so each appears once
     }
     /** Bio, birth and what they're known for, for the cast & crew popup (#92). Cached a day. */
     data class PersonInfo(val biography: String?, val born: String?, val place: String?, val knownFor: String?, val photo: String?)

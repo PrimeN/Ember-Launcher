@@ -142,7 +142,7 @@
     <string name="st_now_playing">Now Playing</string>
     <string name="st_off_by_default_automatically_turns_off">Off by default. Automatically turns off after 30 minutes, when you leave this page, or when Ember leaves the foreground.</string>
     <string name="st_off_by_default_manual_filters_and">Off by default. Manual filters and saved searches remain available.</string>
-    <string name="st_off_by_default_turning_off_also">Off by default. Turning off also deletes this profile’s history.</string>
+    <string name="st_off_by_default_turning_off_also">Off by default. Turning off also deletes this profile\'s history.</string>
     <string name="st_off_by_default_works_on_your">Off by default. Works on your home network while Ember is running.</string>
     <string name="st_off_decode_everything_to_pcm">Off: decode everything to PCM</string>
     <string name="st_off_sources_show_the_title_ember">Off: sources show the title, Ember\'s tags and the badges above. On: your own name and description templates, AIOStreams-style.</string>
@@ -280,7 +280,7 @@
     <string name="st_app_folders">App folders</string>
     <string name="st_light_carousel">Carousel</string>
     <string name="st_light_carousel_about">The large picture at the top of Light Home.</string>
-    <string name="st_light_continue">Apps’ Continue watching</string>
+    <string name="st_light_continue">Apps\' Continue watching</string>
     <string name="st_light_recommendations">Recommendations</string>
     <string name="st_light_recommendations_about">Suggestions your apps share with Android TV.</string>
     <string name="st_light_recommending_apps">Apps that recommend</string>

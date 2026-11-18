@@ -211,7 +211,7 @@ private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.Subtitl
                 val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.ember.tv.data.SubtitleFonts.save(context, link, subtitleFontClient) }
                 busy = false
                 result.onSuccess { name -> link = ""; message = "Loaded $name."; vm.playerSettings.updateSubtitleConfig { it.copy(font = app.ember.tv.data.SubtitleFonts.CUSTOM, customFontName = name) } }
-                    .onFailure { message = it.message ?: "Couldn't load that font." }
+                    .onFailure { message = it.message ?: "Could not load that font." }
             }
         }
     }

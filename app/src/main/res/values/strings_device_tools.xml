@@ -40,7 +40,7 @@
     <string name="device_menus">Device menus</string>
     <string name="device_menus_intro">Detected system menus that this device allows Ember to open. Manufacturer settings are saved by the device, outside Ember.</string>
     <string name="device_detecting">Detecting…</string>
-    <string name="device_no_menus">No accessible manufacturer menus were detected on this firmware. The remote’s settings button may still open its picture controls.</string>
+    <string name="device_no_menus">No accessible manufacturer menus were detected on this firmware. The remote\'s settings button may still open its picture controls.</string>
     <string name="device_menu_unavailable">The device did not allow this menu to open. It may have changed or require a manufacturer permission.</string>
     <string name="device_picture">Picture &amp; focus</string>
     <string name="device_manufacturer">Manufacturer settings</string>

@@ -565,7 +565,7 @@ class PhoneSetup(
             }
             "presentation" -> {
                 back(auth, Tab.SETTINGS)
-                append("<form method=post action=\"/presentation$auth\" enctype=multipart/form-data><h2>Presentation playlist</h2><p class=m>Images and short videos up to 8 MB. Approve each addition on the TV. For larger videos, choose a file on the TV.</p><input name=name required placeholder=\"File name including extension, e.g. photo.jpg\"><input type=file name=file required><button>Send to presentation playlist</button></form>")
+                append("<form method=post action=\"/presentation$auth\" enctype=multipart/form-data><h2>Presentation playlist</h2><p class=m>Images and short videos up to 8 MB. Approve each addition on the TV. For larger videos, choose a file on the TV.</p><input name=name required placeholder=\"File name including extension, for example photo.jpg\"><input type=file name=file required><button>Send to presentation playlist</button></form>")
             }
             else -> menu(auth, Tab.SETTINGS, listOf(
                 MenuItem("home", "Home", "Rows, lists and what Home shows · " + count(rows("home").size, "setting")),

@@ -5,5 +5,5 @@
     <string name="screensaver_picture_unavailable">This picture could not be loaded. Trying the next picture…</string>
     <string name="screensaver_launch_failed">Could not open Ember screensaver. See %1$s › Crash log.</string>
     <string name="screensaver_tv_settings">TV screensaver settings</string>
-    <string name="screensaver_manual_summary">Screensaver now opens Ember directly. For automatic idle activation, choose Ember in your TV’s screensaver settings.</string>
+    <string name="screensaver_manual_summary">Screensaver now opens Ember directly. For automatic idle activation, choose Ember in your TV\'s screensaver settings.</string>
 </resources>

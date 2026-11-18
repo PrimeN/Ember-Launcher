@@ -73,7 +73,7 @@ internal fun PersonDialog(person:Person,current:Meta,close:()->Unit,
                 if(titles.isEmpty())message="No other movies or shows to show."
             }
         } catch(e:CancellationException) {throw e}
-        catch(_:Exception) {message="Couldn't load their titles. Check the connection.";canRetry=true}
+        catch(_:Exception) {message="Could not load their titles. Check the connection.";canRetry=true}
         finally {loading=false}
     }
     // Land on the first poster (or the first person to choose) when they arrive.

@@ -39,7 +39,7 @@ import app.ember.tv.light.ShelfCard
  */
 @Composable
 internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: FocusRequester, modifier: Modifier = Modifier, onOpen: (ShelfCard) -> Unit) {
-    val cards = groups.flatMap { (name, items) -> items.mapIndexed { i, item -> (if (i == 0) name else null) to item } }
+    val cards = LightShelfCards.flatten(groups)
     // Coming back up from the dock lands on the card last focused here (#135).
     LazyRow(modifier.fillMaxWidth().focusRequester(first).focusRestorer(), contentPadding = PaddingValues(horizontal = 45.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(cards, key = { it.second.id }) { (header, item) ->
@@ -63,6 +63,20 @@ internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: F
                 if (item.subtitle.isNotBlank()) Text(item.subtitle, color = Color(0xFFD8DEF3), fontSize = TvTokens.Type.Caption.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 else Spacer(Modifier.height(14.dp))
             }
+        }
+    }
+}
+
+internal object LightShelfCards {
+    /**
+     * One card per title across the app's groups: a server's Continue watching and Recently added
+     * often share an episode, and each card's id keys the row, so it may appear only once.
+     * The first group keeps it; a group left empty is dropped.
+     */
+    fun flatten(groups: List<Pair<String, List<ShelfCard>>>): List<Pair<String?, ShelfCard>> {
+        val seen = HashSet<String>()
+        return groups.flatMap { (name, items) ->
+            items.filter { seen.add(it.id) }.mapIndexed { i, item -> (if (i == 0) name else null) to item }
         }
     }
 }

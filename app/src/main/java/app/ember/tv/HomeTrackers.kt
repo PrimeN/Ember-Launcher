@@ -125,7 +125,7 @@ internal fun HomeViewModel.syncTrackers(force: Boolean = false, allowMassRemoval
                 if (r.copied > 0) append(" · copied ${r.copied}")
                 if (r.removed > 0) append(" · removed ${r.removed}")
                 if (r.copied + r.removed == 0) append(" · everything matches")
-                if (r.failed.isNotEmpty()) append(". Couldn't reach ${r.failed.joinToString(" and ")}; it will try again.")
+                if (r.failed.isNotEmpty()) append(". Could not reach ${r.failed.joinToString(" and ")}; it will try again.")
                 r.refused.forEach { append(" ").append(it) }
             }
             if (r.copied + r.removed > 0) { trackersAt = 0L; smartRowsLoadedAt = 0L; refreshTrackers() }
