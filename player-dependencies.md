@@ -73,7 +73,7 @@ native binary is required for an ordinary Gradle build.
 |---|---|---|
 | AndroidX Media3 RTSP | 1.11.1 | RTSP source handling |
 | AndroidX Media3 SmoothStreaming | 1.11.1 | SmoothStreaming manifests/segments |
-| `dev.jdtech.mpv:libmpv` | 1.0.0 | Internal compatibility engine and native libass captions |
+| `dev.jdtech.mpv:libmpv` | 1.1.0 | Internal compatibility engine and native libass captions |
 | `com.hierynomus:smbj` | 0.15.0 | Encrypted/signed SMB3 file access |
 | `com.rapid7.client:dcerpc` | 0.12.13 | Authenticated SMB share enumeration |
 | `commons-io:commons-io` / `org.apache.commons:commons-lang3` | 2.21.0 / 3.22.0 | RPC I/O and value helpers |
@@ -109,17 +109,17 @@ under `app/build/android-smb-rpc/`. No generated JAR is committed. Removing that
 directory and rebuilding reproduces it from the pinned artifact. A unit test
 exercises a malformed RPC response through the adapted exception path.
 
-## Two FFmpeg ABIs must remain separate
+## Independent FFmpeg bundles must remain separate
 
-Nextlib uses `LIBAVCODEC_63` / `LIBAVUTIL_61`; libmpv 1.0.0 uses
-`LIBAVCODEC_62` / `LIBAVUTIL_60`. Selecting one duplicate `.so` with `pickFirst`
-would break one engine. `IsolateMpvNative` instead produces a deterministic AAR in
+Nextlib and libmpv 1.1.0 both use `LIBAVCODEC_63` / `LIBAVUTIL_61`, but ship
+independently configured FFmpeg builds. Keep their private dependency namespaces
+separate; matching major symbol versions do not make the bundles interchangeable. `IsolateMpvNative` instead produces a deterministic AAR in
 `app/build/isolated-mpv/`, changing only same-length native library-name strings,
 JNI loader constants, and the JNI verbose log format. Symbol ABI versions, offsets,
 JNI class/method names and executable instructions are preserved.
 
 - Upstream AAR SHA256:
-  `df146592480fc8418415a06b1f1a1d6318b0088e21f52254b0e9a82b61ca8fa2`
+  `20fd972e70d8e73bf8900d911f3ae0eeae354606baeb0fe58caa1a6380e196aa`
 - Native library filenames/SONAME/DT_NEEDED strings get private `libem…` names.
 - Java's `mpv` / `player` loader constants become `emv` / `emplay`.
 - The JNI verbose log literal no longer emits arbitrary mpv message text, which can
@@ -139,7 +139,7 @@ Example checks (Python 3 / `readelf` for the native audit):
 
 ```sh
 gradle :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :app:mergeDebugNativeLibs
-python3 scripts/verify-player-native.py app/build/isolated-mpv/libmpv-1.0.0.aar
+python3 scripts/verify-player-native.py app/build/isolated-mpv/libmpv-1.1.0.aar
 ```
 
 These commands do not assemble an APK. Inspect lint's XML error severities too:
@@ -154,15 +154,18 @@ inventory. When distributing binaries, provide the corresponding source, upstrea
 sources/build scripts and Ember's local transformations together; an MIT label on
 the wrapper does not remove that requirement.
 
-- [libmpv Android v1.0.0 source](https://github.com/jarnedemeulemeester/libmpv-android/tree/fcf6745703dc1265bca88f12fee8fc355ddf251e),
+- [libmpv Android v1.1.0 source](https://github.com/jarnedemeulemeester/libmpv-android/tree/85a2445098b7cba99576c2963b1417b17b4debdd),
   including `buildscripts/include/depinfo.sh` and the native build scripts/patches.
   The source ref is the release tag, not the newer repository main branch.
-- Release build inventory: mpv 0.41.0 (GPL), FFmpeg 8.1 (GPL/version3 enabled),
-  libass 0.17.4 (ISC), dav1d 1.5.3 (BSD), libplacebo 7.360.1 (LGPL), mbedTLS 3.6.6
-  (Apache), Lua 5.2.4 (MIT), FreeType 2.14.3 (FTL/GPL), fontconfig 2.17.1 (MIT),
-  FriBidi 1.0.16 (LGPL), HarfBuzz 14.1.0 (MIT style), libunibreak 6.1 (zlib),
-  libxml2 2.15.2 (MIT), and the Android NDK C++ runtime (Apache/LLVM exception).
-  Exact patches/configuration are in that release's build scripts.
+- Release build inventory: mpv 0.42.0 (GPL), FFmpeg 9.0.2 (GPL/version3 enabled),
+  libass 0.17.5 (ISC), dav1d 1.5.4 (BSD), libplacebo 7.387.0 (LGPL), mbedTLS 3.6.7
+  (Apache), curl 8.23.0 (curl license), Lua 5.2.4 (MIT), FreeType 2.15.0 (FTL/GPL), fontconfig 2.18.3 (MIT),
+  FriBidi 1.0.18 (LGPL), HarfBuzz 15.1.0 (MIT style), libunibreak 8.0 (zlib),
+  libxml2 2.15.4 (MIT), and the Android NDK C++ runtime (Apache/LLVM exception).
+  The upstream bundle uses NDK 30.0.16248370; Ember's custom components retain
+  their pinned NDK 29.0.14206865 toolchain. Exact upstream patches/configuration
+  are in that release's build scripts.
+  The curl notice is bundled in `app/src/main/assets/licenses/curl-COPYING.txt`.
 - [Nextlib source matching 1.11.1-0.18.0](https://github.com/anilbeesetti/nextlib/tree/d774e7e6d65204d409dc679ab173c67030d4a7d4), GPLv3:
   FFmpeg 9.0.1, dav1d 1.5.4, mbedTLS 3.6.7, libass 0.17.5, FreeType 2.14.1, FriBidi 1.0.16,
   HarfBuzz 14.4.0, Fontconfig 2.16.0, Expat 2.8.4 and libunibreak 7.0 (versions from its `ffmpeg/setup.sh`).
@@ -197,8 +200,9 @@ requires device support; no software AC-4 or IAMF decoder is bundled.
 
 Software HDR
 preservation/tone mapping is not advertised as equivalent to the TV's HDR pipeline.
-Ember now replaces the pinned libmpv filter library with a selective FFmpeg 8.1
-build containing BWDIF/YADIF, scale/format and the existing buffer filters. All four
+Ember now replaces the pinned libmpv filter library with a selective FFmpeg 9.0.2
+build containing BWDIF/YADIF, scale/format, audio filters (including `acompressor` for
+Night listening) and the existing buffer filters. Both packaged ARM
 ABIs retain private SONAMEs, symbol compatibility and 16 KiB alignment. Source,
 checksums and rebuild/verification steps are in
 [the native filter directory](app/native/ffmpeg-filters/README.md). Compatibility

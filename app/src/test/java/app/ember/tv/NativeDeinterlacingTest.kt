@@ -34,12 +34,12 @@ class NativeDeinterlacingTest {
     @Test fun everyShippedArchitectureHasThePinnedFilterLibrary() {
         val root = File("native/ffmpeg-filters")
         val properties = Properties().apply { File(root, "checksums.properties").inputStream().use { load(it) } }
-        for ((abi, machine) in mapOf("arm64-v8a" to 183, "armeabi-v7a" to 40, "x86" to 3, "x86_64" to 62)) {
+        for ((abi, machine) in mapOf("arm64-v8a" to 183, "armeabi-v7a" to 40)) {
             val data = File(root, "$abi/libavfilter.so").readBytes()
             assertEquals(machine, ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getShort(18).toInt())
             assertEquals(properties.getProperty("$abi.sha256"), MessageDigest.getInstance("SHA-256").digest(data).joinToString("") { "%02x".format(it) })
             val strings = data.toString(Charsets.ISO_8859_1)
-            for (name in listOf("bwdif\u0000", "yadif\u0000", "LIBAVFILTER_11\u0000")) assertTrue("$abi: $name", name in strings)
+            for (name in listOf("bwdif\u0000", "yadif\u0000", "LIBAVFILTER_12\u0000", "acompressor\u0000")) assertTrue("$abi: $name", name in strings)
         }
     }
 }

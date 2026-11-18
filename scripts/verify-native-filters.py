@@ -8,7 +8,7 @@ p.add_argument('--filters', default='app/native/ffmpeg-filters')
 a = p.parse_args()
 root = pathlib.Path(a.filters)
 properties = dict(line.split('=', 1) for line in (root/'checksums.properties').read_text().splitlines() if line and not line.startswith('#'))
-machines = {'arm64-v8a': 183, 'armeabi-v7a': 40, 'x86': 3, 'x86_64': 62}
+machines = {'arm64-v8a': 183, 'armeabi-v7a': 40}
 
 def symbols(file):
     exported, imported = set(), set()
@@ -26,9 +26,9 @@ with zipfile.ZipFile(a.upstream_aar) as z, tempfile.TemporaryDirectory() as tmp:
         assert data[:4] == b'\x7fELF' and data[5] == 1
         assert struct.unpack_from('<H', data, 18)[0] == machine, abi
         assert hashlib.sha256(data).hexdigest() == properties[abi+'.sha256'], abi
-        assert all(x in data for x in (b'bwdif\0', b'yadif\0', b'LIBAVFILTER_11\0')), abi
+        assert all(x in data for x in (b'bwdif\0', b'yadif\0', b'LIBAVFILTER_12\0')), abi
         if abi in ('arm64-v8a', 'armeabi-v7a'):
-            assert all(x+b'\0' in data for x in (b'equalizer', b'pan', b'volume', b'aformat', b'aresample')), abi
+            assert all(x+b'\0' in data for x in (b'equalizer', b'pan', b'volume', b'aformat', b'aresample', b'acompressor')), abi
         deps = subprocess.check_output(['readelf', '-d', str(file)], text=True)
         assert 'Library soname: [libavfilter.so]' in deps
         needed = re.findall(r'\(NEEDED\).*\[(.*?)\]', deps)

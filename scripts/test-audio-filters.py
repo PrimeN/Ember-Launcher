@@ -29,4 +29,11 @@ with tempfile.TemporaryDirectory() as tmp:
         return math.sqrt(sum(x*x for x in out)/len(out))
     filters='volume=-6dB,equalizer=f=80:t=o:w=1:g=6'
     assert level(80,filters)>level(4000,filters)*1.5
-print('Audio filters: flat bypass, stereo/surround mapping, mono downmix, bass response and headroom passed')
+    # A loud sustained section must move closer to quiet dialogue without clipping.
+    quiet=[round(1000*math.sin(2*math.pi*440*i/48000)) for i in range(48000)]
+    loud=[round(26000*math.sin(2*math.pi*440*i/48000)) for i in range(48000)]
+    compressed=process(quiet+loud,1,'volume=-6dB,acompressor=threshold=0.0630957:ratio=4:attack=5:release=250:makeup=2:knee=2.828427:link=maximum:detection=peak')
+    def rms(v):return math.sqrt(sum(x*x for x in v)/len(v))
+    assert rms(compressed[72000:]) / rms(compressed[24000:48000]) < rms(loud)/rms(quiet)*0.65
+    assert max(abs(x) for x in compressed)<32767
+print('Audio filters: flat bypass, stereo/surround mapping, mono downmix, bass response, headroom and night-compression dynamics passed')

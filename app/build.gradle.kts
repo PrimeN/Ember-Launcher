@@ -24,7 +24,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-/** The two engines use different FFmpeg ABIs. Rename libmpv's private ELF dependencies
+/** The two engines ship independent FFmpeg bundles. Rename libmpv's private ELF dependencies
  * and its JNI loader strings without changing symbols, byte offsets or JNI class names.
  * Never use packaging pickFirst for these libraries: that would break one engine.
  */
@@ -88,13 +88,15 @@ abstract class IsolateMpvNative : DefaultTask() {
     @TaskAction fun isolate() {
         val original=upstream.get().asFile
         val digest=MessageDigest.getInstance("SHA-256").digest(original.readBytes()).joinToString(""){"%02x".format(it)}
-        require(digest=="df146592480fc8418415a06b1f1a1d6318b0088e21f52254b0e9a82b61ca8fa2") { "Unexpected libmpv artifact; review dependency before building." }
+        require(digest=="20fd972e70d8e73bf8900d911f3ae0eeae354606baeb0fe58caa1a6380e196aa") { "Unexpected libmpv artifact; review dependency before building." }
         val filterRoot=filters.get().asFile
         val hashes=Properties().apply {filterRoot.resolve("checksums.properties").inputStream().use {load(it)}}
         val replaced=mutableSetOf<String>()
         val target=output.get().asFile;target.parentFile.mkdirs()
         ZipFile(original).use { source -> ZipOutputStream(target.outputStream()).use { zip ->
             source.entries().asSequence().forEach { entry ->
+                // Only the ARM libraries are packaged (abiFilters); x86 copies are left out of the AAR.
+                if(entry.name.startsWith("jni/") && entry.name.split('/').getOrNull(1) !in setOf("arm64-v8a","armeabi-v7a"))return@forEach
                 val data=if(entry.name.startsWith("jni/") && entry.name.endsWith("/libavfilter.so")) {
                     val abi=entry.name.split('/')[1]
                     val replacement=filterRoot.resolve("$abi/libavfilter.so").readBytes()
@@ -108,14 +110,14 @@ abstract class IsolateMpvNative : DefaultTask() {
                 zip.write(when {name=="classes.jar"->classes(data);name.startsWith("jni/")&&name.endsWith(".so")->renameNative(data,name.endsWith("/libemplay.so"));else->data});zip.closeEntry()
             }
         } }
-        require(replaced==setOf("arm64-v8a","armeabi-v7a","x86","x86_64")) {"Missing native filter ABI: $replaced"}
+        require(replaced==setOf("arm64-v8a","armeabi-v7a")) {"Missing native filter ABI: $replaced"}
     }
 }
 val mpvUpstream by configurations.creating { isCanBeConsumed=false;isTransitive=false }
 val isolateMpvNative by tasks.registering(IsolateMpvNative::class) {
     upstream.set(layout.file(provider { mpvUpstream.singleFile }))
     filters.set(layout.projectDirectory.dir("native/ffmpeg-filters"))
-    output.set(layout.buildDirectory.file("isolated-mpv/libmpv-1.0.0.aar"))
+    output.set(layout.buildDirectory.file("isolated-mpv/libmpv-1.1.0.aar"))
 }
 
 /** Android has no java.rmi. Preserve RPC parsing failures through Ember's IOException
@@ -347,7 +349,7 @@ kotlin {
 }
 
 dependencies {
-    mpvUpstream("dev.jdtech.mpv:libmpv:1.0.0@aar")
+    mpvUpstream("dev.jdtech.mpv:libmpv:1.1.0@aar")
     implementation(files(isolateMpvNative.flatMap { it.output }))
     implementation("androidx.core:core-ktx:1.19.1")
     // Installs the startup profiles shipped by Compose and the other libraries (plus Ember's own,

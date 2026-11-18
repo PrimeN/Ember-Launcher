@@ -54,7 +54,9 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     private var seekable=!source.live
     private var loading=true
     private var stopping=false
-    private var fileEvents=0
+    // A load error ends one file; a later load or an intentional stop must not inherit it.
+    private val fileEvents=NativeFileEvents({task,delay->handler.postDelayed(task,delay)},
+        {!closed&&!stopping&&status!=Player.STATE_ENDED&&native.getPropertyBoolean("idle-active")==true},{failedFile()})
     private var pcmAttempted=false
     private var transport:NativeHttpTransport?=null
     private var output:Any?=null
@@ -100,6 +102,8 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     init {
         try {
             transport=NativeHttpTransport(source.headers,source.urls+listOfNotNull(source.audio),timing=config.stream)
+            // mpv's own log can carry stream links and headers; it is never requested.
+            check(native.requestLogMessages("no")>=0) {"mpv log suppression unavailable"}
             fun option(k:String,v:String) { check(native.setOptionString(k,v)>=0) { "Compatibility player option unavailable: $k" } }
             option("config","no");option("load-scripts","no");option("ytdl","no")
             option("msg-level","all=no");option("terminal","no");option("osd-level","0");option("input-default-bindings","no")
@@ -235,8 +239,11 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         when(property){"paused-for-cache"->{busy=value;if(!loading && status!=Player.STATE_ENDED && status!=Player.STATE_IDLE)status=if(value)Player.STATE_BUFFERING else Player.STATE_READY};"eof-reached"->if(value)eof();"seekable"->seekable=value};invalidateState()
     }
     override fun event(eventId:Int)=onMain {
-        when(eventId){MPVLib.MpvEvent.MPV_EVENT_START_FILE->fileEvents++;MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED->loaded();MPVLib.MpvEvent.MPV_EVENT_VIDEO_RECONFIG->{refreshTracks();invalidateState()}
-            MPVLib.MpvEvent.MPV_EVENT_END_FILE->if(!stopping){val generation=fileEvents;handler.postDelayed({if(!closed && !stopping && generation==fileEvents && status!=Player.STATE_ENDED && native.getPropertyBoolean("idle-active")==true)failedFile()},500)}}
+        when(eventId){MPVLib.MpvEvent.MPV_EVENT_START_FILE->fileEvents.started();MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED->loaded();MPVLib.MpvEvent.MPV_EVENT_VIDEO_RECONFIG->{refreshTracks();invalidateState()}}
+    }
+    /** libmpv 1.1.0 reports why a file ended; only an error retries. */
+    override fun eventEndFile(reason:Int,error:Int)=onMain {
+        if(!stopping)fileEvents.ended(reason)
     }
     override fun getState():State {
         val commands=Player.Commands.Builder().addAll(
