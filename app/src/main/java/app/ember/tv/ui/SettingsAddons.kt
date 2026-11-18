@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import androidx.core.net.toUri
 import app.ember.tv.addAddon
 import app.ember.tv.addonLabel
 import app.ember.tv.pauseAddon
@@ -203,7 +204,7 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 Chip(if (info?.configurationRequired == true) stringResource(R.string.st_set_it_up) else stringResource(R.string.st_its_settings)) {
                     val opened = runCatching {
-                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
+                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, link.toUri())
                             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.isSuccess
                     if (!opened) vm.showNotice("No web browser on this TV. Open the addon's settings from a phone or computer.")

@@ -1,5 +1,4 @@
 <resources>
-    <string name="settings_device_tools">Display &amp; inputs</string>
     <string name="settings_summary_device_tools">Calibration, TV menus and input shortcuts</string>
     <string name="cal_patterns">Calibration patterns</string>
     <string name="cal_intro">Offline SDR patterns use the highest supported output up to 4K. Your TV may still scale the image; check the pixel stripes. Left/Right changes patterns, OK shows or hides guidance, Back exits.</string>

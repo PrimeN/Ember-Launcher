@@ -11,15 +11,19 @@ import java.util.Locale
  * so the guide, quick settings, backups and title pages agree.
  */
 object DisplayDates {
-    @Volatile private var app: Context? = null
+    /** The TV's own time format; kept as a function so no Context sits in a static field. */
+    @Volatile private var tvTime: (() -> DateFormat)? = null
 
-    fun init(context: Context) { app = context.applicationContext }
+    fun init(context: Context) {
+        val app = context.applicationContext
+        tvTime = { android.text.format.DateFormat.getTimeFormat(app) }
+    }
 
     private val locale: Locale get() = Locale.getDefault()
 
     /** The TV's clock setting; the language's own habit before Ember has started. */
     private fun timeFormat(): DateFormat =
-        app?.let { android.text.format.DateFormat.getTimeFormat(it) } ?: DateFormat.getTimeInstance(DateFormat.SHORT, locale)
+        tvTime?.invoke() ?: DateFormat.getTimeInstance(DateFormat.SHORT, locale)
 
     private fun pattern(skeleton: String): SimpleDateFormat =
         SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton), locale)
