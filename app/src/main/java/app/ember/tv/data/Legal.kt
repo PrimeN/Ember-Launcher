@@ -141,7 +141,7 @@ object Legal {
                 Item("AndroidX Media3 (ExoPlayer)", "Built-in player: video, audio, HLS, DASH and subtitles. Apache License 2.0.", "https://github.com/androidx/media"),
                 Item(
                     "Nextlib",
-                    "FFmpeg audio decoders (TrueHD, DTS, Dolby Digital, FLAC and more) for Media3, by Anil Beesetti. GNU GPL v3.",
+                    "FFmpeg 9.0 audio decoders (TrueHD, DTS, Dolby Digital, FLAC and more) for Media3, by Anil Beesetti. GNU GPL v3. Its native build also carries libass (ISC), FreeType (FTL), FriBidi (LGPL 2.1), HarfBuzz (MIT), Fontconfig (MIT), Expat (MIT), libunibreak (zlib), dav1d (BSD) and mbedTLS (Apache 2.0).",
                     "https://github.com/anilbeesetti/nextlib",
                 ),
                 Item("libmpv for Android 1.0.0", "Compatibility playback inside Ember. Android wrapper: MIT, copyright Ilya Zhuravlev, sfan5 and contributors. Native mpv/FFmpeg stack includes GPL v3 components; full license texts are bundled with Ember.", "https://github.com/jarnedemeulemeester/libmpv-android/tree/fcf6745703dc1265bca88f12fee8fc355ddf251e"),

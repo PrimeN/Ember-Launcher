@@ -2,7 +2,7 @@
 
 ## Local development
 
-Use JDK 17, Android SDK platform 37, Python 3 and Gradle 9.8.2. The repository
+Use JDK 17, Android SDK platform 37, Python 3 and Gradle 9.9.1. The repository
 contains wrapper version metadata but no wrapper script or JAR, so install Gradle
 and use the `gradle` command below. Gradle downloads the pinned build dependencies. Android Studio can
 install the SDK platform and build tools during project sync.

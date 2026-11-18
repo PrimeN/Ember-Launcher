@@ -155,7 +155,7 @@ export when moving devices or keeping a backup elsewhere.
 ## Build and updates
 
 Development takes place on **beta**; **main** is the release branch. For a source
-build, install **JDK 17**, **Gradle 9.8.2**, **Android SDK platform 37** and **Python 3**:
+build, install **JDK 17**, **Gradle 9.9.1**, **Android SDK platform 37** and **Python 3**:
 
 ```sh
 git clone --branch beta https://github.com/PrimeN/Ember-Launcher.git

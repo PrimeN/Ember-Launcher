@@ -79,10 +79,10 @@ jobs:
       - name: Check Android SDK
         run: echo "Android SDK at ${ANDROID_HOME:-$ANDROID_SDK_ROOT}" && ls "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/platforms"
 
-      # The project has no Gradle wrapper script, so the runner installs Gradle 9.8.2 and caches it.
+      # The project has no Gradle wrapper script, so the runner installs Gradle 9.9.1 and caches it.
       - uses: gradle/actions/setup-gradle@v5
         with:
-          gradle-version: "9.8.2"
+          gradle-version: "9.9.1"
 
       - name: Signing key
         shell: bash

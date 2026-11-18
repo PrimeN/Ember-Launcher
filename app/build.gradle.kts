@@ -382,7 +382,7 @@ dependencies {
     // Opus, Vorbis), plus software video recovery through Nextlib DecoderManager.
     // Version is <Media3 version>-<Nextlib version> and must match Media3 above. (Jellyfin's build,
     // used before, stopped at Media3 1.9.)
-    implementation("io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.17.0")
+    implementation("io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.18.0")
     // Experimental: finds YouTube trailer streams so they play in the built-in player (Settings > Player).
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.5")
     // QR code for Settings > Phone setup.
@@ -392,20 +392,20 @@ dependencies {
     implementation("io.coil-kt:coil-gif:2.7.0") // animated collection covers
     implementation("io.coil-kt:coil-svg:2.7.0") // addon logos (many manifests link an SVG)
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     // Authenticated network file access; passwords stay in the existing Keystore-backed store.
     implementation("com.hierynomus:smbj:0.15.0")
     smbRpcUpstream("com.rapid7.client:dcerpc:0.12.13")
     implementation(files(prepareSmbRpc.flatMap {it.output}))
-    implementation("commons-io:commons-io:2.21.0")
+    implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-lang3:3.22.0")
     implementation("com.github.mwiede:jsch:2.28.8")
     implementation("commons-net:commons-net:3.13.0")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("org.robolectric:robolectric:4.18.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
