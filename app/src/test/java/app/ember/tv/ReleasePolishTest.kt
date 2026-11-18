@@ -37,4 +37,18 @@ class ReleasePolishTest {
         for (holder in listOf("Jonathan Hedley", "Legion of the Bouncy Castle", "QOS.ch", "Benjamin Diedrichsen", "nanojson Authors", "Google Inc."))
             assertTrue(holder, notices.contains(holder))
     }
+
+    /** #325: a full release date reads as a date in the TV's language, and the year is not repeated beside it. */
+    @Test fun releaseDatesReadAsDates() {
+        val previous = java.util.Locale.getDefault()
+        java.util.Locale.setDefault(java.util.Locale.CANADA)
+        try {
+            assertEquals("2026", app.ember.tv.data.DisplayDates.release("2026"))
+            assertNotEquals("2026-01-01", app.ember.tv.data.DisplayDates.release("2026-01-01T00:00:00.000Z"))
+            assertTrue(app.ember.tv.data.DisplayDates.release("2026-01-01")!!.contains("2026"))
+            assertEquals("2026", app.ember.tv.data.DisplayDates.releaseYear("2026-01-01"))
+            assertEquals(listOf("Series", app.ember.tv.data.DisplayDates.release("2026-01-01"), "108 min"),
+                app.ember.tv.ui.TitleInfoLine.parts("series", "2026-01-01", null, "108 min", listOf("2026")))
+        } finally { java.util.Locale.setDefault(previous) }
+    }
 }

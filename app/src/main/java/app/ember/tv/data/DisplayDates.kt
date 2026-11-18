@@ -17,6 +17,7 @@ object DisplayDates {
     fun init(context: Context) {
         val app = context.applicationContext
         tvTime = { android.text.format.DateFormat.getTimeFormat(app) }
+        synchronized(lock) { cachedTime = null }
     }
 
     private val locale: Locale get() = Locale.getDefault()
@@ -25,11 +26,23 @@ object DisplayDates {
     private fun timeFormat(): DateFormat =
         tvTime?.invoke() ?: DateFormat.getTimeInstance(DateFormat.SHORT, locale)
 
+    // The guide formats hundreds of times while scrolling, sometimes off the main thread: one format,
+    // looked up again at most once a minute (so a 12/24-hour change shows soon), used under a lock.
+    private val lock = Any()
+    private var cachedTime: DateFormat? = null
+    private var cachedAt = 0L
+    private var cachedLocale: Locale? = null
+
     private fun pattern(skeleton: String): SimpleDateFormat =
         SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton), locale)
 
     /** "9:51 PM" or "21:51". */
-    fun time(ms: Long): String = timeFormat().format(Date(ms))
+    fun time(ms: Long): String = synchronized(lock) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val format = cachedTime?.takeIf { now - cachedAt < 60_000L && cachedLocale == locale }
+            ?: timeFormat().also { cachedTime = it; cachedAt = now; cachedLocale = locale }
+        format.format(Date(ms))
+    }
 
     /** "Mon 16 Nov" (or the language's order). */
     fun dayMonth(ms: Long): String = pattern("EEEdMMM").format(Date(ms))
