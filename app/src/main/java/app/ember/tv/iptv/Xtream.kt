@@ -12,6 +12,8 @@ import kotlinx.coroutines.ensureActive
 /** Xtream Codes API: live categories and channels from player_api.php. */
 object Xtream {
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
+    /** In a link's path a space is %20; "+" would reach the server as a plus sign. */
+    private fun segment(s: String) = enc(s).replace("+", "%20")
 
     fun base(s: IptvSource) = s.url.trim().trimEnd('/').let { if (it.startsWith("http")) it else "http://$it" }
 
@@ -50,7 +52,7 @@ object Xtream {
                 key = "${s.id}:$id",
                 sourceId = s.id,
                 name = c.str("name")?.trim() ?: return@forEach,
-                url = "${base(s)}/live/${enc(s.username)}/${enc(s.password)}/$id.$ext",
+                url = "${base(s)}/live/${segment(s.username)}/${segment(s.password)}/${segment(id)}.$ext",
                 logo = c.str("stream_icon")?.ifBlank { null },
                 group = cats[c.str("category_id") ?: ""] ?: "Other",
                 epgId = c.str("epg_channel_id")?.ifBlank { null },

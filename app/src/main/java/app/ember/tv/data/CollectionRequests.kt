@@ -83,7 +83,7 @@ internal class CollectionRequests(
 
     companion object {
         /** Trakt asks API clients to identify themselves (#166). */
-        const val TRAKT_AGENT = Net.CONTACT_AGENT
+        val TRAKT_AGENT: String get() = Net.CONTACT_AGENT
         /** Where each kind of list comes from. */
         internal fun traktListsPath(tab: String, query: String): String = when {
             query.isNotBlank() -> "search/list"

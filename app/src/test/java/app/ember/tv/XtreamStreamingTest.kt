@@ -47,4 +47,11 @@ class XtreamStreamingTest {
         assertTrue(Xtream.streams("""{"user_info":{"auth":0}}""".byteInputStream(), source, emptyMap(), "ts").isEmpty())
         assertTrue(Xtream.streams("[]".byteInputStream(), source, emptyMap(), "ts").isEmpty())
     }
+
+    /** A login with a space plays: the space is %20 in the channel's link, not "+". */
+    @Test fun aSpaceInTheLoginIsEncodedForTheLink() {
+        val spaced = IptvSource("src", "Provider", "xtream", "http://host:8080", "my user", "a b")
+        val url = Xtream.streams("""[{"stream_id":7,"name":"News"}]""".byteInputStream(), spaced, emptyMap(), "ts").single().url
+        assertEquals("http://host:8080/live/my%20user/a%20b/7.ts", url)
+    }
 }
