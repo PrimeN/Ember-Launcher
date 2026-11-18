@@ -161,7 +161,7 @@ object Subtitles {
         val chunk = 65536L
         suspend fun range(from: Long, to: Long, expectedSize: Long? = null): Pair<ByteArray, Long>? {
             val call = http.newCall(Request.Builder().url(url).header("Range", "bytes=$from-$to")
-                .header("User-Agent", "EmberTV/0.9").build())
+                .header("User-Agent", Net.USER_AGENT).build())
             return withResponse(call) { r -> withContext(Dispatchers.IO) {
                 if (r.code != 206) return@withContext null
                 val fields = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matchEntire(r.header("Content-Range").orEmpty())
@@ -367,7 +367,7 @@ object Subtitles {
                 s.copy(score = score)
             }
             .groupBy { it.lang }
-            .flatMap { (_, l) -> l.sortedByDescending { it.score }.distinctBy { it.url ?: it.fileId.toString() }.take(c.perLanguage) }
+            .flatMap { (_, l) -> l.sortedByDescending { it.score }.distinctBy { it.url ?: it.fileId.toString() }.take(c.perLanguage.coerceIn(1, 20)) }
             .sortedWith(compareBy<SubtitleCandidate> { langs.indexOf(it.lang) }.thenByDescending { it.score })
     }
 
@@ -377,7 +377,7 @@ object Subtitles {
     suspend fun download(s: SubtitleCandidate, target: Query? = null): Pair<String,String>? = kotlinx.coroutines.coroutineScope {
         try {
             val url = s.url ?: s.fileId?.let { resolveOpenSubsCom(it) } ?: return@coroutineScope null
-            val call = http.newCall(Request.Builder().url(url).header("User-Agent", "EmberTV/0.9").build())
+            val call = http.newCall(Request.Builder().url(url).header("User-Agent", Net.USER_AGENT).build())
             val bytes = withResponse(call) { response ->
                 if (!response.isSuccessful) return@coroutineScope null
                 withContext(Dispatchers.IO) { response.body.byteStream().use { SubtitleFiles.read(it) } }

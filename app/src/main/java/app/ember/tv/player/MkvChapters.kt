@@ -173,7 +173,7 @@ object MkvChapters {
     private fun range(url: String, from: Long, size: Int, userAgent: String?): ByteArray? {
         val req = Request.Builder().url(url)
             .header("Range", "bytes=$from-${from + size - 1}")
-            .header("User-Agent", userAgent ?: "EmberTV/0.9")
+            .header("User-Agent", userAgent ?: app.ember.tv.data.Net.USER_AGENT)
             .build()
         return http.newCall(req).execute().use { r ->
             if (r.code != 206 && !(r.code == 200 && from == 0L)) return null

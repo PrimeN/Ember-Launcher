@@ -58,6 +58,8 @@ object StreamFormatter {
                 parseExpression(t, i)
             } catch (e: Fail) {
                 null
+            } catch (e: RuntimeException) {
+                null
             }
             if (parsed == null) {
                 out.append(c)
@@ -65,9 +67,12 @@ object StreamFormatter {
                 continue
             }
             val (expr, end) = parsed
+            // A template the user typed never stops the source list: anything it cannot do is shown as written.
             val text = try {
                 evaluate(expr, f, depth)
             } catch (e: Fail) {
+                t.substring(i, end)
+            } catch (e: RuntimeException) {
                 t.substring(i, end)
             }
             out.append(text)
@@ -288,7 +293,7 @@ object StreamFormatter {
             "title" -> mapText(v) { s -> s.split(' ').joinToString(" ") { w -> w.lowercase().replaceFirstChar { it.titlecase() } } }
             "smallcaps" -> mapText(v) { smallcaps(it) }
             "truncate" -> {
-                val n = args.firstOrNull()?.toIntOrNull() ?: throw Fail()
+                val n = args.firstOrNull()?.toIntOrNull()?.takeIf { it >= 0 } ?: throw Fail()
                 mapText(v) { if (it.length > n) it.take(n).trimEnd() + "…" else it }
             }
             "trim" -> mapText(v) { it.trim() }
@@ -367,7 +372,7 @@ object StreamFormatter {
         is Double -> v
         is String -> v.toDoubleOrNull()
         else -> null
-    }
+    }?.takeIf { it.isFinite() }
 
     fun display(v: Any?): String = when (v) {
         null -> ""

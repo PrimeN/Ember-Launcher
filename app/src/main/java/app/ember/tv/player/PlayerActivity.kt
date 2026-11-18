@@ -133,7 +133,7 @@ class PlayerActivity : ComponentActivity() {
             // #309: Settings > Audio & video > Buffer sets these.
             .setConnectTimeoutMs(prefs.playbackConfig.stream.normalized().connectSeconds*1000)
             .setReadTimeoutMs(prefs.playbackConfig.stream.normalized().readSeconds*1000)
-            .setUserAgent("EmberTV/0.9")
+            .setUserAgent(app.ember.tv.data.Net.USER_AGENT)
     }
 
     /** Trailers play without saving positions or reporting to trackers and servers. */
@@ -192,7 +192,7 @@ class PlayerActivity : ComponentActivity() {
     internal val hideLiveBanner = Runnable { liveBanner.value = null }
 
     /** Some providers only answer a particular player name or referrer. */
-    internal var sourceHeaders:Map<String,String> = mapOf("User-Agent" to "EmberTV/0.9")
+    internal var sourceHeaders:Map<String,String> = mapOf("User-Agent" to app.ember.tv.data.Net.USER_AGENT)
 
     internal var numberDigits = ""
     internal var numberToast: Toast? = null
@@ -221,23 +221,6 @@ class PlayerActivity : ComponentActivity() {
         const val EXTRA_ZAP_REFERRERS = "ember.zapReferrers"
         const val EXTRA_ZAP_INDEX = "ember.zapIndex"
 
-        /** Plays a live channel; channel up and down move through [urls]. */
-        fun liveIntent(
-            context: android.content.Context,
-            urls: List<String>,
-            names: List<String>,
-            agents: List<String>,
-            referrers: List<String>,
-            index: Int,
-        ) = android.content.Intent(context, PlayerActivity::class.java)
-            .putExtra(PlayRequest.EXTRA_URL, urls[index])
-            .putExtra(PlayRequest.EXTRA_TITLE, names[index])
-            .putExtra(EXTRA_LIVE, true)
-            .putExtra(EXTRA_ZAP_URLS, urls.toTypedArray())
-            .putExtra(EXTRA_ZAP_NAMES, names.toTypedArray())
-            .putExtra(EXTRA_ZAP_AGENTS, agents.toTypedArray())
-            .putExtra(EXTRA_ZAP_REFERRERS, referrers.toTypedArray())
-            .putExtra(EXTRA_ZAP_INDEX, index)
         const val EXTRA_TRAILER = "ember.trailer"
         const val EXTRA_AUDIO_URL = "ember.audioUrl"
 
@@ -618,6 +601,8 @@ class PlayerActivity : ComponentActivity() {
     /** While the "Up next" card is open, its buttons get the remote; otherwise the player controls do. */
     @android.annotation.SuppressLint("RestrictedApi") // super.dispatchKeyEvent is the normal Activity path
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Closing before playback was set up (a queue or channel that is gone): nothing to control yet.
+        if (!::prefs.isInitialized || !::view.isInitialized) return super.dispatchKeyEvent(event)
         if (actionDialog?.dispatch(event) == true) return true
         if(fileQueue!=null && event.keyCode in setOf(KeyEvent.KEYCODE_MEDIA_NEXT,KeyEvent.KEYCODE_MEDIA_PREVIOUS)){
             if(event.action==KeyEvent.ACTION_UP)(if(event.keyCode==KeyEvent.KEYCODE_MEDIA_NEXT)fileQueue?.next() else fileQueue?.previous())?.let { playFile(it) }

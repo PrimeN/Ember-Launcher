@@ -20,6 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -234,7 +235,8 @@ object Backup {
 
     /** Fetches a backup from a direct link (for example a Dropbox link ending in ?dl=1). */
     fun download(url: String): ByteArray {
-        val req = okhttp3.Request.Builder().url(url).build()
+        val link = url.toHttpUrlOrNull() ?: throw BackupException("That is not a web link. Enter the backup's full link.")
+        val req = okhttp3.Request.Builder().url(link).build()
         http.newCall(req).execute().use { r ->
             if (!r.isSuccessful) throw BackupException("The link returned an error (${r.code}).")
             val body = r.body ?: throw BackupException("The link returned nothing.")

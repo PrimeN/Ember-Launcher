@@ -235,7 +235,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
             override fun importWidgets(text: String): String = onPhoneMain {
                 check(!profiles.profile.kids) { "Switch to an adult profile." }
                 app.ember.tv.data.HomeWidgets.unpack(text, owner).fold({ found ->
-                    stage("Import ${found.size} Home widget(s): ${found.take(5).joinToString(", ") { it.title }}${if (found.size > 5) "…" else ""}. Widgets with the same id are updated.") {
+                    stage("Import ${found.size.counted("Home widget")}: ${found.take(5).joinToString(", ") { it.title }}${if (found.size > 5) "…" else ""}. Widgets with the same id are updated.") {
                         vm.importWidgets(text)
                     }
                 }, { it.message ?: "This is not an Ember widget pack." })
@@ -448,7 +448,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         val updated = if (c == null) app.ember.tv.data.MediaCollection(id = java.util.UUID.randomUUID().toString(), title = collectionName, folders = listOf(folder))
                             else c.copy(folders = if (old == null) c.folders + folder else c.folders.map { if (it.id == old.id) folder else it })
                         app.ember.tv.data.Collections.inspect(app.ember.tv.data.Collections.encode(listOf(updated))).error?.let { return@onPhoneMain it }
-                        val changes = listOfNotNull("${sources.size} source(s)", "shape ${shape.lowercase()}", if (cover != old?.coverImageUrl) "cover changed" else null, if (folder.hideTitle) "title hidden" else null).joinToString(", ")
+                        val changes = listOfNotNull(sources.size.counted("source"), "shape ${shape.lowercase()}", if (cover != old?.coverImageUrl) "cover changed" else null, if (folder.hideTitle) "title hidden" else null).joinToString(", ")
                         stage((if (old == null) "Create the folder " else "Save the folder ") + "${updated.title} / $name: $changes.") { collections.saveCollection(updated, c) }
                     }
                     "move-folder" -> {
@@ -467,7 +467,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         val c = whole ?: collections.list.firstOrNull { c -> c.folders.any { targetKey(c.id, it.id) == target } } ?: return@onPhoneMain "That collection or folder no longer exists. Reload the page."
                         val f = if (whole != null) null else c.folders.first { targetKey(c.id, it.id) == target }
                         val revision = collections.revision
-                        stage(if (f == null) "Delete the collection ${c.title} and its ${c.folders.size} folder(s). This can't be undone."
+                        stage(if (f == null) "Delete the collection ${c.title} and its ${c.folders.size.counted("folder")}. This can't be undone."
                             else "Delete the folder ${c.title} / ${f.title}" + (if (c.folders.size == 1) ", which also deletes the collection" else "") + ". This can't be undone.") {
                             if (collections.revision != revision) "Collections changed. Reload the phone page."
                             else if (f == null) collections.deleteCollection(c.id) else collections.deleteFolder(c.id, f.id)
@@ -577,9 +577,9 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                 }
                 val what = listOfNotNull(
                     summary.created?.let { "made $it" },
-                    "${summary.addons} addon(s)",
-                    "${summary.signIns} sign-in(s)",
-                    "${summary.keys} key(s)",
+                    summary.addons.counted("addon"),
+                    summary.signIns.counted("sign-in"),
+                    summary.keys.counted("key"),
                 ).joinToString(", ")
                 if (!apply) return "Backup checked: $what. Tick the box and send it again to restore it on the TV."
                 // Replacing every setting, sign-in and key is approved on the TV, like smaller phone

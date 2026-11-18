@@ -297,7 +297,7 @@ fun ModernHome(
                     }
                     // #177: a widget that could not load says so here instead of going missing.
                     is HomeViewModel.HomeBlock.Notice -> ModernSection(b.title) {
-                        RecoveryPanel("This widget couldn't load", b.text, "Widget settings") { vm.openSettingsPage("WIDGETS") }
+                        RecoveryPanel("This widget could not load", b.text, "Widget settings") { vm.openSettingsPage("WIDGETS") }
                     }
                     is HomeViewModel.HomeBlock.AppList -> ModernSection(b.title) {
                         RecentAppsRow(vm, b.apps, onLaunch, onAppOptions) { onAmbient(null) }

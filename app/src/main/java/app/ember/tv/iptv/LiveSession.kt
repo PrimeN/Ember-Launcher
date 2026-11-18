@@ -59,7 +59,7 @@ object LiveSessions {
 }
 
 object ChannelHeaders {
-    const val DEFAULT_AGENT = "EmberTV/0.9"
+    const val DEFAULT_AGENT = app.ember.tv.data.Net.USER_AGENT
     fun agent(channel: Channel?) = channel?.userAgent?.takeIf { it.isNotBlank() } ?: DEFAULT_AGENT
     fun properties(channel: Channel?): Map<String, String> = channel?.referrer?.takeIf { it.isNotBlank() }
         ?.let { mapOf("Referer" to it) } ?: emptyMap()

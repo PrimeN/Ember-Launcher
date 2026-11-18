@@ -1,5 +1,6 @@
 package app.ember.tv
 
+import app.ember.tv.data.counted
 import app.ember.tv.data.Collections as CollectionStore
 import app.ember.tv.data.CollectionSource
 import app.ember.tv.data.HomeWidget
@@ -547,7 +548,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal fun List<String>.syncedSuffix(meta: Meta): String {
         val pending = LocalLibrary.pending.firstOrNull { it.meta.sameTitle(meta) }?.targets.orEmpty()
         val done = if (isEmpty()) " on this device." else " and synced to ${joinToString(", ")}."
-        return done + if (pending.isNotEmpty()) " Waiting to sync to ${pending.size} tracker(s)." else ""
+        return done + if (pending.isNotEmpty()) " Waiting to sync to ${pending.size.counted("tracker")}." else ""
     }
 
     internal fun Meta.toRef() = TitleRef(

@@ -64,6 +64,18 @@ class PhoneSetupTest {
         } finally { setup.stop() }
     }
 
+    /** A mistyped field ("%zz") is taken as typed; it never turns the page into an error. */
+    @Test fun aMalformedFieldIsNotAnError() {
+        val calls = AtomicInteger()
+        val setup = server(calls)
+        try {
+            val uri = URI(setup.start()!!)
+            val answer = request(uri, "/save?${uri.rawQuery}", "POST", "action=addon&url=%zz")
+            assertTrue(answer.lineSequence().first(), answer.startsWith("HTTP/1.1 200"))
+            assertTrue(calls.get() >= 1)
+        } finally { setup.stop() }
+    }
+
     @Test fun theCrashLogCanBeCopiedFromThePhone() {
         // #257
         val setup = server(crashes = listOf("2026-11-13 09:12  ·  Ember\njava.lang.IllegalStateException: boom"))

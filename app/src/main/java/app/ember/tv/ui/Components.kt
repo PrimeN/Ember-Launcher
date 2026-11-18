@@ -502,7 +502,7 @@ fun RatingIcon(source: app.ember.tv.data.RatingSource, height: Int = 22) {
     val request = remember(source.iconUrl) {
         coil.request.ImageRequest.Builder(context)
             .data(source.iconUrl.takeIf { it.isNotBlank() } ?: source.fallbackIcon)
-            .addHeader("User-Agent", "EmberTV/0.9 (Android TV launcher; github.com/PrimeN/Ember-Launcher)")
+            .addHeader("User-Agent", app.ember.tv.data.Net.CONTACT_AGENT)
             .build()
     }
     val fallback = androidx.compose.ui.res.painterResource(source.fallbackIcon)

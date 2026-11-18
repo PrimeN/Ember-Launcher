@@ -65,8 +65,10 @@ object ServerMetadata {
         val ref=ServerRef.parse(String(dec.decode(p[0]))) ?: return null
         val path=String(dec.decode(p[1])); require(path.startsWith('/')&&!path.startsWith("//")); ref to path
     }.getOrNull()
+    /** A server's own encoding, or the text as it came when it is not valid ("%zz"). */
+    private fun decoded(text: String): String = runCatching { java.net.URLDecoder.decode(text, "UTF-8") }.getOrDefault(text)
     fun cleanPath(path: String): String {
-        val query=path.substringAfter('?',"").split('&').filter { field -> java.net.URLDecoder.decode(field.substringBefore('='), "UTF-8").lowercase() !in setOf("x-plex-token","x-emby-token","api_key","apikey","api-key","token","access_token","authorization","auth","signature","sig") && field.isNotBlank() }
+        val query=path.substringAfter('?',"").split('&').filter { field -> decoded(field.substringBefore('=')).lowercase() !in setOf("x-plex-token","x-emby-token","api_key","apikey","api-key","token","access_token","authorization","auth","signature","sig") && field.isNotBlank() }
         return path.substringBefore('?')+if(query.isEmpty()) "" else "?"+query.joinToString("&")
     }
     fun safe(meta: Meta): Meta {

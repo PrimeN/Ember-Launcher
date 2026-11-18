@@ -194,7 +194,7 @@ class ExploreRepository(
         val response = cached("wikidata:$sparql", 7 * 24 * 60 * 60_000L) { gate.withPermit {
             val data = get("https://query.wikidata.org/sparql?format=json&query=${enc(sparql)}", mapOf(
                 "Accept" to "application/sparql-results+json",
-                "User-Agent" to "EmberTV/1.0 (Android TV; https://github.com/PrimeN/Ember-Launcher)",
+                "User-Agent" to app.ember.tv.data.Net.CONTACT_AGENT,
             ))
             check(data.obj("results").arr("bindings") != null) { "Award records are unavailable." }
             data

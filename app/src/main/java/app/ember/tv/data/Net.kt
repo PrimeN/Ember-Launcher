@@ -26,6 +26,11 @@ import kotlin.coroutines.resumeWithException
 object Net {
     private var cacheDir: File? = null
 
+    /** How Ember names itself to the services it calls, with the version installed. */
+    val USER_AGENT: String get() = "EmberTV/" + app.ember.tv.BuildConfig.VERSION_NAME
+    /** The same, with where to reach the project, for services that ask for it (Wikidata, artwork sites). */
+    val CONTACT_AGENT: String get() = "$USER_AGENT (Android TV; https://github.com/PrimeN/Ember-Launcher)"
+
     /** Called first thing in EmberApp, so the cache lives in the app's cache folder. */
     fun init(context: Context) {
         cacheDir = File(context.cacheDir, "http")

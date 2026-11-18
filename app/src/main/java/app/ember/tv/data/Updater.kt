@@ -348,5 +348,5 @@ internal fun updateInstallMessage(status: Int): String = when (status) {
     android.content.pm.PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "This update isn't compatible with this TV."
     android.content.pm.PackageInstaller.STATUS_FAILURE_INVALID -> "Android says the update file is invalid. Check for updates and try again."
     android.content.pm.PackageInstaller.STATUS_FAILURE_STORAGE -> "Not enough storage on this TV to install the update."
-    else -> "The update couldn't be installed. Press Install to try again."
+    else -> "The update could not be installed. Press Install to try again."
 }

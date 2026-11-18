@@ -1,5 +1,6 @@
 package app.ember.tv.phone
 
+import app.ember.tv.data.counted
 import app.ember.tv.data.ApiKeys
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
@@ -330,7 +331,7 @@ class PhoneSetup(
             val saved = ApiKeys.ALL_IDS.mapNotNull { id ->
                 f[id]?.trim()?.takeIf { it.isNotEmpty() }?.let { v -> access.requireActive(); handler.saveKey(id, v); id }
             }
-            if (saved.isEmpty()) "Nothing to save: fill in at least one field." else "Saved ${saved.size} key(s)."
+            if (saved.isEmpty()) "Nothing to save: fill in at least one field." else "Saved ${saved.size.counted("key")}."
         }
         "iptv" -> handler.addIptv(
             f["kind"] ?: "m3u", f["name"].orEmpty(), f["url"].orEmpty(),
@@ -443,8 +444,10 @@ class PhoneSetup(
     private fun parse(s: String): Map<String, String> = s.split('&').filter { it.isNotEmpty() }.associate { p ->
         val k = p.substringBefore('=')
         val v = p.substringAfter('=', "")
-        URLDecoder.decode(k, "UTF-8") to URLDecoder.decode(v, "UTF-8")
+        decoded(k) to decoded(v)
     }
+    /** A malformed field ("%zz") arrives as typed instead of failing the whole request. */
+    private fun decoded(text: String): String = runCatching { URLDecoder.decode(text, "UTF-8") }.getOrDefault(text)
 
     // ---------------------------------------------------------------- Page
 

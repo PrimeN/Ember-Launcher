@@ -63,4 +63,18 @@ class ReleasePolishTest {
         assertEquals(listOf("a", "b", "c"), cards.map { it.second.id })
         assertEquals(listOf("Continue watching", null, "Recently added"), cards.map { it.first })
     }
+
+    /** A source template asking for something impossible (a negative length) is shown as written, never a crash. */
+    @Test fun anImpossibleTemplateIsShownAsWritten() {
+        val fields = app.ember.tv.data.StreamFormatter.Fields { _, _ -> "Remux" }
+        val template = "{stream.title::truncate(-1)}"
+        assertEquals(template, app.ember.tv.data.StreamFormatter.render(template, fields))
+        assertEquals("Rem…", app.ember.tv.data.StreamFormatter.render("{stream.title::truncate(3)}", fields))
+    }
+
+    /** A server link with a stray "%" keeps working, and its key is still removed. */
+    @Test fun aServerPathWithAStrayPercentIsCleaned() {
+        assertEquals("/Videos/1/Subtitles/0/Stream.srt?x=%zz",
+            app.ember.tv.mediaserver.ServerMetadata.cleanPath("/Videos/1/Subtitles/0/Stream.srt?api_key=abc&x=%zz"))
+    }
 }

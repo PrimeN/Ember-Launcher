@@ -1,5 +1,6 @@
 package app.ember.tv.state
 
+import app.ember.tv.data.counted
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -219,7 +220,7 @@ class CollectionsState(
                 c.copy(id = java.util.UUID.randomUUID().toString(), title = c.title + " (copy)",
                     folders = c.folders.map { it.copy(id = java.util.UUID.randomUUID().toString()) }) else c }
             val ids = values.map { it.id }.toSet()
-            persistUpdate("Saved ${values.size} collection(s), ${values.sumOf { it.folders.size }} folder(s).",
+            persistUpdate("Saved ${values.size.counted("collection")}, ${values.sumOf { it.folders.size }.counted("folder")}.",
                 if (mode == "replace") values else list.filterNot { it.id in ids } + values)
         }
     }

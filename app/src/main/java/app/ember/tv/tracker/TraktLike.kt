@@ -708,7 +708,7 @@ class WeTrakrTracker(context: Context) : TraktLikeTracker(
     /** WeTrakr answers 200 even when it can't place a title: notFound / errored say so. */
     private suspend fun write(path: String, body: JsonObject): Boolean {
         val r = limited { authedPost(path, body) }
-        if (weTrakrUnresolved(r)) throw TrackerRefusal(id, "$name couldn't match this title.")
+        if (weTrakrUnresolved(r)) throw TrackerRefusal(id, "$name could not match this title.")
         return true
     }
 
