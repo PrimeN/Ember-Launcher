@@ -78,7 +78,7 @@ class CollectionTransferAndEditingTest {
         val content = PhoneContent(listOf("opaque" to "Popular"), listOf("c-1" to "Films / New folder", "f-1" to "Films / Action", "c-2" to "Shows / New folder", "f-2" to "Shows / Drama"), emptyList(),
             collections = listOf("c-1" to "Films", "c-2" to "Shows"))
         val html = ContentPhone.render(content, "lease")
-        for (heading in listOf("Create or add to a collection", "Edit a folder", "Edit a collection", "Edit a source", "Export", "Delete", "Add-ons"))
+        for (heading in listOf("Create or add to a collection", "Edit a folder", "Edit a collection", "Edit a source", "Export", "Delete", "Addons"))
             assertTrue(heading, html.contains("<h3>$heading</h3>"))
         assertTrue(html.indexOf("<h3>Create or add to a collection</h3>") < html.indexOf("<h3>Export</h3>"))
         assertTrue(html.contains("value=\"all\">All collections (2)"))
