@@ -1,5 +1,7 @@
 package app.ember.tv.state
 
+import app.ember.tv.ui.SettingsTab
+import app.ember.tv.ui.path
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -178,7 +180,7 @@ class SearchState(
         searchNote = when {
             hasResults -> null
             sourceUnavailable && health.entries.values.any { it.failed } -> "Search sources are unavailable. Retry or check your sources."
-            sourceUnavailable -> "No search sources are available. Add a searchable catalog in ${app.ember.tv.ui.SettingsTab.ADDONS.path}."
+            sourceUnavailable -> "No search sources are available. Add a searchable catalog in ${SettingsTab.ADDONS.path}."
             else -> "No matches for \"$term\". Try a different title."
         }
     }
