@@ -23,18 +23,19 @@ import app.ember.tv.data.SubtitleConfig
  * Files are parsed with Media3's SRT, WebVTT and SSA/ASS parsers.
  */
 @OptIn(UnstableApi::class)
-class SubtitleEngine(private val view: SubtitleView) {
+class SubtitleEngine(private val view: SubtitleView, private val invalidate: () -> Unit = {}) {
     private var cues: List<CuesWithTiming> = emptyList()
     private var lastShown: List<Cue>? = null
     private var index = CueIndex<CuesWithTiming>(emptyList(), { it.startTimeUs }, { it.startTimeUs })
     var speed: Float = 1f
-        set(value){field=SubtitleTiming.rate(value);lastShown=null}
+        set(value){field=SubtitleTiming.rate(value);lastShown=null;invalidate()}
 
     /** Positive shows subtitles later, negative earlier, in milliseconds. */
     var offsetMs: Long = 0
         set(v) {
             field = v
             lastShown = null
+            invalidate()
         }
 
     val active: Boolean get() = cues.isNotEmpty()
@@ -43,7 +44,7 @@ class SubtitleEngine(private val view: SubtitleView) {
     suspend fun load(text: String, format: String, fps: Float? = null): Boolean {
         val parsed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { parse(text,format,fps) } ?: return false
         if(parsed.first.isEmpty())return false
-        cues=parsed.first;index=parsed.second;lastShown=null
+        cues=parsed.first;index=parsed.second;lastShown=null;invalidate()
         return cues.isNotEmpty()
     }
 
@@ -71,6 +72,7 @@ class SubtitleEngine(private val view: SubtitleView) {
         index = CueIndex(emptyList(), { it.startTimeUs }, { it.startTimeUs })
         lastShown = null
         view.setCues(emptyList())
+        invalidate()
     }
 
     /** Shows the cues for [positionMs] of the video. Call every ~100 ms while playing. */

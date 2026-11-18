@@ -19,6 +19,7 @@ object About {
                 "Widgets for your apps' Continue watching and your recently used apps.",
                 "Rename apps, and automatic weekly backups kept on the TV.",
                 "Player: smoother seeking, night listening, network and buffer settings, compatibility decoding.",
+                "Skip intros and recaps marked by a file's own chapters, and remote buttons for captions, audio, stop and jumping ahead.",
                 "Settings: search finds individual options, every page can be reset, and pages are reorganized.",
                 "Addons can be reordered; pick several catalogs at once for a widget or folder.",
                 "Dates, times and counts follow your TV's language and clock everywhere.",

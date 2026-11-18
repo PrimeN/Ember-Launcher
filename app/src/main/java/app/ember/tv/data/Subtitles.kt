@@ -23,6 +23,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.ByteArrayInputStream
 import java.net.URLEncoder
 import java.nio.ByteBuffer
@@ -135,6 +136,9 @@ object Subtitles {
         LANGS.keys.firstOrNull { it.equals(c, true) }?.let { return it }
         LANGS.entries.firstOrNull { it.value.first.equals(c, true) || it.value.second.equals(c, true) }?.let { return it.key }
         alias[c.lowercase()]?.let { return it }
+        // "zh-Hant", "zh_TW", "zh-Hant-HK": Traditional Chinese, not the Simplified "zh".
+        val locale = java.util.Locale.forLanguageTag(c.replace('_', '-'))
+        if (locale.language == "zh" && (locale.script.equals("Hant", true) || locale.country.equals("TW", true))) return "zh-TW"
         val two = c.lowercase().take(2)
         return LANGS.keys.firstOrNull { it == two } ?: c.lowercase()
     }
@@ -151,32 +155,50 @@ object Subtitles {
     // ---- OpenSubtitles file hash ----
 
     private val http = Net.client(10, 15).newBuilder().cache(null).build()
+    private val hashHttp by lazy { http.newBuilder().followRedirects(false).followSslRedirects(false).build() }
 
     /**
      * OpenSubtitles' movie hash: file size plus the 64-bit little-endian sums of the first and last
      * 64 KB. Read with two range requests, so a streamed file works too. Null if the server does not
      * allow ranges. Returns the hash and the file size.
      */
-    suspend fun movieHash(url: String): Pair<String, Long>? = kotlinx.coroutines.coroutineScope {
+    suspend fun movieHash(url: String, headers: Map<String, String> = emptyMap()): Pair<String, Long>? = kotlinx.coroutines.coroutineScope {
         val chunk = 65536L
+        val original = runCatching { url.toHttpUrl() }.getOrNull() ?: return@coroutineScope null
+        // The stream's own headers (an addon's proxyHeaders) go to its server; a redirect elsewhere keeps only the User-Agent.
+        val supplied = StreamHeaders.clean(headers.toList())
         suspend fun range(from: Long, to: Long, expectedSize: Long? = null): Pair<ByteArray, Long>? {
-            val call = http.newCall(Request.Builder().url(url).header("Range", "bytes=$from-$to")
-                .header("User-Agent", Net.USER_AGENT).build())
-            return withResponse(call) { r -> withContext(Dispatchers.IO) {
-                if (r.code != 206) return@withContext null
-                val fields = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matchEntire(r.header("Content-Range").orEmpty())
-                    ?.groupValues?.drop(1)?.map { it.toLongOrNull() ?: return@withContext null } ?: return@withContext null
-                val (first, last, total) = fields
-                if (first != from || last != to || total <= to || total < chunk * 2 || expectedSize != null && total != expectedSize) return@withContext null
-                val body = r.body ?: return@withContext null
-                val count = to - from + 1
-                if (body.contentLength() >= 0 && body.contentLength() != count) return@withContext null
-                val source = body.source()
-                // Bound the read even when the server omits or lies about Content-Length.
-                if (source.request(count + 1)) return@withContext null
-                val bytes = source.readByteArray()
-                if (bytes.size.toLong() != count) null else bytes to total
-            } }
+            var address = original
+            repeat(6) {
+                if (address.username.isNotEmpty() || address.password.isNotEmpty()) return null
+                val sameOrigin = address.scheme == original.scheme && address.host == original.host && address.port == original.port
+                val request = Request.Builder().url(address).header("User-Agent", StreamHeaders.userAgent(supplied) ?: Net.USER_AGENT).apply {
+                    supplied.forEach { (name, value) -> if (sameOrigin || name.equals("User-Agent", true)) header(name, value) }
+                    header("Range", "bytes=$from-$to")
+                }.build()
+                var next: okhttp3.HttpUrl? = null
+                val result = withResponse(hashHttp.newCall(request)) { r -> withContext(Dispatchers.IO) {
+                    if (r.code in setOf(301, 302, 303, 307, 308)) {
+                        next = address.resolve(r.header("Location").orEmpty())?.takeIf { !address.isHttps || it.isHttps }
+                        return@withContext null
+                    }
+                    if (r.code != 206) return@withContext null
+                    val fields = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matchEntire(r.header("Content-Range").orEmpty())
+                        ?.groupValues?.drop(1)?.map { it.toLongOrNull() ?: return@withContext null } ?: return@withContext null
+                    val (first, last, total) = fields
+                    if (first != from || last != to || total <= to || total < chunk * 2 || expectedSize != null && total != expectedSize) return@withContext null
+                    val body = r.body ?: return@withContext null
+                    val count = to - from + 1
+                    if (body.contentLength() >= 0 && body.contentLength() != count) return@withContext null
+                    val source = body.source()
+                    // Bound the read even when the server omits or lies about Content-Length.
+                    if (source.request(count + 1)) return@withContext null
+                    val bytes = source.readByteArray()
+                    if (bytes.size.toLong() != count) null else bytes to total
+                } }
+                address = next ?: return result
+            }
+            return null
         }
         try {
             val head = range(0, chunk - 1) ?: return@coroutineScope null
@@ -245,7 +267,7 @@ object Subtitles {
 
     private fun osHeaders(): Map<String, String> = buildMap {
         put("Api-Key", ApiKeys.get("OPENSUBTITLES_API_KEY"))
-        put("User-Agent", "EmberTV v0.9")
+        put("User-Agent", "EmberTV v" + app.ember.tv.BuildConfig.VERSION_NAME)
         put("Accept", "application/json")
         osToken?.let { put("Authorization", "Bearer $it") }
     }
@@ -408,17 +430,19 @@ object Subtitles {
                 .onUnmappableCharacter(CodingErrorAction.REPORT)
             return d.decode(ByteBuffer.wrap(raw)).toString().removePrefix("\uFEFF")
         }.exceptionOrNull()?.let { if (it !is CharacterCodingException) throw it }
-        val cp = when (lang.substringBefore('-')) {
+        val locale = java.util.Locale.forLanguageTag(lang.replace('_', '-'))
+        val cp = when (locale.language.ifEmpty { lang.substringBefore('-').lowercase() }) {
             "ru", "uk", "bg", "sr" -> "windows-1251"
             "ar", "fa" -> "windows-1256"
-            "he" -> "windows-1255"
+            "he", "iw" -> "windows-1255"
             "el" -> "windows-1253"
             "tr" -> "windows-1254"
             "pl", "cs", "sk", "hu", "ro", "hr", "sl" -> "windows-1250"
             "et", "lv", "lt" -> "windows-1257"
             "vi" -> "windows-1258"
             "th" -> "windows-874"
-            "zh" -> "GBK"
+            // Traditional Chinese files are usually Big5; Simplified ones GBK.
+            "zh" -> if (locale.script.equals("Hant", true) || locale.country.equals("TW", true)) "Big5" else "GBK"
             "ja" -> "Shift_JIS"
             "ko" -> "EUC-KR"
             else -> "windows-1252"

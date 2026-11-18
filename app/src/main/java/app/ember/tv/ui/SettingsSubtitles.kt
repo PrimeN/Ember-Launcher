@@ -187,7 +187,7 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
         }
     }
 }
-/** Subtitle fonts (#219): Android's own, or a custom .ttf or .otf from a link. */
+/** Subtitle fonts (#219): Android's own, or a custom .ttf, .otf or .ttc from a link. */
 @Composable
 private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.SubtitleConfig) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -203,7 +203,7 @@ private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.Subtitl
     }
     Text(stringResource(R.string.tx_custom_font), fontSize = 15.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextInput(link, { link = it.take(500) }, "Link to a .ttf or .otf file")
+        TextInput(link, { link = it.take(500) }, "Link to a .ttf, .otf or .ttc file")
         Chip(if (busy) stringResource(R.string.tx_loading) else if (hasCustom) stringResource(R.string.st_replace_font) else stringResource(R.string.st_load_font)) {
             if (busy) return@Chip
             busy = true; message = null

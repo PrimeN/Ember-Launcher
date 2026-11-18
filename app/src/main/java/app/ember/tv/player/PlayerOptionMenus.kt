@@ -27,19 +27,23 @@ internal fun PlayerActivity.openMenu(which: String, tab: String?) {
     controls.optionsTick++
 }
 
-/** Addon sources: chapters from the MKV file itself, when the media server gave none. */
+/** Addon sources: chapters from the MKV file itself, when the media server gave none (for the menu and for chapter skips). */
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.loadFileChapters(p: ExoPlayer) {
     playbackEngine?.compatibility?.chapters()?.takeIf {it.isNotEmpty()}?.let {chapters=it;return}
-    if (!advanced || trailer || chapters.isNotEmpty()) return
+    if (trailer || live || chapters.isNotEmpty() || !advanced && config.skipIntro == "off") return
     val url = currentUrl ?: return
-    if (!url.startsWith("http")) return
     val mkv = p.videoFormat?.containerMimeType == MimeTypes.VIDEO_MATROSKA ||
         p.audioFormat?.containerMimeType == MimeTypes.VIDEO_MATROSKA ||
         url.substringBefore('?').endsWith(".mkv", ignoreCase = true)
-    if (!mkv) return
+    // Document IDs need not contain a filename, and an extractor may omit its container MIME.
+    val local = android.net.Uri.parse(url).scheme in setOf(null, "content", "file")
+    val mp4 = p.videoFormat?.containerMimeType == MimeTypes.VIDEO_MP4 || p.audioFormat?.containerMimeType == MimeTypes.AUDIO_MP4 ||
+        listOf(".mp4", ".m4v", ".mov").any { url.substringBefore('?').endsWith(it, true) }
+    if (!mkv && !mp4 && !local) return
     val forUrl = url
-    metadataLoads.load({ MkvChapters.read(forUrl) }) { found ->
+    val headers = sourceHeaders.toMap()
+    metadataLoads.load({ MkvChapters.read(applicationContext, forUrl, headers) }) { found ->
         if (found.size > 1 && currentUrl == forUrl && chapters.isEmpty()) {
             chapters = found
             changed()
@@ -196,8 +200,8 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
                 val labels=if(fileQueue!=null)listOf("Off","Repeat item","Repeat queue") else listOf("Off","Repeat item")
                 add(OptionRow("Repeat",labels.getOrElse(modes.indexOf(mode)){"Off"},labels,modes.indexOf(mode).coerceAtLeast(0),onPick={i->if(fileQueue!=null)fileQueue!!.repeat=modes[i] else p.repeatMode=if(i==1)Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF}))
                 add(OptionRow("Set repeat start",repeatRange.start?.let { clock(it) }.orEmpty(),action={repeatRange.markStart(p.currentPosition);changed()}))
-                if(repeatRange.start!=null)add(OptionRow("Set repeat end",repeatRange.end?.let { clock(it) }.orEmpty(),action={if(!repeatRange.markEnd(p.currentPosition))Toast.makeText(this@optionRows,"Choose an end at least one second after the start.",Toast.LENGTH_SHORT).show();changed()}))
-                if(repeatRange.start!=null)add(OptionRow("Clear repeat range",action={repeatRange.clear();changed()}))
+                if(repeatRange.start!=null)add(OptionRow("Set repeat end",repeatRange.end?.let { clock(it) }.orEmpty(),action={if(!repeatRange.markEnd(p.currentPosition))Toast.makeText(this@optionRows,"Choose an end at least one second after the start.",Toast.LENGTH_SHORT).show();subtitleTicker.refresh();changed()}))
+                if(repeatRange.start!=null)add(OptionRow("Clear repeat range",action={repeatRange.clear();subtitleTicker.refresh();changed()}))
                 fileQueue?.let {q->
                     add(OptionRow("Queue","${q.index+1} of ${q.items.size}",action={showFileQueue()}))
                     add(OptionRow("Add files to queue",action={pickFile("queue")}))

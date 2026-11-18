@@ -2,15 +2,21 @@ package app.ember.tv.player
 
 import app.ember.tv.data.Net
 import app.ember.tv.mediaserver.Chapter
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import android.content.Context
+import android.net.Uri
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import kotlinx.coroutines.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import app.ember.tv.data.StreamHeaders
 import okhttp3.Request
 
 /**
- * Chapters of a Matroska (MKV) file on the web, read with two or three small range requests
- * (Media3 does not pass them on). The file's SeekHead says where its Chapters element is; that
- * element lists each chapter's start and name. Used for addon sources (Options > Video > Chapters).
+ * Chapters of a Matroska (MKV) or MP4 file, local or on the web, read with a few small range requests
+ * (Media3 does not pass them on). The stream's own headers go with every request to its server; a
+ * redirect elsewhere keeps only the User-Agent. Used for Options > Video > Chapters and chapter skips.
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 object MkvChapters {
     private const val EBML = 0x1A45DFA3L
     private const val SEGMENT = 0x18538067L
@@ -28,14 +34,51 @@ object MkvChapters {
     private const val STRING = 0x85L
     private const val UNKNOWN = -1L
 
-    private val http by lazy { Net.client(10, 20) }
+    private val http by lazy {Net.client(10,20).newBuilder().cache(null).followRedirects(false).followSslRedirects(false).build()}
 
-    /** The chapters, or an empty list (not MKV, no chapters, or the server does not allow ranges). */
-    suspend fun read(url: String, userAgent: String? = null): List<Chapter> = withContext(Dispatchers.IO) {
-        runCatching {
-            val head = range(url, 0, 128 * 1024, userAgent) ?: return@runCatching emptyList()
-            parseFile(head) { from, size -> range(url, from, size, userAgent) }
-        }.getOrDefault(emptyList())
+    /** Missing chapters and unsupported/non-seekable sources leave playback unchanged. */
+    suspend fun read(context:Context,source:String,headers:Map<String,String> = emptyMap()):List<Chapter> = coroutineScope {
+        val calls=java.util.concurrent.ConcurrentHashMap.newKeySet<okhttp3.Call>()
+        val closer=launch(Dispatchers.IO,start=CoroutineStart.UNDISPATCHED) {
+            try {awaitCancellation()}finally {calls.forEach {it.cancel()}}
+        }
+        val owner=currentCoroutineContext()
+        val supplied=StreamHeaders.clean(headers.toList())
+        try {withContext(Dispatchers.IO) {
+            fun fetch(from:Long,size:Int):ByteArray? {
+                owner.ensureActive()
+                if(from<0 || size !in 1..4*1024*1024 || from>Long.MAX_VALUE-size)return null
+                return when(Uri.parse(source).scheme?.lowercase()) {
+                    "http","https"->range(source,from,size,supplied,calls){owner.ensureActive()}
+                    "content","file",null->localRange(context,source,from,size){owner.ensureActive()}
+                    else->null
+                }
+            }
+            try {
+                val head=fetch(0,128*1024) ?: return@withContext emptyList()
+                (if(Mp4Chapters.recognizes(head))Mp4Chapters.read(head,::fetch) else parseFile(head,::fetch)).also {owner.ensureActive()}
+            }catch(e:CancellationException){throw e}catch(_:Exception){emptyList()}
+        }}finally {closer.cancel()}
+    }
+
+    private fun localRange(context:Context,source:String,from:Long,size:Int,check:()->Unit):ByteArray {
+        val data=DefaultDataSource.Factory(context).createDataSource()
+        try {
+            data.open(DataSpec.Builder().setUri(source).setPosition(from).setLength(size.toLong()).build())
+            return bounded(size,check){buffer,offset,count->data.read(buffer,offset,count)}
+        }finally {data.close()}
+    }
+
+    private fun bounded(size:Int,check:()->Unit,read:(ByteArray,Int,Int)->Int):ByteArray {
+        val bytes=ByteArray(size);var count=0
+        while(count<size) {
+            check()
+            val n=read(bytes,count,minOf(8192,size-count))
+            if(n<0)break
+            require(n>0)
+            count+=n
+        }
+        return bytes.copyOf(count)
     }
 
     /** [fetch] gets [size] bytes at an absolute file offset (for a Chapters element further on). */
@@ -170,25 +213,35 @@ object MkvChapters {
         if (start != null && !hidden) out += Chapter(name?.takeIf { it.isNotBlank() } ?: "Chapter ${out.size + 1}", start)
     }
 
-    private fun range(url: String, from: Long, size: Int, userAgent: String?): ByteArray? {
-        val req = Request.Builder().url(url)
-            .header("Range", "bytes=$from-${from + size - 1}")
-            .header("User-Agent", userAgent ?: app.ember.tv.data.Net.USER_AGENT)
-            .build()
-        return http.newCall(req).execute().use { r ->
-            if (r.code != 206 && !(r.code == 200 && from == 0L)) return null
-            // A 200 answer sends the whole file: read only what is needed.
-            r.body?.byteStream()?.use { s ->
-                val buf = ByteArray(size)
-                var n = 0
-                while (n < size) {
-                    val k = s.read(buf, n, size - n)
-                    if (k < 0) break
-                    n += k
+    private fun range(source:String,from:Long,size:Int,headers:Map<String,String>,calls:MutableSet<okhttp3.Call>,check:()->Unit):ByteArray? {
+        val original=source.toHttpUrl();var address=original
+        repeat(6) {
+            check();require(address.username.isEmpty() && address.password.isEmpty())
+            val sameOrigin=address.scheme==original.scheme && address.host==original.host && address.port==original.port
+            val request=Request.Builder().url(address).header("User-Agent",StreamHeaders.userAgent(headers) ?: Net.USER_AGENT).apply {
+                headers.forEach {(name,value)->if(sameOrigin || name.equals("User-Agent",true))header(name,value)}
+                header("Range","bytes=$from-${from+size-1}")
+            }.build()
+            val call=http.newCall(request);calls+=call
+            try {call.execute().use {response->
+                check()
+                if(response.code in setOf(301,302,303,307,308)) {
+                    val next=address.resolve(response.header("Location").orEmpty()) ?: return null
+                    require(!address.isHttps || next.isHttps)
+                    address=next
+                } else {
+                    if(response.code!=206 && !(response.code==200 && from==0L))return null
+                    if(response.code==206) {
+                        val range=Regex("bytes ([0-9]+)-([0-9]+)/(?:[0-9]+|\\*)").matchEntire(response.header("Content-Range").orEmpty()) ?: return null
+                        val first=range.groupValues[1].toLongOrNull() ?: return null
+                        val last=range.groupValues[2].toLongOrNull() ?: return null
+                        if(first!=from || last<first || last-first>=size)return null
+                    }
+                    return response.body.byteStream().use {input->bounded(size,check,input::read)}
                 }
-                buf.copyOf(n)
-            }
+            }}finally {calls-=call}
         }
+        return null
     }
 
     /** Reads EBML ids and sizes (variable-length integers). */

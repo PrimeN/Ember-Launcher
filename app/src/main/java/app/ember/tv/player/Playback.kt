@@ -342,10 +342,16 @@ object Playback {
      * (23.976 → 23.976 or 47.95 Hz; 25 → 50 Hz), at the current resolution unless [matchResolution].
      * Returns null when nothing better than the current mode exists.
      */
-    fun modeFor(display: Display, fps: Float, width: Int, height: Int, matchResolution: Boolean): Display.Mode? {
-        if (fps <= 0f) return null
-        val current = display.mode
-        val modes = display.supportedModes.toList()
+    fun modeFor(display: Display, fps: Float, width: Int, height: Int, matchResolution: Boolean, seamlessOnly: Boolean = false): Display.Mode? =
+        modeFor(display.mode, display.supportedModes.toList(), fps, width, height, matchResolution, seamlessOnly)
+
+    /** [seamlessOnly]: only refresh rates the display can switch to without a blank screen, at the current resolution. */
+    internal fun modeFor(current: Display.Mode, available: List<Display.Mode>, fps: Float, width: Int, height: Int, matchResolution: Boolean, seamlessOnly: Boolean = false): Display.Mode? {
+        if (!fps.isFinite() || fps <= 0f) return null
+        val seamlessRates = if (android.os.Build.VERSION.SDK_INT >= 31) current.alternativeRefreshRates.toList() else emptyList()
+        val modes = available.filter { mode -> !seamlessOnly ||
+            mode.physicalWidth == current.physicalWidth && mode.physicalHeight == current.physicalHeight &&
+            (mode.modeId == current.modeId || seamlessRates.any { kotlin.math.abs(it - mode.refreshRate) < .01f }) }
         val sameSize = if (matchResolution && width > 0 && height > 0) {
             // Smallest mode that holds the video, e.g. 1080p for 1080p video, 2160p for 4K.
             val fits = modes.filter { it.physicalWidth >= width * 0.95 && it.physicalHeight >= height * 0.95 }

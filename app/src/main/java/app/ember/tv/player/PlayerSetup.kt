@@ -261,6 +261,8 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     })
 
     p.addListener(object : Player.Listener {
+        // A seek, pause, resume or new item redraws the subtitles and restarts or stops their loop.
+        override fun onEvents(player: Player, events: Player.Events) { subtitleTicker.refresh() }
         override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
             // PlayerView sets the video's own shape; a forced one goes back on top.
             if (aspect != 0) handler.post { applyAspect() }
@@ -428,12 +430,12 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     view.subtitleView?.let { sv ->
         SubtitleEngine.style(sv, subCfg)
         baseSubCfg = subCfg
-        subs = SubtitleController(this, { player }, SubtitleEngine(sv), subConfigFor(subCfg), {refreshSubtitlePanel();updateSubtitleSheet()}) { text,format,wholeFile ->
+        subs = SubtitleController(this, { player }, SubtitleEngine(sv) { subtitleTicker.refresh() }, subConfigFor(subCfg), {refreshSubtitlePanel();updateSubtitleSheet();subtitleTicker.refresh()}) { text,format,wholeFile ->
             if(format=="ass" && config.engine=="auto" && prefs.subtitleConfig.authoredStyles)playbackEngine?.switch()
             playbackEngine?.compatibility?.external(text,format,wholeFile)==true
         }
     }
-    handler.post(subtitleTicker)
+    subtitleTicker.refresh()
     handler.post(markerTicker)
     liveSession?.let { session -> lifecycleScope.launch {
         lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {

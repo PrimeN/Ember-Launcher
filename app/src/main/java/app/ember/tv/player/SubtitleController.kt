@@ -58,7 +58,7 @@ class SubtitleController(
     val wholeFileTiming:Boolean get()=manualFile!=null || manualBitmap
 
     /** Starts looking for subtitles for a new video. [addon] are the subtitles the Stremio addons gave. */
-    fun startSearch(url: String, query: Subtitles.Query, addon: List<SubtitleOption>, preserve: Boolean = false) {
+    fun startSearch(url: String, query: Subtitles.Query, addon: List<SubtitleOption>, preserve: Boolean = false, headers: Map<String, String> = emptyMap()) {
         if (!preserve) { choice=null; chosenOff=false;manualFile=null;manualBitmap=false }
         this.query = query
         searchJob?.cancel()
@@ -87,7 +87,7 @@ class SubtitleController(
         searchJob = activity.lifecycleScope.launch {
             // The addon's own file hash when it gave one (#74): no need to download parts of the file.
             val hashed: Pair<String, Long?>? = if (!config.hashMatch || !anyProvider) null
-                else query.hash?.let { it to query.size } ?: if (url.startsWith("http")) kotlinx.coroutines.withTimeoutOrNull(5000) { Subtitles.movieHash(url) } else null
+                else query.hash?.let { it to query.size } ?: if (url.startsWith("http")) kotlinx.coroutines.withTimeoutOrNull(5000) { Subtitles.movieHash(url, headers) } else null
             val found = if (anyProvider) Subtitles.search(query.copy(hash = hashed?.first, size = hashed?.second), config) { batch ->
                 candidates=Subtitles.rank((candidates+batch).distinctBy { it.url ?: it.fileId.toString() },config,release,player()?.videoFormat?.frameRate?.takeIf { it>0 })
                 searched=true;onChange();autoSelect()

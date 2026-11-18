@@ -24,6 +24,7 @@ internal fun PlayerActivity.loadMarkers() {
     showSkip(null)
     controls.trickplay = null
     chapters = emptyList()
+    chapterMarkers = emptyList(); markerChapterState = null
     val ref = serverRef
     val s = servers
     val sourceId = serverPlayback?.sourceId
@@ -50,19 +51,25 @@ internal fun PlayerActivity.checkMarkers() {
             val part = transport.parts[index]
             if (subsInitialized) subs.startSearch(part.url, app.ember.tv.data.Subtitles.Query(
                 imdb = item.imdbId, movie = item.kind == Kind.MOVIE, season = item.season, episode = item.episode,
-                release = item.title, hash = null, size = null), part.subtitles, preserve = true)
+                release = item.title, hash = null, size = null), part.subtitles, preserve = true, headers = sourceHeaders)
         }
     }
     // #227: with automatic play on, Up next shows by itself at the credits, or near the end without them.
-    val credits = if (markers.isEmpty() || markersFromIntroDb && !config.introDb) null
-        else (if (markersFromIntroDb) IntroDbSegments.forRuntime(markers, p.duration) else markers).firstOrNull { it.kind == "credits" }
+    val external = if (markers.isEmpty() || markersFromIntroDb && !config.introDb) emptyList()
+        else if (markersFromIntroDb) IntroDbSegments.forRuntime(markers, p.duration) else markers
+    // Without server or IntroDB timings, the file's own chapters named Intro, Recap or Credits.
+    val eligible = external.ifEmpty {
+        val state = chapters to p.duration
+        if (markerChapterState != state) { chapterMarkers = ChapterMarkers.from(chapters, p.duration); markerChapterState = state }
+        chapterMarkers
+    }
+    val credits = eligible.firstOrNull { it.kind == "credits" }
     val due = UpNextTiming.due(p.currentPosition, p.duration, credits?.startMs, credits?.endMs, prefs.countdown)
     if (!due) upNextDismissed = false
     val autoNext = prefs.autoplay && fileQueue == null && nextEpisodes.isNotEmpty() && liveSession == null && !trailer
     if (autoNext && due && !ended && !upNextDismissed && upNextInitialized && !upNextUi.visible) nextEpisodes.firstOrNull()?.let { showUpNext(it) }
-    if (markers.isEmpty() || ended || config.skipIntro == "off" || markersFromIntroDb && !config.introDb) return showSkip(null)
+    if (eligible.isEmpty() || ended || config.skipIntro == "off") return showSkip(null)
     val pos = p.currentPosition
-    val eligible = if (markersFromIntroDb) IntroDbSegments.forRuntime(markers, p.duration) else markers
     // The card replaces the credits' Next episode button when automatic play is on.
     val m = eligible.firstOrNull { pos >= it.startMs && pos < it.endMs - 1_000 }?.takeUnless { it.kind == "credits" && autoNext }
     if (m != null && m.kind != "credits" && config.skipIntro == "auto" && m !in autoSkipped) {
@@ -133,6 +140,7 @@ internal fun PlayerActivity.shiftSound(deltaMs: Int?) {
     val now = (audioDelay.us / 1000).toInt()
     val next = if (deltaMs == null) 0 else (now + deltaMs).coerceIn(-1000, 1000)
     audioDelay.us = next * 1000L
+    playbackEngine?.compatibility?.audioDelay(next.toLong())
     updateSoundLabel()
 }
 
@@ -161,12 +169,14 @@ internal fun PlayerActivity.updateSoundLabel() {
 /** Switches the display to a refresh rate (and optionally resolution) that fits the video, once per title. */
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun PlayerActivity.matchDisplayMode(p: ExoPlayer) {
-    if (config.frameRate != "always" || modeApplied) return
+    // Standard asks Media3 for seamless-only switches; Compatibility picks one of the display's seamless rates here.
+    val seamless = config.frameRate == "seamless" && playbackEngine?.compatibility != null
+    if ((config.frameRate != "always" && !seamless) || modeApplied) return
     val f = p.videoFormat ?: return
     modeApplied = true
     val display = if (android.os.Build.VERSION.SDK_INT >= 30) display else @Suppress("DEPRECATION") windowManager.defaultDisplay
     display ?: return
-    Playback.applyMode(this, Playback.modeFor(display, f.frameRate, f.width, f.height, config.matchResolution))
+    Playback.applyMode(this, Playback.modeFor(display, f.frameRate, f.width, f.height, config.matchResolution && !seamless, seamless))
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])

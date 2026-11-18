@@ -248,16 +248,15 @@ class PlayerActivity : ComponentActivity() {
     internal lateinit var subList: LinearLayout
     internal lateinit var timingLabel: TextView
     internal lateinit var subs: SubtitleController
-    internal val subtitleTicker = object : Runnable {
-        override fun run() {
+    internal val handler = Handler(Looper.getMainLooper())
+    internal var subtitleUpdatesStarted = false
+    internal val subtitleTicker = SubtitleTicker(handler, { subtitleUpdatesStarted && player != null && !isFinishing }, {
+        player?.isPlaying == true && (::subs.isInitialized && subs.engine.active || repeatRange.end != null)
+    }) {
             val p = player
             if(p!=null && p.isPlaying)repeatRange.destination(p.currentPosition)?.let(p::seekTo)
             if (p != null && ::subs.isInitialized) {val prefix=if(subs.wholeFileTiming)0L else (playbackEngine?.compatibility?.partOffset ?: serverPlayback?.offset(serverPartIndex))?:0L;subs.engine.render((p.currentPosition-prefix).coerceAtLeast(0))}
-            handler.postDelayed(this, 100)
-        }
     }
-
-    internal val handler = Handler(Looper.getMainLooper())
 
     // ---- resume, per-show tracks, picture-in-picture ----
     internal var startOver = false
@@ -295,12 +294,13 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        subtitleUpdatesStarted = true
         if(::prefs.isInitialized && !contentPlaybackAllowed()){endPlayback();finish();return}
         userLeft = false
         if (!keptAlive) return
         keptAlive = false
         handler.removeCallbacks(closeKept)
-        handler.post(subtitleTicker)
+        subtitleTicker.refresh()
         handler.post(markerTicker)
         handler.postDelayed(saver, 5_000)
         if (advanced) {
@@ -543,6 +543,9 @@ class PlayerActivity : ComponentActivity() {
     internal lateinit var soundLabel: TextView
     internal lateinit var skipButton: TextView
     internal var markers: List<app.ember.tv.mediaserver.Marker> = emptyList()
+    /** Skip markers from the file's chapter names, worked out again only when the chapters or length change. */
+    internal var chapterMarkers: List<app.ember.tv.mediaserver.Marker> = emptyList()
+    internal var markerChapterState: Pair<List<app.ember.tv.mediaserver.Chapter>, Long>? = null
     internal var markersFromIntroDb = false
     internal val introDbClient = IntroDbClient()
     /** Markers already skipped automatically, so seeking back into one does not skip it again. */
@@ -692,6 +695,7 @@ class PlayerActivity : ComponentActivity() {
             }
             return super.dispatchKeyEvent(event)
         }
+        if (playbackKey(event)) return true
         if (advanced) advancedKey(event)?.let { return it }
         // Settings > Player > Leaving the player: Back asks before the video closes.
         if (event.keyCode == KeyEvent.KEYCODE_BACK && config.confirmExit && !trailer && player != null && !ended) {
@@ -708,6 +712,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        subtitleUpdatesStarted = false
         super.onStop()
         cancelRecovery()
         cancelNextEpisodeLookup()
