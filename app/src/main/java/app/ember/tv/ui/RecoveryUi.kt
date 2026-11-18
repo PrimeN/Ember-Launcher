@@ -118,13 +118,15 @@ fun LoadingCards(wide:Boolean=true) {
 fun HomeRecovery(vm: HomeViewModel) {
     val state = vm.catalogs
     if (vm.homeCatalogsWanted && state.loading && vm.rows.isEmpty() && vm.homeBlocks.none {it is HomeViewModel.HomeBlock.Loading}) LoadingCards(vm.look.modernCards!="poster")
-    if (vm.homeCatalogsWanted && !state.loading && vm.rows.isEmpty()) RecoveryPanel(
+    // #335: a new install sees the setup steps instead, which start with adding an addon.
+    val setup = !vm.profiles.profile.kids && vm.addons.isEmpty() && !vm.plexConnected && vm.serverAccounts.isEmpty() && !vm.look.setupChecklistHidden
+    if (vm.homeCatalogsWanted && !state.loading && vm.rows.isEmpty() && !setup) RecoveryPanel(
         if (vm.addons.isEmpty()) "Add your first source" else if (state.health.entries.values.any { it.failed }) "Sources unavailable" else "No catalogs on Home",
         if (vm.addons.isEmpty()) "Connect an addon to browse movies and shows. Your apps are ready to use."
         else if (state.health.entries.values.any { it.failed }) "Saved content stays available. Source settings shows which source failed and retries it."
         else "Your sources may be empty or their Home catalogs switched off. Choose catalogs in Home settings.",
         "Source settings", vm::openSourceSettings)
-    if(!vm.profiles.profile.kids && vm.addons.isEmpty() && !vm.plexConnected && vm.serverAccounts.isEmpty() && !vm.look.setupChecklistHidden) HomeSetupChecklist(vm)
+    if (setup) HomeSetupChecklist(vm)
     // Source status (addons, trackers, media servers) lives in Settings, on each source's page.
 }
 

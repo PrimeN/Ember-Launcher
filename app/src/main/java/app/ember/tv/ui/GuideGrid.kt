@@ -204,7 +204,8 @@ internal fun GuideGrid(
                                             else ->false
                                         }
                                     },container=LiveColors.Cell,focusedContainer=LiveColors.Current,radius=TvTokens.Shape.Card) {
-                                Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                // The channel name sits in the middle of its row, like the programme beside it.
+                                Row(Modifier.fillMaxSize().padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     if (showLogos && channel.logo != null && rail>=110.dp) AsyncImage(channel.logo, null, modifier = Modifier.size(32.dp))
                                     Text((channel.number?.let { "$it · " } ?: "") + (if (channel.key in favourites) "★ " else "") + channel.name, fontSize = TvTokens.Type.Caption.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,color=LiveColors.Text)
                                 }

@@ -26,4 +26,5 @@
         <item>Teal</item>
         <item>Mocha</item>
     </string-array>
+    <string name="now_playing_service_label">Ember Now Playing</string>
 </resources>

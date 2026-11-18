@@ -17,6 +17,13 @@ class MediaActionSizingTest {
         }
     }
 
+    /** #332: the Play button only grows into free space, so the last action is never pushed off screen. */
+    @Test fun playButtonLeavesRoomForTheOtherActions() {
+        assertEquals(224.dp, app.ember.tv.ui.playActionCap(500.dp, 72.dp + 52.dp * 3, 4))
+        assertEquals(app.ember.tv.ui.INLINE_ACTION_MAX, app.ember.tv.ui.playActionCap(1200.dp, 72.dp + 52.dp * 3, 4))
+        assertEquals(282.dp, app.ember.tv.ui.playActionCap(550.dp, 72.dp + 52.dp * 3, 4))
+    }
+
     @Test fun menusFitLongActionsInsteadOfTruncatingAtFourHundredDp() {
         assertEquals(594.dp, MenuSizing.actionMenuWidth(520.dp, 60.dp, 900.dp))
         assertEquals(874.dp, MenuSizing.actionMenuWidth(800.dp, 60.dp, 1000.dp))

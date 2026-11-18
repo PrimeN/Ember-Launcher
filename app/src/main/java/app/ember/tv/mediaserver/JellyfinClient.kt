@@ -127,7 +127,7 @@ class JellyfinClient(private val accounts: Accounts,private val http:ServerHttp=
         continuing.mapNotNull { toMeta(a, it) }.distinctBy { it.id }.takeIf { it.isNotEmpty() }?.let { out += ServerRow("Continue on ${a.name}", label, it, inProgress = true,id="${a.kind}:${a.key}:resume") }
         latest.mapNotNull { toMeta(a, it) }.takeIf { it.isNotEmpty() }?.let { out += ServerRow("Recently added on ${a.name}", label, it,id="${a.kind}:${a.key}:recent") }
         val favoriteItems = favorites.await()
-        if (favoriteItems.isNotEmpty()) out += ServerRow("Favorites on ${a.name}", label, favoriteItems, id = "${a.kind}:${a.key}:watchlist")
+        if (favoriteItems.isNotEmpty()) out += ServerRow("Favourites on ${a.name}", label, favoriteItems, id = "${a.kind}:${a.key}:watchlist")
         out
     }
 

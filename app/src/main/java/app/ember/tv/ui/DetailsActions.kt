@@ -58,13 +58,17 @@ internal fun detailsActionWidth(label:Dp,detail:Dp,icon:Boolean):Dp =
 internal val INLINE_ACTION_MAX=360.dp
 
 /** Primary labels always fit; source details use the remaining space on the same line. */
-internal fun inlineDetailsActionWidth(label:Dp,detail:Dp,icon:Boolean):Dp {
+internal fun inlineDetailsActionWidth(label:Dp,detail:Dp,icon:Boolean,cap:Dp=INLINE_ACTION_MAX):Dp {
     val primary=maxOf(label + if(icon)54.dp else 24.dp,72.dp)
-    return maxOf(primary,minOf(primary + if(detail>0.dp)detail+8.dp else 0.dp,INLINE_ACTION_MAX))
+    return maxOf(primary,minOf(primary + if(detail>0.dp)detail+8.dp else 0.dp,cap))
 }
 
+/** #332: the widest the Play button may grow while every other action stays on screen (never under the old 224dp). */
+internal fun playActionCap(available:Dp,others:Dp,gaps:Int):Dp =
+    (available - others - 10.dp*gaps).coerceIn(224.dp,INLINE_ACTION_MAX)
+
 @Composable
-private fun measuredDetailsActionWidth(label:String,detail:String?,icon:Boolean):Dp {
+private fun measuredDetailsActionWidth(label:String,detail:String?,icon:Boolean,cap:Dp=INLINE_ACTION_MAX):Dp {
     val measurer=androidx.compose.ui.text.rememberTextMeasurer()
     val density=androidx.compose.ui.platform.LocalDensity.current
     val primaryStyle=inlineDetailsTextStyle()
@@ -72,7 +76,7 @@ private fun measuredDetailsActionWidth(label:String,detail:String?,icon:Boolean)
     return with(density) {
         val primary=measurer.measure(label,primaryStyle,softWrap=false,maxLines=1).size.width.toDp()
         val secondary=detail?.let {measurer.measure(it,secondaryStyle,softWrap=false,maxLines=1).size.width.toDp()} ?: 0.dp
-        inlineDetailsActionWidth(primary,secondary,icon)
+        inlineDetailsActionWidth(primary,secondary,icon,cap)
     }
 }
 
@@ -159,9 +163,12 @@ internal fun DetailsActions(
     var trailerFocused by remember {mutableStateOf(false)}
     LaunchedEffect(trailer) {if(!trailer && trailerFocused)runCatching {first.requestFocus()}}
     val actionHeight=maxOf(42.dp,with(androidx.compose.ui.platform.LocalDensity.current){18.sp.toDp()}+12.dp)
-    Row(modifier.horizontalScroll(rememberScrollState()).focusGroup(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically) {
-        val playWidth=measuredDetailsActionWidth(playback.label,playback.detail,true)
-        val trailerWidth=measuredDetailsActionWidth("Trailer",null,false)
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
+    val trailerWidth=measuredDetailsActionWidth("Trailer",null,false)
+    val others=(if(trailer)trailerWidth else 0.dp)+actionHeight*3
+    val playWidth=measuredDetailsActionWidth(playback.label,playback.detail,true,
+        if(maxWidth==Dp.Infinity)INLINE_ACTION_MAX else playActionCap(maxWidth,others,if(trailer)4 else 3))
+    Row(Modifier.horizontalScroll(rememberScrollState()).focusGroup(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically) {
         DetailsActionButton(listOfNotNull(playback.label,playback.detail).joinToString(" · "),Icons.Outlined.PlayArrow,
             text=playback.label,detail=playback.detail,enabled=playback.enabled,width=playWidth,minHeight=actionHeight,inline=true,
             modifier=if(playback.enabled)Modifier.focusRequester(first) else Modifier,onClick=onPlay)
@@ -175,5 +182,6 @@ internal fun DetailsActions(
             selected=saved,width=actionHeight,minHeight=actionHeight,inline=true,
             modifier=if(playback.enabled)Modifier else Modifier.focusRequester(first),onClick=onSaved)
         DetailsActionButton("About and more",Icons.Outlined.MoreHoriz,width=actionHeight,minHeight=actionHeight,inline=true,onClick=onMore)
+    }
     }
 }
