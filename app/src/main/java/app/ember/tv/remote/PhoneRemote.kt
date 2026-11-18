@@ -1,5 +1,7 @@
 package app.ember.tv.remote
 
+import androidx.core.content.edit
+import androidx.core.graphics.toColorInt
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +41,7 @@ internal object PhoneRemote {
     }
 
     @Synchronized fun setEnabled(context: Context, vm: HomeViewModel, on: Boolean, accent: String): String? {
-        prefs(context).edit().putBoolean(ON, on).apply()
+        prefs(context).edit { putBoolean(ON, on) }
         return if (on) sync(context, vm, accent) else { stop(); null }
     }
 
@@ -52,15 +54,15 @@ internal object PhoneRemote {
 
     /** #247: the home-screen icon: a rounded square in the accent colour with a play mark. */
     private fun icon(size: Int, accent: String): ByteArray {
-        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val bitmap = androidx.core.graphics.createBitmap(size, size)
         val canvas = android.graphics.Canvas(bitmap)
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-        paint.color = android.graphics.Color.parseColor("#121316")
+        paint.color = "#121316".toColorInt()
         canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
-        paint.color = runCatching { android.graphics.Color.parseColor(accent) }.getOrDefault(android.graphics.Color.parseColor("#FF7A2F"))
+        paint.color = runCatching { accent.toColorInt() }.getOrDefault("#FF7A2F".toColorInt())
         val inset = size * .16f
         canvas.drawRoundRect(inset, inset, size - inset, size - inset, size * .2f, size * .2f, paint)
-        paint.color = android.graphics.Color.parseColor("#121316")
+        paint.color = "#121316".toColorInt()
         val path = android.graphics.Path().apply {
             moveTo(size * .43f, size * .36f); lineTo(size * .66f, size * .5f); lineTo(size * .43f, size * .64f); close()
         }

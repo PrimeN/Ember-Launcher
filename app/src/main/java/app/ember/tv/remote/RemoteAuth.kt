@@ -1,5 +1,6 @@
 package app.ember.tv.remote
 
+import androidx.core.content.edit
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -96,7 +97,7 @@ class RemoteAuth(private val store: Store, private val now: () -> Long = System:
             val sp = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             return object : Store {
                 override fun get(key: String) = sp.getString(key, null)
-                override fun put(key: String, value: String?) { sp.edit().apply { if (value == null) remove(key) else putString(key, value) }.apply() }
+                override fun put(key: String, value: String?) { sp.edit { if (value == null) remove(key) else putString(key, value) } }
             }
         }
     }

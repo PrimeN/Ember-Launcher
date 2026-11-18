@@ -66,6 +66,7 @@ class PhoneRemoteTest {
         assertEquals(200, server.route(req("POST", "/api/player", body = "action=toggle", headers = change)).status)
         assertEquals("toggle", calls.last().second["action"])
         assertEquals("changes are never a GET", 405, server.route(req("GET", "/api/player")).status)
+        assertEquals("#334: search types on the TV, so it is a change", 405, server.route(req("GET", "/api/search")).status)
         assertEquals(404, server.route(req("POST", "/api/nope", headers = change)).status)
         // With a password: sign in first.
         auth.setPassword("sofa-time")

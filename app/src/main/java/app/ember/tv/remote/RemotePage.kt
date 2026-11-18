@@ -247,7 +247,7 @@ function recents(){var box=q('recent');box.textContent='';if(q('sq').value.trim(
  r.forEach(function(t){var b=el('button',null,t);b.onclick=function(){buzz(5);q('sq').value=t;search()};box.appendChild(b)})}
 function remember(v){var r=[];try{r=JSON.parse(keep.get('recent')||'[]')}catch(e){}r=[v].concat(r.filter(function(x){return x.toLowerCase()!==v.toLowerCase()})).slice(0,6);keep.set('recent',JSON.stringify(r))}
 var sTimer;function search(){var v=q('sq').value.trim();q('sx').hidden=!v;recents();if(v.length<2){q('results').textContent='';q('sn').textContent='';return}
- q('sn').textContent='Searching on the TV…';api('search',{q:v}).then(function(j){if(q('sq').value.trim()!==v)return;q('sn').textContent=j.note||(j.items.length?'':'Nothing found.');if(j.items.length)remember(v);fill(q('results'),j.items,'')})}
+ q('sn').textContent='Searching on the TV…';api('search',{q:v},true).then(function(j){if(q('sq').value.trim()!==v)return;q('sn').textContent=j.note||(j.items.length?'':'Nothing found.');if(j.items.length)remember(v);fill(q('results'),j.items,'')})}
 q('sq').addEventListener('input',function(){clearTimeout(sTimer);sTimer=setTimeout(search,550)});
 q('sf').addEventListener('submit',function(e){e.preventDefault();clearTimeout(sTimer);q('sq').blur();search()});
 q('sx').onclick=function(){q('sq').value='';search();q('sq').focus()};

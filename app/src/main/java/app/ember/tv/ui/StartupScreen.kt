@@ -96,7 +96,7 @@ internal fun StartupScreen(stage:StartupStage,render:RenderOptions,reduced:Boole
     val step=stringResource(R.string.startup_stage,stage.ordinal+1,StartupStage.entries.size)
     val motion=startupMotion(render,reduced) && active
     val pulse=if(motion)rememberInfiniteTransition(label="emberWarmth").animateFloat(.65f,1f,
-        infiniteRepeatable(tween(1600,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="emberTip") else remember {mutableStateOf(1f)}
+        infiniteRepeatable(tween(1600,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="emberTip") else remember {mutableFloatStateOf(1f)}
     val progress=animateFloatAsState(stage.ordinal.toFloat()/StartupStage.READY.ordinal,
         tween(if(motion)180 else 0),label="startupMilestones")
     BoxWithConstraints(Modifier.fillMaxSize().background(Coal).clearAndSetSemantics {

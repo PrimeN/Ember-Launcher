@@ -1,5 +1,7 @@
 package app.ember.tv.tracker
 
+import androidx.core.content.edit
+
 import android.content.Context
 import app.ember.tv.data.ApiKeys
 import kotlinx.coroutines.CancellationException
@@ -83,7 +85,7 @@ internal class KitsuIds(
         val url = "https://kitsu.io/api/edge/mappings?${q("filter[externalSite]")}=${q(site)}&${q("filter[externalId]")}=$id&include=item"
         val r = try { gate.withPermit { get(url) } } catch (e: CancellationException) { throw e } catch (e: Exception) { return null }
         val kitsu = kitsuIdFrom(r)
-        prefs?.edit()?.putLong(key, kitsu ?: -1L)?.apply()
+        prefs?.edit { putLong(key, kitsu ?: -1L) }
         return kitsu
     }
 
@@ -95,7 +97,7 @@ internal class KitsuIds(
             catch (e: CancellationException) { throw e } catch (e: Exception) { return null }
         val id = r.arr("data").list().firstOrNull { it.obj("attributes").str("externalSite") == "anilist/anime" }
             ?.obj("attributes").str("externalId")?.toLongOrNull()
-        prefs?.edit()?.putLong(key, id ?: -1L)?.apply()
+        prefs?.edit { putLong(key, id ?: -1L) }
         return id
     }
 

@@ -1,5 +1,7 @@
 package app.ember.tv.player
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.os.Build
 import androidx.media3.common.Format
@@ -37,7 +39,7 @@ internal class DecoderHealth private constructor(private val store:android.conte
     @Synchronized fun engine(key:String):String? {syncReset();return memory.get("engine:$key")?.name?.takeIf {it in setOf("standard","compatibility")}}
     @Synchronized fun rememberEngine(key:String,engine:String) {syncReset();if(engine in setOf("standard","compatibility")){memory.remember("engine:$key",ProvenDecoder(engine,savedAt=System.currentTimeMillis()));save()}}
     @Synchronized fun forgetEngine(key:String){syncReset();memory.forget("engine:$key");save()}
-    private fun save() {val snapshot=memory.document();val at=generation;writer.execute {if(resets.get()==at)store.edit().putString("records",json.encodeToString(snapshot)).apply()}}
+    private fun save() {val snapshot=memory.document();val at=generation;writer.execute {if(resets.get()==at)store.edit {putString("records",json.encodeToString(snapshot))}}}
     companion object {
         @Volatile private var cached:DecoderHealth?=null
         private val resets=java.util.concurrent.atomic.AtomicLong()
@@ -54,8 +56,8 @@ internal class DecoderHealth private constructor(private val store:android.conte
             val generation=resets.get()
             val names=runCatching {android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS).codecInfos.map {it.name}.sorted().joinToString("|")}.getOrDefault("")
             val modules=listOf("com.android.media.swcodec","com.google.android.media.swcodec","com.android.media").joinToString("|") {name->runCatching {
-                @Suppress("DEPRECATION") val info=context.packageManager.getPackageInfo(name,if(Build.VERSION.SDK_INT>=29)android.content.pm.PackageManager.MATCH_APEX else 0)
-                @Suppress("DEPRECATION") "$name:${if(Build.VERSION.SDK_INT>=28)info.longVersionCode else info.versionCode.toLong()}"
+                @Suppress("DEPRECATION") val info=context.packageManager.getPackageInfo(name,android.content.pm.PackageManager.MATCH_APEX)
+                @Suppress("DEPRECATION") "$name:${info.longVersionCode}"
             }.getOrDefault(name)}
             // Beta installs can replace native decoders without changing the version code.
             @Suppress("DEPRECATION") val installedAt=runCatching {context.packageManager.getPackageInfo(context.packageName,0).lastUpdateTime}.getOrDefault(0L)
@@ -64,7 +66,7 @@ internal class DecoderHealth private constructor(private val store:android.conte
             val document=store.getString("records",null)?.takeIf {it.length<=128*1024}?.let {runCatching {json.decodeFromString<DecoderHealthDocument>(it)}.getOrNull()}
             return DecoderHealth(store,DecoderHealthMemory(environment,document),generation).also {cached=it}
         }
-        fun clear(context:Context){resets.incrementAndGet();writer.execute {context.applicationContext.getSharedPreferences("decoder_health",Context.MODE_PRIVATE).edit().clear().apply()}}
+        fun clear(context:Context){resets.incrementAndGet();writer.execute {context.applicationContext.getSharedPreferences("decoder_health",Context.MODE_PRIVATE).edit {clear()}}}
         fun profile(f:Format):String? {
             val mime=f.sampleMimeType?.takeIf {it.startsWith("video/")} ?: return null
             if(f.width<=0 || f.height<=0)return null

@@ -1,5 +1,7 @@
 package app.ember.tv.state
 
+import androidx.core.content.edit
+
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,8 +47,7 @@ class BackupState(
 
     fun chooseAutoBackupMode(mode: String) {
         if (AutoBackup.choices.none { it.first == mode }) return
-        app.getSharedPreferences("ember", android.content.Context.MODE_PRIVATE).edit()
-            .putString(PreferenceKeys.AUTO_BACKUP.name, mode).apply()
+        app.getSharedPreferences("ember", android.content.Context.MODE_PRIVATE).edit { putString(PreferenceKeys.AUTO_BACKUP.name, mode) }
         autoBackupMode = mode
     }
 

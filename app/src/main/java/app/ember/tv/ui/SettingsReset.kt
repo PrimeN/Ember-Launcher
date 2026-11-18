@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.edit
 import app.ember.tv.data.PreferenceKey
 import app.ember.tv.home.LauncherExtras
 import app.ember.tv.data.PreferenceKeys as K
@@ -79,13 +80,13 @@ internal object SettingsReset {
     fun apply(context: Context, tab: SettingsTab) {
         val sp = context.getSharedPreferences("ember", Context.MODE_PRIVATE)
         val config = playback(tab, app.ember.tv.data.Prefs(context).playbackConfig)
-        val e = sp.edit()
-        keys(tab).forEach { e.remove(it.name) }
         val json = Json { ignoreUnknownKeys = true }
-        if (config != null) e.putString(K.PLAYBACK_CONFIG.name, json.encodeToString(config))
         val saved = runCatching { json.decodeFromString<LauncherExtras>(sp.getString(K.LAUNCHER_EXTRAS.name, null) ?: "{}") }.getOrDefault(LauncherExtras())
-        extras(tab, saved)?.let { e.putString(K.LAUNCHER_EXTRAS.name, json.encodeToString(it.normalized())) }
-        e.commit()
+        sp.edit(commit = true) {
+            keys(tab).forEach { remove(it.name) }
+            if (config != null) putString(K.PLAYBACK_CONFIG.name, json.encodeToString(config))
+            extras(tab, saved)?.let { putString(K.LAUNCHER_EXTRAS.name, json.encodeToString(it.normalized())) }
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import androidx.core.content.edit
+
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -73,7 +75,7 @@ internal object SettingsOptionIndex {
         val sp = store ?: return
         val batch = synchronized(unsaved) { unsaved.toSet().also { unsaved.clear() } }
         if (batch.isEmpty()) return
-        sp.edit().putStringSet(KEY, sp.getStringSet(KEY, emptySet()).orEmpty() + batch).apply()
+        sp.edit { putStringSet(KEY, sp.getStringSet(KEY, emptySet()).orEmpty() + batch) }
     }
 
     /** Entries whose label or section contain every word. */

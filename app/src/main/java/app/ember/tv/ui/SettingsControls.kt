@@ -72,7 +72,7 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
  * arrow, in the same full-width row as [SettingToggle].
  */
 @Composable
-internal fun SettingValueRow(label: String, value: String, note: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun SettingValueRow(label: String, value: String, modifier: Modifier = Modifier, note: String? = null, onClick: () -> Unit) {
     RecordSettingOption(label)
     var focused by remember { mutableStateOf(false) }
     val floating = LocalFloating.current

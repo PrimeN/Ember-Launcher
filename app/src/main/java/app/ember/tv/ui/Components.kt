@@ -295,8 +295,7 @@ fun Chip(label: String, selected: Boolean = false, modifier: Modifier = Modifier
 }
 
 @Composable
-fun AppTile(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit, width: androidx.compose.ui.unit.Dp = 150.dp,
-    modifier: Modifier = Modifier) {
+fun AppTile(app: AppEntry, modifier: Modifier = Modifier, dim: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit, width: androidx.compose.ui.unit.Dp = 150.dp) {
     val bitmap=rememberAppArtwork(app)
     val backdrop = rememberAppFocus(app, bitmap)
     Focusable(onClick = onClick, onLongClick = onLongClick,

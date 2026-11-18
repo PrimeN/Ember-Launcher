@@ -196,6 +196,18 @@ jobs:
           done
           if grep -qE 'lib/x86' <<<"$libs"; then echo "::error title=Unexpected CPU type::x86 libraries are in $apk"; exit 1; fi
 
+      # Third-party libraries packaged in the APK, so Settings > About > Legal can be checked against them.
+      - name: Runtime libraries
+        if: success()
+        continue-on-error: true
+        shell: bash
+        run: |
+          libs=$(./gradlew -q :app:dependencies --configuration releaseRuntimeClasspath 2>/dev/null \
+            | grep -oE '[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+:[^ ]+' | sed 's/ ->.*//' | cut -d: -f1,2 | sort -u \
+            | grep -vE '^(androidx|org\.jetbrains|com\.google\.android)\.' || true)
+          { echo "### Runtime libraries"; echo '```'; echo "$libs"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Runtime libraries::$(echo "$libs" | tr '\n' ' ')"
+
       # Android lint: problems are listed on the run's summary page. Warnings never fail the run;
       # errors fail it in "Lint gate" below, after the APK has been uploaded.
       - name: Lint

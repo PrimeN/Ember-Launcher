@@ -14,6 +14,19 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "1.0.0", "Ready for everyone",
+            listOf(
+                "Widgets for your apps' Continue watching and your recently used apps.",
+                "Rename apps, and automatic weekly backups kept on the TV.",
+                "Player: smoother seeking, night listening, network and buffer settings, compatibility decoding.",
+                "Settings: search finds individual options, every page can be reset, and pages are reorganized.",
+                "Addons can be reordered; pick several catalogs at once for a widget or folder.",
+                "Dates, times and counts follow your TV's language and clock everywhere.",
+                "Consistent wording, clearer quick settings and a setup checklist for new installs.",
+                "Fixed resetting the Extras page clearing app PIN locks.",
+            ),
+        ),
+        Release(
             "0.9.9", "Home widgets and a phone remote",
             listOf(
                 "Everything on Home is a widget: your own rows, numbered lists, carousels and banners.",

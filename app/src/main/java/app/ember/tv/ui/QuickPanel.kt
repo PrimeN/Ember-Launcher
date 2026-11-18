@@ -255,7 +255,7 @@ private class Tile(
 @Composable
 private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
     // #230: a quarter of the earlier third of the screen, one line.
-    val height = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 12).coerceAtLeast(44).dp
+    val height = with(androidx.compose.ui.platform.LocalDensity.current) { androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height.toDp() / 12 }.coerceAtLeast(44.dp)
     var focused by remember { mutableStateOf(false) }
     val soft = if (focused) OnPillColor.copy(alpha = .75f) else Mute
     // #248: the tiles' own colours and icon, and no padding of its own (the column gives it).

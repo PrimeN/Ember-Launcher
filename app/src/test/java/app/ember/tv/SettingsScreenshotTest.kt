@@ -33,8 +33,12 @@ class SettingsScreenshotTest {
         file.outputStream().use { node.captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    @org.junit.After fun resetDay() { Ui.day = false }
+
+    // #337: Day colours follow Ui.day, not LocalNight; text takes the theme's colour as in the app.
     private fun page(night: Boolean) = compose.setContent {
-        CompositionLocalProvider(LocalNight provides night, LocalReduceMotion provides true, LocalRenderOptions provides RenderOptions(device = "low")) {
+        Ui.day = !night
+        CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides Fg, LocalReduceMotion provides true, LocalRenderOptions provides RenderOptions(device = "low")) {
             EmberTheme(0, InterfaceStyles.MODERN) {
                 Column(Modifier.size(960.dp, 540.dp).background(if (night) Color(0xFF101012) else Color(0xFFF2F0EE)).verticalScroll(rememberScrollState()).padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp)) {

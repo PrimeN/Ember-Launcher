@@ -43,6 +43,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -766,7 +767,7 @@ private fun PhoneRemoteSection(vm: HomeViewModel, accentHex: String) {
     val auth = remember { app.ember.tv.remote.PhoneRemote.auth(context) }
     var on by remember { mutableStateOf(app.ember.tv.remote.PhoneRemote.enabled(context)) }
     var hasPassword by remember { mutableStateOf(auth.hasPassword) }
-    var phones by remember { mutableStateOf(auth.phones) }
+    var phones by remember { mutableIntStateOf(auth.phones) }
     var password by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     val url = app.ember.tv.remote.PhoneRemote.url

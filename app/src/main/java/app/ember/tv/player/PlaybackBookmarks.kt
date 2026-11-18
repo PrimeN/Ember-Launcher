@@ -1,5 +1,6 @@
 package app.ember.tv.player
 
+import androidx.core.content.edit
 import android.content.Context
 import app.ember.tv.data.LocalActivity
 import app.ember.tv.data.CachePolicy
@@ -22,19 +23,20 @@ internal class PlaybackBookmarks(context:Context,scope:String) {
         if(values.size>=50)return@synchronized false
         val at=position.coerceAtMost(604_800_000L)
         val updated=values+PlaybackBookmark(java.util.UUID.randomUUID().toString(),at,label(name).ifBlank {"Bookmark"},System.currentTimeMillis())
-        val edit=store.edit().putString(key(title),json.encodeToString(updated.sortedBy {it.positionMs}))
-        edit.commit()
+        store.edit(commit=true) {putString(key(title),json.encodeToString(updated.sortedBy {it.positionMs}))}
+        true
     }
     fun rename(title:String,id:String,name:String):Boolean = synchronized(lock) {
         val values=read(title);val text=label(name)
         if(text.isBlank() || values.none {it.id==id})return@synchronized false
-        store.edit().putString(key(title),json.encodeToString(values.map {if(it.id==id)it.copy(name=text) else it})).commit()
+        store.edit(commit=true) {putString(key(title),json.encodeToString(values.map {if(it.id==id)it.copy(name=text) else it}))}
+        true
     }
     fun remove(title:String,id:String):Boolean = synchronized(lock) {
         val values=read(title);if(values.none {it.id==id})return@synchronized false
-        val updated=values.filterNot {it.id==id};val edit=store.edit()
-        if(updated.isEmpty())edit.remove(key(title)) else edit.putString(key(title),json.encodeToString(updated))
-        edit.commit()
+        val updated=values.filterNot {it.id==id}
+        store.edit(commit=true) {if(updated.isEmpty())remove(key(title)) else putString(key(title),json.encodeToString(updated))}
+        true
     }
     companion object {
         private val lock=Any()

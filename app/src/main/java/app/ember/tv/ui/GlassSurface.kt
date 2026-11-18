@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import androidx.core.graphics.get
+
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Matrix
@@ -180,7 +182,7 @@ internal class GlassPainter {
             for(y in 0..2)for(x in 0..2) {
                 val px=(((x+.5f)*width/3-frame.left)*image.width/frame.width).toInt().coerceIn(0,image.width-1)
                 val py=(((y+.5f)*height/3-frame.top)*image.height/frame.height).toInt().coerceIn(0,image.height-1)
-                val pixel=image.getPixel(px,py)
+                val pixel=image[px,py]
                 val light=((pixel ushr 16 and 255)*54+(pixel ushr 8 and 255)*183+(pixel and 255)*19)/(255f*256f)
                 result=maxOf(result,light)
             }

@@ -150,18 +150,20 @@ internal fun ModernSettings(
             androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Tint.of(.18f),Tint.of(.05f))))) {
             val sideWidth=(maxWidth*.23f).coerceIn(180.dp,252.dp)
             Row(Modifier.fillMaxSize().padding(TvTokens.Space.XXL.dp),horizontalArrangement=Arrangement.spacedBy(20.dp)) {
-                Column(Modifier.width(sideWidth).fillMaxHeight().focusRestorer()
-                    .verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.ui_settings),fontSize=TvTokens.Type.Page.sp,fontWeight=FontWeight.SemiBold,
-                        color=Fg,modifier=Modifier.padding(start=12.dp,bottom=12.dp))
-                    SettingsCategory.entries.forEach {category->key(category) {
-                        SettingsCategoryButton(category,category==location.category,
-                            if(category==location.category)sideFocus else null,contentFocus,
-                            onFocus={if(target==null || target.fulfilled)onCategory(category)},
-                            onClick={if(target==null || target.fulfilled)onCategoryClick(category)})
-                    }}
-                    Text(stringResource(R.string.settings_remote_hint),fontSize=TvTokens.Type.Caption.sp,color=Mute,
-                        modifier=Modifier.padding(horizontal=12.dp,vertical=12.dp))
+                // #327: the categories scroll when they must; the hint below them always stays in view.
+                Column(Modifier.width(sideWidth).fillMaxHeight().focusRestorer()) {
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.ui_settings),fontSize=TvTokens.Type.Page.sp,fontWeight=FontWeight.SemiBold,
+                            color=Fg,modifier=Modifier.padding(start=12.dp,bottom=12.dp))
+                        SettingsCategory.entries.forEach {category->key(category) {
+                            SettingsCategoryButton(category,category==location.category,
+                                if(category==location.category)sideFocus else null,contentFocus,
+                                onFocus={if(target==null || target.fulfilled)onCategory(category)},
+                                onClick={if(target==null || target.fulfilled)onCategoryClick(category)})
+                        }}
+                    }
+                    Text(stringResource(R.string.settings_remote_hint),fontSize=TvTokens.Type.Caption.sp,color=Mute,maxLines=1,
+                        overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.padding(start=12.dp,end=12.dp,top=8.dp))
                 }
                 val scene=location.page?.let {"settings:${it.name}"} ?: "settings:category:${location.category.name}"
                 // A page opens at its top every time: no remembered scroll position.

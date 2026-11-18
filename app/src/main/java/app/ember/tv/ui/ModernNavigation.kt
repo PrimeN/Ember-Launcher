@@ -259,7 +259,11 @@ private fun NavigationAction(label: String, icon: androidx.compose.ui.graphics.v
 @Composable
 internal fun QuickButton(profile: app.ember.tv.data.Profile?, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, selected: Boolean = false, onClick: () -> Unit) {
     if (profile != null) ProfileAvatar(profile, size, modifier, onClick)
-    else RoundIcon(selected = selected, onClick = onClick, modifier = modifier) { c -> NavGlyph(NavTabs.QUICK, c) }
+    // #333: a spoken name, since the button shows only an icon.
+    else {
+        val label = stringResource(R.string.ui_quick_settings)
+        RoundIcon(selected = selected, onClick = onClick, modifier = modifier.semantics { contentDescription = label }) { c -> NavGlyph(NavTabs.QUICK, c) }
+    }
 }
 /** A round button with a drawn icon; the icon turns dark when the button is focused. */
 @Composable
