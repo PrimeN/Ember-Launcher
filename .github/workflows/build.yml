@@ -300,7 +300,7 @@ jobs:
           echo "::notice title=APK::$(ls app/build/outputs/apk/*/*.apk | xargs -n1 basename | tr '\n' ' ')"
 
       # R8 renames classes in release builds; the mapping turns a crash log's "c60.o(unavailable:32)"
-      # back into Ember's own names (#54). Kept with each build and attached to each release.
+      # back into Ember's own names (#54). Kept with the build's Actions run only; releases carry just the APK.
       - name: Name the R8 mapping
         id: mapping
         shell: bash
@@ -321,7 +321,7 @@ jobs:
           name: ${{ steps.name.outputs.artifact }}-mapping
           path: ${{ steps.mapping.outputs.file }}
           compression-level: 0
-          retention-days: 3
+          retention-days: 90
 
       # Artifacts count against the account's Actions storage quota (about 500 MB on a free plan), so
       # APKs expire after 3 days and reports after 1. Signed builds of main and beta stay available as
@@ -464,7 +464,6 @@ jobs:
           make_latest: true
           files: |
             app/build/outputs/apk/**/*.apk
-            app/build/outputs/mapping/*-mapping.txt.gz
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
 
@@ -487,7 +486,6 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             app/build/outputs/apk/**/*.apk
-            app/build/outputs/mapping/*-mapping.txt.gz
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
 
@@ -511,6 +509,5 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             app/build/outputs/apk/**/*.apk
-            app/build/outputs/mapping/*-mapping.txt.gz
           fail_on_unmatched_files: true
           body_path: ${{ steps.release.outputs.notes_file }}
