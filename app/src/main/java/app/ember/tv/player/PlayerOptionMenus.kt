@@ -174,6 +174,10 @@ internal fun PlayerActivity.optionRows(which: String): List<OptionRow> {
                     NativeDecoderProfile.choices.indexOfFirst {it.first==NativeDecoderProfile.normalized(config.compatibilityDecoder)},
                     note="Lighter software decoding skips some deblocking to reduce processor work.",
                     onPick={index->config=config.copy(compatibilityDecoder=NativeDecoderProfile.choices[index].first);prefs.playbackConfig=config;native.decoderProfile(config.compatibilityDecoder,config.hi10pFallback);changed()}))
+                add(OptionRow("Compatibility renderer",native.rendererLabel,RendererPolicy.choices.map {it.second},
+                    RendererPolicy.choices.indexOfFirst {it.first==RendererPolicy.initial(config.compatibilityRenderer)},
+                    note="Advanced gives better scaling and HDR tone mapping; if it fails, Ember retries once on Stable.",
+                    onPick={index->config=config.copy(compatibilityRenderer=RendererPolicy.choices[index].first);prefs.playbackConfig=config;native.renderer(config.compatibilityRenderer);changed()}))
             }
             val h = huds.indexOfFirst { it.first == config.hud }.coerceAtLeast(0)
             add(

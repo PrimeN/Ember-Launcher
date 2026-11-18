@@ -107,6 +107,8 @@ data class PlaybackConfig(
     val quickShortcuts: List<String> = PlayerShortcuts.defaults,
     /** #311: Compatibility playback's video decoding. */
     val compatibilityDecoder: String = "auto",
+    /** Compatibility playback's renderer: "gpu-next" (default) or "gpu". */
+    val compatibilityRenderer: String = "gpu-next",
     /** #309: network time limits for both players, and optional custom buffering. */
     val stream: StreamConfig = StreamConfig(),
     val hi10pFallback: Boolean = true,

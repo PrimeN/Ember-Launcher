@@ -34,7 +34,10 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     private var appliedEffects: String? = null
     private var currentVideoMime: String? = null
     private var deinterlacing=config.deinterlacing
-    private val native=run {NativePlayerFiles.prepare(context);MPVLib.create(context)} ?: error("Compatibility player could not start.")
+    private var native=run {NativePlayerFiles.prepare(context);MPVLib.create(context)} ?: error("Compatibility player could not start.")
+    // gpu-next by default; if it cannot start or fails on a file, one retry on the stable gpu renderer.
+    private val rendererSession=RendererSession(RendererPolicy.initial(config.compatibilityRenderer))
+    private val renderer get()=rendererSession.active
     private var status=Player.STATE_IDLE
     private var wanted=false
     private var focusPaused=false
@@ -99,15 +102,13 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         override fun onSurfaceTextureDestroyed(t:android.graphics.SurfaceTexture):Boolean {if(!closed)native.detachSurface();ownedSurface?.release();ownedSurface=null;return true}
         override fun onSurfaceTextureUpdated(t:android.graphics.SurfaceTexture) {}
     }
-    init {
-        try {
-            transport=NativeHttpTransport(source.headers,source.urls+listOfNotNull(source.audio),timing=config.stream)
+    private fun initializeNative() {
             // mpv's own log can carry stream links and headers; it is never requested.
             check(native.requestLogMessages("no")>=0) {"mpv log suppression unavailable"}
             fun option(k:String,v:String) { check(native.setOptionString(k,v)>=0) { "Compatibility player option unavailable: $k" } }
             option("config","no");option("load-scripts","no");option("ytdl","no")
             option("msg-level","all=no");option("terminal","no");option("osd-level","0");option("input-default-bindings","no")
-            option("vo","gpu");option("gpu-context","android");option("opengl-es","yes")
+            option("vo",renderer);option("gpu-context","android");option("opengl-es","yes")
             option("hwdec",NativeDecoderProfile.choose(requestedDecoderProfile,null,"inherit",config.ffmpegVideo=="always",deinterlacing,false,false,allowHi10p).hardware)
             option("ao","audiotrack,opensles")
             option("load-unsafe-playlists","no");option("access-references","no")
@@ -126,6 +127,15 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
             listOf("time-pos","duration","demuxer-cache-time").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)}
             listOf("pause","paused-for-cache","eof-reached","seekable").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_FLAG)}
             listOf("track-list","video-params","audio-out-params").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_NONE)}
+    }
+    init {
+        try {
+            transport=NativeHttpTransport(source.headers,source.urls+listOfNotNull(source.audio),timing=config.stream)
+            rendererSession.initialize({initializeNative()},{
+                native.destroy()
+                native=MPVLib.create(context) ?: throw IllegalStateException("Stable renderer unavailable")
+                appliedDecoder=null
+            })
             if(Build.VERSION.SDK_INT>=33)context.registerReceiver(noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),Context.RECEIVER_NOT_EXPORTED)
             else @Suppress("DEPRECATION") context.registerReceiver(noisy,IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
         } catch(e:Throwable) {transport?.close();native.destroy();throw e}
@@ -221,6 +231,11 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     }
     private fun onMain(action:()->Unit){handler.post {if(!closed)try {action()}catch(_:Exception){fail()}}}
     private fun failedFile() {
+        if(transport?.failureCode==null && rendererSession.fallback()) {
+            native.setPropertyString("vo","gpu")
+            android.widget.Toast.makeText(context,"Trying the stable video renderer",android.widget.Toast.LENGTH_SHORT).show()
+            load(partIndex,position);return
+        }
         if(!pcmAttempted && config.passthrough && transport?.failureCode==null && native.getPropertyString("audio-codec-name")!=null) {
             pcmAttempted=true;native.setPropertyString("audio-spdif","")
             android.widget.Toast.makeText(context,"Trying decoded audio output",android.widget.Toast.LENGTH_SHORT).show()
@@ -409,7 +424,14 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
     val decoderProfileLabel get()=if(appliedDecoder?.hi10p==true)"Automatic · Hi10P software fallback" else NativeDecoderProfile.choices.first {it.first==NativeDecoderProfile.normalized(requestedDecoderProfile)}.second
     fun softwareVideo(enabled:Boolean){manualSoftwareVideo=enabled;applyVideoDecoder()}
     val softwareVideo get()=native.getPropertyString("hwdec-current")=="no" || native.getPropertyString("hwdec")=="no"
+    /** An explicit choice from Settings or the player's options; it clears an earlier automatic fallback. */
+    fun renderer(value:String) {
+        rendererSession.select(RendererPolicy.initial(value))
+        native.setPropertyString("vo",renderer)
+    }
+    val rendererLabel get()=RendererPolicy.label(renderer)+if(rendererSession.recovered)" · after a failure" else ""
     fun diagnostics()=mapOf("Engine" to "Compatibility (libmpv)","Video decoder" to native.getPropertyString("hwdec-current").orEmpty(),
+        "Renderer" to (native.getPropertyString("current-vo") ?: renderer)+if(rendererSession.recovered)" (stable fallback)" else "",
         "Decoded video transfer" to native.getPropertyString("video-params/gamma").orEmpty(),
         "Deinterlacing mode" to deinterlacing,
         "Renderer input transfer" to native.getPropertyString("video-out-params/gamma").orEmpty(),

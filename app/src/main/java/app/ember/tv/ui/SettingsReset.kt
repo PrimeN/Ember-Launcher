@@ -58,7 +58,7 @@ internal object SettingsReset {
                 ffmpegVideo = d.ffmpegVideo, tunneling = d.tunneling, dolbyVision = d.dolbyVision, frameRate = d.frameRate,
                 matchResolution = d.matchResolution, buffer = d.buffer, bluetoothDelayMs = d.bluetoothDelayMs,
                 decoderRules = d.decoderRules, rememberDecoderChoices = d.rememberDecoderChoices, audioEffects = d.audioEffects,
-                stream = d.stream, compatibilityDecoder = d.compatibilityDecoder, hi10pFallback = d.hi10pFallback)
+                stream = d.stream, compatibilityDecoder = d.compatibilityDecoder, compatibilityRenderer = d.compatibilityRenderer, hi10pFallback = d.hi10pFallback)
             SettingsTab.SUBTITLES -> c.copy(audioPick = d.audioPick)
             else -> null
         }

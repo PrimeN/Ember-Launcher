@@ -255,6 +255,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             // #311
             Choice(app.ember.tv.player.NativeDecoderProfile.choices,app.ember.tv.player.NativeDecoderProfile.normalized(c.compatibilityDecoder),"Compatibility decoding") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityDecoder=value)}}
             Note("Lighter software decoding skips some deblocking to reduce processor work. Explicit decoder rules and in-player choices take priority.")
+            Choice(app.ember.tv.player.RendererPolicy.choices,app.ember.tv.player.RendererPolicy.initial(c.compatibilityRenderer),"Compatibility renderer") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityRenderer=value)}}
+            Note("Advanced (gpu-next) gives better scaling and HDR tone mapping. If it fails on this device, Ember retries once on Stable (gpu).")
             ToggleRow("Automatic Hi10P fallback","Full-quality software decoding for 10-bit H.264 on NVIDIA Shield, in Automatic mode.",c.hi10pFallback) {vm.playerSettings.updatePlaybackConfig {it.copy(hi10pFallback=!it.hi10pFallback)}}
             ToggleRow("Remember working video decoders","Learns after stable playback, including which player worked for a title; resets after device or app updates.",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}
             Chip("Reset learned decoder choices") {app.ember.tv.player.DecoderHealth.clear(context)}

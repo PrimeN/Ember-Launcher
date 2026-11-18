@@ -18,7 +18,7 @@ object About {
             listOf(
                 "Widgets for your apps' Continue watching and your recently used apps.",
                 "Rename apps, and automatic weekly backups kept on the TV.",
-                "Player: smoother seeking, night listening, network and buffer settings, compatibility decoding, and compatibility playback updated to mpv 0.42 and FFmpeg 9.",
+                "Player: smoother seeking, night listening, network and buffer settings, compatibility decoding, and compatibility playback updated to mpv 0.42 and FFmpeg 9 with the gpu-next renderer.",
                 "Skip intros and recaps marked by a file's own chapters, and remote buttons for captions, audio, stop and jumping ahead.",
                 "Settings: search finds individual options, every page can be reset, and pages are reorganized.",
                 "Addons can be reordered; pick several catalogs at once for a widget or folder.",

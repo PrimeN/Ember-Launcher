@@ -170,6 +170,7 @@ internal object SettingsOptionSeed {
         E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Playback engine"),
         E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Compatibility"),
         E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Compatibility decoding"),
+        E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Compatibility renderer"),
         E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Automatic Hi10P fallback"),
         E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Remember working video decoders"),
         E(SettingsTab.AUDIO_VIDEO, "Decoding", "Decoding", "Compatibility deinterlacing"),
