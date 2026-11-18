@@ -484,8 +484,6 @@ class TraktTracker(context: Context) : TraktLikeTracker(
     suspend fun airingThisWeek(days: Int = 7): List<TrackedItem> {
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
         val iso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-        val day = java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault())
-        val clock = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
         val todayStart = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0) }.timeInMillis
         return authedGet("calendars/my/shows/$today/$days").list().mapNotNull { row ->
             val ep = row.obj("episode")
@@ -494,9 +492,9 @@ class TraktTracker(context: Context) : TraktLikeTracker(
             val at = row.str("first_aired")?.take(19)?.let { runCatching { iso.parse(it) }.getOrNull() }
             val whenText = at?.let { d ->
                 when {
-                    d.time < todayStart + 86_400_000L -> "Today " + clock.format(d)
+                    d.time < todayStart + 86_400_000L -> "Today " + app.ember.tv.data.DisplayDates.time(d.time)
                     d.time < todayStart + 2 * 86_400_000L -> "Tomorrow"
-                    else -> day.format(d)
+                    else -> app.ember.tv.data.DisplayDates.weekday(d.time)
                 }
             }
             val show = row.obj("show")

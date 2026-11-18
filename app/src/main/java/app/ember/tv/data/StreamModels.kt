@@ -66,7 +66,7 @@ data class AddonInfo(
         fun parse(url: String, base: String, j: JsonElement): AddonInfo = AddonInfo(
             url = url,
             base = base,
-            name = j.str("name")?.takeIf { it.isNotBlank() } ?: "Add-on",
+            name = j.str("name")?.takeIf { it.isNotBlank() } ?: "Addon",
             types = j.arr("types").strings(),
             idPrefixes = j.arr("idPrefixes")?.strings(),
             resources = j.arr("resources").list().mapNotNull { r ->

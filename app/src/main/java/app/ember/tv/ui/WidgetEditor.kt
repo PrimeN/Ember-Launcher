@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.counted
+
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 
@@ -148,7 +150,7 @@ internal object WidgetDrafts {
     /** A new widget has no source yet; the default addon source without a catalog fails [HomeWidgets.error] until one is chosen. */
     fun new() = HomeWidget(id = java.util.UUID.randomUUID().toString())
     fun hasSource(w: HomeWidget) = HomeWidgets.error(w.copy(title = "x")) == null
-    fun summary(w: HomeWidget, defs: List<CatalogDef>) = "${HomeWidgets.styleName(w.style)} · ${HomeWidgets.sourcesLabel(w, defs)} · up to ${w.limit} titles"
+    fun summary(w: HomeWidget, defs: List<CatalogDef>) = "${HomeWidgets.styleName(w.style)} · ${HomeWidgets.sourcesLabel(w, defs)} · up to ${w.limit.counted("title")}"
     /** Choosing a source names an untitled widget after it. */
     fun withSource(w: HomeWidget, source: CollectionSource, label: String? = null) =
         w.copy(source = source, title = w.title.ifBlank { (label ?: source.title).orEmpty().take(100) })
@@ -216,7 +218,7 @@ internal object WidgetDrafts {
     /** #171: an MDBList list typed on the TV; the error to show, or the source. */
     fun mdblist(text: String, hasKey: Boolean): Pair<String?, CollectionSource?> {
         val path = HomeWidgets.mdblistPath(text) ?: return "Enter an MDBList list link, user/list-name or number." to null
-        if (!hasKey) return "Add your MDBList API key in Settings > Accounts > API keys first." to null
+        if (!hasKey) return "Add your MDBList API key in ${SettingsTab.KEYS.path} first." to null
         return null to CollectionSource(provider = HomeWidgets.MDBLIST, catalogId = path, title = "MDBList $path")
     }
 }
@@ -394,7 +396,7 @@ internal fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> 
         val result = runCatching { vm.traktLists(tab, query.trim().takeIf { it.length >= 2 }.orEmpty()) }
         kotlinx.coroutines.currentCoroutineContext().ensureActive()
         // #166: say why, as the phone page does; "check the connection" hid a missing or refused client ID.
-        failed = result.exceptionOrNull()?.let { app.ember.tv.phone.PhoneLookups.reason("trakt", it).replace("Accounts & APIs > Trakt", "Settings > Accounts > API keys > Trakt").replace("under Accounts & APIs", "in Settings > Accounts > API keys") }
+        failed = result.exceptionOrNull()?.let { app.ember.tv.phone.PhoneLookups.reason("trakt", it).replace("Accounts & APIs > Trakt", "${SettingsTab.KEYS.path} › Trakt").replace("under Accounts & APIs", "in ${SettingsTab.KEYS.path}") }
         found = result.getOrDefault(emptyList())
     }
     MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true, wide = true) {

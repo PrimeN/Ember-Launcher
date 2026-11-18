@@ -1,5 +1,11 @@
 package app.ember.tv.state
 
+import app.ember.tv.ui.LauncherNotice
+
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import app.ember.tv.data.Updater
 
 import android.app.Application
@@ -18,7 +24,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Settings > System > Updates: new versions from GitHub. Split out of HomeViewModel. */
+/** ${SettingsTab.UPDATES.path}: new versions from GitHub. Split out of HomeViewModel. */
 class UpdatesState(
     private val app: Application,
     private val prefs: Prefs,
@@ -99,7 +105,7 @@ class UpdatesState(
         checkJob?.cancel()
         val revision = ++checkRevision
         val channel = activeChannel
-        if (manual) updateMessage = "Checking..."
+        if (manual) updateMessage = "Checking…"
         checkJob = scope.launch {
             val result = try { checkRelease(channel) }
                 catch (e: CancellationException) { throw e }
@@ -118,7 +124,7 @@ class UpdatesState(
                     else -> if (manual) "Ember is up to date." else null
                 }
                 if (!manual && update != null) {
-                    android.widget.Toast.makeText(app, "An Ember update is ready: Settings > System > Updates.", android.widget.Toast.LENGTH_LONG).show()
+                    LauncherNotice.show(app, "An Ember update is ready: ${SettingsTab.UPDATES.path}.")
                 }
             }.onFailure { e ->
                 failedCheckAt = nowMillis()
@@ -143,7 +149,7 @@ class UpdatesState(
         }
         if (updateProgress != null || installProgress != null) return
         updateProgress = 0f
-        updateMessage = "Downloading..."
+        updateMessage = "Downloading…"
         val revision = ++downloadRevision
         val channel = activeChannel
         downloadJob = scope.launch(start = CoroutineStart.LAZY) {

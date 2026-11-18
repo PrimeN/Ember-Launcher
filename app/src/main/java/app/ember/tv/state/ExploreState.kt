@@ -1,5 +1,9 @@
 package app.ember.tv.state
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import androidx.compose.runtime.*
 import app.ember.tv.data.CatalogRow
 import app.ember.tv.data.Prefs
@@ -94,7 +98,7 @@ class ExploreState(
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) {
                 if (generation == version && profileId() == id && allowed()) error =
-                    if (!source.configured) "Add a TMDB API key in Settings > API keys to use Explore."
+                    if (!source.configured) "Add a TMDB API key in ${SettingsTab.KEYS.path} to use Explore."
                     else if (query.oscars != OscarMode.ANY) "Could not verify Oscar records or load matching titles. Retry keeps your filters and loaded results."
                     else "Could not load matching titles. Check the connection or TMDB key, then retry."
             } finally { if (generation == version) loading = false }

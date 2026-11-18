@@ -37,7 +37,7 @@ fun TitleActions(meta: Meta, vm: HomeViewModel, close: () -> Unit) {
                 }
                 add(TitleMenuAction(label,Icons.Outlined.Visibility,selected=vm.isWatched(meta)) { vm.markTitleWatched(meta); close() })
             }
-            if (vm.isContinueItem(meta)) add(TitleMenuAction("Remove from Continue Watching",Icons.Outlined.RemoveCircleOutline,destructive=true,divider=true) { vm.removeFromContinue(meta); close() })
+            if (vm.isContinueItem(meta)) add(TitleMenuAction("Remove from Continue watching",Icons.Outlined.RemoveCircleOutline,destructive=true,divider=true) { vm.removeFromContinue(meta); close() })
         }
         add(TitleMenuAction("Hide from Home",Icons.Outlined.VisibilityOff,destructive=true,
             divider=none {it.destructive}) { vm.hideHomeTitle(meta); close() })

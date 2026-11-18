@@ -9,8 +9,8 @@
     <string name="st_add_it_to_your_phone_s">Add it to your phone\'s home screen to use it like an app. If the TV\'s address changes (after a router restart), scan again.</string>
     <string name="st_add_source">Add source</string>
     <string name="st_add_your_key_in_api_keys">Add your key in API keys</string>
-    <string name="st_adding">Adding...</string>
-    <string name="st_addon_catalogs_for_live_tv_are">Addon catalogs for Live TV are chosen in Settings &gt; Addons &amp; catalogs.</string>
+    <string name="st_adding">Adding…</string>
+    <string name="st_addon_catalogs_for_live_tv_are">Addon catalogs for Live TV are chosen in %1$s.</string>
     <string name="st_after_standby">After standby</string>
     <string name="st_ai_assisted_discovery">AI-assisted discovery</string>
     <string name="st_all_in_discover">All in Discover</string>
@@ -56,11 +56,11 @@
     <string name="st_choose_navigation_for_ember_ember_light">Choose navigation for Ember. Ember Light uses navigation icons in its app grid.</string>
     <string name="st_clear_artwork_cache">Clear artwork cache</string>
     <string name="st_clear_cache_data">Clear cache data</string>
-    <string name="st_clear_cache_data_2">Clear Cache Data</string>
+    <string name="st_clear_cache_data_2">Clear cache data…</string>
     <string name="st_clearing">Clearing…</string>
     <string name="st_close_all">Close all</string>
     <string name="st_collections">Collections</string>
-    <string name="st_collections_are_now_in_settings_home">Collections are now in Settings &gt; Home &gt; Widgets &amp; collections.</string>
+    <string name="st_collections_are_now_in_settings_home">Collections are now in %1$s.</string>
     <string name="st_complete_parent_setup">Complete parent setup</string>
     <string name="st_content_lock">Content lock</string>
     <string name="st_control_ember_from_your_phone_s">Control Ember from your phone\'s browser: search, pick a source, play and pause, seek, volume, your lists, and a keyboard for typing on the TV. It stays on until you switch it off.</string>
@@ -118,11 +118,11 @@
     <string name="st_load_a_pack_from_a_link">Load a pack from a link</string>
     <string name="st_load_font">Load font</string>
     <string name="st_load_more_as_i_scroll">Load more as I scroll</string>
-    <string name="st_loading_channels">Loading channels...</string>
-    <string name="st_loading_the_guide">Loading the guide...</string>
+    <string name="st_loading_channels">Loading channels…</string>
+    <string name="st_loading_the_guide">Loading the guide…</string>
     <string name="st_local_activity">Local activity</string>
     <string name="st_local_history_resume_positions_and_remembered">Local history, resume positions and remembered audio/subtitles. Connected tracker accounts remain shared across profiles.</string>
-    <string name="st_looking">Looking...</string>
+    <string name="st_looking">Looking…</string>
     <string name="st_loop_photos_and_videos_selected_local">Loop photos and videos. Selected local files must remain available; settings backups keep the playlist but do not copy large media files.</string>
     <string name="st_match_to_the_exact_file">Match to the exact file</string>
     <string name="st_maximum_reuse_time_providers_can_require">Maximum reuse time; providers can require earlier refresh.</string>
@@ -133,7 +133,7 @@
     <string name="st_new_app_folder">New app folder</string>
     <string name="st_next">Next</string>
     <string name="st_no_completed_source_requests_in_this">No completed source requests in this session yet.</string>
-    <string name="st_no_patterns_yet_add_one_start">No patterns yet. Add one, start from the Detailed badges, or send a pack from Settings &gt; Phone setup.</string>
+    <string name="st_no_patterns_yet_add_one_start">No patterns yet. Add one, start from the Detailed badges, or send a pack from %1$s.</string>
     <string name="st_none_in_discover">None in Discover</string>
     <string name="st_none_on_home">None on Home</string>
     <string name="st_none_yet">None yet.</string>
@@ -154,7 +154,7 @@
     <string name="st_opensubtitles_com_with_a_key_adds">OpenSubtitles.com with a key adds release names, frame rates, trusted uploaders and hearing-impaired flags; add your login for more downloads a day. </string>
     <string name="st_opensubtitles_free_no_key">OpenSubtitles (free, no key)</string>
     <string name="st_optional_describe_what_to_watch_then">Optional: describe what to watch, then review and apply ordinary Discover filters. Only your typed description is sent to Mistral; no profile or watch history. Requires Mistral and TMDB keys; provider charges may apply.</string>
-    <string name="st_organize_add_ons_catalogs_and_collections">Organize add-ons, catalogs and collections</string>
+    <string name="st_organize_add_ons_catalogs_and_collections">Organize addons, catalogs and collections</string>
     <string name="st_paintings_come_from_the_cleveland_museum">Paintings come from the Cleveland Museum of Art and Space from NASA.</string>
     <string name="st_passthrough_bitstream">Passthrough (bitstream)</string>
     <string name="st_phone_remote">Phone remote</string>
@@ -237,8 +237,8 @@
     <string name="st_the_page_that_lists_every_app">The page that lists every app.</string>
     <string name="st_the_profile_in_use">The profile in use.</string>
     <string name="st_the_rest_are_ranked_by_how">The rest are ranked by how closely their release name matches the source (group, source such as WEB-DL or BluRay, resolution, edition), frame rate, uploader trust and downloads.</string>
-    <string name="st_these_options_apply_when_appearance_interface">These options apply when Appearance &gt; Interface is Ember Light.</string>
-    <string name="st_tile_colors_use_already_loaded_images">Tile colors use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.</string>
+    <string name="st_these_options_apply_when_appearance_interface">These options apply when %1$s › Interface is Ember Light.</string>
+    <string name="st_tile_colors_use_already_loaded_images">Tile colours use already-loaded images. Artwork backdrops are optional for media rows and collections; the featured hero keeps its artwork.</string>
     <string name="st_titles_and_progress_under_movie_and">Titles and progress under movie and show cards</string>
     <string name="st_to_change_a_detailed_badge_s">To change a Detailed badge\'s colours, picture or pattern, copy them to your own badges.</string>
     <string name="st_trailers_are_stereo_no_atmos_and">Trailers are stereo (no Atmos), and fetching streams this way is against YouTube\'s terms.</string>
@@ -280,7 +280,7 @@
     <string name="st_app_folders">App folders</string>
     <string name="st_light_carousel">Carousel</string>
     <string name="st_light_carousel_about">The large picture at the top of Light Home.</string>
-    <string name="st_light_continue">Apps’ Continue Watching</string>
+    <string name="st_light_continue">Apps’ Continue watching</string>
     <string name="st_light_recommendations">Recommendations</string>
     <string name="st_light_recommendations_about">Suggestions your apps share with Android TV.</string>
     <string name="st_light_recommending_apps">Apps that recommend</string>

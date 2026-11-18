@@ -42,7 +42,7 @@ internal fun ServerActionsDialog(ref: String, onDismiss: () -> Unit) {
     }
     val labels=if(busy)emptyList() else state?.let {current->buildList {
         add(if(current.watched) "Mark unwatched on server" else "Mark watched on server")
-        current.favorite?.let {add(if(it)"Remove server favorite" else "Favorite on server")}
+        current.favorite?.let {add(if(it)"Remove server favourite" else "Favorite on server")}
         if(current.inResume)add("Hide from server Continue watching")
     }}.orEmpty()
     CompactActionMenu("Server actions",labels,onDismiss) {first->
@@ -51,7 +51,7 @@ internal fun ServerActionsDialog(ref: String, onDismiss: () -> Unit) {
         else state?.let { current ->
             MenuActionRow(if(current.watched) "Mark unwatched on server" else "Mark watched on server",
                 Modifier.focusRequester(first),Icons.Outlined.Visibility,selected=current.watched) { perform { check(servers.markWatched(ref,!current.watched)) } }
-            current.favorite?.let { favorite -> MenuActionRow(if(favorite) "Remove server favorite" else "Favorite on server",
+            current.favorite?.let { favorite -> MenuActionRow(if(favorite) "Remove server favourite" else "Favorite on server",
                 icon=Icons.Outlined.Star,selected=favorite) { perform { servers.favorite(ref,!favorite) } } }
             if(current.inResume) MenuActionRow("Hide from server Continue watching",icon=Icons.Outlined.RemoveCircleOutline,
                 destructive=true,divider=true) { perform { servers.hideResume(ref) } }

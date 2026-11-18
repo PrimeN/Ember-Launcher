@@ -8,7 +8,7 @@ does not require changing the others.
 
 ## Pick a Home interface
 
-Choose **Settings → Appearance → Interface**.
+Choose **Settings › Look & feel › Appearance › Interface**.
 
 | Interface | What changes | Suits |
 | --- | --- | --- |
@@ -52,11 +52,11 @@ installation need not show every destination.
 Ember X here names a **media-page layout**, not another Home interface or a colour
 palette. On a small viewport or with enlarged text, the layout can adapt to keep
 its content usable. Available source badges and playback choices depend on the
-configured add-ons, servers and media.
+configured addons, servers and media.
 
 ## Pick player controls separately
 
-Open **Settings → Player → Player interface**. The current choices are:
+Open **Settings › Playback › Player › Player interface**. The current choices are:
 
 | Controls | Presentation |
 | --- | --- |

@@ -13,8 +13,9 @@ fun Meta.resumeLabel(): String? {
         id.startsWith("wetrakr:") -> "WeTrakr"
         else -> null
     }
-    return listOfNotNull(episodeLabel?.let { "Resume $it" } ?: "Resume",
-        remaining?.let { "$it min left" } ?: "${(p * 100).toInt()}% watched", source).joinToString(" · ")
+    // #332: "Resume · 81 min left", or "Resume at 40%" when the length is unknown, as on the Play button.
+    val resume = episodeLabel?.let { "Resume $it" } ?: "Resume"
+    return listOfNotNull(remaining?.let { "$resume · $it min left" } ?: "$resume at ${(p * 100).toInt()}%", source).joinToString(" · ")
 }
 
 fun Meta.spokenLabel(saved: Boolean): String = listOfNotNull(

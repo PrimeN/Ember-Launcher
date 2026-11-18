@@ -1,5 +1,7 @@
 package app.ember.tv.screensaver
 
+import app.ember.tv.ui.path
+
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -54,7 +56,7 @@ class ScreensaverRenderer(private val context: android.content.Context) {
             image.setImageDrawable(null)
             displayed = null
             title.text = context.getString(app.ember.tv.R.string.screensaver_clock_mode)
-            credit.text = context.getString(app.ember.tv.R.string.screensaver_no_pictures)
+            credit.text = context.getString(app.ember.tv.R.string.screensaver_no_pictures, app.ember.tv.ui.SettingsTab.SCREENSAVER.path)
             return
         }
         imageJob = scope.launch {

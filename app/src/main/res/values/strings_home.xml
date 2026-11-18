@@ -3,7 +3,7 @@
 <resources>
     <string name="home_service_label">Ember Home button</string>
     <string name="home_service_summary">Opens Ember instead of Google TV\'s home screen.</string>
-    <string name="home_service_description">Google TV does not let you choose another Home app. With this on, Ember opens when the TV\'s own home screen comes up: when you press Home, wake the TV or turn it on. In Ember\'s setting \"Catch the Home press\" it also reads the Home key. It reads nothing else, and nothing is stored or sent anywhere. Turn it off here or in Ember\'s Settings &gt; Ember as Home.</string>
+    <string name="home_service_description">Google TV does not let you choose another Home app. With this on, Ember opens when the TV\'s own home screen comes up: when you press Home, wake the TV or turn it on. In Ember\'s setting \"Catch the Home press\" it also reads the Home key. It reads nothing else, and nothing is stored or sent anywhere. Turn it off here or in Ember\'s Settings › Home › Startup.</string>
 
     <string name="home_intro">Google TV does not let you pick another Home app, so Ember gives you two ways round it, the same ones other launchers use. Method 1 takes a minute on the TV. Method 2 needs a computer or phone once and is the most complete. You can use both.</string>
 
@@ -12,11 +12,11 @@
     <string name="home_status_asks">Home button opens: the TV asks which app</string>
     <string name="home_status_service_on">Ember Home button service: connected</string>
     <string name="home_status_service_waiting">Enabled in Android; waiting for the Home button service to connect.</string>
-    <string name="home_service_config_problem">Home button configuration could not be applied. Check Debug &gt; Crash log.</string>
-    <string name="home_service_detection_problem">The TV\'s Home screen could not be detected. Check Debug &gt; Crash log.</string>
-    <string name="home_service_launch_problem">The service could not open Ember. Check Debug &gt; Crash log.</string>
-    <string name="home_service_runtime_problem">The Home button service reported a problem. Check Debug &gt; Crash log.</string>
-    <string name="home_service_diagnostics">If Android turns the service off again, open Settings &gt; Debug &gt; Crash log and share the Home button service entry.</string>
+    <string name="home_service_config_problem">Home button configuration could not be applied. Check %1$s › Crash log.</string>
+    <string name="home_service_detection_problem">The TV\'s Home screen could not be detected. Check %1$s › Crash log.</string>
+    <string name="home_service_launch_problem">The service could not open Ember. Check %1$s › Crash log.</string>
+    <string name="home_service_runtime_problem">The Home button service reported a problem. Check %1$s › Crash log.</string>
+    <string name="home_service_diagnostics">If Android turns the service off again, open %1$s › Crash log and share the Home button service entry.</string>
     <string name="home_status_service_off">Ember Home button service: off</string>
     <string name="home_status_stock_on">%1$s: on</string>
     <string name="home_status_stock_off">%1$s: turned off</string>
@@ -30,7 +30,7 @@
     <string name="home_m1_step3">3. Press Back to return here. \"Right now\" above should say the service is on.</string>
     <string name="home_m1_step4">4. Press Home on the remote to try it.</string>
     <string name="home_open_accessibility">Open Accessibility settings</string>
-    <string name="home_no_accessibility">This TV has no Accessibility settings screen Ember can open. Look in Settings &gt; System &gt; Accessibility.</string>
+    <string name="home_no_accessibility">This TV has no Accessibility settings screen Ember can open. Look in the TV\'s Settings › System › Accessibility.</string>
     <string name="home_override">Open Ember instead of Google TV\'s home</string>
     <string name="home_override_note">Uses the service above. Switch off to keep the service but leave Home alone.</string>
     <string name="home_mode">How</string>
@@ -47,8 +47,8 @@
 
     <string name="home_m2_title">Method 2: turn off Google TV\'s home (ADB)</string>
     <string name="home_m2_note">Once done, the TV has no other Home app, so Home, waking and start-up all open Ember with nothing in between. Needs a computer with ADB (Android platform tools) or an ADB app on your phone, once.</string>
-    <string name="home_m2_step1">1. Turn on Developer options: Settings &gt; System &gt; About, select Android TV OS build seven times.</string>
-    <string name="home_m2_step2">2. In Settings &gt; System &gt; Developer options, switch on USB debugging (or Wireless debugging on Android 11 and later, then Pair device with pairing code).</string>
+    <string name="home_m2_step1">1. Turn on Developer options: Settings › System › About, select Android TV OS build seven times.</string>
+    <string name="home_m2_step2">2. In Settings › System › Developer options, switch on USB debugging (or Wireless debugging on Android 11 and later, then Pair device with pairing code).</string>
     <string name="home_m2_step3">3. On the computer or phone, on the same network, run:</string>
     <string name="home_m2_step4">4. Allow the connection on the TV when it asks. After the restart, Home opens Ember.</string>
     <string name="home_m2_wireless">Wireless debugging: first run \"adb pair\" with the address and code shown on the TV, then \"adb connect\" with the address shown there.</string>

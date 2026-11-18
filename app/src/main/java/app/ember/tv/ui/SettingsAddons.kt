@@ -268,7 +268,7 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
                     modifier = Modifier.width(760.dp),
                 )
                 if (vm.allCatalogs.isEmpty()) {
-                    Text(if (vm.addons.isEmpty()) "No addons yet. Add one in Settings > Addons." else "Loading catalogs...", color = Mute, fontSize = 13.sp)
+                    Text(if (vm.addons.isEmpty()) "No addons yet. Add one in ${SettingsTab.ADDONS.path}." else "Loading catalogs…", color = Mute, fontSize = 13.sp)
                 } else {
                     Chip(stringResource(R.string.ui_reset_order_and_choices)) { vm.resetCatalogs() }
                 }
@@ -479,7 +479,7 @@ internal fun StremioFormatPage(vm: HomeViewModel) {
         }
 
         // #163: Collections moved to Settings > Home > Widgets & collections.
-        Note(stringResource(R.string.st_collections_are_now_in_settings_home))
+        Note(stringResource(R.string.st_collections_are_now_in_settings_home, SettingsTab.WIDGETS.path))
     }
 }
 /** A heading between the parts of a long Settings page. */

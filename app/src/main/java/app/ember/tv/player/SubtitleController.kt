@@ -81,7 +81,7 @@ class SubtitleController(
         searched = candidates.isNotEmpty()
         if (chosenOff) autoSelection.manual()
         val anyProvider = config.stremioOpenSubs || config.openSubsCom || config.subdl
-        status = if (anyProvider) "Searching for subtitles..." else null
+        status = if (anyProvider) "Searching for subtitles…" else null
         onChange()
         autoSelect()
         searchJob = activity.lifecycleScope.launch {
@@ -187,7 +187,7 @@ class SubtitleController(
         if(manual) { choice=Choice(c.lang,true,c.provider,c.forced);chosenOff=false }
         autoSelection.manual()
         loadJob?.cancel()
-        status = "Loading ${c.languageName} subtitles from ${c.provider}..."
+        status = "Loading ${c.languageName} subtitles from ${c.provider}…"
         onChange()
         loadJob = activity.lifecycleScope.launch(kotlinx.coroutines.CoroutineExceptionHandler { _, _ ->
             status = "Could not load that subtitle. Try another one."; runCatching { onChange() }

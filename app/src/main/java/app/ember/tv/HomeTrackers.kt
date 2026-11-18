@@ -119,7 +119,7 @@ internal fun HomeViewModel.syncTrackers(force: Boolean = false, allowMassRemoval
         try {
             val r = withContext(Dispatchers.Default) { trackerSync.run(trackers, local, allowMassRemoval) }
             trackerSyncHeld = r.held
-            val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())
+            val time = app.ember.tv.data.DisplayDates.time(System.currentTimeMillis())
             trackerSyncStatus = buildString {
                 append("Synced at $time")
                 if (r.copied > 0) append(" · copied ${r.copied}")
@@ -283,7 +283,7 @@ internal fun HomeViewModel.cancelLink() {
 internal fun HomeViewModel.linkUsername(trackerId: String, name: String) {
     val t = hub.byId(trackerId)
     link = null
-    trackerMessage = "Checking ${t.name} username..."
+    trackerMessage = "Checking ${t.name} username…"
     linkTasks.start(trackerId) {
         val ok = try { t.linkUsername(name) } catch (e: CancellationException) { throw e }
             catch (e: Exception) { false }

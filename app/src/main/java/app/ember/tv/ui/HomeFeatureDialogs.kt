@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.counted
+
 import app.ember.tv.openSettingsGuarded
 
 import androidx.compose.ui.res.stringResource
@@ -54,7 +56,7 @@ internal fun HomeFeatureDialogs(vm:HomeViewModel,onLaunch:(AppEntry)->Unit) {
             val imported=withContext(Dispatchers.IO){app.ember.tv.home.PresentationMedia.documents(context,candidates)}
             if(vm.profiles.profileId==owner && !vm.profiles.profile.kids) {
                 if(uris.isNotEmpty() && imported.isEmpty())vm.showNotice(if(room==0)"The presentation playlist is full." else "No new supported files could be added.")
-                else if(imported.size<uris.size)vm.showNotice("Added ${imported.size} items. The playlist holds 40 items; unsupported or duplicate files were skipped.")
+                else if(imported.size<uris.size)vm.showNotice("Added ${imported.size.counted("item")}. The playlist holds 40 items; unsupported or duplicate files were skipped.")
                 vm.openSettingsGuarded {if(vm.profiles.profileId==owner)vm.launcherExtras.update {it.copy(slides=(it.slides+imported).distinctBy {s->s.uri})}}
             }
         }

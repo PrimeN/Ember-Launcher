@@ -35,7 +35,7 @@ The source's lint configuration does not make every finding a Gradle task failur
 ## Optional credentials
 
 The app can be used without adding provider credentials. Configure the services you
-need in **Settings → API keys**, or use the documented variables in
+need in **Settings › Accounts › API keys**, or use the documented variables in
 `local.properties.example` for a local build. Entered keys use encrypted storage.
 API keys bundled in an APK can be extracted; use registrations intended for this
 app and keep account credentials and signing keys out of source control.
@@ -63,7 +63,7 @@ Android lint before publishing downloads.
   app's `v<versionName>` tag does not exist, and refreshes `latest-build`.
 - A manual publication from public `beta` refreshes `beta-build`.
 - Pushing a matching version tag publishes its APK to that version's release.
-- Release notes come from the matching user-facing entry in Settings → About.
+- Release notes come from the matching user-facing entry in Settings › About.
   A missing changelog entry or mismatched version tag stops publication.
 
 Existing version tags keep their original source association. Bump `versionName`
@@ -86,12 +86,12 @@ its package and signing identity match.
 Without release-signing secrets, ordinary builds still produce a debug/testing
 Actions artifact. Its signing key may differ between runners or from an existing
 installation. Release publication and in-app Actions updates require a persistent
-release signing key. Public workflow builds exclude private bundles and test add-on links.
+release signing key. Public workflow builds exclude private bundles and test addon links.
 
 Standard updates check published releases in the public `PrimeN/Ember-Launcher`
 repository, regardless of where the APK was compiled. They require no credentials.
 Beta updates check the same public repository's `beta-build` release without credentials.
-Under **Settings → System → Updates → Beta update source**, users can instead choose
+Under **Settings › System › Updates › Beta update source**, users can instead choose
 **Actions APK**. This selects a completed, successful `beta` build of this repository's
 `build.yml` workflow and a non-expired `ember-tv-<version>-<code>-release` artifact.
 Pull requests, fork builds and debug artifacts are excluded. The anonymous download

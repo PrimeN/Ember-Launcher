@@ -68,5 +68,5 @@ internal object AutoBackup {
         Backup.read(runCatching { cipher().decrypt(NAME, saved.file.readBytes()) }
             .getOrElse { throw Backup.BackupException("This automatic backup can't be opened on this TV.") }, "")
 
-    fun label(saved: Saved): String = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(saved.time))
+    fun label(saved: Saved): String = DisplayDates.dateTime(saved.time)
 }

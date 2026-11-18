@@ -16,7 +16,7 @@
     <string name="tx_administrator_pin_verified_has_local_playback" formatted="true">Administrator PIN verified. %1$s has local playback history, restricted app access and PIN-protected settings.</string>
     <string name="tx_an_existing_name_updates_that_search">An existing name updates that search. Results refresh from its saved filters.</string>
     <string name="tx_any">Any</string>
-    <string name="tx_app_recommendations_and_continue_watching_dep">App recommendations and Continue Watching depend on your TV and participating apps.</string>
+    <string name="tx_app_recommendations_and_continue_watching_dep">App recommendations and Continue watching depend on your TV and participating apps.</string>
     <string name="tx_apply_any_filter_changes_before_saving">Apply any filter changes before saving a search.</string>
     <string name="tx_apply_your_filters_then_choose_save">Apply your filters, then choose Save search. Saved searches belong to this profile.</string>
     <string name="tx_availability_from_justwatch">Availability from JustWatch</string>
@@ -32,7 +32,7 @@
     <string name="tx_channel" formatted="true">Channel %1$s</string>
     <string name="tx_channels_selected" formatted="true">%1$s channels selected</string>
     <string name="tx_choose_a_list">Choose a list</string>
-    <string name="tx_choose_photos_or_videos_in_settings">Choose photos or videos in Settings &gt; Home tools.</string>
+    <string name="tx_choose_photos_or_videos_in_settings">Choose photos or videos in %1$s.</string>
     <string name="tx_choose_to_add_choose_again_to">Choose to add · choose again to remove</string>
     <string name="tx_clear_all">Clear all</string>
     <string name="tx_collections_folders_matching_ids" formatted="true">%1$s collections · %2$s folders · %3$s matching IDs</string>
@@ -137,7 +137,7 @@
     <string name="tx_sources" formatted="true">%1$s sources · %2$s</string>
     <string name="tx_target_row_count_larger_text_keeps">Target row count; larger text keeps a readable minimum row height.</string>
     <string name="tx_this_build_has_nothing_to_unlock">This build has nothing to unlock.</string>
-    <string name="tx_this_catalog_needs_an_installed_enabled">This catalog needs an installed, enabled add-on. Choose a replacement or repair the add-on.</string>
+    <string name="tx_this_catalog_needs_an_installed_enabled">This catalog needs an installed, enabled addon. Choose a replacement or repair the addon.</string>
     <string name="tx_this_replaces_your_custom_badges">This replaces your custom badges.</string>
     <string name="tx_this_server_signed_ember_out_device">This server signed Ember out (device removed or password changed).</string>
     <string name="tx_this_tv_has_no_inputs_to">This TV has no inputs to start on.</string>

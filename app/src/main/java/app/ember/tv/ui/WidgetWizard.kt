@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.counted
+
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 
@@ -412,7 +414,7 @@ private fun LookStep(draft: HomeWidget, first: FocusRequester, change: (HomeWidg
     if (HomeWidgets.isPanel(draft.style)) {
         Text(stringResource(R.string.ui_artwork), color = Mute, fontSize = 13.sp)
         ButtonRow { HomeWidgets.arts.forEach { (value, name) -> Chip(name, draft.art == value) { change(draft.copy(art = value)) } } }
-        Note(if (draft.art == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos. Add TMDB and Fanart API keys in Settings > Accounts > API keys; missing images fall back to standard artwork."
+        Note(if (draft.art == HeroArtworkMode.FANART) "Prefers Fanart backgrounds and logos. Add TMDB and Fanart API keys in ${SettingsTab.KEYS.path}; missing images fall back to standard artwork."
             else "Standard TMDB and catalog backgrounds and logos.")
     } else {
         Text(stringResource(R.string.tx_card_shape), color = Mute, fontSize = 13.sp)
@@ -427,7 +429,7 @@ private fun ReviewStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
     listOf(
         Triple(WidgetSteps.SOURCE, "Content", HomeWidgets.sourcesLabel(draft, vm.allCatalogs) + " · " + WidgetSteps.status(draft, check)),
         Triple(WidgetSteps.STYLE, "Look", look),
-        Triple(WidgetSteps.DETAILS, "Name & size", draft.title.ifBlank { "No name yet" } + " · up to ${draft.limit} titles"),
+        Triple(WidgetSteps.DETAILS, "Name & size", draft.title.ifBlank { "No name yet" } + " · up to ${draft.limit.counted("title")}"),
     ).forEachIndexed { i, (id, label, value) ->
         Focusable(onClick = { go(id) }, modifier = Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(first) else Modifier).testTag("widget_change_$id"),
             radius = TvTokens.Shape.Card, container = Wash, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Inline) {

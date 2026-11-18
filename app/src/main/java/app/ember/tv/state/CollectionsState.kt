@@ -256,7 +256,7 @@ class CollectionsState(
     fun importUrl(url: String) {
         if (busy || url.isBlank()) return
         busy = true
-        message = "Downloading..."
+        message = "Downloading…"
         scope.launch {
             try { importText(Collections.download(url)) }
             catch (cancelled: CancellationException) { throw cancelled }

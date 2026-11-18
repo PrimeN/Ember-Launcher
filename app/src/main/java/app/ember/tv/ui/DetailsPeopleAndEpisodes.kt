@@ -208,7 +208,7 @@ internal fun EpisodeCard(ep: Episode, selected: Boolean, width: androidx.compose
             }
         }
         Text(stringResource(R.string.ui_episode_line, ep.episode, ep.title), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.clearAndSetSemantics { })
-        ep.released?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = Mute) }
+        app.ember.tv.data.DisplayDates.release(ep.released)?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = Mute) }
     }
 }
 /** Compact vertical episode rows, with the same spoiler policy as the standard media page. */
@@ -232,7 +232,7 @@ internal fun EmberXEpisodeRow(ep:Episode,selected:Boolean,watched:Boolean,modifi
             }
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Text("${ep.episode}. ${ep.title}",fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis)
-                ep.released?.let {Text(it,color=EmberXColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1)}
+                app.ember.tv.data.DisplayDates.release(ep.released)?.let {Text(it,color=EmberXColors.Muted,fontSize=TvTokens.Type.Caption.sp,maxLines=1)}
                 ep.progress?.takeIf {it.isFinite() && it>0f && it<1f}?.let {progress ->
                     Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha=.15f))) {
                         Box(Modifier.fillMaxWidth(progress).height(3.dp).background(MaterialTheme.colorScheme.primary))

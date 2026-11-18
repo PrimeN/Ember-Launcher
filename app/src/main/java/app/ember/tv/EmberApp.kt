@@ -22,6 +22,8 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         // Collections are read and decoded off the main thread too; Home uses the result (#75).
         app.ember.tv.data.Collections.warmUp(this)
         app.ember.tv.data.CacheManagement.init(this)
+        // #325: dates and times follow the TV's clock setting everywhere.
+        app.ember.tv.data.DisplayDates.init(this)
         app.ember.tv.data.Net.init(this)
         app.ember.tv.ui.IconArtworkCache.init(this)
         ApiKeys.init(this)

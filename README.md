@@ -72,7 +72,7 @@ effects depend on your configuration and device.
 | **Your Home** | Configurable hero artwork, apps and folders, personal rows, watchlist shortcuts and Home widgets |
 | **Home widgets** | Rows, numbered rows, cinematic carousels and hero banners using catalogs, collections or personal lists; optional app Continue watching and Recently used apps |
 | **Search & Discover** | Text/voice search, compact results, detailed movie/show filters, awards, streaming availability, collections and catalogs |
-| **Add-ons & collections** | Stremio-compatible catalogs, metadata, streams and subtitles; individually arranged catalogs and organized collection folders |
+| **Addons & collections** | Stremio-compatible catalogs, metadata, streams and subtitles; individually arranged catalogs and organized collection folders |
 | **Personal libraries** | Plex, Jellyfin and Emby, server users where supported, Continue watching, configurable shelves and optional library heroes |
 | **Live TV** | M3U and Xtream Codes sources, XMLTV guides, favourites and custom lists, with Glass Guide and On Now Canvas views |
 | **Playback** | Built-in Media3 and libmpv engines, resume, subtitles, queues, intro markers and optional external players |
@@ -109,7 +109,7 @@ choice, not another Home interface.
 3. Choose Ember as the Home app where your firmware supports it. Configure the
    available Home-button options under **TV & remote** if needed.
 4. Pick your interface, visible tabs and app layout. Then connect the optional
-   sources you use: add-ons, a server, IPTV or a tracker.
+   sources you use: addons, a server, IPTV or a tracker.
 5. Open **Appearance** for colours and layouts, **Widgets & collections** for Home
    content, and **Performance & effects** for your device's rendering budget.
 
@@ -127,7 +127,7 @@ and **IntroDB**.
 An included integration does not include a subscription or personal API entitlement.
 Some services need your account or API key; the launcher and local app management
 do not require a personal key. Builds may supply defaults for selected providers.
-Enter your own configuration under **Settings → API keys** where required.
+Enter your own configuration under **Settings › Accounts › API keys** where required.
 
 [Service-by-service requirements and credential links →](docs/integrations.md)
 
@@ -191,7 +191,7 @@ focused pull request against `beta` and link the relevant issue.
 
 Ember's project code is licensed under the [GNU GPL v3](LICENSE). Third-party
 components and assets retain their applicable licenses and terms. Notices are
-available in **Settings → Legal** and the [bundled license directory](app/src/main/assets/licenses/).
+available in **Settings › About › Legal** and the [bundled license directory](app/src/main/assets/licenses/).
 
 [Playback dependencies](player-dependencies.md) and the native build guides
 document component sources, modifications and rebuild requirements. Ember is not

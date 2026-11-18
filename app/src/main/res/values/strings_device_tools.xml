@@ -1,6 +1,6 @@
 <resources>
     <string name="settings_device_tools">Display &amp; inputs</string>
-    <string name="settings_summary_device_tools">Calibration patterns, manufacturer menus and input shortcuts</string>
+    <string name="settings_summary_device_tools">Calibration, TV menus and input shortcuts</string>
     <string name="cal_patterns">Calibration patterns</string>
     <string name="cal_intro">Offline SDR patterns use the highest supported output up to 4K. Your TV may still scale the image; check the pixel stripes. Left/Right changes patterns, OK shows or hides guidance, Back exits.</string>
     <string name="cal_sdr">SDR</string>
@@ -13,9 +13,9 @@
     <string name="cal_white">Near white</string>
     <string name="cal_white_help">Full-range SDR values 231–255. Look for visible differences near white without tinting the whites. Use a video clip to test video clipping.</string>
     <string name="cal_gray">Grayscale</string>
-    <string name="cal_gray_help">Steps should look neutral and distinct; the lower gradient should be smooth. This SDR surface does not measure HDR brightness or color accuracy.</string>
+    <string name="cal_gray_help">Steps should look neutral and distinct; the lower gradient should be smooth. This SDR surface does not measure HDR brightness or colour accuracy.</string>
     <string name="cal_colors">Color bars</string>
-    <string name="cal_colors_help">Full-intensity RGB color bars. Inspect tint and color uniformity; accurate color calibration requires a meter and suitable reference video.</string>
+    <string name="cal_colors_help">Full-intensity RGB colour bars. Inspect tint and colour uniformity; accurate colour calibration requires a meter and suitable reference video.</string>
     <string name="cal_judder24">24 fps motion</string>
     <string name="cal_judder60">60 fps motion</string>
     <string name="cal_judder_help">The bar advances at the chosen cadence. Uneven motion can reveal frame pacing or display refresh mismatch. This tests Android drawing; use encoded motion clips to test video playback.</string>
@@ -67,6 +67,6 @@
     <string name="cal_sample_hdr_clip_3600_10000">Color clipping · 3,600–10,000 nits</string>
     <string name="cal_sample_hdr_geometry">Sharpness and aspect ratio</string>
     <string name="cal_sample_dv_black">Dolby Vision black level / PLUGE</string>
-    <string name="cal_sample_dv_bt2111">Dolby Vision BT.2111 color bars</string>
-    <string name="cal_sample_dv_ramps">Dolby Vision color ramps</string>
+    <string name="cal_sample_dv_bt2111">Dolby Vision BT.2111 colour bars</string>
+    <string name="cal_sample_dv_ramps">Dolby Vision colour ramps</string>
 </resources>

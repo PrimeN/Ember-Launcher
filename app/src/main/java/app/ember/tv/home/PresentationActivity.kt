@@ -1,5 +1,9 @@
 package app.ember.tv.home
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 
@@ -105,7 +109,7 @@ class PresentationActivity:ComponentActivity() {
                 else->false
             }
         }.focusRequester(root).focusable()) {
-            if(item==null)Text(stringResource(R.string.tx_choose_photos_or_videos_in_settings),Modifier.align(Alignment.Center),color=Color.White,fontSize=20.sp)
+            if(item==null)Text(stringResource(R.string.tx_choose_photos_or_videos_in_settings, SettingsTab.HOME_EXTRAS.path),Modifier.align(Alignment.Center),color=Color.White,fontSize=20.sp)
             else if(failed)Text(if(failures>=items.size)"The selected files are unavailable. Choose them again in Home tools." else "This file is unavailable.",Modifier.align(Alignment.Center).padding(30.dp),color=Color.White,fontSize=18.sp)
             else if(item.video)AndroidView(factory={PlayerView(it).apply {this.player=player;useController=false}},modifier=Modifier.fillMaxSize(),onRelease={it.player=null})
             else AsyncImage(model=uri,contentDescription=item.name,modifier=Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Fit,

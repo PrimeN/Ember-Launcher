@@ -1,5 +1,11 @@
 package app.ember.tv.phone
 
+import app.ember.tv.data.counted
+
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import app.ember.tv.addAddon
 import app.ember.tv.addonLabel
 import app.ember.tv.pauseAddon
@@ -167,7 +173,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                 val check = app.ember.tv.data.Collections.inspect(text)
                 check.error ?: run {
                     val revision = collections.revision
-                    stage("Import ${check.collections.size} collections and ${check.collections.sumOf { it.folders.size }} folders; matching IDs will update.") {
+                    stage("Import ${check.collections.size.counted("collection")} and ${check.collections.sumOf { it.folders.size }.counted("folder")}; matching IDs will update.") {
                         collections.importText(text, expectedRevision = revision)
                     }
                 }
@@ -199,7 +205,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                             app.ember.tv.phone.PhoneWidget(widgetKey(w.id), w.title, w.style, w.shape, w.limit, app.ember.tv.data.HomeWidgets.sourcesLabel(w, collectionCatalogs),
                                 when {
                                     !sections.sectionOn(section) -> "Off on Home"
-                                    count > 0 -> "$count titles"
+                                    count > 0 -> count.counted("title")
                                     w.id in widgets.loading -> "Loading"
                                     w.id in widgets.failed -> "Could not load"
                                     else -> "Nothing to show yet"
@@ -241,7 +247,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                     "person", "company" -> exploreRepository.search(q, company = kind == "company").map { app.ember.tv.phone.PhoneLookup(it.id.toString(), it.name) }
                     "provider" -> exploreRepository.providers(watch.watchRegion).filter { it.name.contains(q, true) }.take(20).map { app.ember.tv.phone.PhoneLookup(it.id.toString(), it.name) }
                     "trakt" -> traktLists(tab, q).map { l -> app.ember.tv.phone.PhoneLookup(l.id.toString(), l.name,
-                        listOfNotNull(l.by.takeIf { it.isNotBlank() }?.let { "by @$it" }, "${l.items} titles", "${l.likes} likes", l.description.takeIf { it.isNotBlank() }).joinToString(" · ")) }
+                        listOfNotNull(l.by.takeIf { it.isNotBlank() }?.let { "by @$it" }, l.items.counted("title"), l.likes.counted("like"), l.description.takeIf { it.isNotBlank() }).joinToString(" · ")) }
                     else -> emptyList()
                 }
             }
@@ -367,7 +373,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         app.ember.tv.data.HomeWidgets.error(widget)?.let { return@onPhoneMain it }
                         if (!app.ember.tv.data.HomeWidgets.isLocal(widget.source) && !widget.sources.all { collectionSourceAllowed(it) }) return@onPhoneMain "That source is unavailable for this profile."
                         stage((if (old == null) "Add the Home widget " else "Save the Home widget ") + "$title: ${app.ember.tv.data.HomeWidgets.styleName(widget.style)}, " +
-                            "${app.ember.tv.data.HomeWidgets.sourcesLabel(widget, collectionCatalogs)}, up to ${widget.limit} titles.") {
+                            "${app.ember.tv.data.HomeWidgets.sourcesLabel(widget, collectionCatalogs)}, up to ${widget.limit.counted("title")}.") {
                             widgets.save(widget).also { if (it == null) refreshWidgets() }
                         }
                     }
@@ -468,18 +474,18 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                         }
                     }
                     "addon" -> {
-                        val url = addons.firstOrNull { AddonAccess.key(it) == fields["addon"] } ?: return@onPhoneMain "Choose an installed add-on."
+                        val url = addons.firstOrNull { AddonAccess.key(it) == fields["addon"] } ?: return@onPhoneMain "Choose an installed addon."
                         when (val change = fields["change"] ?: fields["enabled"]) {
                             "up", "down" -> {
                                 val step = if (change == "up") -1 else 1
-                                if (app.ember.tv.AddonOrder.moved(addons, url, step) == null) return@onPhoneMain "That add-on is already ${if (step < 0) "first" else "last"}."
-                                stage("Move ${addonLabel(url)} ${if (step < 0) "up" else "down"} in the add-on order.") {
-                                    if (url !in addons) "That add-on was removed. Reload the phone page." else { moveAddon(url, step); null }
+                                if (app.ember.tv.AddonOrder.moved(addons, url, step) == null) return@onPhoneMain "That addon is already ${if (step < 0) "first" else "last"}."
+                                stage("Move ${addonLabel(url)} ${if (step < 0) "up" else "down"} in the addon order.") {
+                                    if (url !in addons) "That addon was removed. Reload the phone page." else { moveAddon(url, step); null }
                                 }
                             }
                             else -> {
                                 val enabled = change == "on"
-                                stage((if (enabled) "Enable " else "Pause ") + addonLabel(url)) { if (url !in addons) "That add-on was removed. Reload the phone page." else { pauseAddon(url, !enabled); null } }
+                                stage((if (enabled) "Enable " else "Pause ") + addonLabel(url)) { if (url !in addons) "That addon was removed. Reload the phone page." else { pauseAddon(url, !enabled); null } }
                             }
                         }
                     }
@@ -557,7 +563,7 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
             override fun importBadges(text: String): String {
                 val err = onPhoneMain { sourceFormat.importBadgesText(text) }
                 onPhoneMain { phoneNote(if (err == null) "Badge pack received" else "Badge pack not used: $err") }
-                return err ?: "Badges loaded on the TV (Settings > Stremio > Badges: Custom)."
+                return err ?: "Badges loaded on the TV (${SettingsTab.STREMIO.path}: Custom)."
             }
 
             override fun importBackup(bytes: ByteArray, passphrase: String, apply: Boolean): String {

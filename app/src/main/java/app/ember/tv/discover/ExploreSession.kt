@@ -1,5 +1,9 @@
 package app.ember.tv.discover
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -28,7 +32,7 @@ class ExploreSession(
     val pagesChecked get() = streams.sumOf { it.page - 1 }
     suspend fun advance(budget: Int = 8, publish: (List<ExploreTitle>) -> Unit = {}) {
         require(query.error(today) == null) { query.error(today).orEmpty() }
-        check(source.configured) { "Add a TMDB API key in Settings > API keys to use Explore." }
+        check(source.configured) { "Add a TMDB API key in ${SettingsTab.KEYS.path} to use Explore." }
         var work = 0
         while (!complete && work < budget) {
             val stream = streams.firstOrNull { !it.end && it.matches.size < quota(it) } ?: break

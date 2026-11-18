@@ -7,7 +7,7 @@ object FocusBackground {
     const val OFF = "off"
     /** Search's theme-coloured background (#120, #136), kept behind Home, Discover and Apps. */
     const val GLOW = "glow"
-    val choices = listOf(COLORS to "Tile colors", ARTWORK to "Artwork backdrop", GLOW to "Theme glow", OFF to "Theme only")
+    val choices = listOf(COLORS to "Tile colours", ARTWORK to "Artwork backdrop", GLOW to "Theme glow", OFF to "Theme only")
     fun normalize(value: String?) = value?.takeIf { it in setOf(COLORS, ARTWORK, GLOW, OFF) } ?: COLORS
     /** The pages that keep the glow behind them when media rows use it. */
     fun glowPage(mode: String, page: String, light: Boolean) =

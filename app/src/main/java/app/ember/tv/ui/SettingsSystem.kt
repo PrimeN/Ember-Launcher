@@ -191,7 +191,6 @@ internal fun RestorePage(vm: HomeViewModel) {
         uri?.let { vm.backup.openBackup(it, passphrase) }
     }
     LaunchedEffect(Unit) { vm.backup.refreshBackupFiles() }
-    val dateFormat = remember { SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()) }
 
     Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
         Section(stringResource(R.string.ui_restore), stringResource(R.string.ui_replaces_everything_on_this_tv_with)) {
@@ -253,7 +252,7 @@ internal fun RestorePage(vm: HomeViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(f.name, fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(dateFormat.format(Date(f.modified)), color = Mute, fontSize = 13.sp)
+                            Text(app.ember.tv.data.DisplayDates.dateTime(f.modified), color = Mute, fontSize = 13.sp)
                             Chip(stringResource(R.string.ui_restore)) { vm.backup.openBackup(f.uri, passphrase) }
                         }
                     }
@@ -536,7 +535,7 @@ internal fun WeatherSection(vm: HomeViewModel) {
     Section(stringResource(R.string.ui_weather), stringResource(R.string.ui_shown_in_the_top_bar_and)) {
         ButtonRow {app.ember.tv.weather.WeatherProviders.choices.forEach {(id,label)->Chip(label,selected=vm.weather.provider==id){vm.weather.updateProvider(id)}}}
         SettingToggle(stringResource(R.string.st_use_fallback_weather_sources),null,vm.weather.fallback){vm.weather.updateFallback(!vm.weather.fallback)}
-        vm.weather.details?.let {Text("${it.source} · " + if(vm.weather.updatedAt>0)java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(java.util.Date(vm.weather.updatedAt)) else "Saved forecast",color=Mute,fontSize=13.sp)}
+        vm.weather.details?.let {Text("${it.source} · " + if(vm.weather.updatedAt>0)app.ember.tv.data.DisplayDates.dateTime(vm.weather.updatedAt) else "Saved forecast",color=Mute,fontSize=13.sp)}
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 vm.weather.weatherPlaceName?.let { "Showing weather for $it" + (vm.weather.weatherText?.let { w -> ": $w" } ?: "") } ?: "Off",

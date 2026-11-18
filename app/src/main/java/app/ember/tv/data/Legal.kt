@@ -1,5 +1,9 @@
 package app.ember.tv.data
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 /** Text for Settings > Legal. Kept in one place so it is easy to review and update. */
 object Legal {
     const val APP = "Ember"
@@ -46,7 +50,7 @@ object Legal {
                 ),
                 Item(
                     "Optional IntroDB fallback",
-                    "Off by default; nothing is sent until you turn it on in Settings > Player > Skip intro. When it is on and Skip intro is not Off, " +
+                    "Off by default; nothing is sent until you turn it on in ${SettingsTab.PLAYER.path} › Skip intro. When it is on and Skip intro is not Off, " +
                         "a title with no skip markers from your server sends its IMDb ID and, for episodes, the season and episode numbers to api.introdb.app. " +
                         "IntroDB is an independent community service, not run by or affiliated with $APP's developer; like any website it sees this network's public IP address, " +
                         "and its own privacy policy applies. No account tokens, media URLs, filenames or playback positions are sent, and $APP never submits timings.",
@@ -116,7 +120,7 @@ object Legal {
             listOf(
                 Item(
                     "Removing your data",
-                    "Disconnect a tracker or server in Settings > Accounts, remove a key in Settings > API keys, or clear $APP's storage in the TV's app settings to delete everything. " +
+                    "Disconnect a tracker or server in Settings › Accounts, remove a key in ${SettingsTab.KEYS.path}, or clear $APP's storage in the TV's app settings to delete everything. " +
                         "Data already held by a connected service is managed in that service's account settings.",
                 ),
                 Item("Children", "$APP is not directed at children and collects no personal information from anyone."),
@@ -166,7 +170,7 @@ object Legal {
                 Item("Kotlin, kotlinx.coroutines, kotlinx.serialization", "Language and libraries. Apache License 2.0.", "https://kotlinlang.org"),
                 Item("OkHttp", "Networking. Apache License 2.0.", "https://square.github.io/okhttp/"),
                 Item("Coil", "Image loading. Apache License 2.0.", "https://coil-kt.github.io/coil/"),
-                Item("ZXing", "QR code for Settings > Phone setup. Apache License 2.0.", "https://github.com/zxing/zxing"),
+                Item("ZXing", "QR code for ${SettingsTab.PHONE.path}. Apache License 2.0.", "https://github.com/zxing/zxing"),
                 Item("AndroidX ProfileInstaller", "Installs startup profiles so the app starts faster. Apache License 2.0.", "https://developer.android.com/jetpack/androidx"),
             ),
         ),
@@ -254,7 +258,7 @@ object Legal {
 
     val DISCLAIMER: List<String> = listOf(
         "All metadata, images, and related content are owned by their respective providers and rights holders.",
-        "$APP does not provide, host, or distribute any media streams. All streams are sourced from user-configured third-party add-ons.",
+        "$APP does not provide, host, or distribute any media streams. All streams are sourced from user-configured third-party addons.",
         "This application is intended for use with content you own or have the legal right to access. Users are responsible for ensuring their use complies with applicable laws.",
         "All third-party service, product, codec and format names, logos and trademarks displayed by Ember belong to their respective owners. Ember claims no ownership of these marks and uses them only for identification. Their display does not imply affiliation, sponsorship or endorsement.",
         "$APP is provided \"as is\", without warranty of any kind.",

@@ -134,7 +134,7 @@ class Prefs(context: Context) {
         hasLegacy = { sp.contains(PreferenceKeys.ADDONS.name) }, removeLegacy = { sp.edit { remove(PreferenceKeys.ADDONS.name) } }) }
     var addons: List<String>
         get() = addonConfiguration.load()
-        set(value) { check(saveAddons(value)) { "Encrypted add-on storage is unavailable." } }
+        set(value) { check(saveAddons(value)) { "Encrypted addon storage is unavailable." } }
     fun saveAddons(value: List<String>): Boolean = addonConfiguration.save(value)
 
     var collectionHeroPreviews: Boolean

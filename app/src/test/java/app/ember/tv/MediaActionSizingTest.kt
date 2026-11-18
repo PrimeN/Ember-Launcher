@@ -12,8 +12,8 @@ class MediaActionSizingTest {
             val primary = maxOf(label.dp + if (icon) 54.dp else 24.dp, 72.dp)
             val width = inlineDetailsActionWidth(label.dp, detail.dp, icon)
             assertTrue("The primary label must not wrap to accommodate source details", width >= primary)
-            if (primary >= 224.dp || detail == 0) assertEquals(primary, width)
-            if (primary < 224.dp) assertTrue(width <= 224.dp)
+            if (primary >= app.ember.tv.ui.INLINE_ACTION_MAX || detail == 0) assertEquals(primary, width)
+            if (primary < app.ember.tv.ui.INLINE_ACTION_MAX) assertTrue(width <= app.ember.tv.ui.INLINE_ACTION_MAX)
         }
     }
 

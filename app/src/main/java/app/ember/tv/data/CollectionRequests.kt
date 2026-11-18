@@ -1,5 +1,9 @@
 package app.ember.tv.data
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import app.ember.tv.tracker.arr
 import app.ember.tv.tracker.str
 import kotlinx.coroutines.*
@@ -46,7 +50,7 @@ internal class CollectionRequests(
         val clientId = key("TRAKT_CLIENT_ID").ifBlank { error("Trakt lists need a client id.") }
         val q = query.trim()
         val path = traktListsPath(tab, q)
-        if ((tab == "mine" || tab == "liked") && q.isEmpty() && traktToken() == null) error("Sign in to Trakt in Settings > Trackers to see your lists.")
+        if ((tab == "mine" || tab == "liked") && q.isEmpty() && traktToken() == null) error("Sign in to Trakt in ${SettingsTab.TRACKERS.path} to see your lists.")
         val url = "https://api.trakt.tv/$path".toHttpUrl().newBuilder().apply { if (q.isNotEmpty()) addQueryParameter("query", q.take(100)) }
             .addQueryParameter("limit", if (tab == "mine" && q.isEmpty()) "100" else "30").build()
         val result = traktRequest(url, clientId)

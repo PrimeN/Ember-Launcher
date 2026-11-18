@@ -1,5 +1,9 @@
 package app.ember.tv.state
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,7 +80,7 @@ class DiscoverState(
                     if (index < 0) { discoverCatalogs = listOf(wanted) + discoverCatalogs; index = 0 }
                     selectCatalog(index)
                 }
-                discoverCatalogs.isEmpty() -> discoverNote = "No catalogs to browse. Add an addon, or switch catalogs on for Discover in Settings > Addons & catalogs."
+                discoverCatalogs.isEmpty() -> discoverNote = "No catalogs to browse. Add an addon, or switch catalogs on for Discover in ${SettingsTab.ADDONS.path}."
                 loadRequested -> selectCatalog(0)
             }
         }

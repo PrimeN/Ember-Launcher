@@ -93,7 +93,7 @@ class WeatherState(
     fun setWeatherCity(name: String) {
         if (name.isBlank()) return
         locationJob?.cancel()
-        weatherMessage = "Looking up $name..."
+        weatherMessage = "Looking up $name…"
         locationJob = scope.launch {
             val p = runCatching { geocode(name.trim()) }.getOrNull()
             ensureActive()
@@ -104,7 +104,7 @@ class WeatherState(
     /** Uses this network's public address to guess the city. Only runs when asked. */
     fun useApproximateLocation() {
         locationJob?.cancel()
-        weatherMessage = "Finding your area..."
+        weatherMessage = "Finding your area…"
         locationJob = scope.launch {
             val p = runCatching { approximate() }.getOrNull()
             ensureActive()

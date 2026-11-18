@@ -27,9 +27,9 @@ Ember Light can also show participating apps' Android TV Watch Next entries and 
 - **Search:** find media through your configured sources using text or voice input, with a responsive results grid, compact filters, source labels and optional duplicate combining. Ember Light also provides quick search for apps, settings and available TV inputs.
 - **Optional AI assistance:** describe what you want to watch and review suggested filters using your own Mistral configuration.
 
-## Add-ons and catalogs
+## Addons and catalogs
 
-Ember supports **Stremio-compatible add-ons** for catalogs, title information, playback sources and subtitles.
+Ember supports **Stremio-compatible addons** for catalogs, title information, playback sources and subtitles.
 
 - Enable, disable, rename and reorder individual catalogs.
 - Create, import and organize collections with folders and multiple content sources.
@@ -39,7 +39,7 @@ Ember supports **Stremio-compatible add-ons** for catalogs, title information, p
 
 ## Your libraries and watchlists, together
 
-Connect **Plex, Jellyfin or Emby** to browse your own media alongside add-on content.
+Connect **Plex, Jellyfin or Emby** to browse your own media alongside addon content.
 
 - Library rows for movies, shows, recently added titles and Continue watching.
 - Configurable library sections and an optional server-fed hero carousel.
@@ -72,7 +72,7 @@ Ember includes **Standard playback through AndroidX Media3** and an internal **C
 - **Intro skipping:** supported server markers and an optional IntroDB fallback for available intro, recap and credits timings.
 - **Player preferences:** separate local/network decoder hints and format rules, optional fast keyframe seeking, and independent Bluetooth lip-sync timing.
 - **Decoded-audio effects:** equalizer presets, bass adjustment, mono and front-channel swapping, with HDMI passthrough preserved.
-- **Quick controls:** choose and reorder player shortcuts in Settings > Player or the player's quick menu.
+- **Quick controls:** choose and reorder player shortcuts in Settings › Playback › Player or the player's quick menu.
 - **Player appearance:** select a control layout independently of the Home interface. Choose Ember, Glass, Basic or Streaming controls. Track selection, playback settings and remote controls remain available independently of Home layout.
 - **Local and network media:** open files through Android's picker or configured SMB, WebDAV, SFTP, FTP and FTPS connections.
 - **External-player choice:** hand playback to a compatible installed player when preferred.
@@ -107,7 +107,7 @@ Input switching, Home-button integration and manufacturer-specific menus depend 
 ## Home widgets and local tools
 
 Create rows, numbered rows, cinematic carousels or hero-banner widgets. Sources
-can include add-on catalogs, supported external lists, saved Discover filters,
+can include addon catalogs, supported external lists, saved Discover filters,
 collections and personal lists. A widget can combine multiple catalog sources.
 Widget packs can be exported and imported.
 

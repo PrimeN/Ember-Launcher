@@ -168,7 +168,7 @@ fun LibraryScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
 
 // ---------------------------------------------------------------- Live TV channel and guide components
 
-internal fun timeOf(ms: Long): String = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(ms))
+internal fun timeOf(ms: Long): String = app.ember.tv.data.DisplayDates.time(ms)
 
 @Composable
 internal fun ChannelRow(

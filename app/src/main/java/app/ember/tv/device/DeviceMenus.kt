@@ -1,5 +1,7 @@
 package app.ember.tv.device
 
+import app.ember.tv.ui.LauncherNotice
+
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -105,6 +107,6 @@ internal object DeviceMenus {
             check(allowed(context, info))
             context.startActivity(Intent(action).setComponent(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
-        if (!opened) Toast.makeText(context, R.string.device_menu_unavailable, Toast.LENGTH_LONG).show()
+        if (!opened) LauncherNotice.show(context, R.string.device_menu_unavailable)
     }
 }

@@ -10,5 +10,5 @@ object AddonAccess {
         .digest(url.trim().toByteArray()).toHex().also { if (keys.size < 512) keys[url] = it }
     @Volatile var paused: Set<String> = emptySet()
     fun available(url: String) = key(url) !in paused
-    fun requireAvailable(url: String) { check(available(url)) { "This add-on is paused." } }
+    fun requireAvailable(url: String) { check(available(url)) { "This addon is paused." } }
 }

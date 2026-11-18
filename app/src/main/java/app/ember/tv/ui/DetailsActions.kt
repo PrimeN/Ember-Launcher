@@ -54,10 +54,13 @@ internal fun detailsActionFill(enabled:Boolean,focused:Boolean,selected:Boolean,
 internal fun detailsActionWidth(label:Dp,detail:Dp,icon:Boolean):Dp =
     maxOf(label + if(icon)54.dp else 24.dp, detail + 24.dp, 72.dp).coerceAtMost(224.dp)
 
+/** #332: room for the source's name beside the label, so it is not cut to a few letters. */
+internal val INLINE_ACTION_MAX=360.dp
+
 /** Primary labels always fit; source details use the remaining space on the same line. */
 internal fun inlineDetailsActionWidth(label:Dp,detail:Dp,icon:Boolean):Dp {
     val primary=maxOf(label + if(icon)54.dp else 24.dp,72.dp)
-    return maxOf(primary,minOf(primary + if(detail>0.dp)detail+8.dp else 0.dp,224.dp))
+    return maxOf(primary,minOf(primary + if(detail>0.dp)detail+8.dp else 0.dp,INLINE_ACTION_MAX))
 }
 
 @Composable

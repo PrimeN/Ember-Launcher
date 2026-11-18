@@ -26,7 +26,7 @@ class IptvSetupState(
     fun addIptvSource(kind: String, name: String, url: String, username: String, password: String, epg: String, userAgent: String, format: String, done: () -> Unit) {
         if (iptvAdding) return
         iptvAdding = true
-        iptvAddMessage = if (kind == "xtream") "Signing in and loading channels..." else "Loading the playlist..."
+        iptvAddMessage = if (kind == "xtream") "Signing in and loading channels…" else "Loading the playlist…"
         scope.launch {
             val err = iptv().add(kind, name, url, username, password, epg, userAgent, format)
             iptvAdding = false

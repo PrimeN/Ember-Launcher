@@ -7,13 +7,13 @@ import org.junit.Test
 
 class MediaDetailsDesignTest {
     @Test fun resumeButtonShowsTheSavedTimestampIncludingHours() {
-        assertEquals("Resume 00:01:39",ResumeAction.buttonLabel(99_000L to 3_600_000L,null))
-        assertEquals("Resume 01:02:03",ResumeAction.buttonLabel(3_723_000L to 7_200_000L,.2f))
+        assertEquals("Resume from 1:39",ResumeAction.buttonLabel(99_000L to 3_600_000L,null))
+        assertEquals("Resume from 1:02:03",ResumeAction.buttonLabel(3_723_000L to 7_200_000L,.2f))
     }
     @Test fun percentageOnlyProgressUsesAnHonestFallbackOrEstimatedTime() {
         assertEquals("Resume at 50%",ResumeAction.buttonLabel(null,.5f))
-        assertEquals("Resume ≈ 00:30:00",ResumeAction.buttonLabel(null,.5f,3_600_000))
-        assertEquals("Resume ≈ 00:30:00",ResumeAction.buttonLabel(10_000L to 3_600_000L,.5f,3_600_000))
+        assertEquals("Resume from ≈ 30:00",ResumeAction.buttonLabel(null,.5f,3_600_000))
+        assertEquals("Resume from ≈ 30:00",ResumeAction.buttonLabel(10_000L to 3_600_000L,.5f,3_600_000))
     }
     @Test fun completedUnknownOrInvalidProgressDoesNotShowAFakeResumeTime() {
         assertEquals("Play",ResumeAction.buttonLabel(null,null))

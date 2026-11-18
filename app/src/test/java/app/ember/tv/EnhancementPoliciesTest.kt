@@ -55,7 +55,7 @@ class EnhancementPoliciesTest {
 
     @Test fun resumeDoesNotInventDurationAndRejectsInvalidProgress() {
         val meta = Meta(progress = 0.4f)
-        assertEquals("Resume · 40% watched", meta.resumeLabel())
+        assertEquals("Resume at 40%", meta.resumeLabel())
         assertNull(meta.copy(progress = null).resumeLabel())
         assertNull(meta.copy(progress = Float.NaN).resumeLabel())
         assertNull(meta.copy(progress = 1.1f).resumeLabel())

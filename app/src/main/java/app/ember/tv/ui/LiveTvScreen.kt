@@ -391,7 +391,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
         LiveDialog(programme?.title ?: channel.name, { programmeInfo = null }) {
             Text(channel.name + " · " + (iptv.sources.firstOrNull { it.id == channel.sourceId }?.name ?: "IPTV"), color = Mute)
             programme?.let {
-                Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(it.start)) + "–" + timeOf(it.stop))
+                Text(app.ember.tv.data.DisplayDates.dayTime(it.start) + "–" + timeOf(it.stop))
                 Text(it.description ?: "No description available")
                 if (it.start > iptv.clock) Text(stringResource(R.string.tx_upcoming_programme_watch_live_opens_the), color = Mute)
             } ?: Text(iptv.guideMessage(channel), color = Mute)
@@ -408,7 +408,7 @@ fun IptvLiveScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onPlayChannel: (Li
             val upcoming = iptv.upcoming(channel)
             if (upcoming.isEmpty()) Text(stringResource(R.string.tx_no_programme_information_available), color = Mute)
             upcoming.forEach { programme ->
-                Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(programme.start)) + " · " + programme.title)
+                Text(app.ember.tv.data.DisplayDates.dayTime(programme.start) + " · " + programme.title)
             }
         }
     }

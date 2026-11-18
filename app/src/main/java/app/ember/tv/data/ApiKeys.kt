@@ -1,5 +1,9 @@
 package app.ember.tv.data
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import android.content.Context
 import app.ember.tv.BuildConfig
 import app.ember.tv.tracker.TokenStore
@@ -41,7 +45,7 @@ object ApiKeys {
         Service(
             "TMDB",
             "Hero backgrounds and title logos, tracker posters and discovery.",
-            "themoviedb.org > Settings > API. Use the \"API Key\" (v3), not the read token.",
+            "themoviedb.org › Settings › API. Use the \"API Key\" (v3), not the read token.",
             listOf(Field("TMDB_API_KEY", "API key")),
         ),
         Service(
@@ -82,13 +86,13 @@ object ApiKeys {
         ),
         Service(
             "RPDB",
-            "Posters with ratings (Settings > Posters). Without a key the free one is used, which only has the default style.",
+            "Posters with ratings (${SettingsTab.POSTERS.path}). Without a key the free one is used, which only has the default style.",
             "ratingposterdb.com: the key arrives by email after subscribing on Patreon. Keys start with t1- to t4-.",
             listOf(Field("RPDB_API_KEY", "API key")),
         ),
         Service(
             "MDBList",
-            "Ratings: IMDb, TMDB, Trakt, Metacritic and Rotten Tomatoes (critics and the Popcornmeter) in one request (Settings > Ratings). Free: 1,000 a day.",
+            "Ratings: IMDb, TMDB, Trakt, Metacritic and Rotten Tomatoes (critics and the Popcornmeter) in one request (${SettingsTab.POSTERS.path}). Free: 1,000 a day.",
             "mdblist.com > sign in > Preferences > API key.",
             listOf(Field("MDBLIST_API_KEY", "API key")),
         ),
@@ -100,13 +104,13 @@ object ApiKeys {
         ),
         Service(
             "TVDB",
-            "TV show details, artwork and episode names (Settings > Artwork & metadata).",
+            "TV show details, artwork and episode names (${SettingsTab.POSTERS.path}).",
             "thetvdb.com > Dashboard > API keys: create a project key. The PIN is only for keys tied to a TVDB subscription.",
             listOf(Field("TVDB_API_KEY", "API key"), Field("TVDB_PIN", "Subscriber PIN (optional)", optional = true)),
         ),
         Service(
             "OpenSubtitles.com",
-            "Subtitles (Settings > Subtitles): ranking by file hash, release, frame rate and trust. Without a login the daily download limit is low.",
+            "Subtitles (${SettingsTab.SUBTITLES.path}): ranking by file hash, release, frame rate and trust. Without a login the daily download limit is low.",
             "opensubtitles.com > sign in > API consumers > New consumer: copy the API key. Your site username and password are optional.",
             listOf(
                 Field("OPENSUBTITLES_API_KEY", "API key"),
@@ -116,7 +120,7 @@ object ApiKeys {
         ),
         Service(
             "SubDL",
-            "Subtitles (Settings > Subtitles), with release names for matching.",
+            "Subtitles (${SettingsTab.SUBTITLES.path}), with release names for matching.",
             "subdl.com > sign in > Account > API key.",
             listOf(Field("SUBDL_API_KEY", "API key")),
         ),

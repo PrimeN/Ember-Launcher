@@ -105,7 +105,7 @@ object MetaEnhance {
                 "CANCELLED" -> "Cancelled"
                 else -> null
             },
-            m.int("episodes")?.let { "$it episodes" },
+            m.int("episodes")?.let { it.counted("episode") },
             next?.int("episode")?.let { ep ->
                 val days = (next.long("timeUntilAiring") ?: 0L) / 86_400
                 "Next: E$ep " + when (days) {

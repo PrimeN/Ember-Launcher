@@ -54,7 +54,7 @@ class SourceFormatState(
     fun importBadges(url: String) {
         if (badgeBusy) return
         badgeBusy = true
-        badgeNote = "Downloading..."
+        badgeNote = "Downloading…"
         scope.launch {
             val err = app.ember.tv.data.Badges.importUrl(context, url)
             badgeBusy = false

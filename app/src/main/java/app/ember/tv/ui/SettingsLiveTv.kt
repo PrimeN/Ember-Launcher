@@ -100,7 +100,7 @@ import java.util.Locale
 @Composable
 internal fun LiveTvSettingsPage(vm: HomeViewModel) {
     if (!vm.featureOn(app.ember.tv.data.Features.LIVE)) {
-        Section(stringResource(R.string.ui_live_tv), stringResource(R.string.ui_switched_off_in_settings_features_so)) {
+        Section(stringResource(R.string.ui_live_tv), stringResource(R.string.ui_switched_off_in_settings_features_so, SettingsTab.FEATURES.path)) {
             Chip(stringResource(R.string.ui_turn_live_tv_on)) { vm.toggleFeature(app.ember.tv.data.Features.LIVE) }
         }
         return
@@ -127,7 +127,7 @@ internal fun LiveTvSettingsPage(vm: HomeViewModel) {
             Note(
                 stringResource(R.string.ui_add_an_m3u_playlist_link_or) +
                     stringResource(R.string.st_use_channel_up_and_down_or) +
-                    stringResource(R.string.st_addon_catalogs_for_live_tv_are),
+                    stringResource(R.string.st_addon_catalogs_for_live_tv_are, SettingsTab.ADDONS.path),
             )
         }
 

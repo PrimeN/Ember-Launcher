@@ -1,5 +1,7 @@
 package app.ember.tv.device
 
+import app.ember.tv.ui.LauncherNotice
+
 import android.content.Context
 import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
@@ -33,12 +35,12 @@ internal object DeviceInputs {
         val input = runCatching { context.getSystemService(TvInputManager::class.java)?.getTvInputInfo(id) }.getOrNull()
         val visible = input != null && runCatching { !input.isHidden(context) && (input.isPassthroughInput || includeTuners && input.type == TvInputInfo.TYPE_TUNER) }.getOrDefault(false)
         if (!visible || input == null) {
-            Toast.makeText(context, R.string.device_input_unavailable, Toast.LENGTH_LONG).show(); return
+            LauncherNotice.show(context, R.string.device_input_unavailable); return
         }
         val uri = if (input.isPassthroughInput) TvContract.buildChannelUriForPassthroughInput(id) else TvContract.buildChannelsUriForInput(id)
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure {
-            Toast.makeText(context, R.string.device_input_unavailable, Toast.LENGTH_LONG).show()
+            LauncherNotice.show(context, R.string.device_input_unavailable)
         }
     }
 }

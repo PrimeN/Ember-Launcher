@@ -193,7 +193,7 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
         // Details under the focused card only; the space is kept so rows do not jump, unless
         // Labels under tiles > Titles is off (#43).
         if (tileLabelShown(TileLabels.MEDIA)) Text(
-            if (focused) meta.resumeLabel() ?: listOfNotNull(meta.releaseInfo, meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }).joinToString(" · ") else "",
+            if (focused) meta.resumeLabel() ?: TitleInfoLine.text(meta.type, meta.releaseInfo, null, null) else "",
             fontSize = 12.sp,
             color = Mute,
             minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,

@@ -273,7 +273,7 @@
     <string name="ui_subtitles">Subtitles: </string>
     <string name="ui_subtitles_6a730">Subtitles</string>
     <string name="ui_switch_off_what_you_don_t">Switch off what you don\'t use. Off features load nothing when Ember starts, so Home opens faster.</string>
-    <string name="ui_switched_off_in_settings_features_so">Switched off in Settings &gt; Features, so nothing is loaded and the tab is hidden.</string>
+    <string name="ui_switched_off_in_settings_features_so">Switched off in %1$s, so nothing is loaded and the tab is hidden.</string>
     <string name="ui_template_reference">Template reference</string>
     <string name="ui_templates_use_the_same_syntax_as">Templates use the same syntax as AIOStreams\' custom formatter, so you can paste one made there. </string>
     <string name="ui_text_only_on_top_of_the">Text only, on top of the interface size. Larger helps from across the room.</string>
@@ -351,14 +351,14 @@
     <string name="ui_landscape_photo">Photo only</string>
     <string name="ui_landscape_title_note">The title\'s logo over its backdrop. Logos come from your addon, else from Metahub (free, needs an IMDb id). Titles without a logo show their name.</string>
     <string name="ui_landscape_rpdb_note">RPDB\'s backdrops with rating badges, plus the title\'s logo. Titles RPDB does not have keep their own backdrop.</string>
-    <string name="ui_landscape_rpdb_tier">RPDB backdrops need a Tier 2 key or higher (Settings &gt; API keys). Until then the photo with title logo is used.</string>
+    <string name="ui_landscape_rpdb_tier">RPDB backdrops need a Tier 2 key or higher (%1$s). Until then the photo with title logo is used.</string>
     <string name="ui_landscape_photo_note">The backdrop with the name written on it, as before.</string>
     <string name="ui_badges">Badges</string>
     <string name="ui_badges_note">The small tags under each source (4K, DV, Atmos, 7.1…).</string>
     <string name="ui_badges_modern">Detailed</string>
     <string name="ui_badges_legacy">Basic</string>
     <string name="ui_badges_custom">Custom</string>
-    <string name="ui_badges_custom_note">Your own pack: a badge JSON file (\"filters\" with a pattern and an image or colours). Enter its link, or send the file from Settings &gt; Phone setup.</string>
+    <string name="ui_badges_custom_note">Your own pack: a badge JSON file (\"filters\" with a pattern and an image or colours). Enter its link, or send the file from %1$s.</string>
     <string name="ui_badges_load">Load</string>
     <string name="ui_synopsis">SYNOPSIS</string>
     <string name="ui_cast_crew_2">CAST &amp; CREW</string>

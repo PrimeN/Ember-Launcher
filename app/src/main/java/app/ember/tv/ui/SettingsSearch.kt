@@ -29,7 +29,7 @@ internal val SETTINGS_INDEX: List<Pair<SettingsTab, String>> = listOf(
     SettingsTab.SIZE to "Size and spacing: interface size, text size, font, screen margins overscan, media card density comfortable standard dense",
     SettingsTab.PERFORMANCE to "Performance and effects: device performance speed memory RAM low high auto custom, artwork quality economy balanced high, modern frosted glass navigation blur cached prepared liquid refraction tint vibrancy highlights, focused backgrounds app colors media rows collections tile colors artwork backdrop theme only, card focus glow pulse lift",
     SettingsTab.REMOTE to "Remote: remote settings button menu key TV projector, remote sounds click navigation sound effects",
-    SettingsTab.LIGHT_HOME to "Light Home: wallpaper background title art aurora ocean ember glow black, carousel, Continue Watching Watch Next permission, recommendations per app, wallpaper colours, short clips, credits, idle full screen, motion",
+    SettingsTab.LIGHT_HOME to "Light Home: wallpaper background title art aurora ocean ember glow black, carousel, Continue watching Watch Next permission, recommendations per app, wallpaper colours, short clips, credits, idle full screen, motion",
     SettingsTab.POSTERS to "Posters and ratings: RPDB, Better Posters, textless, landscape cards, title logo, ratings IMDb Rotten Tomatoes Tomatometer Popcornmeter audience score Metacritic, MDBList",
     SettingsTab.METADATA to "Metadata: AniList, TVDB, descriptions, artwork, episodes, anime, addon metadata first, respect the addon's own details logos backgrounds cast, AIOMetadata",
     SettingsTab.WEATHER to "Weather: location, city, units, Celsius, Fahrenheit, provider fallback saved forecast Open-Meteo MET Norway wttr.in",

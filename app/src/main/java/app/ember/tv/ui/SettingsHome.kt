@@ -86,7 +86,7 @@ internal fun DefaultHomePage() {
                         HomeServiceIssue.HOME_DETECTION -> R.string.home_service_detection_problem
                         HomeServiceIssue.LAUNCH -> R.string.home_service_launch_problem
                         else -> R.string.home_service_runtime_problem
-                    }),fontSize=13.sp,color=Mute)
+                    }, SettingsTab.DEBUG.path),fontSize=13.sp,color=Mute)
                 }
                 stock.filter { it != DefaultHome.SETUP_WRAITH }.forEach { pkg ->
                     val name = DefaultHome.label(context, pkg)
@@ -144,7 +144,7 @@ internal fun DefaultHomePage() {
                 }
                 Note(stringResource(R.string.home_open_stock_note))
                 Note(stringResource(R.string.home_m1_fix))
-                Note(stringResource(R.string.home_service_diagnostics))
+                Note(stringResource(R.string.home_service_diagnostics, SettingsTab.DEBUG.path))
             }
         }
 

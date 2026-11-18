@@ -1,5 +1,9 @@
 package app.ember.tv
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import app.ember.tv.data.Features
@@ -60,7 +64,7 @@ internal fun HomeViewModel.refreshServers(force: Boolean = false, only: String? 
         val newly = refused - signedOutNoticed
         if (newly.isNotEmpty()) {
             val names = newly.map { id -> if (id == "plex") "Plex" else serverAccounts.firstOrNull { it.key == id }?.name ?: "A media server" }
-            notice = "${names.joinToString(" and ")} signed Ember out. Sign in again in Settings › Media servers."
+            notice = "${names.joinToString(" and ")} signed Ember out. Sign in again in ${SettingsTab.SERVERS.path}."
         }
         signedOutNoticed = refused
         servers.saveHome(profiles.profileId)
@@ -97,7 +101,7 @@ internal fun HomeViewModel.addServer(kind: String, url: String, user: String, pa
         serverMessage = "Enter the server address and your username."
         return
     }
-    serverMessage = "Signing in..."
+    serverMessage = "Signing in…"
     viewModelScope.launch {
         serverMessage = runCatching { servers.addServer(kind, url, user, password) }.fold(
             onSuccess = { a ->
@@ -196,7 +200,7 @@ internal fun HomeViewModel.openMedia(force: Boolean = false, only: String? = nul
 internal fun HomeViewModel.discoverServers() {
     if (discovering) return
     discovering = true
-    serverMessage = "Looking for servers on your network..."
+    serverMessage = "Looking for servers on your network…"
     viewModelScope.launch {
         val list = runCatching { LanDiscovery.discover(getApplication<Application>()) }.getOrDefault(emptyList())
         found = list

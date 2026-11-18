@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.counted
+
 import app.ember.tv.addonLabel
 import app.ember.tv.pauseAddon
 import app.ember.tv.refreshAddon
@@ -100,7 +102,7 @@ internal fun CollectionManager(vm: HomeViewModel) {
         ConfirmDestructive("Delete ${f?.title?.ifBlank { null } ?: "this folder"}?", CollectionDeletion.folderMessage(owner?.folders?.size == 1),
             { removingFolder = null }) { restore = collectionId; cs.removeFolder(collectionId, folderId) }
     }
-    if (removingAll) ConfirmDestructive("Delete all ${cs.list.size} collections?", CollectionDeletion.ALL_MESSAGE,
+    if (removingAll) ConfirmDestructive("Delete " + (if (cs.list.size == 1) "the collection?" else "all ${cs.list.size} collections?"), CollectionDeletion.ALL_MESSAGE,
         { removingAll = false }, "Delete all") { expanded = null; cs.removeAll(); runCatching { createFocus.requestFocus() } }
 }
 
@@ -165,7 +167,7 @@ internal fun ImportCollectionPreview(vm: HomeViewModel, text: String, revision: 
         missing.forEach { source ->
             Text(stringResource(R.string.tx_unavailable_catalog, (source.title ?: source.catalogId.orEmpty())), color = Mute)
             ButtonRow {
-                vm.addons.firstOrNull { AddonAccess.key(it) == source.addonKey && !vm.addonAvailable(it) }?.let { url -> Chip("Resume add-on") { vm.pauseAddon(url, false) } }
+                vm.addons.firstOrNull { AddonAccess.key(it) == source.addonKey && !vm.addonAvailable(it) }?.let { url -> Chip("Resume addon") { vm.pauseAddon(url, false) } }
                 Chip("Choose replacement") { repair = source }
             }
         }
@@ -185,18 +187,18 @@ internal fun ImportCollectionPreview(vm: HomeViewModel, text: String, revision: 
 
 @Composable
 internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
-    var mode by remember { mutableStateOf("Add-ons") }; var query by remember { mutableStateOf("") }; var expanded by remember { mutableStateOf<String?>(null) }
+    var mode by remember { mutableStateOf("Addons") }; var query by remember { mutableStateOf("") }; var expanded by remember { mutableStateOf<String?>(null) }
     var collect by remember { mutableStateOf<CollectionSource?>(null) }; var filters by remember { mutableStateOf<CatalogDef?>(null) }
     MediaDialog("Organize content", close, resizeForKeyboard = true, scrollBody = false, wide = true) {
-        ButtonRow { listOf("Add-ons", "Catalogs", "Collections").forEach { value -> Chip(value, mode == value) { mode = value; expanded = null; query = "" } } }
+        ButtonRow { listOf("Addons", "Catalogs", "Collections").forEach { value -> Chip(value, mode == value) { mode = value; expanded = null; query = "" } } }
         // #239: the manager is a plain list now, so the dialog scrolls it.
         if (mode == "Collections") Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) { CollectionManager(vm) } else {
             TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find ${mode.lowercase()}")
             val urls = vm.addons.filter { vm.addonLabel(it).contains(query, true) }
             val catalogs = vm.allCatalogs.filter { (it.label + it.addon.name).contains(query, true) }
-            Text(if (mode == "Add-ons") "${urls.size} add-ons · ${vm.activeAddons.size} enabled" else "${catalogs.size} catalogs", color = Mute, fontSize = 12.sp)
+            Text(if (mode == "Addons") "${urls.size.counted("addon")} · ${vm.activeAddons.size} enabled" else catalogs.size.counted("catalog"), color = Mute, fontSize = 12.sp)
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (mode == "Add-ons") items(urls, key = { AddonAccess.key(it) }) { url ->
+                if (mode == "Addons") items(urls, key = { AddonAccess.key(it) }) { url ->
                     Column(Modifier.fillMaxWidth().background(PanelHi, RoundedCornerShape(12.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Chip(vm.addonLabel(url) + if (!vm.addonAvailable(url)) " · Paused" else "", expanded == url) { expanded = if (expanded == url) null else url }
                         vm.addonInfo[url]?.let { Text(it.provides.joinToString(" · "), color = Mute, fontSize = 12.sp) }

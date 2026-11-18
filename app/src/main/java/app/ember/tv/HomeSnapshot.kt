@@ -1,5 +1,7 @@
 package app.ember.tv
 
+import app.ember.tv.data.counted
+
 import app.ember.tv.data.AddonAccess
 import android.app.Application
 import androidx.lifecycle.viewModelScope
@@ -82,7 +84,7 @@ internal fun HomeViewModel.applyPrivate(password: String, done: (String) -> Unit
                 if (err == null) collectionsAdded++ else problems += "Collections ($link): $err"
             }
             done(buildString {
-                append("Loaded $keys keys, $addonsAdded new addons, $iptvAdded new IPTV sources and $collectionsAdded collection links.")
+                append("Loaded ${keys.counted("key")}, ${addonsAdded.counted("new addon")}, ${iptvAdded.counted("new IPTV source")} and ${collectionsAdded.counted("collection link")}.")
                 if (problems.isNotEmpty()) append(" Not added: " + problems.joinToString("; "))
             })
         } finally {

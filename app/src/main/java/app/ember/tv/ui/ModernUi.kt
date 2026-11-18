@@ -405,9 +405,7 @@ internal fun ModernHero(
             Crossfade(targetState = meta, animationSpec = tween(PolishMotion.duration(TvTokens.Motion.Text,render,reduceMotion)), label = "heroText") { title ->
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     HeroTitle(title, expanded = !render.lowPower)
-                    Text(listOfNotNull(title.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() },
-                        title.releaseInfo?.takeIf { it.isNotBlank() }, title.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() },
-                        title.runtime?.takeIf { it.isNotBlank() }).joinToString("  ·  "),
+                    Text(TitleInfoLine.text(title.type, title.releaseInfo, title.genres, title.runtime),
                         fontSize = 14.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     ReadableDescription(title.description.orEmpty(),minLines=3)
                 }

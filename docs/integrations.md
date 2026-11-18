@@ -2,7 +2,7 @@
 
 The integrations below are built into Ember. Enable the ones you want; the launcher, app management, built-in players and local media playback do not require a personal API key.
 
-**An included integration does not include a personal account, paid subscription or API entitlement.** Where a key is required, enter your own in **Settings → API keys** unless the APK publisher has already supplied a usable default. Builds can supply defaults for selected providers and tracker app registrations; availability varies by build. Keys entered on the TV override built-in defaults.
+**An included integration does not include a personal account, paid subscription or API entitlement.** Where a key is required, enter your own in **Settings › Accounts › API keys** unless the APK publisher has already supplied a usable default. Builds can supply defaults for selected providers and tracker app registrations; availability varies by build. Keys entered on the TV override built-in defaults.
 
 ## Metadata, artwork and ratings
 
@@ -52,7 +52,7 @@ Tracker app registrations identify Ember to a service; they are separate from yo
 | **Cleveland Museum of Art / NASA Image and Video Library** | Optional artwork and space-image screensaver sources. | No personal API key. |
 | **GitHub updates** | Standard updates use public [Ember releases](https://github.com/PrimeN/Ember-Launcher/releases). Beta can choose the public [beta release](https://github.com/PrimeN/Ember-Launcher/releases/tag/beta-build) or a successful signed Actions APK. Actions downloads use [nightly.link](https://nightly.link) and verify GitHub's archive checksum. | No GitHub account, API key or token for either source. Actions artifacts expire after three days. |
 
-Add-ons, IPTV providers and network shares may require their own subscription, login, key or connection details. Those requirements belong to the source you configure. External services apply their own terms, availability limits and privacy policies.
+Addons, IPTV providers and network shares may require their own subscription, login, key or connection details. Those requirements belong to the source you configure. External services apply their own terms, availability limits and privacy policies.
 
 
 [Features](features.md) · [Build configuration](../BUILDING.md) · [Back to Ember](../README.md)

@@ -35,7 +35,7 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
     private val manifests = AsyncCache<String, AddonInfo>(CacheKind.METADATA)
 
     fun baseOf(url: String): String {
-        val parsed = url.trim().replace("stremio://", "https://").toHttpUrlOrNull() ?: error("Enter a valid HTTP or HTTPS add-on URL.")
+        val parsed = url.trim().replace("stremio://", "https://").toHttpUrlOrNull() ?: error("Enter a valid HTTP or HTTPS addon URL.")
         return parsed.newBuilder().encodedPath(parsed.encodedPath.removeSuffix("/manifest.json").trimEnd('/').ifBlank { "/" }).build().toString()
     }
     private fun endpoint(base: String, path: String): String {

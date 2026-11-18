@@ -134,7 +134,7 @@ internal fun BadgesSection(vm: HomeViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         filters.forEach { b -> BadgeCard(b) { editing = b.id } }
                     }
-                } else if (f.customBadgesRead) Note(stringResource(R.string.st_no_patterns_yet_add_one_start))
+                } else if (f.customBadgesRead) Note(stringResource(R.string.st_no_patterns_yet_add_one_start, SettingsTab.PHONE.path))
             }
             (f.badgeNote ?: Badges.message)?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
         }
@@ -302,7 +302,7 @@ private fun BadgeAddDialog(vm: HomeViewModel, close: () -> Unit) {
 private fun BadgeLinkDialog(vm: HomeViewModel, close: () -> Unit) {
     var url by remember { mutableStateOf("") }
     MediaDialog("Load a badge pack", close, resizeForKeyboard = true) {
-        Note(stringResource(R.string.ui_badges_custom_note))
+        Note(stringResource(R.string.ui_badges_custom_note, SettingsTab.PHONE.path))
         Text(stringResource(R.string.tx_this_replaces_your_custom_badges), color = Mute, fontSize = 13.sp)
         TvTextField(url, { url = it }, Modifier.fillMaxWidth(), placeholder = "https://.../badges.json")
         ButtonRow { Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) { vm.sourceFormat.importBadges(url); close() } }; Chip(stringResource(R.string.ui_cancel)) { close() } }

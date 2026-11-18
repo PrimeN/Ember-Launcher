@@ -207,7 +207,7 @@ private object FocusColors {
 }
 
 @Composable internal fun FocusBackgroundSettings(vm: HomeViewModel) {
-    ToggleRow("App colors", "Use the focused app's colors behind the page.", vm.look.appFocusColors) { vm.look.updateAppFocusColors(!vm.look.appFocusColors) }
+    ToggleRow("App colours", "Use the focused app's colours behind the page.", vm.look.appFocusColors) { vm.look.updateAppFocusColors(!vm.look.appFocusColors) }
     TextBackgroundChoice("Media rows", vm.look.mediaFocusBackground, vm.look::updateMediaFocusBackground)
     TextBackgroundChoice("Collections", vm.look.collectionFocusBackground, vm.look::updateCollectionFocusBackground)
 }

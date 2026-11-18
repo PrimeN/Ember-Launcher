@@ -1,5 +1,9 @@
 package app.ember.tv.discover
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import app.ember.tv.data.toHex
 import app.ember.tv.data.ApiKeys
 import app.ember.tv.data.Meta
@@ -76,7 +80,7 @@ class ExploreRepository(
         return result
     }
     private suspend fun tmdb(path: String, params: Map<String, String> = emptyMap(), ttl: Long = 15 * 60_000L): JsonElement {
-        val credential = key().takeIf { it.isNotBlank() } ?: error("Add a TMDB API key in Settings > API keys to use Explore.")
+        val credential = key().takeIf { it.isNotBlank() } ?: error("Add a TMDB API key in ${SettingsTab.KEYS.path} to use Explore.")
         val query = params.toSortedMap().map { (k,v) -> "${enc(k)}=${enc(v)}" }.joinToString("&")
         return cached("tmdb:$path?$query:${app.ember.tv.data.CachePolicy.digest(credential)}", ttl) { gate.withPermit {
             val data = get("https://api.themoviedb.org/3/$path?api_key=${enc(credential)}&$query", emptyMap())

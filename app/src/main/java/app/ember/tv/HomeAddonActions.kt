@@ -164,7 +164,7 @@ internal fun HomeViewModel.pauseAddon(url: String, paused: Boolean) {
 }
 
 internal fun HomeViewModel.refreshAddon(url: String) {
-    if (!addonAvailable(url)) { notice = "Resume this add-on before refreshing it."; return }
+    if (!addonAvailable(url)) { notice = "Resume this addon before refreshing it."; return }
     client.forget(url); discover.reset(); collections.invalidatePages(); refreshRows(refetch = true)
 }
 
@@ -188,7 +188,7 @@ internal fun HomeViewModel.addAddon(link: String): String? {
     }
     ensureAddons()
     if (url in addons) return "That addon is already added."
-    if (!prefs.saveAddons(addons + url)) return "Encrypted storage is unavailable. The add-on was not added."
+    if (!prefs.saveAddons(addons + url)) return "Encrypted storage is unavailable. The addon was not added."
     addons = addons + url
     catalogs.addonAdded(url)
     discover.reset()
@@ -208,7 +208,7 @@ internal fun HomeViewModel.renameAddon(url: String, name: String) {
 
 internal fun HomeViewModel.removeAddon(url: String) {
     ensureAddons()
-    if (!prefs.saveAddons(addons - url)) { notice = "Encrypted storage is unavailable. The add-on was kept."; return }
+    if (!prefs.saveAddons(addons - url)) { notice = "Encrypted storage is unavailable. The addon was kept."; return }
     if (AddonAccess.key(url) in prefs.addonNames) renameAddon(url, "")
     AddonClient.cancel(url); client.forget(url); collections.invalidatePages()
     addons = addons - url
@@ -224,7 +224,7 @@ internal fun HomeViewModel.removeAddon(url: String) {
 internal fun HomeViewModel.moveAddon(url: String, step: Int) {
     ensureAddons()
     val next = AddonOrder.moved(addons, url, step) ?: return
-    if (!prefs.saveAddons(next)) { notice = "Encrypted storage is unavailable. The add-on order was kept."; return }
+    if (!prefs.saveAddons(next)) { notice = "Encrypted storage is unavailable. The addon order was kept."; return }
     addons = next
     discover.reset(); refreshRows(refetch = false)
 }
@@ -238,7 +238,7 @@ internal object AddonOrder {
     }
 }
 
-internal fun HomeViewModel.addonLabel(url: String): String = (addonInfo[url] ?: client.cachedManifest(url))?.name ?: "Add-on ${addons.indexOf(url) + 1}"
+internal fun HomeViewModel.addonLabel(url: String): String = (addonInfo[url] ?: client.cachedManifest(url))?.name ?: "Addon ${addons.indexOf(url) + 1}"
 
 internal fun HomeViewModel.updateAddonTimeout(seconds: Int) {
     addonTimeout = seconds

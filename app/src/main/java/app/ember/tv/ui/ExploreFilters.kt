@@ -154,7 +154,7 @@ internal fun ExploreFilters(initial: ExploreQuery, region: String, repository: E
                                     ToggleRow("Include rent and buy", "Off: subscription, free and ad-supported only.", draft.includeRentBuy) {
                                         draft = draft.copy(includeRentBuy = !draft.includeRentBuy)
                                     }
-                                    Hint("Availability in $region from JustWatch via TMDB. Change the country in Settings › Where to watch.")
+                                    Hint("Availability in $region from JustWatch via TMDB. Change the country in ${SettingsTab.STREAMING.path}.")
                                 }
                                 "Actors" -> {
                                     SelectedRefs(draft.actors) { id -> draft = draft.copy(actors = draft.actors.filterNot { it.id == id }) }

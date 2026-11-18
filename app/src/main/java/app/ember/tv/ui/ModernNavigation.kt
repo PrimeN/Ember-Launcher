@@ -231,10 +231,10 @@ fun ModernTopBar(
                 horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     EmberLogo(height = if (compact) 22.dp else 26.dp, tint = Fg)
-                    Text(time, fontSize = if (compact) 14.sp else 16.sp, color = Fg, maxLines = 1, softWrap = false)
+                    Text(time, fontSize = if (compact) 14.sp else 16.sp, color = Fg, maxLines = 1, softWrap = false, style = OverArt)
                 }
                 weather?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, fontSize = 12.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(it, fontSize = 12.sp, color = Fg.copy(alpha = .85f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = OverArt)
                 }
             }
         }
@@ -332,7 +332,7 @@ fun ModernSideRail(
                 // Settings is the first entry inside Quick settings.
                 (tabs.filter { it != NavTabs.SETTINGS } + NavTabs.QUICK).forEach { id -> RailItem(id, tab, id == tab || (id == NavTabs.QUICK && tab == NavTabs.SETTINGS), expanded) { onTab(id) } }
             }
-            Text(time, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Fg, modifier = Modifier.width(44.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(time, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Fg, style = OverArt, modifier = Modifier.width(44.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             if (expanded && weather != null) Text(weather, fontSize = 13.sp, color = Mute, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(end = 20.dp))
         }
     }

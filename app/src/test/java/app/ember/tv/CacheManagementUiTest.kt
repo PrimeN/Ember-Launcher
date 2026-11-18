@@ -80,10 +80,10 @@ class CacheManagementUiTest {
   val metadata=File(app.cacheDir,"managed-responses/metadata/fixture.cache").apply{parentFile!!.mkdirs();writeText("disposable data")}
   compose.runOnIdle{part="cache-size"}
   compose.onNodeWithText("Current cache size").assertExists()
-  compose.onNodeWithText("Clear Cache Data").performSemanticsAction(SemanticsActions.OnClick){it()}
-  compose.onNodeWithText("Clear Cache Data?").assertExists()
+  compose.onNodeWithText("Clear cache data…").performSemanticsAction(SemanticsActions.OnClick){it()}
+  compose.onNodeWithText("Clear cache data?").assertExists()
   compose.onNodeWithText("Clear cache data").performSemanticsAction(SemanticsActions.OnClick){it()}
-  compose.waitUntil(10000){!metadata.exists() && compose.onAllNodesWithText("Clear Cache Data?").fetchSemanticsNodes().isEmpty()}
+  compose.waitUntil(10000){!metadata.exists() && compose.onAllNodesWithText("Clear cache data?").fetchSemanticsNodes().isEmpty()}
   assertEquals(libraryBefore,library.readText())
   assertEquals("fixture-encrypted-user-data",secret.getString("fixture.credential",null))
   assertEquals("keep active download",activeUpdate.readText())

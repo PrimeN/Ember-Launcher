@@ -9,7 +9,7 @@
     <string name="setup_optional_action">Optional setup</string>
     <string name="setup_health_hint">Configured means saved on this device. Connection details and retry controls are on each settings page.</string>
     <string name="setup_home_shortcut">Show setup shortcut on an empty Home</string>
-    <string name="profile_color_current">Profile color: %1$s</string>
+    <string name="profile_color_current">Profile colour: %1$s</string>
     <string-array name="profile_color_names">
         <item>Amber</item>
         <item>Sky blue</item>

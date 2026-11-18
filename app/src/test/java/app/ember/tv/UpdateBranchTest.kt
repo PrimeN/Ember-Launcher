@@ -49,7 +49,7 @@ class UpdateBranchTest {
         try {
             state.checkForUpdate(true); assertEquals("Stable", state.update?.name)
             state.toggleUpdateBeta()
-            assertNull(state.update); assertEquals("Checking...", state.updateMessage)
+            assertNull(state.update); assertEquals("Checking…", state.updateMessage)
         } finally { scope.cancel() }
     }
 

@@ -74,7 +74,7 @@ internal object AppChoices {
     /** Six apps across, at the wide dialog's width. */
     const val PER_ROW=6
     const val ICON=64
-    fun count(shown:Int,all:Int)=when {all==0->"No apps";shown==all->"All $all apps";else->"$shown of $all apps"}
+    fun count(shown:Int,all:Int)=when {all==0->"No apps";all==1->if(shown==1)"1 app" else "0 of 1 app";shown==all->"All $all apps";else->"$shown of $all apps"}
     fun spoken(name:String,shown:Boolean)="$name, "+if(shown)"shown" else "hidden"
 }
 

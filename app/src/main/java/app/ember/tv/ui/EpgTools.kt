@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.counted
+
 import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 
@@ -83,7 +85,7 @@ internal fun EpgTools(iptv: IptvController, initial: Channel? = null, close: () 
             val pool = iptv.visibleChannels.filter { it.sourceId == source && (query.isNotBlank() && it.name.contains(query.trim(), true) ||
                 query.isBlank() && it.key !in iptv.guideMatches) }
             Text(if (query.isBlank()) "${pool.size} unmatched channels · showing up to 40. Search to find any channel."
-                else "${pool.size} channels · showing up to 40", color = Mute, fontSize = 12.sp)
+                else "${pool.size.counted("channel")} · showing up to 40", color = Mute, fontSize = 12.sp)
             pool.take(40).forEach { item -> Chip(item.name) { channel = item; epgSearch = ""; feedChoice = null } }
         } else {
             val item = channel!!

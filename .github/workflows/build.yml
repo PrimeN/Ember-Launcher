@@ -202,9 +202,10 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          libs=$(./gradlew -q :app:dependencies --configuration releaseRuntimeClasspath 2>/dev/null \
-            | grep -oE '[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+:[^ ]+' | sed 's/ ->.*//' | cut -d: -f1,2 | sort -u \
+          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath --console=plain > "$RUNNER_TEMP/deps.txt" 2>&1 || true
+          libs=$(grep -oE '[-+\\|] +[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+' "$RUNNER_TEMP/deps.txt" | grep -oE '[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+$' | sort -u \
             | grep -vE '^(androidx|org\.jetbrains|com\.google\.android)\.' || true)
+          [ -n "$libs" ] || tail -20 "$RUNNER_TEMP/deps.txt"
           { echo "### Runtime libraries"; echo '```'; echo "$libs"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice title=Runtime libraries::$(echo "$libs" | tr '\n' ' ')"
 

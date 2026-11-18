@@ -2,6 +2,8 @@
 
 package app.ember.tv.iptv
 
+import app.ember.tv.data.counted
+
 import app.ember.tv.data.toHex
 import androidx.compose.runtime.mutableLongStateOf
 
@@ -408,7 +410,7 @@ class IptvController(
         guideJob?.cancel()
         health.cancelLoading(health.entries.keys.filter { it.endsWith(":guide") }.toSet())
         scheduleGuideRebuild()
-        if (refresh) refreshGuide() else guideProgress = "${guideMatches.size} channels matched · time offsets updated"
+        if (refresh) refreshGuide() else guideProgress = "${guideMatches.size.counted("channel")} matched · time offsets updated"
         return true
     }
     private fun scheduleGuideRebuild() {

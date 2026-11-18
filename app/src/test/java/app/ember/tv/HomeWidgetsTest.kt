@@ -90,7 +90,7 @@ class HomeWidgetsTest {
         assertTrue("turning from the last title to the first goes forward", WidgetLook.carouselForward(4, 0, 5))
         assertFalse(WidgetLook.carouselForward(0, 4, 5))
         assertTrue(WidgetLook.carouselForward(0, 1, 2)); assertFalse(WidgetLook.carouselForward(1, 0, 2))
-        assertEquals("Movie  ·  2024  ·  Drama, Crime", WidgetLook.carouselLine(Meta("tt1", "movie", "Film", releaseInfo = "2024", genres = listOf("Drama", "Crime", "Mystery"))))
+        assertEquals("Movie · 2024 · Drama, Crime", WidgetLook.carouselLine(Meta("tt1", "movie", "Film", releaseInfo = "2024", genres = listOf("Drama", "Crime", "Mystery"))))
         assertEquals("", WidgetLook.carouselLine(Meta("tt1", "", "Film")))
         // #175: "10" needs twice the room of "9"; part of the numeral always sits behind the card.
         // #202: the rank is on the picture's corner, sized to the card and never tiny or huge.

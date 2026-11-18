@@ -64,7 +64,7 @@ internal fun GuideGrid(
     var time by rememberSaveable { mutableLongStateOf(clock) }
     var followLive by rememberSaveable {mutableStateOf(true)}
     val locale=androidx.compose.ui.platform.LocalConfiguration.current.locales[0] ?: java.util.Locale.ROOT
-    val dateLabel=remember(time,locale) {java.text.SimpleDateFormat("EEE, M/d",locale).format(java.util.Date(time)).uppercase(locale)}
+    val dateLabel=remember(time,locale) {app.ember.tv.data.DisplayDates.dayMonth(time).uppercase(locale)}
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val scroll = rememberScrollState()
     val vertical = rememberLazyListState()
@@ -137,7 +137,7 @@ internal fun GuideGrid(
                 ToolbarIcon("Earlier programmes", Icons.AutoMirrored.Outlined.ArrowBack) {followLive=false; time = (time - 2 * 3_600_000L).coerceAtLeast(start); reveal(time) }
                 ToolbarIcon("Later programmes", Icons.AutoMirrored.Outlined.ArrowForward) {followLive=false; time = (time + 2 * 3_600_000L).coerceAtMost(start + GuideWindow.DURATION - 1); reveal(time) }
                 ToolbarIcon("Jump to now", Icons.Outlined.Schedule) {followLive=true; start = GuideWindow.start(clock); time = clock; scope.launch { scroll.scrollTo(0) } }
-                Text(java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(time)), color = Mute, fontSize = 13.sp)
+                Text(app.ember.tv.data.DisplayDates.dayTime(time), color = Mute, fontSize = 13.sp)
             }
             if (showPanel && panel != null) panel(focused, programme, time)
             else if(showPanel)Column(Modifier.fillMaxWidth().heightIn(min = 78.dp).background(Panel, RoundedCornerShape(12.dp)).padding(12.dp)) {

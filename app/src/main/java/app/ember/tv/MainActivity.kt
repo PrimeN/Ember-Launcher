@@ -1,5 +1,7 @@
 package app.ember.tv
 
+import app.ember.tv.ui.LauncherNotice
+
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -168,6 +170,11 @@ class MainActivity : ComponentActivity() {
         override fun home() { vm.closeDetails(); tab = NavTabs.HOME }
     }
 
+    override fun onPause() {
+        if (LauncherNotice.sink != null) LauncherNotice.sink = null
+        super.onPause()
+    }
+
     override fun onDestroy() {
         if (app.ember.tv.remote.RemoteBridge.screen === remoteScreen) app.ember.tv.remote.RemoteBridge.screen = null
         if (isFinishing) app.ember.tv.remote.PhoneRemote.release(vm)
@@ -177,6 +184,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         app.ember.tv.remote.RemoteBridge.screen = remoteScreen
+        // #331: messages from TV tools show as Ember's notice while Ember is in front.
+        LauncherNotice.sink = vm::showNotice
         app.ember.tv.remote.PhoneRemote.sync(this, vm, app.ember.tv.ui.phonePageAccent(vm.look.accent))
         app.ember.tv.ui.Art.update(this)
         app.ember.tv.ui.RemoteSounds.warm(this)
@@ -290,7 +299,7 @@ class MainActivity : ComponentActivity() {
         if (!vm.appAccess.canLaunch(app.pkg)) return
         val owner=vm.profiles.profileId
         val open={if(owner==vm.profiles.profileId && vm.appAccess.canLaunch(app.pkg))launchInstalledApp({startActivity(app.intent);vm.recordAppLaunch(app.pkg)}) {
-            Toast.makeText(this,getString(R.string.launcher_app_unavailable,app.label),Toast.LENGTH_SHORT).show();vm.refreshApps(force=true)
+            vm.showNotice(getString(R.string.launcher_app_unavailable,app.label));vm.refreshApps(force=true)
         }}
         withAppPin(app.pkg,app.label){open()}
     }
@@ -404,7 +413,7 @@ class MainActivity : ComponentActivity() {
             ?.let { (position, _) -> intent.putExtra("position", position.toInt()).putExtra("from_start", false) }
         launchInstalledApp({ externalPlay = req; rememberPlay(req, pkg); externalPlayer.launch(intent) }) {
             externalPlay = null
-            Toast.makeText(this, R.string.launcher_player_unavailable, Toast.LENGTH_LONG).show()
+            vm.showNotice(getString(R.string.launcher_player_unavailable))
             vm.refreshApps(force=true)
         }
     }
@@ -442,7 +451,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         val title = vm.details?.meta?.name?.let { "$it · Trailer" } ?: "Trailer"
-        Toast.makeText(this, "Loading trailer...", Toast.LENGTH_SHORT).show()
+        vm.showNotice("Loading trailer…")
         lifecycleScope.launch {
             runCatching { app.ember.tv.trailer.YouTubeTrailers.streams(videoId) }
                 .onSuccess { s ->
@@ -454,7 +463,7 @@ class MainActivity : ComponentActivity() {
                 }
                 .onFailure {
                     if(vm.profiles.profileId!=owner || !vm.contentAllowed(content))return@onFailure
-                    Toast.makeText(this@MainActivity, "Could not play the trailer here; opening YouTube.", Toast.LENGTH_SHORT).show()
+                    vm.showNotice("Could not play the trailer here; opening YouTube.")
                     openTrailerInYouTube(videoId)
                 }
         }
@@ -474,7 +483,7 @@ class MainActivity : ComponentActivity() {
                 // try the next way
             }
         }
-        Toast.makeText(this, "Install YouTube to watch trailers.", Toast.LENGTH_LONG).show()
+        vm.showNotice("Install YouTube to watch trailers.")
     }
 
     private fun openOffer(o:Offer) {
@@ -507,7 +516,7 @@ class MainActivity : ComponentActivity() {
                 // try the next way
             }
         }
-        Toast.makeText(this, "Could not open ${o.name}. Install its app from the Play Store.", Toast.LENGTH_LONG).show()
+        vm.showNotice("Could not open ${o.name}. Install its app from the Play Store.")
     }
 
     private fun openTorrent(req: PlayRequest) {
@@ -518,7 +527,7 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, "No app on this TV opens torrent links. Pick a Direct or Cached source instead.", Toast.LENGTH_LONG).show()
+            vm.showNotice("No app on this TV opens torrent links. Pick a Direct or Cached source instead.")
         }
     }
     private fun playbackAllowed(req:PlayRequest):Boolean =

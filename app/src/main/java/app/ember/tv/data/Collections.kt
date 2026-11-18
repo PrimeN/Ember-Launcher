@@ -227,9 +227,9 @@ object Collections {
     internal fun missingCatalog(s: CollectionSource): String {
         val name = (s.extensionFields["catalogName"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
             ?: s.title ?: s.catalogId
-        val addon = (s.extensionFields["addonName"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull ?: "its add-on"
-        return if (name.isNullOrBlank()) "This collection needs an installed add-on catalog."
-        else "\"$name\" is not one of $addon's catalogs. Turn it on in the add-on's settings, or remove it from this folder."
+        val addon = (s.extensionFields["addonName"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull ?: "its addon"
+        return if (name.isNullOrBlank()) "This collection needs an installed addon catalog."
+        else "\"$name\" is not one of $addon's catalogs. Turn it on in the addon's settings, or remove it from this folder."
     }
     private val requests by lazy { CollectionRequests() }
     /** #246: the signed-in Trakt account's token, set by the app; null when nobody is signed in. */

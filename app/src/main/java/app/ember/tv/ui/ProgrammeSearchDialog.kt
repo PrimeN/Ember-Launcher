@@ -39,7 +39,7 @@ internal fun ProgrammeSearchDialog(channels: List<Channel>, guide: Map<String,Li
         LazyColumn(Modifier.fillMaxWidth().heightIn(max=300.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             itemsIndexed(result.hits,key={index,hit->"$index:${hit.channel.key}:${hit.programme.start}"}) {_,hit->
                 Chip(hit.programme.title+" · "+hit.channel.name+" · "+
-                    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(java.util.Date(hit.programme.start))) {
+                    app.ember.tv.data.DisplayDates.dayTime(hit.programme.start)) {
                     select(hit.channel,hit.programme)
                 }
             }

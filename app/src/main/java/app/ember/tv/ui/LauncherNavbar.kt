@@ -150,9 +150,9 @@ private fun NavbarScope(style:String,content:@Composable ()->Unit) {
 private fun NavbarStatus(weather:String?) {
     Column(Modifier.widthIn(max=170.dp),horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(3.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            EmberLogo(22.dp,Fg);Text(rememberLauncherTime(),fontSize=14.sp,color=Fg,maxLines=1)
+            EmberLogo(22.dp,Fg);Text(rememberLauncherTime(),fontSize=14.sp,color=Fg,maxLines=1,style=OverArt)
         }
-        weather?.takeIf {it.isNotBlank()}?.let {Text(it,color=Mute,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
+        weather?.takeIf {it.isNotBlank()}?.let {Text(it,color=Fg.copy(alpha=.85f),fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,style=OverArt)}
     }
 }
 

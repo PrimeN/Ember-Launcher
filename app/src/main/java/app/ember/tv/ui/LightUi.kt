@@ -356,13 +356,13 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             "playing"->MediaDialog("Now Playing",{panel=null}){NowPlayingPanel(vm)}
             "hero" -> MediaDialog(current?.title ?: "Carousel",{panel=null}) {
                 current?.external?.let {item->
-                    Chip(if(item.continuing)"Remove from Continue Watching" else "Dismiss recommendation") {vm.personalHomes.dismiss(item.id,LightMediaProvider.engagementToken(item));panel=null}
+                    Chip(if(item.continuing)"Remove from Continue watching" else "Dismiss recommendation") {vm.personalHomes.dismiss(item.id,LightMediaProvider.engagementToken(item));panel=null}
                     if(!item.continuing)Chip("Hide this app’s recommendations") {vm.personalHomes.update {it.copy(mutedApps=it.mutedApps+item.pkg)};panel=null}
                 }
             }
             "weather" -> SlidePanel(vm.weather.weatherPlaceName ?: "Weather", { panel = null },
                 subtitle = vm.weather.details?.let { forecast -> listOfNotNull(forecast.source,
-                    vm.weather.updatedAt.takeIf { it > 0 }?.let { "Updated " + java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(it)) }).joinToString(" · ") }) { first ->
+                    vm.weather.updatedAt.takeIf { it > 0 }?.let { "Updated " + app.ember.tv.data.DisplayDates.time(it) }).joinToString(" · ") }) { first ->
                 vm.weather.weatherText?.let { Text(it, fontSize = 17.sp, fontWeight = FontWeight.Medium) }
                 vm.weather.details?.days?.forEachIndexed { index, day -> WeatherDayRow(day, if (index == 0) Modifier.focusRequester(first) else Modifier) }
                 if (vm.weather.details == null) Text(if(vm.weather.weatherPlaceName==null)"Choose a city in Weather settings to see its forecast." else "The forecast is temporarily unavailable.", color = Mute, fontSize = 13.sp)
@@ -572,8 +572,8 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
             if(home.dismissed.isNotEmpty())Chip("Restore dismissed carousel items"){vm.personalHomes.update {it.copy(dismissed=emptyMap())}}
         }
         Section(stringResource(R.string.st_light_continue), stringResource(R.string.tx_app_recommendations_and_continue_watching_dep), id = "light-continue") {
-            SettingToggle("Apps’ Continue Watching", null, options.watchNext) { vm.look.updateLightHome { it.copy(watchNext = !it.watchNext) } }
-            if (options.watchNext && canAsk) Chip("Allow apps’ Continue Watching") { request.launch(LightMediaProvider.PERMISSION) }
+            SettingToggle("Apps’ Continue watching", null, options.watchNext) { vm.look.updateLightHome { it.copy(watchNext = !it.watchNext) } }
+            if (options.watchNext && canAsk) Chip("Allow apps’ Continue watching") { request.launch(LightMediaProvider.PERMISSION) }
             SettingToggle("Hide short clips", "Exclude external resume items shorter than 10 minutes.",home.hideShortClips) {vm.personalHomes.update {it.copy(hideShortClips=!it.hideShortClips)}}
             SettingToggle("Hide credits-only items",null,home.hideCredits) {vm.personalHomes.update {it.copy(hideCredits=!it.hideCredits)}}
         }

@@ -48,13 +48,13 @@ internal fun DeviceToolsSettings(vm: HomeViewModel) {
         pendingClip = null; pendingProfile = null
         if (uri != null && kind != null && vm.settingsAllowed && profile == vm.profiles.profileId) scope.launch {
             if (withContext(Dispatchers.IO) { clips.save(kind, uri) }) clipRevision++
-            else Toast.makeText(context, R.string.cal_clip_permission_failed, Toast.LENGTH_LONG).show()
+            else LauncherNotice.show(context, R.string.cal_clip_permission_failed)
         }
     }
     fun start(intent: android.content.Intent) {
         vm.openSettingsGuarded {
             runCatching { context.startActivity(intent) }.onFailure {
-                Toast.makeText(context, R.string.device_menu_unavailable, Toast.LENGTH_LONG).show()
+                LauncherNotice.show(context, R.string.device_menu_unavailable)
             }
         }
     }
@@ -85,13 +85,13 @@ internal fun DeviceToolsSettings(vm: HomeViewModel) {
                         val included = BundledCalibrationSamples.forKind(kind)
                         if (included.isNotEmpty()) Chip(stringResource(R.string.cal_included_patterns, included.size)) {
                             if (supported) sampleMenu = kind
-                            else Toast.makeText(context, R.string.cal_display_unsupported, Toast.LENGTH_LONG).show()
+                            else LauncherNotice.show(context, R.string.cal_display_unsupported)
                         }
                         if (uri != null) {
                             // Keep Play focusable with an explanation on unsupported outputs rather than silently tone-map.
                             Chip(stringResource(R.string.cal_play_clip)) {
                                 if (supported) start(CalibrationActivity.clip(context, kind))
-                                else Toast.makeText(context, R.string.cal_display_unsupported, Toast.LENGTH_LONG).show()
+                                else LauncherNotice.show(context, R.string.cal_display_unsupported)
                             }
                         }
                         Chip(stringResource(if (uri == null) R.string.cal_choose_clip else R.string.cal_replace_clip)) {
@@ -99,7 +99,7 @@ internal fun DeviceToolsSettings(vm: HomeViewModel) {
                                 pendingClip = kind.name; pendingProfile = vm.profiles.profileId
                                 runCatching { picker.launch(arrayOf("video/*", "application/octet-stream")) }.onFailure {
                                     pendingClip = null; pendingProfile = null
-                                    Toast.makeText(context, R.string.cal_no_picker, Toast.LENGTH_LONG).show()
+                                    LauncherNotice.show(context, R.string.cal_no_picker)
                                 }
                             }
                         }

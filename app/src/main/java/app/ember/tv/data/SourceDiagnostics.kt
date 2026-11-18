@@ -32,4 +32,4 @@ internal object SourceDiagnostics {
 }
 
 /** A typed status allows diagnostics without parsing or retaining private error text. */
-class AddonHttpException(val status:Int):java.io.IOException("Add-on returned HTTP $status.")
+class AddonHttpException(val status:Int):java.io.IOException("Addon returned HTTP $status.")

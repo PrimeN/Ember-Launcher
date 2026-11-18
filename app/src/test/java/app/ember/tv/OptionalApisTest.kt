@@ -69,7 +69,7 @@ class OptionalApisTest {
     @Test fun addonOfferCannotBeMistakenForIncludedBaseSubscription() {
         val raw = "[${option("addon", extra=",\"addon\":{\"id\":\"starz\",\"name\":\"Starz\"}")}]"
         val offer = StreamingAvailabilityClient.parseOffers(show(raw), "ca", "tt1234567").single()
-        assertEquals("netflix:starz", offer.externalId); assertEquals("Channel add-on", offer.label)
+        assertEquals("netflix:starz", offer.externalId); assertEquals("Channel addon", offer.label)
         assertEquals("Starz on Netflix", offer.name)
     }
     @Test fun unsafeLinksMissingAddonAndUnknownOfferTypesAreSkipped() {

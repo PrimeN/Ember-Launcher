@@ -39,7 +39,7 @@ fun RecoveryPanel(title: String, message: String, action: String? = null, onActi
 fun SourceStatusRows(statuses: Collection<SourceStatus>, retry: (String) -> Unit) {
     statuses.forEach { status ->
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            val freshness = status.lastSuccess?.let { "Last refreshed ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))}." }
+            val freshness = status.lastSuccess?.let { "Last refreshed ${app.ember.tv.data.DisplayDates.dateTime(it)}." }
             Text(status.name + when {
                 status.loading -> " · Refreshing…"
                 status.failed && status.failure == app.ember.tv.data.SourceFailure.ACCESS -> " · Reconnect this account or check library permissions." + if(status.cached) " Showing saved content." else ""
@@ -124,12 +124,7 @@ fun HomeRecovery(vm: HomeViewModel) {
         else if (state.health.entries.values.any { it.failed }) "Saved content stays available. Source settings shows which source failed and retries it."
         else "Your sources may be empty or their Home catalogs switched off. Choose catalogs in Home settings.",
         "Source settings", vm::openSourceSettings)
-    if(!vm.profiles.profile.kids && vm.addons.isEmpty() && !vm.plexConnected && vm.serverAccounts.isEmpty() && !vm.look.setupChecklistHidden) {
-        ButtonRow {
-            Chip("Optional setup checklist") {vm.openSettingsPage("FEATURES")}
-            Chip("Dismiss") {vm.look.hideSetupChecklist(true)}
-        }
-    }
+    if(!vm.profiles.profile.kids && vm.addons.isEmpty() && !vm.plexConnected && vm.serverAccounts.isEmpty() && !vm.look.setupChecklistHidden) HomeSetupChecklist(vm)
     // Source status (addons, trackers, media servers) lives in Settings, on each source's page.
 }
 

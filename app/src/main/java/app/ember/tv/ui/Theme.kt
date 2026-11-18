@@ -249,3 +249,9 @@ object Tint {
     @Composable @ReadOnlyComposable
     fun deep(): Color = if (dayHere) lerp(MaterialTheme.colorScheme.primary, Color.White, 0.35f) else lerp(MaterialTheme.colorScheme.primary, Color.Black, 0.45f)
 }
+
+/** #328: a soft halo in the opposite tone, so the clock and weather stay readable over any artwork. */
+internal val OverArt: androidx.compose.ui.text.TextStyle
+    @Composable @ReadOnlyComposable
+    get() = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(
+        if (Fg.luminance() > .5f) Color(0xCC000000) else Color(0xCCFFFFFF), androidx.compose.ui.geometry.Offset(0f, 1f), 8f))

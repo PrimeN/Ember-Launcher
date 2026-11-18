@@ -50,7 +50,7 @@ class UpdateTimerAndServicePreferencesTest {
         try {
             state.checkForUpdate(true); assertNotNull(state.update)
             state.updateUpdateChannel("builds")
-            assertNull(state.update); assertEquals("Checking...", state.updateMessage)
+            assertNull(state.update); assertEquals("Checking…", state.updateMessage)
         } finally { scope.cancel() }
     }
 

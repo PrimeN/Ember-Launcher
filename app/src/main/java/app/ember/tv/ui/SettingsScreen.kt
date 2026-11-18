@@ -156,6 +156,15 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     val merged: Boolean get() = mergedInto != null
 }
 
+/** A Settings group's name as shown in the sidebar. */
+internal fun settingsGroupLabel(group: String): String = if (group == "Look") "Look & feel" else group
+
+/**
+ * #324: where a page lives, as messages write it: "Settings › Sources › Addons & catalogs". Built from
+ * the pages' own names (a merged page gives the page that shows it), so directions follow any move.
+ */
+internal val SettingsTab.path: String get() = host.let { "Settings › ${settingsGroupLabel(it.group)} › ${it.label}" }
+
 /**
  * Settings: page names grouped on the left, the chosen page on the right. Moving through the
  * names switches pages; Right goes into the page, and Left comes back to the same name.
@@ -203,7 +212,7 @@ fun SettingsScreen(vm: HomeViewModel) {
             }
             SettingsTab.LIGHT_HOME -> {
                 if (vm.look.uiStyle != app.ember.tv.data.InterfaceStyles.LIGHT) item(key = "light-note") {
-                    Note(stringResource(R.string.st_these_options_apply_when_appearance_interface))
+                    Note(stringResource(R.string.st_these_options_apply_when_appearance_interface, SettingsTab.APPEARANCE.path))
                 }
                 appearancePage(vm, SettingsTab.LIGHT_HOME)
             }

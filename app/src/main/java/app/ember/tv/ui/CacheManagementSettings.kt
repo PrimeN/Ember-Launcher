@@ -57,7 +57,7 @@ internal fun CacheManagementSettings(part: String) {
             }
             error?.let { Text(it,color=Mute) }
         }
-        if (confirm) MediaDialog("Clear Cache Data?",{if(!busy)confirm=false}) {
+        if (confirm) MediaDialog("Clear cache data?",{if(!busy)confirm=false}) {
             Text(stringResource(R.string.tx_downloaded_images_cached_metadata_catalogs_an),color=Mute)
             ButtonRow {
                 Chip(if(busy)stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data),maxLines=1) {

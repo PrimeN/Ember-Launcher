@@ -359,8 +359,8 @@ object ContentPhone {
         append("<form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=delete><label>Collection or folder to delete</label><select name=target>")
         options(content.collections.map { (id, name) -> id to "$name (whole collection)" } + content.targets.filterNot { it.first.startsWith("c-") })
         append("</select><button>Send delete for review on the TV</button></form>")
-        group(); append("<h3>Add-ons</h3><p class=m>Listed in the order the TV asks them. Earlier add-ons are asked first for sources and details.</p><form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=addon><label>Add-on</label><select name=addon>")
-        options(content.addons); append("</select><select name=change><option value=on>Enable</option><option value=off>Pause</option><option value=up>Move up</option><option value=down>Move down</option></select><button>Preview add-on change on TV</button></form>")
+        group(); append("<h3>Addons</h3><p class=m>Listed in the order the TV asks them. Earlier addons are asked first for sources and details.</p><form method=post action=\"/content?k=$auth\"><input type=hidden name=action value=addon><label>Addon</label><select name=addon>")
+        options(content.addons); append("</select><select name=change><option value=on>Enable</option><option value=off>Pause</option><option value=up>Move up</option><option value=down>Move down</option></select><button>Preview addon change on TV</button></form>")
         append("</div></div>")
     }
 }

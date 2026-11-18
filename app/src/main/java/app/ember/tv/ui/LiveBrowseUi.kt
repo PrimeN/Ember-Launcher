@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import app.ember.tv.data.counted
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -68,7 +70,7 @@ internal fun LiveSidebarEntry(
             } else false
         }.semantics {
             this.selected=selected
-            stateDescription=listOfNotNull("$count channels",expanded?.let {if(it)"Expanded" else "Collapsed"}).joinToString(", ")
+            stateDescription=listOfNotNull(count.counted("channel"),expanded?.let {if(it)"Expanded" else "Collapsed"}).joinToString(", ")
         },container=if(selected)androidx.tv.material3.MaterialTheme.colorScheme.primary.copy(alpha=.26f) else Color.Transparent,
         focusedContainer=LiveColors.Focus,focusedContent=LiveColors.OnFocus,focusedScale=TvTokens.Focus.Inline,radius=TvTokens.Shape.Control,outline=false) {
         val color=if(focused)LiveColors.OnFocus else LiveColors.Text

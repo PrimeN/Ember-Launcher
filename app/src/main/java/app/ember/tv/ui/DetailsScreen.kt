@@ -322,11 +322,7 @@ fun DetailsScreen(
                             Text(stringResource(R.string.tx_s_e, ep.season, ep.episode)+ep.title.takeIf {it.isNotBlank()}?.let {" · $it"}.orEmpty(),
                                 fontSize=if(flix)14.sp else 18.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
                         }
-                        Text(listOfNotNull(
-                            when(meta.type){"movie"->"Movie";"anime"->"Anime";else->"Series"},
-                            meta.runtime,d.episode?.released ?: meta.releaseInfo,
-                            meta.genres?.take(2)?.joinToString(", ")?.takeUnless {flix}
-                        ).plus(d.facts).distinct().joinToString(" · "),fontSize=14.sp,color=Mute,maxLines=2,overflow=TextOverflow.Ellipsis)
+                        Text(TitleInfoLine.text(meta.type,d.episode?.released ?: meta.releaseInfo,meta.genres.takeUnless {flix},meta.runtime,d.facts),fontSize=14.sp,color=Mute,maxLines=2,overflow=TextOverflow.Ellipsis)
                         val shown = ratingSources.filter { d.ratings[it.id] != null }
                         if (shown.isNotEmpty()) {
                             ButtonRow(spacing = 18.dp) {
@@ -561,12 +557,12 @@ fun DetailsScreen(
     serverActions?.let { ServerActionsDialog(it) { serverActions = null } }
     if (synopsis) SynopsisDialog(meta.name, meta.description.orEmpty()) { synopsis = false }
     if(more)MediaDialog("About · ${meta.name}",{more=false}) {
-        Text(listOfNotNull(meta.releaseInfo,meta.runtime,meta.genres?.joinToString(", ")).plus(d.facts).filter(String::isNotBlank).distinct().joinToString(" · "),color=Mute,fontSize=14.sp)
+        Text(TitleInfoLine.text(meta.type,meta.releaseInfo,meta.genres,meta.runtime,d.facts,maxGenres=3),color=Mute,fontSize=14.sp)
         d.episode?.let {ep->Text(stringResource(R.string.tx_season_episode, ep.season, ep.episode, ep.title),fontWeight=FontWeight.SemiBold)}
         detailsSynopsis(d)?.let {Text(it,fontSize=16.sp,lineHeight=23.sp)}
         if(!d.episode?.overview.isNullOrBlank() && !meta.description.isNullOrBlank())Chip("About the series") {more=false;synopsis=true}
         if(d.metaSources.isNotEmpty())Text(stringResource(R.string.tx_details_from)+d.metaSources.joinToString(" and "),color=Mute,fontSize=12.sp)
-        if(isContinue)Chip("Remove from Continue Watching") {more=false;onRemoveContinue()}
+        if(isContinue)Chip("Remove from Continue watching") {more=false;onRemoveContinue()}
         if(canRate)Chip(if(myRating!=null)"Your rating: $myRating/10 · change" else "Rate on your trackers") {more=false;rating=true}
     }
     if(rating)MediaDialog("Rate · ${meta.name}",{rating=false}) {

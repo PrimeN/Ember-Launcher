@@ -159,7 +159,7 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                                 Tile("Volume", "Adjust device volume", IcSound) { tv(Settings.Panel.ACTION_VOLUME) },
                                 Tile(stringResource(R.string.ui_qs_remotes), "Bluetooth and accessories", IcBluetooth) { tv(Settings.ACTION_BLUETOOTH_SETTINGS) },
                                 Tile(stringResource(R.string.ui_qs_apps), "Storage, permissions, updates", IcApps) { tv(Settings.ACTION_APPLICATION_SETTINGS) },
-                                Tile(stringResource(R.string.settings_device_tools), stringResource(R.string.settings_summary_device_tools), IcTools) { onClose(); vm.openSettingsPage(SettingsTab.DEVICE_TOOLS.name) },
+                                Tile(stringResource(R.string.settings_page_tv_remote), stringResource(R.string.settings_summary_device_tools), IcTools) { onClose(); vm.openSettingsPage(SettingsTab.DEVICE_TOOLS.name) },
                                 Tile("Open media", "Files, USB and network folders", IcFolder) { onClose(); vm.openSettingsGuarded { context.startActivity(android.content.Intent(context, app.ember.tv.player.MediaFilesActivity::class.java)) } },
                                 Tile(stringResource(R.string.ui_screensaver_now), "Start it now", IcScreensaver) { QuickActions.screensaver(context); onClose() },
                             ) + firmwareMenus.filter { it.kind == app.ember.tv.device.DeviceMenuKind.DEVICE }.take(1).map { menu ->
@@ -292,7 +292,7 @@ private fun Tiles(tiles: List<Tile>, top: (@Composable () -> Unit)? = null) {
                         Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                             MaterialGlyph(t.icon,if(focused)OnPillColor else if(t.highlight)accent else Fg,22.dp)
                             Text(t.title,fontSize=15.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
-                            t.note?.let {Text(it,fontSize=12.sp,color=if(focused)OnPillColor.copy(alpha=.75f) else Mute,maxLines=2,overflow=TextOverflow.Ellipsis)}
+                            t.note?.let {Text(it,fontSize=12.sp,lineHeight=15.sp,color=if(focused)OnPillColor.copy(alpha=.75f) else Mute,maxLines=2,overflow=TextOverflow.Ellipsis)}
                         }
                     }
                 }
@@ -352,7 +352,7 @@ object QuickActions {
         }
         if (!app.ember.tv.device.openFirstDeviceTarget(listOf(action, fallback, Settings.ACTION_SETTINGS).distinct()) {
                 context.startActivity(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }) Toast.makeText(context, "This TV could not open that settings page.", Toast.LENGTH_LONG).show()
+            }) LauncherNotice.show(context, "This TV could not open that settings page.")
     }
 
     /** Manual ambient mode belongs to Ember; no private Android dream activity is required. */
@@ -362,7 +362,7 @@ object QuickActions {
         if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }.onFailure {
             app.ember.tv.data.CrashLog.note("Could not open Ember screensaver", it)
-            Toast.makeText(context, context.getString(R.string.screensaver_launch_failed), Toast.LENGTH_LONG).show()
+            LauncherNotice.show(context, context.getString(R.string.screensaver_launch_failed, SettingsTab.DEBUG.path))
         }
     }
 
@@ -380,7 +380,7 @@ object QuickActions {
     fun info(context: Context): Info {
         val now = java.util.Date()
         val time = android.text.format.DateFormat.getTimeFormat(context).format(now)
-        val date = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(now)
+        val date = app.ember.tv.data.DisplayDates.dayMonth(now.time)
         val net = runCatching { network(context) }.getOrNull()
         val disp = runCatching { display(context) }.getOrNull()
         val sound = runCatching { sound(context) }.getOrNull()
@@ -397,7 +397,7 @@ object QuickActions {
         runCatching { memory(context) }.getOrNull()?.let { lines += "Memory" to it }
         lines += "Device" to "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
         lines += "Ember" to "${app.ember.tv.BuildConfig.VERSION_NAME} (${app.ember.tv.BuildConfig.VERSION_CODE})"
-        return Info(time, date, net?.ethernet == true, net?.short ?: "Not connected", disp?.short ?: "Resolution and HDR", sound?.short ?: "Audio output", lines)
+        return Info(time, date, net?.ethernet == true, net?.short ?: "Not connected", disp?.short ?: "Resolution and HDR", sound?.short ?: "Speakers, HDMI or Bluetooth", lines)
     }
 
     private class Net(val short: String, val long: String, val ip: String?, val ethernet: Boolean)

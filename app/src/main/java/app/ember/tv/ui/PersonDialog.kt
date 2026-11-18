@@ -57,7 +57,7 @@ internal fun PersonDialog(person:Person,current:Meta,close:()->Unit,
     LaunchedEffect(attempt,selected) {
         loading=true;message=null;canRetry=false;titles=emptyList();choices=emptyList()
         try {
-            if(!repo.configured) {message="Add a TMDB API key in Settings › API keys to see their other titles.";return@LaunchedEffect}
+            if(!repo.configured) {message="Add a TMDB API key in ${SettingsTab.KEYS.path} to see their other titles.";return@LaunchedEffect}
             val known=selected ?: person.tmdbId?.takeIf {it>0}?.let {ExploreRef(it,person.name,person.photo)}
             val candidates=if(known!=null)listOf(known) else repo.search(person.name,false)
             val identity=known ?: ExploreRepository.personIdentity(person,candidates)

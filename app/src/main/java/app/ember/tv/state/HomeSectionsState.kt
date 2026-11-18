@@ -1,5 +1,9 @@
 package app.ember.tv.state
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -30,7 +34,7 @@ class HomeSectionsState(
     private val baseSectionInfo: List<SectionInfo>
         get() = buildList {
             add(SectionInfo(HOME_HERO, "Banner", "The large rotating picture at the top, from your Home catalogs."))
-            add(SectionInfo(HOME_APPS, "Your apps", "A row or two of apps. Choose them in Settings > Apps & folders."))
+            add(SectionInfo(HOME_APPS, "Your apps", "A row or two of apps. Choose them in ${SettingsTab.HOME_TOOLS.path}."))
             add(SectionInfo(HOME_CONTINUE, "In progress", "Part-way through: played in Ember, on your trackers and on your media servers."))
             add(SectionInfo(HOME_RECENT, "Recently watched", "Played in Ember, and your Trakt history."))
             add(SectionInfo(HOME_WATCHLIST, "Your watchlist", "Saved on this TV and on your trackers."))
@@ -38,7 +42,7 @@ class HomeSectionsState(
             add(SectionInfo(HOME_SERVERS, "Your media servers", "Continue and recently added on Plex, Jellyfin or Emby."))
             SmartRows.ALL.filter { it.first != SmartRows.UP_NEXT }.forEach { (id, label) -> add(SectionInfo(smartSection(id), label, "Extra row.")) }
             addAll(extraSections().map { it.first })
-            add(SectionInfo(HOME_CATALOGS, "Addon catalogs", "The catalogs switched on for Home in Settings > Addons & catalogs, in that order."))
+            add(SectionInfo(HOME_CATALOGS, "Addon catalogs", "The catalogs switched on for Home in ${SettingsTab.ADDONS.path}, in that order."))
         }
 
     val sectionInfo: List<SectionInfo>

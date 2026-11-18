@@ -125,7 +125,7 @@ class BackupState(
         backupJob {
             withContext(Dispatchers.IO) { Backup.restore(app, payload) }
             restartNeeded = true
-            "Restored from your phone. Ember is restarting..."
+            "Restored from your phone. Ember is restarting…"
         }
     }
 
@@ -135,7 +135,7 @@ class BackupState(
             withContext(Dispatchers.IO) { Backup.restore(app, payload) }
             pendingRestore = null
             restartNeeded = true
-            "Restored. Ember is restarting..."
+            "Restored. Ember is restarting…"
         }
     }
 }

@@ -352,7 +352,7 @@ internal fun PostersPage(vm: HomeViewModel, openKeys: () -> Unit) {
                 ) { v -> vm.metadata.updatePosterConfig { it.copy(landscape = v) } }
                 Note(
                     when (c.landscape) {
-                        PosterConfig.LANDSCAPE_RPDB -> stringResource(if (tier >= 2) R.string.ui_landscape_rpdb_note else R.string.ui_landscape_rpdb_tier)
+                        PosterConfig.LANDSCAPE_RPDB -> if (tier >= 2) stringResource(R.string.ui_landscape_rpdb_note) else stringResource(R.string.ui_landscape_rpdb_tier, SettingsTab.KEYS.path)
                         PosterConfig.LANDSCAPE_PHOTO -> stringResource(R.string.ui_landscape_photo_note)
                         else -> stringResource(R.string.ui_landscape_title_note)
                     },

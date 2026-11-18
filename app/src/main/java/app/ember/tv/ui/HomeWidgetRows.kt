@@ -168,8 +168,7 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.5f to Color.Transparent, 1f to Color(0xB3000000))))
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(.56f).padding(start = 22.dp, bottom = 26.dp, top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             HeroTitle(meta, expanded = false)
-            Text(listOfNotNull(meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() }, meta.releaseInfo?.takeIf { it.isNotBlank() },
-                meta.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() }).joinToString("  ·  "), fontSize = 13.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(TitleInfoLine.text(meta.type, meta.releaseInfo, meta.genres, null), fontSize = 13.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
             meta.description?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = Color(0xFFDADCE0), maxLines = 2, overflow = TextOverflow.Ellipsis) }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 2.dp).onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }) {
@@ -210,8 +209,7 @@ internal data class WidgetLook(val wide: Boolean, val numbered: Boolean) {
         /** The cinematic carousel's share of Home's height (#167, #201): all of it. */
         const val CAROUSEL_HEIGHT = 1f
         /** The line under the carousel's logo: kind, year and up to two genres. */
-        fun carouselLine(meta: Meta): String = listOfNotNull(meta.type.replaceFirstChar { it.uppercase() }.takeIf { it.isNotBlank() },
-            meta.releaseInfo?.takeIf { it.isNotBlank() }, meta.genres?.take(2)?.joinToString(", ")?.takeIf { it.isNotBlank() }).joinToString("  ·  ")
+        fun carouselLine(meta: Meta): String = TitleInfoLine.text(meta.type, meta.releaseInfo, meta.genres, null)
         /** Whether going from one title to another moves forward; the turn from the last back to the first does. */
         fun carouselForward(from: Int, to: Int, count: Int): Boolean = if (from == count - 1 && to == 0 && count > 2) true else if (from == 0 && to == count - 1 && count > 2) false else to > from
         /** Stepping from [index] by a left or right press; null at either end, where the press leaves the carousel. */

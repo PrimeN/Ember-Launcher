@@ -20,7 +20,7 @@ internal object AppManagement {
     }
     private fun details(context:Context,uri:Uri) {
         try {context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}
-        catch(_:ActivityNotFoundException){Toast.makeText(context,"App management is unavailable on this device.",Toast.LENGTH_LONG).show()}
-        catch(_:SecurityException){Toast.makeText(context,"App management is restricted on this device.",Toast.LENGTH_LONG).show()}
+        catch(_:ActivityNotFoundException){LauncherNotice.show(context,"App management is unavailable on this device.")}
+        catch(_:SecurityException){LauncherNotice.show(context,"App management is restricted on this device.")}
     }
 }

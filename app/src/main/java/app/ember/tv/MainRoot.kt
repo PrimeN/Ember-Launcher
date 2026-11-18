@@ -1,5 +1,9 @@
 package app.ember.tv
 
+import app.ember.tv.ui.path
+
+import app.ember.tv.ui.SettingsTab
+
 import androidx.core.net.toUri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -365,7 +369,7 @@ private fun RootContent(
                         onPlayBest = {
                             val pick = app.ember.tv.data.PlayPicker.pick(d.streams, d.serverStreams, vm.playerSettings.playRules)
                             if (pick != null) vm.playRequest(pick)?.let(onPlay)
-                            else vm.showNotice("No source meets your Play button rules yet. Pick one from the list, or change the rules in Settings › Play button.")
+                            else vm.showNotice("No source meets your Play button rules yet. Pick one from the list, or change the rules in ${SettingsTab.PLAY_BUTTON.path}.")
                         },
                         playbackLabel = vm.primaryPlaybackLabel,
                         watched = vm.detailsWatched,
