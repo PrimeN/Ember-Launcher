@@ -6,7 +6,6 @@ import okhttp3.*
 import okio.buffer
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.Closeable
-import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
@@ -20,6 +19,10 @@ internal class NativeHttpTransport(private val headers:Map<String,String>,origin
     private val relay=MediaRelay()
     private val active=ConcurrentHashMap.newKeySet<Call>()
     private val bases=ConcurrentHashMap<String,String>()
+    private data class Metadata(val length:Long,val mime:String,val acceptsRanges:Boolean)
+    private val metadata=object:LinkedHashMap<String,Metadata>(256,.75f,true) {
+        override fun removeEldestEntry(eldest:MutableMap.MutableEntry<String,Metadata>?)=size>256
+    }
     private val authOrigins=origins.mapNotNull {runCatching {it.toHttpUrl().let(::origin)}.getOrNull()}.toSet()
     private val http=Net.client(timing.normalized().connectSeconds.toLong(),timing.normalized().readSeconds.toLong()).newBuilder().cache(null).followRedirects(false).followSslRedirects(false).build()
     @Volatile private var closed=false
@@ -34,13 +37,14 @@ internal class NativeHttpTransport(private val headers:Map<String,String>,origin
         }}}
         return base+url.encodedPath+(url.encodedQuery?.let {"?$it"}?:"")
     }
-    private fun request(initial:HttpUrl,head:Boolean=false,offset:Long=0):Response {
+    private fun request(initial:HttpUrl,head:Boolean=false,range:String?=null):Response {
         var url=initial
         repeat(6) {
             check(!closed)
             val request=Request.Builder().url(url).header("Cache-Control","no-store").apply {
                 headers.forEach {(k,v)->if(origin(url) in authOrigins||k.equals("User-Agent",true))header(k,v)}
-                if(head)head() else if(offset>0)header("Range","bytes=$offset-")
+                if(head)head()
+                if(range!=null)header("Range",range)
             }.build()
             val call=http.newCall(request);active+=call
             val response=try {call.execute()}catch(e:Exception){active-=call;failureCode=2001;throw e}
@@ -62,28 +66,64 @@ internal class NativeHttpTransport(private val headers:Map<String,String>,origin
             }
         };error("Too many media redirects.")
     }
-    private fun resource(url:HttpUrl):RemoteMedia {
-        var final=url
-        var type="";var size=-1L
-        request(url,head=true).use {r ->
-            if(r.isSuccessful){type=r.header("Content-Type").orEmpty().lowercase();size=r.header("Content-Length")?.toLongOrNull()?:-1;final=r.request.url}
+    private fun manifest(url:HttpUrl,fetched:Response?=null):RemoteMedia {
+        var final=url;var useDash=url.encodedPath.endsWith(".mpd",true)
+        val bytes=(fetched ?: request(url)).use {response->
+            check(response.isSuccessful);final=response.request.url
+            val type=response.header("Content-Type").orEmpty()
+            useDash=when {type.contains("dash+xml",true)->true;type.contains("mpegurl",true)->false;else->useDash||final.encodedPath.endsWith(".mpd",true)}
+            SubtitleFiles.read(response.body.byteStream(),4*1024*1024)
         }
-        if(type.isEmpty())request(final).use {r->if(r.isSuccessful){type=r.header("Content-Type").orEmpty().lowercase();size=r.header("Content-Length")?.toLongOrNull()?:-1;final=r.request.url}}
-        val path=final.encodedPath.lowercase()
-        if(path.endsWith(".m3u8")||path.endsWith(".m3u")||path.endsWith(".mpd")||type.contains("mpegurl")||type.contains("dash+xml")) {
-            val bytes=request(final).use {r->check(r.isSuccessful);final=r.request.url;SubtitleFiles.read(r.body.byteStream(),4*1024*1024)}
-            val text=String(bytes,Charsets.UTF_8)
-            val mapped=if(path.endsWith(".mpd")||type.contains("dash+xml"))dash(text,final) else hls(text,final)
-            val content=mapped.toByteArray()
-            return object:RemoteMedia {override val length=content.size.toLong();override fun open(offset:Long)=content.inputStream().apply {skip(offset)}}
-        }
+        val text=String(bytes,Charsets.UTF_8)
+        val mapped=if(useDash)dash(text,final) else hls(text,final)
+        val content=mapped.toByteArray()
         return object:RemoteMedia {
-            override val length=size
-            override fun open(offset:Long):InputStream {
-                val response=request(final,offset=offset)
-                if(!response.isSuccessful || offset>0&&(response.code!=206||response.header("Content-Range")?.startsWith("bytes $offset-")!=true)) {response.close();error("Media source cannot seek.")}
-                return object:java.io.FilterInputStream(response.body.byteStream()){override fun close(){response.close()}}
+            override val length=content.size.toLong()
+            override val mime=if(useDash)"application/dash+xml" else "application/vnd.apple.mpegurl"
+            override fun open(offset:Long)=content.inputStream().apply {skip(offset)}
+        }
+    }
+    private fun isManifest(url:HttpUrl,type:String="")=listOf(".m3u8",".m3u",".mpd").any {url.encodedPath.endsWith(it,true)}||type.contains("mpegurl",true)||type.contains("dash+xml",true)
+    private fun manifestResponse(media:RemoteMedia,range:String?,head:Boolean):RemoteHttpResponse {
+        val bytes=ByteRange.parse(range,media.length) ?: return RemoteHttpResponse(416,0,media.mime,"bytes */${media.length}")
+        val count=bytes.end-bytes.start+1
+        val stream=if(head)null else object:java.io.FilterInputStream(media.open(bytes.start)) {
+            private var remaining=count
+            override fun read():Int {if(remaining<=0)return -1;return super.read().also {if(it>=0)remaining--}}
+            override fun read(buffer:ByteArray,offset:Int,length:Int):Int {
+                if(length==0)return 0
+                if(remaining<=0)return -1
+                return `in`.read(buffer,offset,minOf(length.toLong(),remaining).toInt()).also {if(it>0)remaining-=it}
             }
+        }
+        return RemoteHttpResponse(if(range==null)200 else 206,count,media.mime,if(range==null)null else "bytes ${bytes.start}-${bytes.end}/${media.length}",true,stream)
+    }
+    private fun resource(url:HttpUrl):RemoteMedia=object:RemoteHttpMedia {
+        override fun response(range:String?,head:Boolean):RemoteHttpResponse {
+            check(!closed)
+            if(isManifest(url))return manifestResponse(manifest(url),range,head)
+            val cached=synchronized(metadata){metadata[url.toString()]}
+            if(head&&range==null&&cached!=null)return RemoteHttpResponse(200,cached.length,cached.mime,acceptsRanges=cached.acceptsRanges)
+            var response=request(url,head,range)
+            var upstreamRange=range
+            if(head&&!response.isSuccessful) {
+                response.close()
+                upstreamRange=range ?: "bytes=0-0"
+                response=request(url,range=upstreamRange)
+            }
+            val type=response.header("Content-Type").orEmpty()
+            if(isManifest(response.request.url,type)) {
+                val final=response.request.url
+                val fetched=if(response.request.method=="GET"&&response.code==200)response else {response.close();null}
+                return manifestResponse(manifest(final,fetched),range,head)
+            }
+            val result=response.relayResponse(head,upstreamRange)
+            if(result.code in setOf(200,206)) {
+                val size=if(result.code==206)result.contentRange?.substringAfterLast('/')?.toLongOrNull() ?: -1 else result.length
+                synchronized(metadata){if(!closed)metadata[url.toString()]=Metadata(size,result.mime,result.acceptsRanges)}
+                if(head&&range==null&&result.code==206)return RemoteHttpResponse(200,size,result.mime,acceptsRanges=result.acceptsRanges)
+            }
+            return result
         }
     }
     private fun mapped(base:HttpUrl,value:String):String {
@@ -110,5 +150,5 @@ internal class NativeHttpTransport(private val headers:Map<String,String>,origin
         rewrite(document.documentElement,base)
         val output=java.io.StringWriter();TransformerFactory.newInstance().newTransformer().transform(DOMSource(document),StreamResult(output));return output.toString()
     }
-    override fun close(){closed=true;active.forEach {it.cancel()};active.clear();relay.close()}
+    override fun close(){closed=true;active.forEach {it.cancel()};active.clear();relay.close();synchronized(metadata){metadata.clear()};bases.clear()}
 }
