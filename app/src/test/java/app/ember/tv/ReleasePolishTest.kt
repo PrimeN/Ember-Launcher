@@ -27,4 +27,14 @@ class ReleasePolishTest {
         assertEquals("1 app", AppChoices.count(1, 1))
         assertEquals("All 3 apps", AppChoices.count(3, 3))
     }
+
+    /** #323: every library the APK carries is credited, with its notice where the license asks for one. */
+    @Test fun bundledLibrariesAreCredited() {
+        val text = app.ember.tv.data.Legal.OPEN_SOURCE.flatMap { it.items }.joinToString("\n") { it.title + " " + it.text }
+        for (name in listOf("Rhino", "jsoup", "Bouncy Castle", "SLF4J", "MBassador", "nanojson", "Protocol Buffers", "Tink", "Guava", "Okio", "asn-one"))
+            assertTrue(name, text.contains(name))
+        val notices = (java.io.File("src/main/assets/licenses/Bundled-MIT-BSD-NOTICES.txt").takeIf { it.exists() } ?: java.io.File("app/src/main/assets/licenses/Bundled-MIT-BSD-NOTICES.txt")).readText()
+        for (holder in listOf("Jonathan Hedley", "Legion of the Bouncy Castle", "QOS.ch", "Benjamin Diedrichsen", "nanojson Authors", "Google Inc."))
+            assertTrue(holder, notices.contains(holder))
+    }
 }

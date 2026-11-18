@@ -172,6 +172,14 @@ object Legal {
                 Item("Coil", "Image loading. Apache License 2.0.", "https://coil-kt.github.io/coil/"),
                 Item("ZXing", "QR code for ${SettingsTab.PHONE.path}. Apache License 2.0.", "https://github.com/zxing/zxing"),
                 Item("AndroidX ProfileInstaller", "Installs startup profiles so the app starts faster. Apache License 2.0.", "https://developer.android.com/jetpack/androidx"),
+                // #323: libraries that Ember's own dependencies bring into the app.
+                Item("Mozilla Rhino", "JavaScript engine used by NewPipe Extractor for trailers. Mozilla Public License 2.0; its source is available from Mozilla.", "https://github.com/mozilla/rhino"),
+                Item("jsoup, Bouncy Castle, SLF4J, MBassador, nanojson and Protocol Buffers",
+                    "Brought in by NewPipe Extractor (jsoup, nanojson, Protocol Buffers) and SMBJ (Bouncy Castle, SLF4J, MBassador). MIT and BSD licenses; their notices are bundled below.",
+                    licenseAsset = "licenses/Bundled-MIT-BSD-NOTICES.txt"),
+                Item("Tink, Guava, Gson, Okio, asn-one and others",
+                    "Tink, Guava, Gson and Error Prone annotations (through AndroidX Security), Okio (OkHttp), asn-one (SMBJ), AndroidSVG and Accompanist (Coil), JSR-305, JSpecify and JetBrains annotations. Apache License 2.0.",
+                    licenseAsset = "licenses/Apache-2.0.txt"),
             ),
         ),
     )
