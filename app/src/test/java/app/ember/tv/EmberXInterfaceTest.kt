@@ -55,7 +55,7 @@ class EmberXInterfaceTest {
             val look=LookState(prefs,scope)
             look.updateUiStyle(InterfaceStyles.EMBER_X)
             assertFalse(Ui.emberX);assertFalse(Ui.light);assertTrue(Ui.isDay)
-            assertEquals(InterfaceStyles.MODERN,prefs.uiStyle);assertEquals("side",prefs.menuPosition);assertEquals("day",prefs.theme)
+            assertEquals(InterfaceStyles.MODERN,prefs.uiStyle);assertEquals(app.ember.tv.data.NavbarStyles.SIDEBAR,prefs.navbarStyle);assertEquals("day",prefs.theme)
             assertEquals("simple",prefs.playbackConfig.playerLook)
             look.updateAccent(ColorThemes.CINEMA_RED)
             assertFalse(Ui.emberX)
