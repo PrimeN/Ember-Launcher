@@ -12,6 +12,12 @@ import app.ember.tv.updateAddonTimeout
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.OpenWith
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -24,6 +30,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -333,25 +340,59 @@ private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: 
         }
     }
 }
-/** One catalog on one line (#204): its place and name, then where it shows. Its addon is the group it sits in. */
+/**
+ * One catalog as one card: its place, name and type, and where it shows as small marks. OK opens
+ * one menu with Home, Live TV, Discover, Rename and Move, so a long list is one stop per catalog.
+ */
 @Composable
 private fun CatalogCard(vm: HomeViewModel, i: Int, c: CatalogDef, lastIndex: Int) {
-    Row(Modifier.fillMaxWidth().padding(start = 16.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("${i + 1}", color = Mute, fontSize = 13.sp, modifier = Modifier.width(26.dp))
-        Text(c.label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        // Places a catalog can't go are locked switches that say why (#102), not text.
-        SwitchChip(stringResource(R.string.ui_home_b9499), vm.isOnHome(c), locked = !c.homeable) {
-            if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home"))
+    var menu by remember(c.key) { mutableStateOf(false) }
+    var renaming by remember(c.key) { mutableStateOf(false) }
+    val home = vm.isOnHome(c); val live = vm.isOnLive(c); val discover = vm.isInDiscover(c)
+    val homeName = stringResource(R.string.ui_home_b9499); val liveName = stringResource(R.string.ui_live_tv_2386e)
+    val discoverName = stringResource(R.string.ui_discover); val renameName = stringResource(R.string.ui_rename)
+    Focusable(onClick = { menu = true }, modifier = Modifier.fillMaxWidth().padding(start = 16.dp).testTag("catalog_card"),
+        radius = TvTokens.Shape.Card, container = PanelHi, focusedScale = TvTokens.Focus.Inline) {
+        val ink = androidx.tv.material3.LocalContentColor.current
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(34.dp).background(ink.copy(alpha = .10f), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Text("${i + 1}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(CatalogBrowse.cardLine(c.type, c.label, c.originalLabel), color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                CatalogPlace(homeName, home, !c.homeable, ink)
+                CatalogPlace(liveName, live, !c.homeable, ink)
+                CatalogPlace(discoverName, discover, !c.browsable, ink)
+            }
+            androidx.tv.material3.Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = ink.copy(alpha = .7f), modifier = Modifier.size(20.dp))
         }
-        SwitchChip(stringResource(R.string.ui_live_tv_2386e), vm.isOnLive(c), locked = !c.homeable) {
-            if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV"))
-        }
-        SwitchChip(stringResource(R.string.ui_discover), vm.isInDiscover(c), locked = !c.browsable) {
-            if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover"))
-        }
-        CatalogRenameButton(vm, c.key, c.originalLabel)
-        MoveButton(c.label, i, lastIndex) { step -> vm.moveCatalog(c, step) }
+    }
+    if (menu) OptionMenu(c.label, buildList {
+        // Places a catalog can't go stay in the menu with a lock and say why (#102).
+        fun place(label: String, on: Boolean, allowed: Boolean, where: String, toggle: () -> Unit) =
+            add(MenuOption(label, selected = on, icon = if (allowed) null else Icons.Outlined.Lock) { if (allowed) toggle() else vm.showNotice(catalogLockReason(c, where)) })
+        place(homeName, home, c.homeable, "Home") { vm.toggleCatalogHome(c) }
+        place(liveName, live, c.homeable, "Live TV") { vm.toggleCatalogLive(c) }
+        place(discoverName, discover, c.browsable, "Discover") { vm.toggleCatalogDiscover(c) }
+        add(MenuOption(renameName, icon = Icons.Outlined.Edit) { renaming = true })
+        moveOptions(i, lastIndex).forEach { (label, step) -> add(MenuOption(label, icon = Icons.Outlined.OpenWith) { vm.moveCatalog(c, step) }) }
+    }) { menu = false }
+    if (renaming) CatalogRenameDialog(vm, c.key, c.originalLabel) { renaming = false }
+}
+/** Where a catalog shows, on its card: ticked when on, faint when off, a lock where it cannot go. */
+@Composable
+private fun CatalogPlace(label: String, on: Boolean, locked: Boolean, ink: Color) {
+    val shape = RoundedCornerShape(8.dp)
+    Row(Modifier.clip(shape).then(if (on) Modifier.background(ink.copy(alpha = .16f), shape) else Modifier.border(1.dp, ink.copy(alpha = .22f), shape))
+        .padding(horizontal = 8.dp, vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        val alpha = when { on -> 1f; locked -> .4f; else -> .6f }
+        androidx.tv.material3.Icon(when { locked -> Icons.Outlined.Lock; on -> Icons.Outlined.Check; else -> Icons.Outlined.Close },
+            contentDescription = null, tint = ink.copy(alpha = alpha), modifier = Modifier.size(13.dp))
+        Text(label, fontSize = 12.sp, color = ink.copy(alpha = alpha), maxLines = 1)
     }
 }
 /**
@@ -381,6 +422,9 @@ internal object CatalogBrowse {
         else -> type.replaceFirstChar { it.uppercase() }.ifBlank { "Other" }
     }
     fun types(list: List<CatalogDef>): List<String> = list.map { it.type }.distinct()
+    /** The second line of a catalog's card: its type, and the addon's own name when it was renamed. */
+    fun cardLine(type: String, label: String, original: String): String =
+        typeName(type) + if (original.isNotBlank() && original != label) " · was $original" else ""
 
     /** Addons in the order their first catalog holds; inside, types in the order they first appear. */
     fun groups(list: List<CatalogDef>, show: String, type: String, onHome: (CatalogDef) -> Boolean, onLive: (CatalogDef) -> Boolean, inDiscover: (CatalogDef) -> Boolean): List<Group> =
