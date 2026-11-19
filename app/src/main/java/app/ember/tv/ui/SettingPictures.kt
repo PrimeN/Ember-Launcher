@@ -32,7 +32,7 @@ internal object SettingPictures {
     fun of(group: String, option: String): String = "$group-$option"
     val known = setOf(
         "ui-modern", "ui-light", "ui-ember_x", "theme-night", "theme-day", "theme-auto", "menu-top", "menu-side",
-        "nav-ember", "nav-ember_collapsed", "nav-cinema_bar", "page-modern", "page-ember_x", "apps-banner", "apps-circle",
+        "nav-ember", "nav-ember_collapsed", "nav-sidebar", "nav-cinema_bar", "page-modern", "page-ember_x", "apps-banner", "apps-circle",
         "density-comfortable", "density-standard", "density-dense", "apps-square",
         "player-basic", "player-modern", "player-ember_x", "player-streaming",
         "info-start", "info-ask",
@@ -193,7 +193,7 @@ private fun SettingPicture(picture: String, ink: Color) {
             }
             // Menu: along the top, or down the side.
             "menu-top", "nav-ember" -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) { TopBar(5); Page() }
-            "menu-side" -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(5.dp)) { Rail(); Page() }
+            "menu-side", "nav-sidebar" -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(5.dp)) { Rail(); Page() }
             // Navbar styles: the full bar, one pill that opens, or a dark strip across the top.
             "nav-ember_collapsed" -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) { TopBar(1); Page() }
             "nav-cinema_bar" -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {

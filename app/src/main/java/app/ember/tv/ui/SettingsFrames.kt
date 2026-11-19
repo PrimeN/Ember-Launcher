@@ -143,6 +143,9 @@ internal fun ModernSettings(
     focusContent:Boolean,onFocusHandled:()->Unit,targetIndex:Int?=null,page:LazyListScope.()->Unit,
 ) {
     val target=LocalSettingsTarget.current
+    // Back from anywhere in Settings with a page open (the menu on the left, or after the focused option
+    // went away) returns to that page's topics instead of leaving Settings; the page itself handles Back first.
+    androidx.activity.compose.BackHandler(enabled=location.page!=null && location.topics()!=null) {onPageBack()}
     androidx.compose.runtime.CompositionLocalProvider(LocalSlate provides true) {
         val sideFocus=remember {androidx.compose.ui.focus.FocusRequester()}
         val contentFocus=remember {androidx.compose.ui.focus.FocusRequester()}

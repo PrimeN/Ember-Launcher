@@ -56,7 +56,10 @@ class LookState(
     fun resetDiscoverSections() { discoverSections = emptyMap(); prefs.discoverSections = emptyMap() }
     var uiStyle by mutableStateOf(prefs.uiStyle.also { Ui.light = it == InterfaceStyles.LIGHT; Ui.emberX = false }); private set
     var mediaPageLayout by mutableStateOf(prefs.mediaPageLayout); private set
-    var navbarStyle by mutableStateOf(prefs.navbarStyle); private set
+    var navbarStyle by mutableStateOf(app.ember.tv.data.NavbarStyles.resolve(prefs.navbarStyle,prefs.menuPosition).also {
+        // Ember with Menu: Side is now its own style, Sidebar.
+        if(it!=prefs.navbarStyle){prefs.navbarStyle=it;prefs.menuPosition="top"}
+    }); private set
     fun updateNavbarStyle(value:String) {
         if(!app.ember.tv.data.NavbarStyles.available(uiStyle))return
         navbarStyle=app.ember.tv.data.NavbarStyles.normalize(value)

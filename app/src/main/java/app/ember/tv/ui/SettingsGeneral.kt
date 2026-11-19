@@ -116,7 +116,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
         SettingsTab.APPEARANCE -> buildList {
             // #317: the interface, then its colours, then navigation, then pages and labels.
             add("interface"); add("theme"); add("accent_colour")
-            if (active != "light") {add("navbar-style");add("menu")}
+            if (active != "light") add("navbar-style")
             // #245: the tabs sit with the navbar they belong to.
             add("navbar-tabs")
             add("media-page-layout")
@@ -213,10 +213,6 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
             vm.look.updateRemoteSounds(!vm.look.remoteSounds); RemoteSounds.warm(soundContext)
         }
     }
-        "menu" -> if(vm.look.navbarStyle==app.ember.tv.data.NavbarStyles.EMBER)Section(stringResource(R.string.ui_menu), stringResource(R.string.ui_along_the_top_or_down_the)) {
-            PictureChoice("menu", listOf("top" to stringResource(R.string.ui_top), "side" to stringResource(R.string.ui_side)),
-                if (vm.look.menuPosition == "side") "side" else "top", vm.look::updateMenuPosition)
-        }
         "wallpaper" -> LightHomeSettings(vm)
         "app_icons" -> Section(stringResource(R.string.ui_app_icons), stringResource(R.string.ui_how_your_apps_looks_on_home)) {
             PictureChoice("apps", listOf("banner" to stringResource(R.string.ui_banners), "circle" to stringResource(R.string.ui_circles), "square" to "Squares"),

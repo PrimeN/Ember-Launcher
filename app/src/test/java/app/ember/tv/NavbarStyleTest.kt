@@ -11,9 +11,22 @@ import org.junit.rules.TemporaryFolder
 class NavbarStyleTest {
     @get:Rule val temp=TemporaryFolder()
     @After fun resetUi(){Ui.emberX=false;Ui.light=false;Ui.day=false;Ui.oled=false}
+    @Test fun anEmberMenuSavedDownTheSideBecomesTheSidebar() {
+        assertEquals(NavbarStyles.SIDEBAR,NavbarStyles.resolve(NavbarStyles.EMBER,"side"))
+        assertEquals(NavbarStyles.EMBER,NavbarStyles.resolve(NavbarStyles.EMBER,"top"))
+        assertEquals(NavbarStyles.CINEMA,NavbarStyles.resolve(NavbarStyles.CINEMA,"side"))
+        val prefs=Prefs(PersistenceContext(temp.newFolder())).apply {menuPosition="side"}
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Unconfined)
+        try {
+            val look=LookState(prefs,scope)
+            assertEquals(NavbarStyles.SIDEBAR,look.navbarStyle);assertEquals("top",prefs.menuPosition)
+            look.updateNavbarStyle(NavbarStyles.EMBER)
+            assertEquals(NavbarStyles.EMBER,LookState(prefs,scope).navbarStyle)
+        } finally {scope.cancel()}
+    }
     @Test fun emberIsDefaultAndOnlyThreeNamedChoicesAreOffered() {
         assertEquals(NavbarStyles.EMBER,Prefs(PersistenceContext(temp.newFolder())).navbarStyle)
-        assertEquals(listOf("Ember","Ember Collapsed","Cinema Bar"),NavbarStyles.options.map {it.second})
+        assertEquals(listOf("Ember","Ember Collapsed","Sidebar","Cinema Bar"),NavbarStyles.options.map {it.second})
         assertEquals(NavbarStyles.EMBER,NavbarStyles.normalize("unknown"))
     }
     @Test fun everyStyleSurvivesBackupWithoutChangingHomeMediaOrPlayer() {
@@ -44,11 +57,11 @@ class NavbarStyleTest {
         assertFalse("navbar-style" in lookKeys(SettingsTab.APPEARANCE,InterfaceStyles.LIGHT))
         for(launcher in listOf(InterfaceStyles.MODERN,InterfaceStyles.EMBER_X)) {
             assertTrue("navbar-style" in lookKeys(SettingsTab.APPEARANCE,launcher))
-            assertTrue(NavbarStyles.side(NavbarStyles.EMBER,launcher,"side",NavTabs.HOME))
-            for(style in listOf(NavbarStyles.COLLAPSED,NavbarStyles.CINEMA))assertFalse(NavbarStyles.side(style,launcher,"side",NavTabs.HOME))
+            assertTrue(NavbarStyles.side(NavbarStyles.SIDEBAR,launcher,NavTabs.HOME))
+            for(style in listOf(NavbarStyles.EMBER,NavbarStyles.COLLAPSED,NavbarStyles.CINEMA))assertFalse(NavbarStyles.side(style,launcher,NavTabs.HOME))
         }
-        assertFalse(NavbarStyles.side(NavbarStyles.EMBER,InterfaceStyles.LIGHT,"side",NavTabs.HOME))
-        assertFalse(NavbarStyles.side(NavbarStyles.EMBER,InterfaceStyles.MODERN,"side",NavTabs.SETTINGS))
+        assertFalse(NavbarStyles.side(NavbarStyles.SIDEBAR,InterfaceStyles.LIGHT,NavTabs.HOME))
+        assertFalse(NavbarStyles.side(NavbarStyles.SIDEBAR,InterfaceStyles.MODERN,NavTabs.SETTINGS))
         assertEquals("navbar-style",SettingDefinitions.matching("Navbar style").single().id)
     }
     @Test fun sourceDependentTabsStayHiddenAndSearchLeadsTheNewMenus() {
@@ -60,5 +73,6 @@ class NavbarStyleTest {
         assertFalse(NavbarStyles.forcesNight(NavbarStyles.CINEMA,day=true))
         assertFalse(NavbarStyles.forcesNight(NavbarStyles.COLLAPSED,day=true))
         assertFalse(NavbarStyles.forcesNight(NavbarStyles.EMBER,day=false))
+        assertFalse(NavbarStyles.forcesNight(NavbarStyles.SIDEBAR,day=false))
     }
 }

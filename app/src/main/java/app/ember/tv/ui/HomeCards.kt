@@ -132,6 +132,17 @@ import app.ember.tv.iptv.IptvController
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 
+/** A profile's picture, not focusable: for rows that are themselves the button. */
+@Composable
+fun ProfileFace(p: app.ember.tv.data.Profile, size: androidx.compose.ui.unit.Dp) {
+    val color = Color(app.ember.tv.data.Profile.COLORS.getOrElse(p.color) { app.ember.tv.data.Profile.COLORS[0] })
+    Box(Modifier.size(size).clip(CircleShape).background(color).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+        Text(p.name.take(1).uppercase(), fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F1F1F))
+        app.ember.tv.data.Profile.usablePhoto(p.photo)?.let { photo ->
+            coil.compose.AsyncImage(photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+        }
+    }
+}
 /** A profile's round avatar: its first letter on its colour. */
 @Composable
 fun ProfileAvatar(p: app.ember.tv.data.Profile, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier, onClick: () -> Unit) {

@@ -50,7 +50,7 @@ internal val LocalProfileMenu = compositionLocalOf<ProfileMenuConfig?> { null }
 /** Popup belongs to its avatar, so details, top navigation and side navigation share one menu. */
 @Composable
 internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, size: Dp = 42.dp,
-    onFallback: () -> Unit = {}) {
+    onFallback: () -> Unit = {}, row: Boolean = false, anchorModifier: Modifier = Modifier, onOpenChanged: (Boolean) -> Unit = {}) {
     val menu = LocalProfileMenu.current
     val currentMenu by rememberUpdatedState(menu)
     var open by remember(profile.id) { mutableStateOf(false) }
@@ -81,10 +81,12 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
         val space = maxOf(windowSize.height - anchorBottom - 28.dp.roundToPx(), anchorTop - 28.dp.roundToPx())
         space.coerceAtLeast(1).toDp()
     }
+    val currentOpenChanged by rememberUpdatedState(onOpenChanged)
     fun close(returnFocus: Boolean) {
         restore = returnFocus
         open = false
         currentMenu?.onOpenChanged?.invoke(false)
+        currentOpenChanged(false)
     }
     DisposableEffect(Unit) { onDispose { currentMenu?.onOpenChanged?.invoke(false) } }
     LaunchedEffect(open) {
@@ -99,15 +101,31 @@ internal fun ProfileMenuButton(profile: Profile, modifier: Modifier = Modifier, 
         anchorTop = bounds.top.toInt()
         anchorBottom = bounds.bottom.toInt()
     }) {
-        ProfileAvatar(profile, size, Modifier.focusRequester(anchorFocus).semantics {
+        val anchor = anchorModifier.focusRequester(anchorFocus).semantics {
             contentDescription = "Profile: ${profile.name}. Open profile menu"
             stateDescription = if (open) "Expanded" else "Collapsed"
-        }) {
+        }
+        val show = {
             if (menu == null) onFallback() else {
                 open = true
                 menu.onOpenChanged(true)
+                onOpenChanged(true)
             }
         }
+        // In a menu panel the profile is a row like the others: its picture and name.
+        if (row) Focusable(onClick = show, modifier = anchor.fillMaxWidth().heightIn(min = 52.dp), radius = TvTokens.Shape.Card,
+            container = Color.Transparent, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false,
+            focusedScale = TvTokens.Focus.None) {
+            Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ProfileFace(profile, size)
+                Column(Modifier.weight(1f)) {
+                    Text(profile.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(if (profile.kids) "Kids profile" else "Switch profile", fontSize = TvTokens.Type.Caption.sp,
+                        color = androidx.tv.material3.LocalContentColor.current.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        } else ProfileAvatar(profile, size, anchor, show)
         if (open && menu != null) {
             Popup(popupPositionProvider = position, onDismissRequest = { close(true) },
                 properties = PopupProperties(focusable = true)) {

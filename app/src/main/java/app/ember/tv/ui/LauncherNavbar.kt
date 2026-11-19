@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -43,11 +45,15 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
     content:@Composable (Boolean)->Unit) {
     val chosen=NavbarStyles.normalize(style)
     val enabled=NavbarStyles.available(launcher) && current!=NavTabs.SETTINGS
-    val side=NavbarStyles.side(chosen,launcher,position,current)
+    val side=NavbarStyles.side(chosen,launcher,current)
     val owner=LocalNavigationFocus.current
     val active=navigationTabForPage(current,tabs)
     var expanded by remember(chosen,enabled,profile.id) {mutableStateOf(false)}
     var menuHadFocus by remember(chosen,enabled,profile.id) {mutableStateOf(false)}
+    // The profile menu opens in its own window; the panel stays open behind it.
+    var profileOpen by remember(chosen,enabled,profile.id) {mutableStateOf(false)}
+    var panelFocused by remember(chosen,enabled,profile.id) {mutableStateOf(false)}
+    val profileRow=remember {FocusRequester()}
     val scope=rememberCoroutineScope()
     val focus=androidx.compose.ui.platform.LocalFocusManager.current
     val duration=PolishMotion.duration(TvTokens.Motion.Rail,LocalRenderOptions.current,LocalReduceMotion.current)
@@ -71,21 +77,25 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
             reveal.animateTo(1f,tween(duration))
         } else reveal.snapTo(0f)
     }
-    BackHandler(enabled=expanded){close()}
+    BackHandler(enabled=expanded && !profileOpen){close()}
+    LaunchedEffect(profileOpen) {
+        // Closed after choosing a profile or an action: the panel closes too, unless focus came back to it.
+        if(!profileOpen && expanded) {repeat(2){withFrameNanos { }};if(!panelFocused){expanded=false;menuHadFocus=false}}
+    }
     BoxWithConstraints(modifier.fillMaxSize().onPreviewKeyEvent {
         if(it.type==KeyEventType.KeyDown)lastKey=android.os.SystemClock.uptimeMillis()
         false
     }) {
         val panelHeight=(maxHeight-76.dp).coerceAtLeast(100.dp)
-        val panelWidth=minOf(220.dp*LocalDensity.current.fontScale.coerceIn(1f,1.5f),maxWidth-32.dp)
-        Column(Modifier.fillMaxSize().padding(start=if(side)84.dp else 0.dp)) {
+        val panelWidth=minOf(240.dp*LocalDensity.current.fontScale.coerceIn(1f,1.5f),maxWidth-32.dp)
+        Column(Modifier.fillMaxSize().padding(start=if(side)SidebarRailWidth else 0.dp)) {
             if(enabled && !side) NavbarScope(chosen) {
                 when(chosen) {
                     NavbarStyles.EMBER -> ModernTopBar(tabs,current,onTab,weather,profile,onProfile=onProfile)
                     NavbarStyles.CINEMA -> CinemaNavbar(tabs,current,onTab,weather,profile,onProfile)
                     else -> Row(Modifier.fillMaxWidth().height(72.dp).padding(horizontal=24.dp),
                         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                        ProfileMenuButton(profile,size=36.dp,onFallback=onProfile)
+                        // The profile is the first row of the opened menu (#369).
                         GlassControl(tabTitle(active),null,Modifier.testTag("navbar_handle")
                             .then(if(!expanded && owner!=null)Modifier.navigationTabTarget(owner,active) else Modifier)
                             .focusProperties {canFocus=!expanded;if(owner!=null)down=owner.content(current)}
@@ -99,33 +109,40 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
             }
             Box(Modifier.weight(1f).fillMaxWidth().testTag("navbar_content")) {content(side)}
         }
-        if(enabled && side) NavbarScope(NavbarStyles.EMBER) {
-            ModernSideRail(tabs,current,onTab,weather,profile=profile,onProfile=onProfile)
+        if(enabled && side) NavbarScope(NavbarStyles.SIDEBAR) {
+            SidebarMenu(tabs,current,onTab,weather,profile,onProfile)
         }
         if(enabled && chosen==NavbarStyles.COLLAPSED && expanded) {
-            Box(Modifier.padding(top=64.dp).fillMaxSize().background(Color.Black.copy(alpha=.16f))
+            Box(Modifier.padding(top=64.dp).fillMaxSize().background(Color.Black.copy(alpha=.32f))
                 .pointerInput(Unit){detectTapGestures {close()}})
             NavbarScope(chosen) {
                 Column(Modifier.align(Alignment.TopStart).padding(start=24.dp,top=64.dp).width(panelWidth)
                     .heightIn(max=panelHeight).graphicsLayer {alpha=reveal.value;translationX=-20.dp.toPx()*(1f-reveal.value)}
-                    .glassSurface(RoundedCornerShape(18.dp)).padding(8.dp)
+                    .matteMenuSurface(RoundedCornerShape(20.dp)).padding(8.dp)
                     .onFocusChanged {
-                        if(it.hasFocus)menuHadFocus=true else if(menuHadFocus){expanded=false;menuHadFocus=false}
+                        panelFocused=it.hasFocus
+                        if(it.hasFocus)menuHadFocus=true else if(menuHadFocus && !profileOpen){expanded=false;menuHadFocus=false}
                     }
                     .navigationFocusGroup {runCatching {owner?.tab(active)?.requestFocus()==true}.getOrDefault(false)}
                     .verticalScroll(rememberScrollState()).testTag("navbar_expanded"),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                     val entries=NavbarStyles.entries(tabs)
                     val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
+                    ProfileMenuButton(profile,Modifier.fillMaxWidth(),size=32.dp,onFallback={onProfile();close()},row=true,
+                        anchorModifier=Modifier.testTag("navbar_profile").focusRequester(profileRow).focusProperties {
+                            if(owner!=null){down=entries.firstOrNull()?.let(owner::tab) ?: FocusRequester.Default
+                                if(rtl)left=owner.content(current) else right=owner.content(current)}
+                        },onOpenChanged={profileOpen=it})
+                    Box(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=2.dp).height(1.dp).background(Fg.copy(alpha=.12f)))
                     entries.forEachIndexed {index,id->key(id) {
                         NavbarTab(id,active==id,Modifier.fillMaxWidth().height(42.dp)
                             .then(if(owner!=null)Modifier.navigationTabTarget(owner,id) else Modifier)
                             .focusProperties {
                                 if(owner!=null) {
                                     if(rtl)left=owner.content(current) else right=owner.content(current)
-                                    up=entries.getOrNull(index-1)?.let(owner::tab) ?: FocusRequester.Default
+                                    up=entries.getOrNull(index-1)?.let(owner::tab) ?: profileRow
                                     down=entries.getOrNull(index+1)?.let(owner::tab) ?: FocusRequester.Default
                                 }
-                            }.openNavigationTab(id,active==id){onTab(id)}) {onTab(id);close(id)}
+                            }) {onTab(id);close(id)}
                     }}
                     Spacer(Modifier.height(4.dp))
                     GlassControl("Screensaver",Icons.Outlined.Image,Modifier.fillMaxWidth()) {onTab(NavTabs.SCREENSAVER);close()}
@@ -134,6 +151,14 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
             }
         }
     }
+}
+
+/** Menus that open over artwork: a matte panel in the theme's colour, so what is behind does not show through. */
+@Composable
+internal fun Modifier.matteMenuSurface(shape:androidx.compose.ui.graphics.Shape):Modifier {
+    val fill=FloatingPanelStyle.background
+    return this.clip(shape).background(Brush.verticalGradient(listOf(fill.copy(alpha=.97f),fill.copy(alpha=.93f))),shape)
+        .border(1.dp,Fg.copy(alpha=.10f),shape)
 }
 
 @Composable

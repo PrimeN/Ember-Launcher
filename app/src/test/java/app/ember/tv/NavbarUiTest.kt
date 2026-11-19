@@ -87,9 +87,10 @@ class NavbarUiTest {
         compose.onNodeWithTag("navbar_expanded").assertDoesNotExist()
         compose.onNodeWithTag("page_action").assertIsFocused()
     }
-    @Test fun downActivatesTheNextTabAndOkReturnsToItsContent() {
+    @Test fun downOnlyMovesFocusAndOkOpensTheTabAndReturnsToItsContent() {
+        // #369: in the opened menu a page opens when it is pressed, not when the remote passes over it.
         show();up();key(Key.DirectionDown)
-        assertEquals(NavTabs.DISCOVER,current)
+        assertEquals(NavTabs.HOME,current)
         compose.onNodeWithTag("navbar_tab_discover").assertIsFocused()
         click("navbar_tab_discover")
         compose.onNodeWithTag("page_action").assertIsFocused()
@@ -118,8 +119,8 @@ class NavbarUiTest {
     @Test fun searchCanLeaveForHomeAndHiddenTabsAreNotAdded() {
         tabs=listOf(NavTabs.SEARCH,NavTabs.HOME,NavTabs.APPS);current=NavTabs.SEARCH;show();up()
         compose.onNodeWithTag("navbar_tab_live").assertDoesNotExist()
-        key(Key.DirectionDown);assertEquals(NavTabs.HOME,current)
-        key(Key.DirectionRight);compose.onNodeWithTag("page_action").assertIsFocused()
+        key(Key.DirectionDown);compose.onNodeWithTag("navbar_tab_home").assertIsFocused();assertEquals(NavTabs.SEARCH,current)
+        click("navbar_tab_home");assertEquals(NavTabs.HOME,current)
     }
     @Test fun lightNeverDisplaysAnyOfTheAlternativeBars() {
         launcher=InterfaceStyles.LIGHT;show()
@@ -142,6 +143,30 @@ class NavbarUiTest {
         compose.runOnIdle {back.onBackPressed()};compose.onNodeWithTag("page_action").assertIsFocused()
     }
     @After fun resetDay() {Ui.day=false}
+    @Test fun theProfileIsTheFirstRowOfTheOpenedMenuNotBesideTheHandle() {
+        show()
+        compose.onNodeWithTag("navbar_profile").assertDoesNotExist()
+        // Search leads the menu, so the profile is two rows above Home.
+        up();key(Key.DirectionUp);key(Key.DirectionUp)
+        compose.onNodeWithTag("navbar_profile").assertIsFocused()
+        compose.onNodeWithTag("navbar_profile").performSemanticsAction(SemanticsActions.OnClick){it()}
+        assertEquals(1,profiles)
+    }
+    @Test fun sidebarIsItsOwnStyleOpensOnOkAndHandsFocusBackToThePage() {
+        style=NavbarStyles.SIDEBAR;show()
+        compose.onNodeWithTag("sidebar_open").assertDoesNotExist()
+        key(Key.DirectionLeft)
+        compose.onNodeWithTag("sidebar_tab_home").assertIsFocused()
+        compose.onNodeWithTag("sidebar_open").assertExists()
+        snapshot("sidebar-open")
+        key(Key.DirectionDown);compose.onNodeWithTag("sidebar_tab_discover").assertIsFocused();assertEquals(NavTabs.HOME,current)
+        click("sidebar_tab_discover");assertEquals(NavTabs.DISCOVER,current)
+        compose.onNodeWithTag("page_action").assertIsFocused()
+        key(Key.DirectionLeft);compose.onNodeWithTag("sidebar_tab_discover").assertIsFocused()
+        compose.runOnIdle {back.onBackPressed()};compose.onNodeWithTag("page_action").assertIsFocused()
+        compose.onNodeWithTag("sidebar_open").assertDoesNotExist()
+        key(Key.DirectionLeft);key(Key.DirectionRight);compose.onNodeWithTag("page_action").assertIsFocused()
+    }
     @Test fun focusPlacedByTheAppLandsOnTheHandleWithoutOpeningTheMenu() {
         // Start-up and TV wake focus the current page's tab (#127).
         current=NavTabs.LIBRARY;show()

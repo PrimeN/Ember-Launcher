@@ -126,13 +126,13 @@ class ProfileMenuTest {
         try {
             val values=mutableMapOf<String,Any?>()
             val state=LookState(memoryPrefs(values),scope)
-            state.updateMenuPosition("side")
+            state.updateNavbarStyle(app.ember.tv.data.NavbarStyles.SIDEBAR)
             state.updateTheme("day")
             state.updateUiStyle("light")
             state.updateUiStyle("modern")
-            assertEquals("side",state.menuPosition)
+            assertEquals(app.ember.tv.data.NavbarStyles.SIDEBAR,state.navbarStyle)
             val restored=LookState(memoryPrefs(values),scope)
-            assertEquals("side",restored.menuPosition)
+            assertEquals(app.ember.tv.data.NavbarStyles.SIDEBAR,restored.navbarStyle)
             assertEquals("modern",restored.uiStyle)
         } finally {scope.cancel();Ui.light=oldLight;Ui.day=oldDay;Ui.oled=oldOled}
     }
@@ -147,7 +147,8 @@ class ProfileMenuTest {
                 val state=LookState(prefs,scope)
                 assertEquals(ColorThemes.SHADOW_EMBER,state.accent)
                 assertEquals("Charcoal",Accents[state.accent].first)
-                assertEquals("side",state.menuPosition)
+                // An Ember menu saved down the side opens as the Sidebar style.
+                assertEquals(app.ember.tv.data.NavbarStyles.SIDEBAR,state.navbarStyle)
                 assertEquals(1,values[key])
             }
         } finally {scope.cancel();Ui.light=oldLight;Ui.day=oldDay;Ui.oled=oldOled}
