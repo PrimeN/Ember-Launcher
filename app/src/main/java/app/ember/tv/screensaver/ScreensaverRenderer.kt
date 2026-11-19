@@ -18,14 +18,19 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.*
 
-/** Shared native renderer for the manual activity and system-managed dream. */
-class ScreensaverRenderer(private val context: android.content.Context) {
+/**
+ * Shared native renderer for the manual activity and system-managed dream. [clockOnly]: just the clock
+ * and weather (Back on Home can open this), with no pictures.
+ */
+class ScreensaverRenderer(private val context: android.content.Context, private val clockOnly: Boolean = false) {
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
     private val feed = ScreensaverFeed(context)
     private var active = false
     private var generation = 0L
     private var imageJob: Job? = null
     private var displayed: android.graphics.drawable.Drawable? = null
+    private var driftJob: Job? = null
+    private lateinit var textBlock: View
     private val session = ScreensaverSession(scope, load = {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             ScreensaverSlides.select(feed.sources) { source -> when (source) {
@@ -41,8 +46,21 @@ class ScreensaverRenderer(private val context: android.content.Context) {
     private lateinit var title: TextView
     private lateinit var credit: TextView
     val view: View = buildLayout()
-    fun start() { active = true; title.text = context.getString(app.ember.tv.R.string.screensaver_loading); session.start() }
+    fun start() {
+        active = true
+        if (clockOnly) { title.text = ""; credit.text = "" } else { title.text = context.getString(app.ember.tv.R.string.screensaver_loading); session.start() }
+        driftJob?.cancel()
+        driftJob = scope.launch { while (isActive) { delay(ScreensaverDrift.INTERVAL_MS); drift() } }
+    }
+    /** Burn-in protection: the clock and text move a little every minute, further when there is no picture behind them. */
+    private fun drift() {
+        if (!::textBlock.isInitialized) return
+        val (x, y) = ScreensaverDrift.next(kotlin.random.Random, clockOnly || displayed == null)
+        val density = context.resources.displayMetrics.density
+        textBlock.animate().translationX(x * density).translationY(y * density).setDuration(2000).start()
+    }
     fun stop() {
+        driftJob?.cancel(); driftJob = null
         active = false; generation++; session.stop(); imageJob?.cancel(); imageJob = null
         if (::image.isInitialized) image.setImageDrawable(null)
         displayed = null
@@ -109,7 +127,7 @@ class ScreensaverRenderer(private val context: android.content.Context) {
         val clock = TextClock(context).apply {
             format12Hour = "h:mm"
             format24Hour = "H:mm"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (clockOnly) 112f else 64f)
             setTextColor(Color.WHITE)
         }
         val weather = TextView(context).apply {
@@ -137,6 +155,7 @@ class ScreensaverRenderer(private val context: android.content.Context) {
             addView(title)
             addView(credit)
         }
+        textBlock = text
         root.addView(
             text,
             FrameLayout.LayoutParams(
@@ -149,4 +168,11 @@ class ScreensaverRenderer(private val context: android.content.Context) {
     }
 
     private fun dp(v: Int) = (v * context.resources.displayMetrics.density).toInt()
+}
+
+/** How far the screensaver text moves, in dp from its home in the lower left. */
+internal object ScreensaverDrift {
+    const val INTERVAL_MS = 60_000L
+    fun next(random: kotlin.random.Random, wide: Boolean): Pair<Int, Int> =
+        if (wide) random.nextInt(0, 241) to -random.nextInt(0, 161) else random.nextInt(-24, 25) to random.nextInt(-16, 17)
 }

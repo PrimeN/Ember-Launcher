@@ -11,9 +11,14 @@ import kotlinx.serialization.encodeToString
     val destination:String="home",val target:String="",val atBoot:Boolean=false,val onWake:Boolean=false,
     val nowPlaying:Boolean=false,val slides:List<PresentationItem> = emptyList(),
     val slideSeconds:Int=10,val keepAwake:Boolean=false,val lockedApps:Set<String> = emptySet(),
+    /** What Back does on Home with nothing open: "none", "screensaver" or "clock". */
+    val homeBack:String="none",
+    /** Recent notifications in quick settings, through the same access as Now Playing. */
+    val notifications:Boolean=false,
 ) {
     fun normalized()=copy(destination=destination.takeIf {it in setOf("home","app","input","presentation")} ?: "home",
-        target=target.take(512),slides=slides.distinctBy {it.id}.take(40),slideSeconds=slideSeconds.coerceIn(5,120))
+        target=target.take(512),homeBack=homeBack.takeIf {it in HOME_BACK} ?: "none",slides=slides.distinctBy {it.id}.take(40),slideSeconds=slideSeconds.coerceIn(5,120))
+    companion object { val HOME_BACK=setOf("none","screensaver","clock") }
     fun startup(reason:String,kids:Boolean)=!kids && destination!="home" && when(reason){"boot"->atBoot;"wake"->onWake;else->false}
 }
 class LauncherExtrasState(private val prefs:Prefs) {

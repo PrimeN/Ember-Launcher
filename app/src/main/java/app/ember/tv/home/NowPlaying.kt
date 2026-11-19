@@ -20,8 +20,17 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 
-/** The system owns the binding; Ember never reads notification text or stores session history. */
-class PlaybackAccessService:NotificationListenerService()
+/**
+ * The system owns the binding. Now Playing reads only media sessions; notifications are read only when
+ * "Show notifications in quick settings" is on, and only while that list is on screen. Nothing is stored.
+ */
+class PlaybackAccessService:NotificationListenerService() {
+    override fun onListenerConnected(){NotificationFeed.connected(this)}
+    override fun onListenerDisconnected(){NotificationFeed.disconnected(this)}
+    override fun onNotificationPosted(sbn:android.service.notification.StatusBarNotification?){NotificationFeed.changed()}
+    override fun onNotificationRemoved(sbn:android.service.notification.StatusBarNotification?){NotificationFeed.changed()}
+    override fun onDestroy(){NotificationFeed.disconnected(this);super.onDestroy()}
+}
 internal data class NowPlaying(val pkg:String,val title:String,val playing:Boolean,val controller:MediaController)
 internal object PlaybackAccess {
     fun component(c:Context)=ComponentName(c,PlaybackAccessService::class.java)

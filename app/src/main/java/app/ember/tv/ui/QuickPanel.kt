@@ -173,6 +173,10 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                             Heading("Now Playing",accent)
                             Box(Modifier.padding(horizontal=22.dp,vertical=8.dp)){NowPlayingPanel(vm)}
                         }
+                        if(vm.launcherExtras.options.notifications && !vm.profiles.profile.kids) {
+                            Heading("Notifications",accent)
+                            Box(Modifier.padding(horizontal=22.dp,vertical=8.dp)){NotificationsPanel(vm,onClose)}
+                        }
                         // ---- inputs ----
                         if (inputs.isNotEmpty()) {
                             Heading(stringResource(R.string.ui_inputs), accent)
@@ -356,9 +360,10 @@ object QuickActions {
     }
 
     /** Manual ambient mode belongs to Ember; no private Android dream activity is required. */
-    fun screensaver(context: Context) {
+    fun screensaver(context: Context, clockOnly: Boolean = false) {
         val intent = Intent(context, app.ember.tv.screensaver.ScreensaverActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(app.ember.tv.screensaver.ScreensaverActivity.EXTRA_CLOCK, clockOnly)
         if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }.onFailure {
             app.ember.tv.data.CrashLog.note("Could not open Ember screensaver", it)

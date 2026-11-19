@@ -91,7 +91,7 @@ object Legal {
                     "Home customization and optional media tools",
                     "Home layouts, folders, app artwork and carousel choices are stored on this TV and included in settings backups. App artwork is saved as a resized copy. " +
                         "App PIN locks protect Ember app launches and supported media handoffs across profiles; Android system settings and other launchers remain separate. " +
-                        "Optional Now Playing uses Android notification-listener authorization only to read active media-session metadata and send playback controls; Ember does not save or upload notification content or listening history. " +
+                        "Optional Now Playing uses Android notification-listener authorization only to read active media-session metadata and send playback controls. If you turn on notifications in quick settings, the same authorization lets Ember show and clear your current notifications while that list is open; Ember does not save or upload notification content or listening history. " +
                         "Presentation reads selected photos/videos or locally uploaded files. Phone uploads use the existing temporary session and require approval on the TV. Settings backups retain the playlist, not large presentation media files or document permissions.",
                 ),
                 Item(

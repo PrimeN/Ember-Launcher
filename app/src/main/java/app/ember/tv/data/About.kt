@@ -18,6 +18,7 @@ object About {
             listOf(
                 "Widgets for your apps' Continue watching and your recently used apps.",
                 "Rename apps, and automatic weekly backups kept on the TV.",
+                "Notifications in quick settings, a full-screen clock, a choice for what Back does on Home, and a screensaver clock that moves to protect the screen.",
                 "Player: smoother seeking, night listening, network and buffer settings, compatibility decoding, and compatibility playback updated to mpv 0.42 and FFmpeg 9 with the gpu-next renderer.",
                 "Skip intros and recaps marked by a file's own chapters, and remote buttons for captions, audio, stop and jumping ahead.",
                 "Settings: search finds individual options, every page can be reset, and pages are reorganized.",

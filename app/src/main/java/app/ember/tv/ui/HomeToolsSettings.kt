@@ -123,6 +123,11 @@ internal object AppChoices {
             SettingToggle(stringResource(R.string.st_at_startup),null,opts.atBoot){vm.launcherExtras.update {it.copy(atBoot=!it.atBoot)}}
             SettingToggle(stringResource(R.string.st_after_standby),stringResource(R.string.st_wake_launching_requires_ember_to_be),opts.onWake){vm.launcherExtras.update {it.copy(onWake=!it.onWake)}}
         }
+        if(part==HomeToolsPart.STARTUP)Section("Back on Home","What the Back button does on Home when nothing is open.",id="back-on-home") {
+            Choice(listOf("none" to "Nothing","screensaver" to "Start the screensaver","clock" to "Show a full-screen clock"),opts.homeBack,"Back on Home") {value->vm.launcherExtras.update {it.copy(homeBack=value)}}
+            if(app.ember.tv.player.QuickReturn.key(vm.playerSettings.playbackConfig)=="back")
+                Text("Pressing Back twice currently returns to your last title, so Back on Home does nothing. Choose another key for quick return in ${SettingsTab.PLAYER.path} to use this.",color=Mute,fontSize=13.sp)
+        }
         if(part==HomeToolsPart.EXTRAS)Section(stringResource(R.string.st_presentation), stringResource(R.string.st_loop_photos_and_videos_selected_local)) {
             ButtonRow {
                 Chip(stringResource(R.string.st_choose_media_on_tv)){vm.homeFeatureAction="edit:presentation-add"}
@@ -146,6 +151,13 @@ internal object AppChoices {
                 Text(if(PlaybackAccess.granted(context))"Media control access allowed" else "Media control access needed",color=Mute,fontSize=14.sp)
                 Chip(stringResource(R.string.st_allow_media_controls)){runCatching {context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}.onFailure {vm.showNotice("This TV does not expose notification-listener access.")}}
                 NowPlayingPanel(vm)
+            }
+        }
+        if(part==HomeToolsPart.EXTRAS)Section("Notifications","Recent notifications from your apps in quick settings. They are never saved or sent anywhere.",id="notifications") {
+            SettingToggle("Show notifications in quick settings",null,opts.notifications){vm.launcherExtras.update {it.copy(notifications=!it.notifications)}}
+            if(opts.notifications) {
+                Text(if(PlaybackAccess.granted(context))"Notification access allowed" else "Notification access needed",color=Mute,fontSize=14.sp)
+                if(!PlaybackAccess.granted(context))Chip("Allow notification access"){runCatching {context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}.onFailure {vm.showNotice("This TV does not expose notification access settings. Grant access to \"Ember\" with adb: cmd notification allow_listener app.ember.tv/app.ember.tv.home.PlaybackAccessService")}}
             }
         }
     }
@@ -238,5 +250,44 @@ internal object AppChoices {
             Text(state,color=Mute,fontSize=13.sp,maxLines=1)
         }
         Chip(stringResource(R.string.st_show),maxLines=1,modifier=Modifier.semantics {contentDescription="Show $name"},onClick=show)
+    }
+}
+
+/** Recent notifications in quick settings: OK opens one in its app; Clear removes it from the TV. */
+@Composable internal fun NotificationsPanel(vm:HomeViewModel,onOpened:()->Unit) {
+    val context=LocalContext.current
+    val enabled=vm.launcherExtras.options.notifications && !vm.profiles.profile.kids
+    val granted=remember(enabled){enabled && PlaybackAccess.granted(context)}
+    val revision by NotificationFeed.changes.collectAsState()
+    val items=remember(enabled,granted,revision){if(enabled && granted)NotificationFeed.current(context.packageName) else emptyList()}
+    if(!enabled)return
+    if(!granted){Text("Allow notification access in ${SettingsTab.HOME_EXTRAS.path}.",color=Mute,fontSize=14.sp);return}
+    if(items.isEmpty()){Text("No notifications.",color=Mute,fontSize=14.sp);return}
+    fun label(pkg:String)=vm.apps.firstOrNull {it.pkg==pkg}?.label ?: pkg
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        items.forEach {n->
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(n.title.ifBlank {label(n.pkg)},fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                    if(n.text.isNotBlank())Text(n.text,color=Mute,fontSize=13.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
+                    Text(label(n.pkg)+" · "+app.ember.tv.data.DisplayDates.time(n.postedAt),color=Mute,fontSize=12.sp,maxLines=1)
+                }
+                Chip("Open") {
+                    val app=vm.apps.firstOrNull {it.pkg==n.pkg}
+                    // The same rules as opening the app: this profile's apps only, and app PIN locks.
+                    if(!vm.appAccess.canLaunch(n.pkg)){vm.showNotice("This profile cannot open that app.");return@Chip}
+                    if(app!=null && n.pkg in vm.launcherExtras.options.lockedApps){vm.pendingAppLaunch=app;onOpened();return@Chip}
+                    val sent=n.open?.let {intent->runCatching {
+                        val options=android.app.ActivityOptions.makeBasic()
+                        if(android.os.Build.VERSION.SDK_INT>=34)options.setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                        intent.send(context,0,null,null,null,null,options.toBundle())
+                    }.isSuccess} ?: false
+                    if(!sent && app!=null)vm.pendingAppLaunch=app
+                    if(sent || app!=null)onOpened() else vm.showNotice("This notification can no longer be opened.")
+                }
+                if(n.clearable)Chip("Clear"){NotificationFeed.dismiss(listOf(n.key))}
+            }
+        }
+        if(items.count {it.clearable}>1)Chip("Clear all"){NotificationFeed.dismiss(items.filter {it.clearable}.map {it.key})}
     }
 }

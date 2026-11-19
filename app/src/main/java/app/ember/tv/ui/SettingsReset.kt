@@ -68,8 +68,8 @@ internal object SettingsReset {
     fun extras(tab: SettingsTab, e: LauncherExtras): LauncherExtras? {
         val d = LauncherExtras()
         return when (tab) {
-            SettingsTab.DEFAULT_HOME -> e.copy(destination = d.destination, target = d.target, atBoot = d.atBoot, onWake = d.onWake)
-            SettingsTab.HOME_EXTRAS -> e.copy(nowPlaying = d.nowPlaying, slideSeconds = d.slideSeconds, keepAwake = d.keepAwake)
+            SettingsTab.DEFAULT_HOME -> e.copy(destination = d.destination, target = d.target, atBoot = d.atBoot, onWake = d.onWake, homeBack = d.homeBack)
+            SettingsTab.HOME_EXTRAS -> e.copy(nowPlaying = d.nowPlaying, notifications = d.notifications, slideSeconds = d.slideSeconds, keepAwake = d.keepAwake)
             else -> null
         }
     }

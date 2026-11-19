@@ -29,11 +29,15 @@ class ScreensaverActivity : ComponentActivity() {
             hide(WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-        renderer = ScreensaverRenderer(this)
+        renderer = ScreensaverRenderer(this, clockOnly = intent.getBooleanExtra(EXTRA_CLOCK, false))
         setContentView(renderer.view)
         onBackPressedDispatcher.addCallback(this) { finish() }
     }
     override fun onStart() { super.onStart(); renderer.start() }
+    companion object {
+        /** Only the clock and weather, with no pictures. */
+        const val EXTRA_CLOCK = "app.ember.tv.screensaver.CLOCK"
+    }
     override fun onStop() {
         renderer.stop()
         if (!isChangingConfigurations) finish()

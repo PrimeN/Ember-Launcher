@@ -304,7 +304,16 @@ private fun RootContent(
     }
 
     // Always handle Back: on Android 11 and older, letting it through would close the launcher itself.
-    BackHandler { if (tab != NavTabs.HOME) onTab(NavTabs.HOME) }
+    // On Home itself, Back can start the screensaver or the clock (Settings › Home), unless quick return uses Back.
+    val backContext = androidx.compose.ui.platform.LocalContext.current
+    BackHandler {
+        if (tab != NavTabs.HOME) onTab(NavTabs.HOME)
+        else if (!vm.quickPanel && vm.pin.pinPrompt == null && app.ember.tv.player.QuickReturn.key(vm.playerSettings.playbackConfig) != "back")
+            when (vm.launcherExtras.options.homeBack) {
+                "screensaver" -> app.ember.tv.ui.QuickActions.screensaver(backContext)
+                "clock" -> app.ember.tv.ui.QuickActions.screensaver(backContext, clockOnly = true)
+            }
+    }
     // Kept here so Home returns to the same place after a title screen closes.
     val homeState = rememberLazyListState()
     val pageState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
