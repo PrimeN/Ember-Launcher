@@ -411,6 +411,7 @@ internal fun ModernHero(
                 }
             }
             // The actions remain mounted during artwork/text transitions, so paging retains focus.
+            val sideNav = LocalSideNavigation.current
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 4.dp).onFocusChanged {
                     focused = it.hasFocus
@@ -420,7 +421,7 @@ internal fun ModernHero(
                 DetailsActionButton("Watch now", Icons.Outlined.PlayArrow, text = "Watch now", width = 148.dp,
                     modifier = Modifier.focusRequester(watchFocus).focusProperties { if(heroRtl)left=saveFocus else right=saveFocus }.restoreFocus(meta.mediaKey())
                         .onPreviewKeyEvent { event ->
-                            if (event.key != heroEdgeKey(previous=true,rtl=heroRtl) || items.size <= 1) false else {
+                            if (event.key != heroEdgeKey(previous=true,rtl=heroRtl) || items.size <= 1 || sideNav) false else {
                                 if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size))
                                     onIndex(HeroBanner.previous(safe, items.size))
                                 true

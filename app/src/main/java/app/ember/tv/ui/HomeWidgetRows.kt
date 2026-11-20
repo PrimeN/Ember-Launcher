@@ -149,6 +149,7 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
     val saveFocus = remember { FocusRequester() }
     val safe = HeroBanner.index(index, items.size)
     val meta = items[safe]
+    val sideNav = LocalSideNavigation.current
     val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
     LaunchedEffect(items, focused, safe, rotating, reduceMotion) {
         if (items.size > 1 && !focused && rotating && !reduceMotion) { delay(9000); index = HeroBanner.next(safe, items.size) }
@@ -174,7 +175,7 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
                 modifier = Modifier.padding(top = 2.dp).onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }) {
                 DetailsActionButton("Watch now", Icons.Outlined.PlayArrow, text = "Watch now", width = 148.dp,
                     modifier = Modifier.focusRequester(watchFocus).focusProperties { if (rtl) left = saveFocus else right = saveFocus }.restoreFocus(id).onPreviewKeyEvent { event ->
-                        if (event.key != heroEdgeKey(previous = true, rtl = rtl) || items.size <= 1) false else {
+                        if (event.key != heroEdgeKey(previous = true, rtl = rtl) || items.size <= 1 || sideNav) false else {
                             if (HeroBanner.pageOnPress(event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, items.size)) index = HeroBanner.previous(safe, items.size)
                             true
                         }
@@ -285,6 +286,7 @@ internal fun WidgetCarousel(id: String, items: List<Meta>, height: Dp, isSaved: 
     val safe = HeroBanner.index(index, items.size)
     val meta = items[safe]
     val actions = LocalTitleActions.current
+    val sideNav = LocalSideNavigation.current
     val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
     LaunchedEffect(items, focused, safe, rotating, reduceMotion) {
         if (items.size > 1 && !focused && rotating && !reduceMotion) { delay(8000); index = HeroBanner.next(safe, items.size) }
@@ -299,6 +301,7 @@ internal fun WidgetCarousel(id: String, items: List<Meta>, height: Dp, isSaved: 
                 .onFocusChanged { focused = it.isFocused || it.hasFocus; if (focused) onFocus() }
                 .onPreviewKeyEvent { event ->
                     val forward = when (event.key) { heroEdgeKey(previous = false, rtl = rtl) -> true; heroEdgeKey(previous = true, rtl = rtl) -> false; else -> return@onPreviewKeyEvent false }
+                    if (!forward && sideNav) return@onPreviewKeyEvent false
                     val target = WidgetLook.carouselStep(safe, items.size, forward) ?: return@onPreviewKeyEvent false
                     if (event.type == KeyEventType.KeyDown) index = target
                     true

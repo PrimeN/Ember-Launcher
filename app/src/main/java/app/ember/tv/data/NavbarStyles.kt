@@ -16,6 +16,9 @@ object NavbarStyles {
     /** How soon after a remote press focus on the Collapsed handle counts as that press (#127). */
     const val HANDLE_PRESS_MS=1_000L
     /** Collapsed and Cinema Bar sit on artwork in the dark theme; Day pages are light (#128). */
+    /** Keys that open Ember Collapsed when they move focus onto its handle: the d-pad only, never Back. */
+    fun opensHandle(keyCode:Int)=keyCode in setOf(android.view.KeyEvent.KEYCODE_DPAD_UP,android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+        android.view.KeyEvent.KEYCODE_DPAD_LEFT,android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
     fun forcesNight(style:String,day:Boolean)=normalize(style) in setOf(COLLAPSED,CINEMA) && !day
     fun entries(tabs:List<String>)=(tabs.filter {it==NavTabs.SEARCH}+tabs.filter {it !in setOf(NavTabs.SEARCH,NavTabs.SETTINGS,NavTabs.SCREENSAVER,NavTabs.QUICK)}).distinct()
 }

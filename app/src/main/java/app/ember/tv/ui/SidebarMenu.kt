@@ -16,6 +16,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -65,6 +68,7 @@ internal fun SidebarMenu(tabs: List<String>, current: String, onTab: (String) ->
             .background(if (expanded) Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .45f), Color.Transparent))
                 else Brush.horizontalGradient(listOf(Ink.copy(alpha = .6f), Color.Transparent)))
             .onFocusChanged { hasFocus = it.hasFocus }
+            .onPreviewKeyEvent { if (!profileOpen && isBackKey(it)) { if (it.type == KeyEventType.KeyUp) toPage(current); true } else false }
             // Arriving from the page always lands on the current page's row, whichever row is nearest.
             .focusProperties { onEnter = { if (owner != null && requestedFocusDirection != androidx.compose.ui.focus.FocusDirection.Enter) runCatching { owner.tab(active).requestFocus() } } }
             .focusGroup(),

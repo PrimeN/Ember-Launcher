@@ -38,6 +38,12 @@ import androidx.tv.material3.Text
 import app.ember.tv.data.*
 import kotlinx.coroutines.launch
 
+/**
+ * True while the Sidebar sits at the page's start edge: the start-edge key on a page (the hero's
+ * first button, a carousel) goes to the Sidebar instead of paging back (#375).
+ */
+internal val LocalSideNavigation = androidx.compose.runtime.staticCompositionLocalOf { false }
+
 /** The page occupies a stable rectangle; the expanded menu is drawn over that rectangle. */
 @Composable
 internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,tabs:List<String>,current:String,
@@ -83,7 +89,8 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
         if(!profileOpen && expanded) {repeat(2){withFrameNanos { }};if(!panelFocused){expanded=false;menuHadFocus=false}}
     }
     BoxWithConstraints(modifier.fillMaxSize().onPreviewKeyEvent {
-        if(it.type==KeyEventType.KeyDown)lastKey=android.os.SystemClock.uptimeMillis()
+        // Only the d-pad opens the menu by moving onto the handle; Back putting focus there must not (#376).
+        if(it.type==KeyEventType.KeyDown)lastKey=if(NavbarStyles.opensHandle(it.nativeKeyEvent.keyCode))android.os.SystemClock.uptimeMillis() else -1L
         false
     }) {
         val panelHeight=(maxHeight-76.dp).coerceAtLeast(100.dp)
@@ -107,7 +114,9 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
                     }
                 }
             }
-            Box(Modifier.weight(1f).fillMaxWidth().testTag("navbar_content")) {content(side)}
+            Box(Modifier.weight(1f).fillMaxWidth().testTag("navbar_content")) {
+                androidx.compose.runtime.CompositionLocalProvider(LocalSideNavigation provides side) {content(side)}
+            }
         }
         if(enabled && side) NavbarScope(NavbarStyles.SIDEBAR) {
             SidebarMenu(tabs,current,onTab,weather,profile,onProfile)
@@ -124,6 +133,8 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
                         if(it.hasFocus)menuHadFocus=true else if(menuHadFocus && !profileOpen){expanded=false;menuHadFocus=false}
                     }
                     .navigationFocusGroup {runCatching {owner?.tab(active)?.requestFocus()==true}.getOrDefault(false)}
+                    // Back closes the open menu before any page's own Back sees it (#376).
+                    .onPreviewKeyEvent {if(!profileOpen && isBackKey(it)){if(it.type==KeyEventType.KeyUp)close();true} else false}
                     .verticalScroll(rememberScrollState()).testTag("navbar_expanded"),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                     val entries=NavbarStyles.entries(tabs)
                     val rtl=androidx.compose.ui.platform.LocalLayoutDirection.current==androidx.compose.ui.unit.LayoutDirection.Rtl
@@ -152,6 +163,10 @@ internal fun LauncherNavbarFrame(style:String,launcher:String,position:String,ta
         }
     }
 }
+
+/** Back or Escape, on press or release. */
+internal fun isBackKey(e:androidx.compose.ui.input.key.KeyEvent)=
+    e.nativeKeyEvent.keyCode==android.view.KeyEvent.KEYCODE_BACK || e.nativeKeyEvent.keyCode==android.view.KeyEvent.KEYCODE_ESCAPE
 
 /** Menus that open over artwork: a matte panel in the theme's colour, so what is behind does not show through. */
 @Composable

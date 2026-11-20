@@ -40,6 +40,7 @@ class NavbarUiTest {
     private var tabs by mutableStateOf(listOf(NavTabs.HOME,NavTabs.DISCOVER,NavTabs.LIVE,NavTabs.APPS,NavTabs.LIBRARY,NavTabs.SEARCH))
     private var actions=mutableListOf<String>()
     private var profiles=0
+    private var sideSeen:Boolean?=null
     private lateinit var back:OnBackPressedDispatcher
     private fun key(key:Key)=compose.onRoot().performKeyInput {pressKey(key)}
     private fun click(tag:String)=compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick){it()}
@@ -57,6 +58,7 @@ class NavbarUiTest {
                     LauncherNavbarFrame(style,launcher,"top",tabs,current,"18°",Profile(id="main",name="Alex"),
                         onTab={if(it in setOf(NavTabs.QUICK,NavTabs.SCREENSAVER))actions.add(it) else current=it},onProfile={profiles++},
                         modifier=Modifier.size(width.dp,540.dp).background(page)) {side->
+                        sideSeen=LocalSideNavigation.current
                         Box(Modifier.fillMaxSize().sceneContent(current,navigationTabForPage(current,tabs),side)) {
                             Chip("Page action",modifier=Modifier.testTag("page_action")) {}
                         }
@@ -166,6 +168,25 @@ class NavbarUiTest {
         compose.runOnIdle {back.onBackPressed()};compose.onNodeWithTag("page_action").assertIsFocused()
         compose.onNodeWithTag("sidebar_open").assertDoesNotExist()
         key(Key.DirectionLeft);key(Key.DirectionRight);compose.onNodeWithTag("page_action").assertIsFocused()
+    }
+    @Test fun backThatPutsFocusOnTheHandleDoesNotOpenTheMenu() {
+        // #376: a page's Back focuses its tab; for Ember Collapsed that is the handle, which must stay closed.
+        show();key(Key.Back)
+        compose.runOnIdle {navigation.tab(NavTabs.HOME).requestFocus()}
+        compose.onNodeWithTag("navbar_handle").assertIsFocused()
+        compose.onNodeWithTag("navbar_expanded").assertDoesNotExist()
+    }
+    @Test fun backKeyClosesTheOpenMenuAndItStaysClosed() {
+        show();up();compose.onNodeWithTag("navbar_expanded").assertExists()
+        key(Key.Back)
+        compose.onNodeWithTag("navbar_expanded").assertDoesNotExist()
+        compose.onNodeWithTag("page_action").assertIsFocused()
+        key(Key.Back);compose.onNodeWithTag("navbar_expanded").assertDoesNotExist()
+    }
+    @Test fun pagesKnowWhenTheSidebarIsAtTheirEdge() {
+        // #375: the hero's start-edge key goes to the Sidebar instead of paging back.
+        style=NavbarStyles.SIDEBAR;show();assertEquals(true,sideSeen)
+        compose.runOnIdle {style=NavbarStyles.COLLAPSED};compose.waitForIdle();assertEquals(false,sideSeen)
     }
     @Test fun focusPlacedByTheAppLandsOnTheHandleWithoutOpeningTheMenu() {
         // Start-up and TV wake focus the current page's tab (#127).
