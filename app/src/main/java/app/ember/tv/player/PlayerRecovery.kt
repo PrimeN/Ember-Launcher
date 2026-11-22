@@ -113,7 +113,7 @@ internal fun PlayerActivity.retryLive(e: PlaybackException): Boolean {
             !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) return@launch
         if (key != null && liveSession?.channels()?.none { it.key == key } != false) return@launch
         liveRetryJob = null
-        start(retryUrl, name, emptyList(), null)
+        start(retryUrl, name, emptyList(), null, playWhenReady = player?.playWhenReady ?: return@launch)
     }
     return true
 }

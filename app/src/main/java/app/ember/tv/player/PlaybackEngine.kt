@@ -3,6 +3,7 @@ package app.ember.tv.player
 import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.Format
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
@@ -98,6 +99,7 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
                 "getVideoFormat" -> compatibility?.currentTracks?.groups?.firstOrNull {it.type==androidx.media3.common.C.TRACK_TYPE_VIDEO&&it.isSelected}?.getTrackFormat(0) ?: if(active===standard)standard.videoFormat else null
                 "getAudioFormat" -> compatibility?.currentTracks?.groups?.firstOrNull {it.type==androidx.media3.common.C.TRACK_TYPE_AUDIO&&it.isSelected}?.getTrackFormat(0) ?: if(active===standard)standard.audioFormat else null
                 else -> {
+                    if (active === standard && method.name == "setTrackSelectionParameters") cancelTrackRestore()
                     if(method.name in setOf("seekTo","seekToDefaultPosition","seekToNextMediaItem","seekToPreviousMediaItem","setMediaItem","setMediaItems","setMediaSource","setMediaSources","replaceMediaItem","replaceMediaItems","removeMediaItem","removeMediaItems","seekToNext","seekToPrevious","clearMediaItems","stop"))navigation.cancel()
                     if(method.name in setOf("setVideoSurface","setVideoSurfaceView","setVideoSurfaceHolder","setVideoTextureView")) {surfaceMethod=common[key(method)];surface=arguments.firstOrNull()}
                     if(method.name.startsWith("clearVideo")){surfaceMethod=null;surface=null}
@@ -175,14 +177,16 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
 
     private fun restoreTrackSelection(parameters: TrackSelectionParameters) {
         cancelTrackRestore()
-        val overrides = parameters.overrides.values.filter { it.type == C.TRACK_TYPE_AUDIO || it.type == C.TRACK_TYPE_TEXT }
+        val overrides = parameters.overrides.values.filter { it.type == C.TRACK_TYPE_AUDIO || it.type == C.TRACK_TYPE_TEXT }.toMutableList()
         if (overrides.isEmpty()) return
         val listener = object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {
-                if (tracks.groups.isEmpty()) return
-                cancelTrackRestore()
+                val ready = overrides.filter { override -> tracks.groups.any { it.type == override.type } }
+                if (ready.isEmpty()) return
+                overrides.removeAll(ready.toSet())
+                if (overrides.isEmpty()) cancelTrackRestore()
                 val builder = standard.trackSelectionParameters.buildUpon()
-                for (override in overrides) {
+                for (override in ready) {
                     val target = override.trackIndices.firstOrNull()?.let(override.mediaTrackGroup::getFormat) ?: continue
                     matchingPlaybackTrack(tracks, override.type, target)?.let(builder::setOverrideForType)
                 }
@@ -208,30 +212,39 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
         }.build()
     }
 
-    fun recover(error: PlaybackException): Boolean = recover(PlaybackFailureClassifier.classify(error))
+    fun recover(error: PlaybackException): Boolean {
+        val mime = (error as? androidx.media3.exoplayer.ExoPlaybackException)?.rendererFormat?.sampleMimeType
+        return recover(PlaybackFailureClassifier.classify(error), mime?.takeIf(MimeTypes::isVideo))
+    }
 
     fun recover(code: Int): Boolean = recover(PlaybackFailureClassifier.classify(code))
 
-    private fun recover(failure: PlaybackFailure): Boolean {
+    private fun recover(failure: PlaybackFailure, videoMime: String? = null): Boolean {
         if (mode != "auto" || active !== standard || !failure.changesCore) return false
         if (failure.changesDecoder) {
             memoryKey()?.let { if (health?.engine(it) == "standard") health?.forgetEngine(it) }
         }
-        return switch(automatic = true)
+        return switch(automatic = true, videoMime = videoMime)
     }
 
-    private fun canSwitchAutomatically(current: EngineSource): Boolean {
+    private fun canSwitchAutomatically(current: EngineSource, videoMime: String?): Boolean {
         val c = config()
+        val mime = videoMime ?: standard.videoFormat?.sampleMimeType
+            ?: standard.currentTracks.groups.firstNotNullOfOrNull { group ->
+                if (group.type != C.TRACK_TYPE_VIDEO) null else (0 until group.length)
+                    .firstOrNull(group::isTrackSelected)?.let { group.getTrackFormat(it).sampleMimeType }
+            }
+        if (mime == null && c.decoderRules.codecs.values.any { it == "hardware" || it == "software" }) return false
         return automaticSwitchAllowed() && !c.tunneling && c.ffmpegVideo !in setOf("always", "off") &&
             c.ffmpeg !in setOf("prefer", "off") &&
-            c.decoderRules.preference(current.urls.firstOrNull().orEmpty(), standard.videoFormat?.sampleMimeType,
+            c.decoderRules.preference(current.urls.firstOrNull().orEmpty(), mime,
                 current.filename) in setOf("inherit", "auto")
     }
 
-    fun switch(automatic: Boolean = false):Boolean {
+    fun switch(automatic: Boolean = false, videoMime: String? = null): Boolean {
         if(attempted||active!==standard)return false
         val current=source?:return false
-        if (automatic && (mode != "auto" || !canSwitchAutomatically(current))) return false
+        if (automatic && (mode != "auto" || !canSwitchAutomatically(current, videoMime))) return false
         val parameters = selectedTracks(standard)
         val audio = if (C.TRACK_TYPE_AUDIO in parameters.disabledTrackTypes) null else {
             parameters.overrides.values.firstOrNull { it.type == C.TRACK_TYPE_AUDIO }?.let {
@@ -249,7 +262,7 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
         val volume=standard.volume
         val repeat=standard.repeatMode
         val native=try {
-            val input=current.copy(durationMs=current.durationMs ?: standard.duration.takeIf {it>0&&current.urls.size==1})
+            val input=current.copy(live = current.live || standard.isCurrentMediaItemLive, durationMs=current.durationMs ?: standard.duration.takeIf {it>0&&current.urls.size==1})
             compatibilityFactory?.invoke(input,position,parameters) ?: MpvPlayer(context,input,config(),position,parameters)
         } catch(_:Exception){return false} catch(_:LinkageError){return false}
         try {

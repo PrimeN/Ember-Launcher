@@ -68,7 +68,7 @@ import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 
 @OptIn(UnstableApi::class)
 /** Loads a source into the player and starts it. Used for the first episode and every next one. */
-internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<SubtitleOption>, release: String?) {
+internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<SubtitleOption>, release: String?, playWhenReady: Boolean = true) {
     supplementarySubtitles?.cancel(); supplementarySubtitles = null
     cancelRecovery()
     cancelNextEpisodeLookup()
@@ -145,7 +145,7 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     }
     p.prepare()
     userVideoMode?.let { mode -> playbackEngine?.compatibility?.softwareVideo(mode == DecoderMode.FFMPEG || mode == DecoderMode.SOFTWARE) }
-    p.playWhenReady = true
+    p.playWhenReady = playWhenReady
     loadMarkers()
 }
 
