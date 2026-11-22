@@ -194,7 +194,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         )
         .build()
 
-    playbackEngine=PlaybackEngine(this,standard,{config.copy(passthrough=config.passthrough&&!codecs.pcm)}) { compatible ->
+    playbackEngine=PlaybackEngine(this,standard,{config.copy(passthrough=config.passthrough&&!codecs.pcm)}, automaticSwitchAllowed = { userVideoMode in setOf(null, DecoderMode.AUTO) && userAudioMode in setOf(null, DecoderMode.AUTO) }) { compatible ->
         videoDecoder=if(compatible)"Compatibility engine" else null
         loudness?.release();loudness=null
         if(boostLevel>0)setBoost(boostLevel)
@@ -271,9 +271,9 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         override fun onTracksChanged(tracks: Tracks) {
             if (config.engine == "auto" && playbackEngine?.compatibility == null && tracks.groups.any { group ->
                 group.type == C.TRACK_TYPE_VIDEO && (0 until group.length).any { group.isTrackSelected(it) && PlaybackFormats.nativeFirst(group.getTrackFormat(it).sampleMimeType, group.isTrackSupported(it, false)) }
-            } && playbackEngine?.switch() == true) return
+            } && playbackEngine?.switch(automatic = true) == true) return
             if(config.engine=="auto" && prefs.subtitleConfig.authoredStyles && !prefs.subtitleConfig.systemStyle && playbackEngine?.compatibility==null && tracks.groups.any {it.type==C.TRACK_TYPE_TEXT && (0 until it.length).any { index -> it.isTrackSelected(index) && it.getTrackFormat(index).sampleMimeType==MimeTypes.TEXT_SSA }}) {
-                if(playbackEngine?.switch()==true)return
+                if(playbackEngine?.switch(automatic = true)==true)return
             }
             if (advanced) {
                 controls.audioTracks = audioTracks()
@@ -431,7 +431,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         SubtitleEngine.style(sv, subCfg)
         baseSubCfg = subCfg
         subs = SubtitleController(this, { player }, SubtitleEngine(sv) { subtitleTicker.refresh() }, subConfigFor(subCfg), {refreshSubtitlePanel();updateSubtitleSheet();subtitleTicker.refresh()}) { text,format,wholeFile ->
-            if(format=="ass" && config.engine=="auto" && prefs.subtitleConfig.authoredStyles)playbackEngine?.switch()
+            if(format=="ass" && config.engine=="auto" && prefs.subtitleConfig.authoredStyles)playbackEngine?.switch(automatic = true)
             playbackEngine?.compatibility?.external(text,format,wholeFile)==true
         }
     }

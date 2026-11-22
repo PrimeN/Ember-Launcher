@@ -29,6 +29,7 @@ internal fun playbackListener(listener: Player.Listener, player: () -> Player): 
 @androidx.annotation.OptIn(UnstableApi::class)
 internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer,private val config:()->PlaybackConfig,
     private val compatibilityFactory:((EngineSource,Long,TrackSelectionParameters)->Player)?=null,
+    private val automaticSwitchAllowed: () -> Boolean = { true },
     private val changed:(Boolean)->Unit) {
     private var active:Player=standard
     private val listeners=linkedMapOf<Player.Listener,Player.Listener>()
@@ -87,7 +88,7 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
                     val learned=if(config().rememberDecoderChoices)memoryKey()?.let {health?.engine(it)} else null
                     val automatic=current?.urls?.firstOrNull()?.let {PlaybackEnginePolicy.nativeFirst(it,current.filename)}==true
                     if(active===standard && (mode=="compatibility" || mode=="auto" && (learned=="compatibility" || learned==null&&automatic))) {
-                        if(!switch())standard.prepare()
+                        if(!switch(automatic = mode == "auto"))standard.prepare()
                     } else active.prepare();null}
                 "getVideoFormat" -> compatibility?.currentTracks?.groups?.firstOrNull {it.type==androidx.media3.common.C.TRACK_TYPE_VIDEO&&it.isSelected}?.getTrackFormat(0) ?: if(active===standard)standard.videoFormat else null
                 "getAudioFormat" -> compatibility?.currentTracks?.groups?.firstOrNull {it.type==androidx.media3.common.C.TRACK_TYPE_AUDIO&&it.isSelected}?.getTrackFormat(0) ?: if(active===standard)standard.audioFormat else null
@@ -130,11 +131,21 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
         if(!PlaybackEnginePolicy.compatibilityError(code))return false
         if(mode=="auto")memoryKey()?.let {health?.forgetEngine(it)}
         if(mode=="standard" || active!==standard)return false
-        return switch()
+        return switch(automatic = true)
     }
-    fun switch():Boolean {
+
+    private fun canSwitchAutomatically(current: EngineSource): Boolean {
+        val c = config()
+        return automaticSwitchAllowed() && !c.tunneling && c.ffmpegVideo !in setOf("always", "off") &&
+            c.ffmpeg !in setOf("prefer", "off") &&
+            c.decoderRules.preference(current.urls.firstOrNull().orEmpty(), standard.videoFormat?.sampleMimeType,
+                current.filename) in setOf("inherit", "auto")
+    }
+
+    fun switch(automatic: Boolean = false):Boolean {
         if(attempted||active!==standard)return false
         val current=source?:return false
+        if (automatic && (mode != "auto" || !canSwitchAutomatically(current))) return false
         val audio=standard.audioFormat ?: standard.currentTracks.groups.firstOrNull {it.type==androidx.media3.common.C.TRACK_TYPE_AUDIO && it.isSelected}?.let {group->
             (0 until group.length).firstOrNull(group::isTrackSelected)?.let(group::getTrackFormat)
         }
