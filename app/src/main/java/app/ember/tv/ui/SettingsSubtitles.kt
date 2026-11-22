@@ -174,6 +174,11 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OnOff(stringResource(R.string.st_preserve_authored_subtitle_styles),c.authoredStyles) {vm.playerSettings.updateSubtitleConfig {it.copy(authoredStyles=!it.authoredStyles)}}
                 OnOff(stringResource(R.string.st_use_system_caption_style),c.systemStyle) {vm.playerSettings.updateSubtitleConfig {it.copy(systemStyle=!it.systemStyle)}}
+                if (c.authoredStyles && !c.systemStyle) {
+                    OnOff(stringResource(R.string.st_standard_ass), c.standardAss) {
+                        vm.playerSettings.updateSubtitleConfig { it.copy(standardAss = !it.standardAss) }
+                    }
+                }
                 // #219: a live preview, then every choice as a sample of itself.
                 if (c.systemStyle) Note(stringResource(R.string.st_using_the_tv_s_caption_style))
                 SubtitlePreview(c)

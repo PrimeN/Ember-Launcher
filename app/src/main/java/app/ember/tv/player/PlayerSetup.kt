@@ -182,7 +182,9 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         "always" -> false
         else -> !Playback.screenHasDolbyVision(this)
     }
-    val standard = ExoPlayer.Builder(this, Playback.Renderers(this, config, audioDelay, codecs, decoderManager, audioEffectState))
+    val subCfg = prefs.subtitleConfig
+    nativeAssSubtitles = subCfg.standardAss && authoredAssEnabled(subCfg.authoredStyles, subCfg.systemStyle) && nativeAssAvailable()
+    val standard = ExoPlayer.Builder(this, Playback.Renderers(this, config, audioDelay, codecs, decoderManager, audioEffectState, nativeAssSubtitles))
         .setTrackSelector(trackSelector)
         .setLoadControl(Playback.loadControl(config, this))
         .setAudioAttributes(androidx.media3.common.AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
@@ -198,6 +200,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         videoDecoder=if(compatible)"Compatibility engine" else null
         loudness?.release();loudness=null
         if(boostLevel>0)setBoost(boostLevel)
+        if (!compatible && subsInitialized) subs.returnToStandard()
         if(compatible) {
             audioDecoder=null
             applyZoom();applyAspect()
@@ -272,9 +275,12 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
             if (config.engine == "auto" && playbackEngine?.compatibility == null && tracks.groups.any { group ->
                 group.type == C.TRACK_TYPE_VIDEO && (0 until group.length).any { group.isTrackSelected(it) && PlaybackFormats.nativeFirst(group.getTrackFormat(it).sampleMimeType, group.isTrackSupported(it, false)) }
             } && playbackEngine?.switch(automatic = true) == true) return
-            if(config.engine=="auto" && prefs.subtitleConfig.authoredStyles && !prefs.subtitleConfig.systemStyle && playbackEngine?.compatibility==null && tracks.groups.any {it.type==C.TRACK_TYPE_TEXT && (0 until it.length).any { index -> it.isTrackSelected(index) && it.getTrackFormat(index).sampleMimeType==MimeTypes.TEXT_SSA }}) {
-                if(playbackEngine?.switch(automatic = true)==true)return
-            }
+            if (!nativeAssSubtitles && config.engine == "auto" && playbackEngine?.compatibility == null &&
+                authoredAssEnabled(subCfg.authoredStyles, subCfg.systemStyle) && tracks.groups.any { group ->
+                    group.type == C.TRACK_TYPE_TEXT && (0 until group.length).any {
+                        group.isTrackSelected(it) && group.getTrackFormat(it).sampleMimeType == MimeTypes.TEXT_SSA
+                    }
+                } && playbackEngine?.switch(automatic = true) == true) return
             if (advanced) {
                 controls.audioTracks = audioTracks()
                 changed()
@@ -426,13 +432,33 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     view.player = p
     player = p
     platformSession = PlatformPlaybackSession(this, p, { endPlayback() }, { if (nextEpisodes.isNotEmpty() || fileQueue!=null) playNext() }).also { it.nextAvailable(nextEpisodes.isNotEmpty() || (fileQueue?.items?.size?:0)>1) }
-    val subCfg = prefs.subtitleConfig
-    view.subtitleView?.let { sv ->
-        SubtitleEngine.style(sv, subCfg)
+    view.subtitleView?.let { embedded ->
+        SubtitleEngine.style(embedded, subCfg)
         baseSubCfg = subCfg
-        subs = SubtitleController(this, { player }, SubtitleEngine(sv) { subtitleTicker.refresh() }, subConfigFor(subCfg), {refreshSubtitlePanel();updateSubtitleSheet();subtitleTicker.refresh()}) { text,format,wholeFile ->
-            if(format=="ass" && config.engine=="auto" && prefs.subtitleConfig.authoredStyles)playbackEngine?.switch(automatic = true)
-            playbackEngine?.compatibility?.external(text,format,wholeFile)==true
+        val overlay = androidx.media3.ui.SubtitleView(this).apply {
+            visibility = View.INVISIBLE
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        val parent = embedded.parent as ViewGroup
+        parent.addView(overlay, parent.indexOfChild(embedded) + 1,
+            FrameLayout.LayoutParams(embedded.layoutParams))
+        overlay.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) subtitleTicker.refresh()
+        }
+        val external = SubtitleEngine(overlay) {
+            val showingExternal = subsInitialized && subs.engine.active
+            embedded.visibility = if (showingExternal) View.INVISIBLE else View.VISIBLE
+            overlay.visibility = if (showingExternal) View.VISIBLE else View.INVISIBLE
+            subtitleTicker.refresh()
+        }
+        external.style(subCfg)
+        subs = SubtitleController(this, { player }, external, subConfigFor(subCfg),
+            { refreshSubtitlePanel(); updateSubtitleSheet(); subtitleTicker.refresh() }) { text, format, wholeFile ->
+            if (format == "ass" && !nativeAssSubtitles && config.engine == "auto" && playbackEngine?.compatibility == null &&
+                authoredAssEnabled(subCfg.authoredStyles, subCfg.systemStyle)) {
+                playbackEngine?.switch(automatic = true)
+            }
+            playbackEngine?.compatibility?.external(text, format, wholeFile) == true
         }
     }
     subtitleTicker.refresh()

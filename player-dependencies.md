@@ -166,10 +166,10 @@ the wrapper does not remove that requirement.
   their pinned NDK 29.0.14206865 toolchain. Exact upstream patches/configuration
   are in that release's build scripts.
   The curl notice is bundled in `app/src/main/assets/licenses/curl-COPYING.txt`.
-- [Nextlib source matching 1.11.1-0.18.0](https://github.com/anilbeesetti/nextlib/tree/d774e7e6d65204d409dc679ab173c67030d4a7d4), GPLv3:
+- [Nextlib source matching 1.11.1-0.19.0](https://github.com/anilbeesetti/nextlib/tree/v1.11.1-0.19.0), GPLv3:
   FFmpeg 9.0.1, dav1d 1.5.4, mbedTLS 3.6.7, libass 0.17.5, FreeType 2.14.1, FriBidi 1.0.16,
   HarfBuzz 14.4.0, Fontconfig 2.16.0, Expat 2.8.4 and libunibreak 7.0 (versions from its `ffmpeg/setup.sh`).
-  Ember adds only Nextlib's text renderer for delay and speed; its FFmpeg subtitle renderer is not used.
+  The beta subtitle option uses the native subtitle renderer for authored ASS in Standard playback. Notices ship under `assets/native-dependencies/`.
 - [Media3](https://github.com/androidx/media), Apache 2.0;
   [SMBJ](https://github.com/hierynomus/smbj), Apache 2.0;
   [JSch](https://github.com/mwiede/jsch), BSD style;

@@ -65,16 +65,29 @@ import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 
 @OptIn(UnstableApi::class)
 /** One retry owner for live streams: Media3 must not add hidden retries ahead of our budget. */
-internal fun PlayerActivity.mediaSourceFactory(http: DefaultDataSource.Factory) = DefaultMediaSourceFactory(http,
-    androidx.media3.extractor.DefaultExtractorsFactory().setTsExtractorFlags(androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS)
-        .setTsExtractorTimestampSearchBytes(1500 * 188)).apply {
-    if (live) setLoadErrorHandlingPolicy(object : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(0) {
+internal fun PlayerActivity.mediaSourceFactory(http: DefaultDataSource.Factory): DefaultMediaSourceFactory {
+    val defaults = androidx.media3.extractor.DefaultExtractorsFactory()
+        .setTsExtractorFlags(androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS)
+        .setTsExtractorTimestampSearchBytes(1500 * 188)
+    val factory = if (nativeAssSubtitles) {
+        val extractors = io.github.anilbeesetti.nextlib.media3ext.ffdecoder.FfmpegSubtitleExtractorsFactory(defaults)
+        val defaultParsers = androidx.media3.extractor.text.DefaultSubtitleParserFactory()
+        val parsers = object : androidx.media3.extractor.text.SubtitleParser.Factory by defaultParsers {
+            override fun supportsFormat(format: androidx.media3.common.Format): Boolean =
+                format.sampleMimeType != MimeTypes.TEXT_SSA && defaultParsers.supportsFormat(format)
+        }
+        DefaultMediaSourceFactory(http, extractors).setSubtitleParserFactory(parsers)
+    } else {
+        DefaultMediaSourceFactory(http, defaults)
+    }
+    if (live) factory.setLoadErrorHandlingPolicy(object : androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(0) {
         override fun getRetryDelayMsFor(info: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo) = C.TIME_UNSET
         override fun getFallbackSelectionFor(
             options: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.FallbackOptions,
             info: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.LoadErrorInfo,
         ): androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy.FallbackSelection? = null
     })
+    return factory
 }
 
 @OptIn(UnstableApi::class)

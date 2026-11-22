@@ -27,4 +27,5 @@
         <item>Mocha</item>
     </string-array>
     <string name="now_playing_service_label">Ember Now Playing</string>
+    <string name="st_standard_ass">Authored ASS in Standard playback (beta)</string>
 </resources>

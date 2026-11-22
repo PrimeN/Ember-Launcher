@@ -275,6 +275,7 @@ internal fun PlayerActivity.applySubLook(c: app.ember.tv.data.SubtitleConfig) {
     prefs.subtitleConfig = c
     baseSubCfg = baseSubCfg?.copy(size = c.size, position = c.position, background = c.background) ?: c
     view.subtitleView?.let { SubtitleEngine.style(it, c) }
+    if (subsInitialized) subs.engine.style(c)
     playbackEngine?.compatibility?.captionStyle(c)
 }
 

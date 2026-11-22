@@ -177,6 +177,7 @@ internal fun PlayerActivity.endPlayback(finishActivity: Boolean = true) {
     handler.removeCallbacks(tick)
     handler.removeCallbacks(infoUpdater)
     handler.removeCallbacks(hideInfo)
+    if (subsInitialized) subs.close()
     handler.removeCallbacks(subtitleTicker)
     handler.removeCallbacks(markerTicker)
     handler.removeCallbacks(controlsTicker)

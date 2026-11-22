@@ -74,6 +74,7 @@ data class SubtitleConfig(
     val font: String = "default",
     /** Where the custom font came from and its family name, for showing which one is loaded. */
     val customFontName: String = "",
+    val standardAss: Boolean = false,
 )
 
 /** One subtitle file Ember can show, with what is known about how well it fits the video. */

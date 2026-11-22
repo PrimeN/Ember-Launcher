@@ -209,6 +209,7 @@ object Playback {
         private val codecs: CodecChoice = CodecChoice(),
         private val manager: DecoderManager = DecoderManager(),
         private val effects: AudioEffectState = AudioEffectState(),
+        private val nativeSubtitles: Boolean = false,
     ) : NextRenderersFactory(context) {
         init {
             setDecoderManager(manager)
@@ -274,7 +275,8 @@ object Playback {
             extensionRendererMode: Int,
             out: ArrayList<Renderer>,
         ) {
-            out.add(NextTextRenderer(output, outputLooper))
+            if (nativeSubtitles) super.buildTextRenderers(context, output, outputLooper, extensionRendererMode, out)
+            else out.add(NextTextRenderer(output, outputLooper))
         }
 
         override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink {

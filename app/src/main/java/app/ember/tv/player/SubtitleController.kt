@@ -55,11 +55,15 @@ class SubtitleController(
     private var chosenOff = false
     private var manualFile:Pair<String,String>?=null
     private var manualBitmap=false
+    private data class NativeText(val text: String, val format: String)
+    private var nativeText: NativeText? = null
+    private var backendLoad: Job? = null
     val wholeFileTiming:Boolean get()=manualFile!=null || manualBitmap
 
     /** Starts looking for subtitles for a new video. [addon] are the subtitles the Stremio addons gave. */
     fun startSearch(url: String, query: Subtitles.Query, addon: List<SubtitleOption>, preserve: Boolean = false, headers: Map<String, String> = emptyMap()) {
         if (!preserve) { choice=null; chosenOff=false;manualFile=null;manualBitmap=false }
+        clearNativeText()
         this.query = query
         searchJob?.cancel()
         loadJob?.cancel()
@@ -156,6 +160,7 @@ class SubtitleController(
     }
 
     fun selectOff() {
+        clearNativeText()
         autoSelection.manual()
         loadJob?.cancel()
         engine.clear()
@@ -166,6 +171,7 @@ class SubtitleController(
     }
 
     fun selectEmbedded(group: Int, track: Int, manual: Boolean = true) {
+        clearNativeText()
         autoSelection.manual()
         loadJob?.cancel()
         engine.clear()
@@ -176,6 +182,7 @@ class SubtitleController(
             .setOverrideForType(TrackSelectionOverride(g.mediaTrackGroup, track))
             .build()
         selection = Selection.Embedded(group, track)
+        clearNativeText()
         manualFile=null;manualBitmap=false
         if(manual) { val f=g.getTrackFormat(track);choice=Choice(Subtitles.normalise(f.language),false,forced=f.selectionFlags and C.SELECTION_FLAG_FORCED!=0);chosenOff=false }
         onChange()
@@ -207,8 +214,8 @@ class SubtitleController(
                     }}
                     val format=if(got.second in setOf("microdvd","sami"))"srt" else got.second
                     if(text==null)null
-                    else if (nativeSubtitle(text,format,false)) true
-                    else if (engine.load(text,format,fps)) false
+                    else if (nativeSubtitle(text,format,false)) { nativeText = NativeText(text, format); true }
+                    else if (engine.load(text, format, fps, config.standardAss && authoredAssEnabled(config.authoredStyles, config.systemStyle))) false
                     else null
                 } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Throwable) { null }
                 if (native != null) {
@@ -226,15 +233,53 @@ class SubtitleController(
 
     /** Manual files have the same selection priority as an explicit track choice. */
     suspend fun loadManual(text:String,format:String,restoring:Boolean=false):Boolean {
+        clearNativeText()
         if(!restoring)loadJob?.cancel()
         autoSelection.manual();chosenOff=false
         val fps=player()?.videoFormat?.frameRate?.takeIf {it>0}
         val converted=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {when(format) {"microdvd"->app.ember.tv.data.SubtitleFiles.microDvd(text,fps)?:return@withContext null;"sami"->app.ember.tv.data.SamiSubtitles.toSrt(text,Subtitles.wanted(config));else->text}} ?: return false
-        if(nativeSubtitle(converted,if(format in setOf("microdvd","sami"))"srt" else format,true)){engine.clear();manualBitmap=false;manualFile=text to format;selection=Selection.Manual("Manual subtitle file");status="Manual subtitle file";onChange();return true}
-        if(!engine.load(converted,if(format in setOf("microdvd","sami"))"srt" else format,fps))return false
+        val convertedFormat = if (format in setOf("microdvd", "sami")) "srt" else format
+        if (nativeSubtitle(converted, convertedFormat, true)) {
+            nativeText = NativeText(converted, convertedFormat)
+            engine.clear()
+            manualBitmap=false;manualFile=text to format;selection=Selection.Manual("Manual subtitle file");status="Manual subtitle file"
+            onChange()
+            return true
+        }
+        if(!engine.load(converted, convertedFormat, fps,
+                config.standardAss && authoredAssEnabled(config.authoredStyles, config.systemStyle)))return false
         setMedia3Text(false);manualBitmap=false;manualFile=text to format;selection=Selection.Manual("Manual subtitle file");status="Manual subtitle file";onChange();return true
     }
-    fun selectManualNative(){autoSelection.manual();loadJob?.cancel();chosenOff=false;manualFile=null;manualBitmap=true;engine.clear();selection=Selection.Manual("Manual bitmap subtitles");status="Manual bitmap subtitles";onChange()}
+    fun selectManualNative(){clearNativeText();autoSelection.manual();loadJob?.cancel();chosenOff=false;manualFile=null;manualBitmap=true;engine.clear();selection=Selection.Manual("Manual bitmap subtitles");status="Manual bitmap subtitles";onChange()}
+
+    private fun clearNativeText() {
+        backendLoad?.cancel()
+        backendLoad = null
+        nativeText = null
+    }
+
+    internal fun returnToStandard() {
+        val subtitle = nativeText ?: return
+        nativeText = null
+        backendLoad?.cancel()
+        // The native engine has released its sidecar file. Restore the text overlay for this visit.
+        setMedia3Text(false)
+        backendLoad = activity.lifecycleScope.launch {
+            val fps = player()?.videoFormat?.frameRate?.takeIf { it > 0 }
+            if (!engine.load(subtitle.text, subtitle.format, fps,
+                    config.standardAss && authoredAssEnabled(config.authoredStyles, config.systemStyle))) {
+                selection = Selection.Off
+            }
+            onChange()
+        }
+    }
+
+    internal fun close() {
+        clearNativeText()
+        searchJob?.cancel()
+        loadJob?.cancel()
+        engine.clear()
+    }
 
     /** Media3's own subtitle tracks on or off; off while a downloaded subtitle is shown. */
     private fun setMedia3Text(enabled: Boolean) {

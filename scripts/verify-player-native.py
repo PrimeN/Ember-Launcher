@@ -21,9 +21,18 @@ def check_linked_symbols(archive, prefix):
                 if fields[6]!='UND':
                     exports.add(symbol);exports.add(symbol.split('@')[0])
                 elif fields[4]=='GLOBAL' and (symbol.startswith('_Z') or '@LIBAV' in symbol or '@LIBSW' in symbol):imports.add(symbol)
+            if prefix == 'lib' and name == 'libass.so' and abi == 'arm64-v8a':
+                segments = subprocess.check_output(['readelf', '-lW', str(file)], text=True)
+                assert all(int(row.split()[-1], 16) >= 16384 for row in segments.splitlines()
+                           if row.strip().startswith('LOAD')), (abi, name, '16 KiB alignment')
             libraries.setdefault(abi,{})[name]=(needed,exports,imports)
         assert set(libraries)=={'arm64-v8a','armeabi-v7a'},libraries.keys()
         for abi,items in libraries.items():
+            if prefix == 'lib':
+                assert ('libass.so' in items and 'ass_render_frame' in items['libass.so'][1]
+                        and 'libass.so' in items['libmedia3ext.so'][0]), (abi, 'Nextlib ASS linkage')
+                assert all('libass.so' not in deps for name, (deps, _, _) in items.items()
+                           if name.startswith('libem')), (abi, 'mpv ASS isolation')
             for name,(_,_,imports) in items.items():
                 seen=set();available=set();pending=[name]
                 while pending:
@@ -69,4 +78,7 @@ if args.nextlib:
     print('Nextlib: its separate FFmpeg ABI (LIBAVCODEC_63) is retained.')
 
 check_linked_symbols(args.isolated_aar,'jni')
-if args.apk:check_linked_symbols(args.apk,'lib')
+if args.apk:
+    check_linked_symbols(args.apk, 'lib')
+    with zipfile.ZipFile(args.apk) as z:
+        assert 'assets/native-dependencies/libass-0.17.5/COPYING' in z.namelist(), 'Missing libass notice'

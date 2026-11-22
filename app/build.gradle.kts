@@ -384,7 +384,7 @@ dependencies {
     // Opus, Vorbis), plus software video recovery through Nextlib DecoderManager.
     // Version is <Media3 version>-<Nextlib version> and must match Media3 above. (Jellyfin's build,
     // used before, stopped at Media3 1.9.)
-    implementation("io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.18.0")
+    implementation("io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.19.0")
     // Experimental: finds YouTube trailer streams so they play in the built-in player (Settings > Player).
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.5")
     // QR code for Settings > Phone setup.

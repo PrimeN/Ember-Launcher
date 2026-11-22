@@ -249,10 +249,11 @@ class PlayerActivity : ComponentActivity() {
     internal lateinit var timingLabel: TextView
     internal lateinit var subs: SubtitleController
     internal val handler = Handler(Looper.getMainLooper())
+    internal var nativeAssSubtitles = false
     internal var subtitleUpdatesStarted = false
     internal val subtitleTicker = SubtitleTicker(handler, { subtitleUpdatesStarted && player != null && !isFinishing }, {
         player?.isPlaying == true && (::subs.isInitialized && subs.engine.active || repeatRange.end != null)
-    }) {
+    }, intervalMs = { if (subsInitialized && subs.engine.animatesAss) 33L else 100L }) {
             val p = player
             if(p!=null && p.isPlaying)repeatRange.destination(p.currentPosition)?.let(p::seekTo)
             if (p != null && ::subs.isInitialized) {val prefix=if(subs.wholeFileTiming)0L else (playbackEngine?.compatibility?.partOffset ?: serverPlayback?.offset(serverPartIndex))?:0L;subs.engine.render((p.currentPosition-prefix).coerceAtLeast(0))}

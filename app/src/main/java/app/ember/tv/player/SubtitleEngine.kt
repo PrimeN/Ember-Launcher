@@ -26,6 +26,9 @@ import app.ember.tv.data.SubtitleConfig
 class SubtitleEngine(private val view: SubtitleView, private val invalidate: () -> Unit = {}) {
     private var cues: List<CuesWithTiming> = emptyList()
     private var lastShown: List<Cue>? = null
+    private var assOverlay: AssOverlay? = null
+    private var nativeOutput = false
+    internal val animatesAss get() = assOverlay != null
     private var index = CueIndex<CuesWithTiming>(emptyList(), { it.startTimeUs }, { it.startTimeUs })
     var speed: Float = 1f
         set(value){field=SubtitleTiming.rate(value);lastShown=null;invalidate()}
@@ -38,14 +41,41 @@ class SubtitleEngine(private val view: SubtitleView, private val invalidate: () 
             invalidate()
         }
 
-    val active: Boolean get() = cues.isNotEmpty()
+    val active: Boolean get() = cues.isNotEmpty() || assOverlay != null
 
-    /** Loads a subtitle; false if nothing could be read from it. */
-    suspend fun load(text: String, format: String, fps: Float? = null): Boolean {
-        val parsed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { parse(text,format,fps) } ?: return false
-        if(parsed.first.isEmpty())return false
-        cues=parsed.first;index=parsed.second;lastShown=null;invalidate()
-        return cues.isNotEmpty()
+    /** Loads a subtitle; false if neither renderer can read it. */
+    suspend fun load(text: String, format: String, fps: Float? = null, authoredAss: Boolean = false): Boolean {
+        val parsed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { parse(text, format, fps) }
+        val useAss = authoredAss && format == "ass" && nativeAssAvailable()
+        if (parsed?.first.isNullOrEmpty() && !useAss) return false
+        clearAss()
+        cues = parsed?.first.orEmpty()
+        index = parsed?.second ?: CueIndex(emptyList(), { it.startTimeUs }, { it.startTimeUs })
+        lastShown = null
+        if (useAss) {
+            val output = object : androidx.media3.exoplayer.text.TextOutput {
+                override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) {
+                    if (cueGroup.cues.any { it.bitmap != null }) nativeOutput = true
+                    if (nativeOutput) view.setCues(cueGroup.cues)
+                }
+            }
+            assOverlay = AssOverlay(view.context, text, output) {
+                clearAss()
+                lastShown = null
+                view.setCues(emptyList())
+                invalidate()
+            }
+        }
+        invalidate()
+        return true
+    }
+
+    internal fun style(config: SubtitleConfig) = style(view, config)
+
+    private fun clearAss() {
+        assOverlay?.close()
+        assOverlay = null
+        nativeOutput = false
     }
 
     private fun parse(text:String,format:String,fps:Float?):Pair<List<CuesWithTiming>,CueIndex<CuesWithTiming>>? {
@@ -68,6 +98,7 @@ class SubtitleEngine(private val view: SubtitleView, private val invalidate: () 
     }
 
     fun clear() {
+        clearAss()
         cues = emptyList()
         index = CueIndex(emptyList(), { it.startTimeUs }, { it.startTimeUs })
         lastShown = null
@@ -77,12 +108,13 @@ class SubtitleEngine(private val view: SubtitleView, private val invalidate: () 
 
     /** Shows the cues for [positionMs] of the video. Call every ~100 ms while playing. */
     fun render(positionMs: Long) {
-        if (cues.isEmpty()) return
-        val t = ((positionMs * speed - offsetMs) * 1000).toLong()
+        if (!active) return
+        val t = (positionMs * 1000.0 * speed - offsetMs * 1000.0).toLong()
+        if (view.width > 0 && view.height > 0) assOverlay?.draw(t, view.width, view.height)
         val now = index.at(t).flatMap { it.cues }
         if (now != lastShown) {
             lastShown = now
-            view.setCues(now)
+            if (!nativeOutput) view.setCues(now)
         }
     }
 
