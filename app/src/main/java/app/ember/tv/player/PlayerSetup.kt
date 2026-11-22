@@ -387,7 +387,6 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
                 p.currentMediaItem?.buildUpon()?.setMimeType(MimeTypes.APPLICATION_M3U8)?.build()?.let {
                     p.setMediaItem(it)
                     p.prepare()
-                    p.playWhenReady = true
                     return
                 }
             }
@@ -399,13 +398,14 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
                     " · FFmpeg video ${codecs.ffmpegVideo} · retries $recoveries/$ioRetries · at ${player?.currentPosition ?: 0} ms",
                 error,
             )
-            if(PlaybackErrors.decoding(error.errorCode)) {
-                val failed=(error as? androidx.media3.exoplayer.ExoPlaybackException)?.rendererFormat ?: p.videoFormat
-                if(failed!=null)codecs.decoderHealth?.forget(failed)
+            PlaybackFailureClassifier.failedVideoDecoder(error)?.let { (format, name) ->
+                codecs.decoderHealth?.forget(format, name)
+            }
+            if (PlaybackFailureClassifier.classify(error).changesDecoder) {
                 decoderLearned=false;decoderStableSince=0
             }
             if (recover(error)) return
-            if(playbackEngine?.recover(error.errorCode)==true)return
+            if(playbackEngine?.recover(error)==true)return
             if (serverPlayback != null) { showServerRecovery(); return }
             // The underlying cause, e.g. "FfmpegDecoderException: ..." or "EOFException".
             val cause = generateSequence(error.cause) { it.cause }.lastOrNull()?.let { c ->

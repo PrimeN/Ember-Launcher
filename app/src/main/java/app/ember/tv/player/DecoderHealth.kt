@@ -36,6 +36,13 @@ internal class DecoderHealth private constructor(private val store:android.conte
     @Synchronized fun hint(format:Format):ProvenDecoder? {syncReset();return profile(format)?.let(memory::get)}
     @Synchronized fun remember(format:Format,name:String,software:Boolean) {syncReset();profile(format)?.let {key->memory.remember(key,ProvenDecoder(name,software,System.currentTimeMillis()));save()}}
     @Synchronized fun forget(format:Format){syncReset();profile(format)?.let {memory.forget(it);save()}}
+    @Synchronized fun forget(format: Format, name: String) {
+        syncReset()
+        val key = profile(format) ?: return
+        if (memory.get(key)?.name != name) return
+        memory.forget(key)
+        save()
+    }
     @Synchronized fun engine(key:String):String? {syncReset();return memory.get("engine:$key")?.name?.takeIf {it in setOf("standard","compatibility")}}
     @Synchronized fun rememberEngine(key:String,engine:String) {syncReset();if(engine in setOf("standard","compatibility")){memory.remember("engine:$key",ProvenDecoder(engine,savedAt=System.currentTimeMillis()));save()}}
     @Synchronized fun forgetEngine(key:String){syncReset();memory.forget("engine:$key");save()}

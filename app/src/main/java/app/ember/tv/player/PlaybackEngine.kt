@@ -1,7 +1,12 @@
 package app.ember.tv.player
 
 import android.content.Context
+import androidx.media3.common.C
+import androidx.media3.common.Format
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.common.TrackSelectionParameters
 import android.os.Handler
 import android.os.Looper
@@ -78,7 +83,7 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
                     val adapter=listeners.getOrPut(listener) {playbackListener(listener) {player}};active.addListener(adapter);null}
                 "removeListener" -> {listeners.remove(arguments[0])?.let(active::removeListener);null}
                 // Drop the released libmpv instance: native calls on a destroyed handle crash the process.
-                "release" -> {released=true;navigation.cancel();stable?.let(handler::removeCallbacks);active.removeListener(stabilityListener);listeners.values.forEach(active::removeListener);if(active!==standard)active.release();active=standard;standard.release();listeners.clear();null}
+                "release" -> {released=true;navigation.cancel();cancelTrackRestore();stable?.let(handler::removeCallbacks);active.removeListener(stabilityListener);listeners.values.forEach(active::removeListener);if(active!==standard)active.release();active=standard;standard.release();listeners.clear();null}
                 "getCurrentPosition", "getContentPosition" -> navigation.target ?: if(method.name=="getContentPosition")active.contentPosition else active.currentPosition
                 "seekBack", "seekForward" -> {
                     val delta=if(method.name=="seekBack")-active.seekBackIncrement else active.seekForwardIncrement
@@ -113,24 +118,105 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
     }
     fun configure(value:EngineSource) {
         navigation.cancel()
+        cancelTrackRestore()
         stable?.let(handler::removeCallbacks);stable=null
-        val old=active.takeUnless {it===standard}
-        if(old!=null){old.removeListener(stabilityListener);listeners.values.forEach(old::removeListener);old.release();active=standard;standard.addListener(stabilityListener);listeners.values.forEach(standard::addListener)
-            surfaceMethod?.let {method->surface?.let {method.invoke(standard,it)}};changed(false)}
+        if (active !== standard) {
+            returnToStandard()
+            changed(false)
+        }
         source=value;attempted=false
     }
+
     fun mode(value:String) {
         mode=value
-        if(value=="compatibility") {attempted=false;switch()}
-        else if(value=="standard" && compatibility!=null) {
-            val at=navigation.target?:active.currentPosition;val wanted=active.playWhenReady;val current=source?:return
-            configure(current);standard.seekTo(at);standard.prepare();standard.playWhenReady=wanted
+        if(value=="compatibility" && active===standard) {
+            attempted=false
+            switch()
+        } else if(value=="standard" && active!==standard) {
+            val outgoing = active
+            val position = navigation.target ?: outgoing.currentPosition
+            val wanted = outgoing.playWhenReady
+            val speed = outgoing.playbackParameters
+            val volume = outgoing.volume
+            val repeat = outgoing.repeatMode
+            val parameters = selectedTracks(outgoing)
+            navigation.cancel()
+            stable?.let(handler::removeCallbacks);stable=null
+            returnToStandard()
+            standard.trackSelectionParameters = parameters.buildUpon()
+                .clearOverridesOfType(C.TRACK_TYPE_AUDIO).clearOverridesOfType(C.TRACK_TYPE_TEXT).build()
+            restoreTrackSelection(parameters)
+            standard.seekTo(position)
+            standard.playbackParameters=speed
+            standard.volume=volume
+            standard.repeatMode=repeat
+            standard.playWhenReady=wanted
+            standard.prepare()
+            changed(false)
         }
     }
-    fun recover(code:Int):Boolean {
-        if(!PlaybackEnginePolicy.compatibilityError(code))return false
-        if(mode=="auto")memoryKey()?.let {health?.forgetEngine(it)}
-        if(mode=="standard" || active!==standard)return false
+
+    private fun returnToStandard() {
+        active.removeListener(stabilityListener)
+        listeners.values.forEach(active::removeListener)
+        active.release()
+        active=standard
+        standard.addListener(stabilityListener)
+        listeners.values.forEach(standard::addListener)
+        surfaceMethod?.let { method -> surface?.let { method.invoke(standard,it) } }
+    }
+
+    private var trackRestore: Player.Listener? = null
+
+    private fun cancelTrackRestore() {
+        trackRestore?.let(standard::removeListener)
+        trackRestore=null
+    }
+
+    private fun restoreTrackSelection(parameters: TrackSelectionParameters) {
+        cancelTrackRestore()
+        val overrides = parameters.overrides.values.filter { it.type == C.TRACK_TYPE_AUDIO || it.type == C.TRACK_TYPE_TEXT }
+        if (overrides.isEmpty()) return
+        val listener = object : Player.Listener {
+            override fun onTracksChanged(tracks: Tracks) {
+                if (tracks.groups.isEmpty()) return
+                cancelTrackRestore()
+                val builder = standard.trackSelectionParameters.buildUpon()
+                for (override in overrides) {
+                    val target = override.trackIndices.firstOrNull()?.let(override.mediaTrackGroup::getFormat) ?: continue
+                    matchingPlaybackTrack(tracks, override.type, target)?.let(builder::setOverrideForType)
+                }
+                standard.trackSelectionParameters=builder.build()
+            }
+        }
+        trackRestore=listener
+        standard.addListener(listener)
+        listener.onTracksChanged(standard.currentTracks)
+    }
+
+    private fun selectedTracks(owner: Player): TrackSelectionParameters {
+        val existing = owner.trackSelectionParameters
+        return existing.buildUpon().also { builder ->
+            for (type in listOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_TEXT)) {
+                if (type in existing.disabledTrackTypes) continue
+                val chosen = existing.overrides.values.firstOrNull { it.type == type }
+                if (chosen != null && owner.currentTracks.groups.any { it.mediaTrackGroup == chosen.mediaTrackGroup }) continue
+                val group = owner.currentTracks.groups.firstOrNull { it.type == type && it.isSelected } ?: continue
+                val index = (0 until group.length).firstOrNull(group::isTrackSelected) ?: continue
+                builder.setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, index))
+            }
+        }.build()
+    }
+
+    fun recover(error: PlaybackException): Boolean = recover(PlaybackFailureClassifier.classify(error))
+
+    fun recover(code: Int): Boolean = recover(PlaybackFailureClassifier.classify(code))
+
+    private fun recover(failure: PlaybackFailure): Boolean {
+        if (mode != "auto" || active !== standard || !failure.changesCore) return false
+        if (failure.changesDecoder) {
+            memoryKey()?.let { if (health?.engine(it) == "standard") health?.forgetEngine(it) }
+        }
         return switch(automatic = true)
     }
 
@@ -146,27 +232,37 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
         if(attempted||active!==standard)return false
         val current=source?:return false
         if (automatic && (mode != "auto" || !canSwitchAutomatically(current))) return false
-        val audio=standard.audioFormat ?: standard.currentTracks.groups.firstOrNull {it.type==androidx.media3.common.C.TRACK_TYPE_AUDIO && it.isSelected}?.let {group->
-            (0 until group.length).firstOrNull(group::isTrackSelected)?.let(group::getTrackFormat)
+        val parameters = selectedTracks(standard)
+        val audio = if (C.TRACK_TYPE_AUDIO in parameters.disabledTrackTypes) null else {
+            parameters.overrides.values.firstOrNull { it.type == C.TRACK_TYPE_AUDIO }?.let {
+                it.trackIndices.firstOrNull()?.let(it.mediaTrackGroup::getFormat)
+            } ?: standard.audioFormat
         }
-        if(!PlaybackEnginePolicy.preservesAudio(audio?.sampleMimeType,audio?.drmInitData!=null || standard.videoFormat?.drmInitData!=null))return false
+        if (!PlaybackEnginePolicy.preservesAudio(audio?.sampleMimeType, audio?.drmInitData != null ||
+                standard.videoFormat?.drmInitData != null ||
+                standard.currentMediaItem?.localConfiguration?.drmConfiguration != null)) return false
         attempted=true
         val position=(navigation.target?:standard.currentPosition).coerceAtLeast(0)
-        navigation.cancel()
         val desired=standard.playWhenReady
         val state=standard.playbackState
+        val speed=standard.playbackParameters
+        val volume=standard.volume
+        val repeat=standard.repeatMode
         val native=try {
             val input=current.copy(durationMs=current.durationMs ?: standard.duration.takeIf {it>0&&current.urls.size==1})
-            compatibilityFactory?.invoke(input,position,standard.trackSelectionParameters) ?: MpvPlayer(context,input,config(),position,standard.trackSelectionParameters)
+            compatibilityFactory?.invoke(input,position,parameters) ?: MpvPlayer(context,input,config(),position,parameters)
         } catch(_:Exception){return false} catch(_:LinkageError){return false}
         try {
+            navigation.cancel()
+            cancelTrackRestore()
             standard.removeListener(stabilityListener);listeners.values.forEach(standard::removeListener)
             standard.clearVideoSurface();standard.stop()
             active=native;native.addListener(stabilityListener);listeners.values.forEach(native::addListener)
             surfaceMethod?.let {method->surface?.let {method.invoke(native,it)}}
+            native.playbackParameters=speed
+            native.volume=volume
+            native.repeatMode=repeat
             native.playWhenReady=desired
-            native.playbackParameters=standard.playbackParameters
-            native.volume=standard.volume
             native.prepare();changed(true);return true
         } catch(e:Throwable) {
             if(e !is Exception && e !is LinkageError)throw e
@@ -181,4 +277,26 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
             return false
         }
     }
+}
+
+/** Match a selection across backends even when their track-group IDs differ. */
+@androidx.annotation.OptIn(UnstableApi::class)
+internal fun matchingPlaybackTrack(tracks: androidx.media3.common.Tracks, type: Int, target: Format): TrackSelectionOverride? {
+    val language = app.ember.tv.data.Subtitles.normalise(target.language)
+    val forced = target.selectionFlags and C.SELECTION_FLAG_FORCED
+    val candidates = tracks.groups.filter { it.type == type }.flatMap { group ->
+        (0 until group.length).filter { group.isTrackSupported(it, true) }.map { group to it }
+    }.filter { (group, index) ->
+        val format = group.getTrackFormat(index)
+        app.ember.tv.data.Subtitles.normalise(format.language) == language &&
+            (format.selectionFlags and C.SELECTION_FLAG_FORCED) == forced
+    }
+    val match = candidates.firstOrNull { (group, index) -> group.getTrackFormat(index).id == target.id && target.id != null }
+        ?: candidates.maxByOrNull { (group, index) ->
+            val format = group.getTrackFormat(index)
+            (if (target.label != null && target.label == format.label) 4 else 0) +
+                (if (target.sampleMimeType == format.sampleMimeType) 2 else 0) +
+                (if (target.channelCount > 0 && target.channelCount == format.channelCount) 1 else 0)
+        }
+    return match?.let { (group, index) -> TrackSelectionOverride(group.mediaTrackGroup, index) }
 }

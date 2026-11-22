@@ -198,11 +198,11 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
             if(type in value.disabledTrackTypes) {native.setPropertyString(property,"no");if(type==C.TRACK_TYPE_TEXT){native.setPropertyString("secondary-sid","no");secondaryLanguage=null;externalSubtitle=null;externalGlobal=false;subtitleDelay(subtitleOffset)};continue}
             val override=value.overrides.values.firstOrNull {it.type==type}
             if(type==C.TRACK_TYPE_TEXT&&override!=null){externalGlobal=false;externalSubtitle=null;subtitleDelay(subtitleOffset)}
-            val chosen=override?.let { o -> tracks.groups.firstOrNull {it.mediaTrackGroup.id==o.mediaTrackGroup.id && app.ember.tv.data.Subtitles.normalise(it.getTrackFormat(0).language)==app.ember.tv.data.Subtitles.normalise(o.mediaTrackGroup.getFormat(o.trackIndices.firstOrNull()?:0).language)} ?: run {
-                val format=o.mediaTrackGroup.getFormat(o.trackIndices.firstOrNull()?:0)
-                tracks.groups.firstOrNull {it.type==type&&app.ember.tv.data.Subtitles.normalise(it.getTrackFormat(0).language)==app.ember.tv.data.Subtitles.normalise(format.language) && (it.getTrackFormat(0).selectionFlags and C.SELECTION_FLAG_FORCED)==(format.selectionFlags and C.SELECTION_FLAG_FORCED)}
-            } }
-            chosen?.mediaTrackGroup?.id?.substringAfterLast(':')?.toIntOrNull()?.let {native.setPropertyInt(property,it)}
+            val chosen = override?.let {
+                val format = it.trackIndices.firstOrNull()?.let(it.mediaTrackGroup::getFormat) ?: return@let null
+                matchingPlaybackTrack(tracks, type, format)
+            }
+            chosen?.mediaTrackGroup?.id?.substringAfterLast(':')?.toIntOrNull()?.let { native.setPropertyInt(property, it) }
         }
     }
     private fun loaded() {

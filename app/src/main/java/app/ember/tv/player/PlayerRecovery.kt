@@ -115,10 +115,9 @@ internal fun PlayerActivity.describe(f: androidx.media3.common.Format?) = Playba
  */
 internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
     if(playbackEngine?.compatibility!=null)return false
-    val decoding = PlaybackErrors.decoding(e.errorCode)
+    val failure = PlaybackFailureClassifier.classify(e)
     val p = player ?: return false
-    val network = PlaybackErrors.connection(e.errorCode)
-    if (network && ioRetries < 2) {
+    if (failure == PlaybackFailure.NETWORK && ioRetries < 2) {
         ioRetries++
         lastRetryAt = android.os.SystemClock.elapsedRealtime()
         Toast.makeText(this, getString(R.string.pl_the_connection_dropped_trying_again), Toast.LENGTH_SHORT).show()
@@ -139,10 +138,13 @@ internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
         handler.postDelayed(retry, 1_500L * ioRetries)
         return true
     }
-    val outputFailure=PlaybackErrors.audioOutput(e.errorCode)
-    if ((!decoding && !outputFailure) || recoveries >= 6) return false
+    val outputFailure = failure == PlaybackFailure.AUDIO_OUTPUT
+    if ((!failure.changesDecoder && !outputFailure) || recoveries >= 6) return false
     val format=(e as? androidx.media3.exoplayer.ExoPlaybackException)?.rendererFormat
     val audio=outputFailure || format?.sampleMimeType?.let(MimeTypes::isAudio)==true
+    val wanted = p.playWhenReady
+    if (!audio && userVideoMode !in setOf(null, DecoderMode.AUTO) ||
+        audio && userAudioMode !in setOf(null, DecoderMode.AUTO) && !outputFailure) return false
     val message: String
     if(audio && decoderRecovery.pcmFallback()) {
         codecs.pcm=true
@@ -162,7 +164,7 @@ internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
     val at = p.currentPosition
     p.seekTo(at)
     p.prepare()
-    p.playWhenReady = true
+    p.playWhenReady = wanted
     return true
 }
 
