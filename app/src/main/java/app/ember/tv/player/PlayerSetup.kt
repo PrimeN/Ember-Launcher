@@ -86,8 +86,6 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
             finish(); return
         }
     }
-    applyChannelHeaders(zapIndex)
-    if (liveSession == null) applyStreamHeaders(PlayRequest.headers(intent))
     audioUrl = intent.getStringExtra(PlayerActivity.EXTRA_AUDIO_URL)
     val url = if (liveSession != null) zapUrls.getOrNull(zapIndex) else intent.getStringExtra(PlayRequest.EXTRA_URL)
     if (url.isNullOrBlank() && intent.getStringExtra(PlayRequest.EXTRA_SERVER_REF) == null) {
@@ -118,6 +116,8 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     prefs = Prefs(this)
     watchProfileId=app.ember.tv.data.WatchedStore.playProfile(prefs.currentProfile,intent.getStringExtra(PlayRequest.EXTRA_PROFILE)) ?: run {finish();return}
     if(!contentPlaybackAllowed()){finish();return}
+    applyChannelHeaders(zapIndex)
+    if (liveSession == null) applyStreamHeaders(PlayRequest.headers(intent))
     getSharedPreferences("ember",android.content.Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(contentProfileListener)
     hub = TrackerHub(applicationContext).also { h ->
         // Trackers switched off in Settings > Features: no reports at all.
