@@ -21,6 +21,8 @@ data class LightMedia(
     val continuing: Boolean, val duration: Long = 0, val position: Long = 0, val rank: Long = 0,
     /** The app's channel it came from ("Recently added"); empty for Continue watching. */
     val channel: String = "",
+    /** #391: live sports and events, hidden unless Light › Recommendations allows them. */
+    val liveEvent: Boolean = false,
 )
 
 /** Ember's Home policy. Platform cursor reading is handled by AndroidTvProgramSource. */
@@ -82,6 +84,7 @@ internal object LightMediaProvider {
     fun personalized(items: List<LightMedia>, home: PersonalHome): List<LightMedia> = items.filter { item ->
         when {
             home.dismissed[item.id] == engagementToken(item) -> false
+            !item.continuing && item.liveEvent && !home.liveEvents -> false
             !item.continuing -> item.pkg !in home.mutedApps
             home.hideShortClips && item.duration in 1 until 600_000L -> false
             home.hideCredits && item.duration >= 600_000L && item.position > 0 && item.duration - item.position <= 120_000L -> false

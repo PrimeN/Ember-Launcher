@@ -37,6 +37,8 @@ internal data class TvProgramRecord(
     val episode: String = "",
     val episodeTitle: String = "",
     val synopsis: String = "",
+    /** #391: a live broadcast, a sports or other event, or a programme an app files under Sports. */
+    val liveEvent: Boolean = false,
 )
 
 internal interface TvProgramSource {
@@ -99,6 +101,7 @@ internal class AndroidTvProgramSource(private val resolver: ContentResolver) : T
             TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI, TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI,
             TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER, TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
             TvContract.PreviewPrograms.COLUMN_EPISODE_TITLE, TvContract.PreviewPrograms.COLUMN_SHORT_DESCRIPTION,
+            TvContract.PreviewPrograms.COLUMN_LIVE, TvContract.PreviewPrograms.COLUMN_TYPE, TvContract.PreviewPrograms.COLUMN_GENRE,
         )
     }
 }
@@ -144,5 +147,14 @@ internal class TvCursorFields(private val cursor: Cursor) {
         episode = text(TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER, 64),
         episodeTitle = text(TvContract.PreviewPrograms.COLUMN_EPISODE_TITLE, 240),
         synopsis = text(TvContract.PreviewPrograms.COLUMN_SHORT_DESCRIPTION, 320),
+        liveEvent = TvLiveEvents.isLiveEvent(number(TvContract.PreviewPrograms.COLUMN_LIVE),
+            number(TvContract.PreviewPrograms.COLUMN_TYPE, -1), text(TvContract.PreviewPrograms.COLUMN_GENRE, 240)),
     )
+}
+
+/** #391: what counts as live sports and events in an app's Android TV rows. */
+internal object TvLiveEvents {
+    fun isLiveEvent(live: Long, type: Long, genre: String): Boolean =
+        live == 1L || type == TvContract.PreviewPrograms.TYPE_EVENT.toLong() ||
+            genre.split(',').any { it.trim().equals(TvContract.Programs.Genres.SPORTS, ignoreCase = true) || it.trim().equals("sports", ignoreCase = true) }
 }

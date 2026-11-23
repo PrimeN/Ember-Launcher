@@ -26,6 +26,8 @@ import kotlinx.serialization.encodeToString
     val lightOrder: List<String> = emptyList(), val lightNavHidden: Set<String> = emptySet(),
     /** Your own names for apps, by package. */
     val names: Map<String, String> = emptyMap(),
+    /** #391: apps' live sports and events in Light's carousel and rows; off by default. */
+    val liveEvents: Boolean = false,
 )
 
 /** Existing preferences remain the active desktop; inactive desktops are retained separately for backward-compatible restores. */

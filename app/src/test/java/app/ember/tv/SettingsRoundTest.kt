@@ -98,7 +98,7 @@ class SettingsRoundTest {
         val prefs = Prefs(app)
         sp.edit().putString(PreferenceKeys.THEME.name, "day").putInt(PreferenceKeys.ACCENT.name, 3)
             .putString(PreferenceKeys.ADDONS.name, "[\"https://example.test/manifest.json\"]").commit()
-        prefs.playbackConfig = PlaybackConfig(buffer = "huge", resume = "start", audioPick = "language")
+        prefs.playbackConfig = PlaybackConfig(buffer = "huge", resume = "start", audioPick = "default")
         SettingsReset.apply(app, SettingsTab.APPEARANCE)
         assertFalse(sp.contains(PreferenceKeys.THEME.name))
         assertFalse(sp.contains(PreferenceKeys.ACCENT.name))
@@ -107,7 +107,7 @@ class SettingsRoundTest {
         val c = Prefs(app).playbackConfig
         assertEquals("large", c.buffer)
         assertEquals("start", c.resume)
-        assertEquals("language", c.audioPick)
+        assertEquals("default", c.audioPick)
         assertFalse(SettingsReset.available(SettingsTab.ADDONS))
         assertFalse(SettingsReset.available(SettingsTab.PROFILES))
         assertTrue(SettingsReset.available(SettingsTab.SUBTITLES))

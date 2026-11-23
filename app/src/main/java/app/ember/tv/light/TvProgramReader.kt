@@ -84,7 +84,7 @@ internal class TvProgramReader(private val source: TvProgramSource, private val 
             intent = row.link, progress = if (continuing && duration > 0 && position > 0)
                 (position.toDouble() / duration).coerceIn(0.0, 1.0).toFloat() else null,
             engaged = engagement, continuing = continuing, duration = duration, position = position, rank = row.weight,
-            channel = channel.take(80),
+            channel = channel.take(80), liveEvent = row.liveEvent,
         )
     }
 }

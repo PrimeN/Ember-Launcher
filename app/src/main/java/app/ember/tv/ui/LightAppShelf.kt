@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -38,16 +39,18 @@ import app.ember.tv.light.ShelfCard
  * cards; each group's name sits over its first card.
  */
 @Composable
-internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: FocusRequester, modifier: Modifier = Modifier, onOpen: (ShelfCard) -> Unit) {
+internal fun LightAppShelf(groups: List<Pair<String, List<ShelfCard>>>, first: FocusRequester, modifier: Modifier = Modifier,
+    onFocused: (ShelfCard?) -> Unit = {}, onOpen: (ShelfCard) -> Unit) {
     val cards = LightShelfCards.flatten(groups)
     // Coming back up from the dock lands on the card last focused here (#135).
-    LazyRow(modifier.fillMaxWidth().focusRequester(first).focusRestorer(), contentPadding = PaddingValues(horizontal = 45.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyRow(modifier.fillMaxWidth().focusRequester(first).focusRestorer().onFocusChanged { if (!it.hasFocus) onFocused(null) }, contentPadding = PaddingValues(horizontal = 45.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(cards, key = { it.second.id }) { (header, item) ->
             Column(Modifier.width(232.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(header.orEmpty(), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, modifier = Modifier.height(26.dp))
                 Focusable(onClick = { onOpen(item) },
-                    modifier = Modifier.fillMaxWidth().height(131.dp).semantics { contentDescription = item.title },
+                    modifier = Modifier.fillMaxWidth().height(131.dp).semantics { contentDescription = item.title }
+                        .onFocusChanged { if (it.isFocused) onFocused(item) },
                     radius = TvTokens.Shape.Card, focusedScale = TvTokens.Focus.Card) {
                     Box(Modifier.fillMaxSize().clip(RoundedCornerShape(TvTokens.Shape.Card.dp)).background(Color(0x33FFFFFF))) {
                         if (item.artwork != null) coil.compose.AsyncImage(item.artwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())

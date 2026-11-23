@@ -34,7 +34,7 @@ internal fun rememberLightSlides(vm: HomeViewModel, refresh: Int): List<LightSli
     val watch = options.watchNext && vm.profiles.personalOn
     val allowed = vm.appAccess.page(false).map { it.pkg }.toSet()
     var external by remember(profile) { mutableStateOf(emptyList<LightMedia>()) }
-    LaunchedEffect(profile, allowed, watch, options.recommendations, kids, refresh, lifecycle, desktop.mutedApps,desktop.dismissed,desktop.hideShortClips,desktop.hideCredits) {
+    LaunchedEffect(profile, allowed, watch, options.recommendations, kids, refresh, lifecycle, desktop.mutedApps,desktop.dismissed,desktop.hideShortClips,desktop.hideCredits,desktop.liveEvents) {
         external = emptyList()
         if(refresh>0)LightMediaProvider.invalidate()
         if (!kids && (watch || options.recommendations)) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {

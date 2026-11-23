@@ -59,8 +59,8 @@ data class PlaybackConfig(
     val matchResolution: Boolean = false,
     /** Buffer: "normal", "large" (4K remuxes), "huge" (very high bitrates; needs plenty of memory). */
     val buffer: String = "large",
-    /** Audio track at start: "quality" (Atmos/lossless first), "language" (TV language, then quality), "default" (the file's default). */
-    val audioPick: String = "quality",
+    /** Audio track at start (#390: "language" by default): "language" (TV language, then quality), "quality" (Atmos/lossless first, any language), "default" (the file's default). */
+    val audioPick: String = "language",
     /** Show the info panel (codec, HDR, audio output) for a few seconds when playback starts. */
     val infoOnStart: Boolean = false,
     /**

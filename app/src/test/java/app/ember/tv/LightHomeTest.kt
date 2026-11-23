@@ -24,7 +24,9 @@ class LightHomeTest {
     @Test fun gridKeepsVisualMetricsAndHandlesInvalidOrTinyViewportSizes() {
         val normal = LightLayout.grid(960f)
         assertEquals(24f, normal.outer, .001f)
-        assertEquals(21f, normal.inset, .001f)
+        assertEquals(32f, normal.inset, .001f)
+        // #392: a focused tile (20% larger) and the 30 dp corners stay inside the dock.
+        assertTrue(normal.inset >= normal.width * .1f + 8f && normal.inset >= 30f)
         assertEquals(25f, normal.gap, .001f)
         for (size in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 0f, -100f, .01f)) {
             val grid = LightLayout.grid(size)

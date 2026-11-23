@@ -179,19 +179,72 @@ internal fun SubtitlesPage(vm: HomeViewModel, openKeys: () -> Unit) {
                         vm.playerSettings.updateSubtitleConfig { it.copy(standardAss = !it.standardAss) }
                     }
                 }
-                // #219: a live preview, then every choice as a sample of itself.
                 if (c.systemStyle) Note(stringResource(R.string.st_using_the_tv_s_caption_style))
+                // #395: the preview, and one row that opens a step-by-step guide instead of five rows of samples.
                 SubtitlePreview(c)
-                SubtitleChoice("Size", SubtitleLooks.sizes, c.size, c, { x, v -> x.copy(size = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(size = m) } }
-                SubtitleChoice("Outline", SubtitleLooks.backgrounds, c.background, c, { x, v -> x.copy(background = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(background = m) } }
-                SubtitleChoice("Colour", SubtitleLooks.colors, c.color, c, { x, v -> x.copy(color = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(color = m) } }
-                SubtitleChoice(stringResource(R.string.ui_position), SubtitleLooks.positions, c.position, c, { x, v -> x.copy(position = v) }) { m -> vm.playerSettings.updateSubtitleConfig { it.copy(position = m) } }
-                Note(stringResource(R.string.st_higher_keeps_subtitles_above_a_projector))
-                SubtitleFontSettings(vm, c)
+                var guide by remember { mutableStateOf(false) }
+                SettingValueRow("Subtitle style", SubtitleStyleGuide.summary(c, fontLabel(c))) { guide = true }
+                if (guide) SubtitleStyleGuideDialog(vm) { guide = false }
             }
         }
     }
 }
+/** #395: the subtitle look, one question at a time, with the preview always in view. */
+internal object SubtitleStyleGuide {
+    val steps = listOf("Size", "Outline", "Colour", "Position", "Font")
+    private fun label(options: List<Pair<String, String>>, id: String) = options.firstOrNull { it.first == id }?.second ?: id
+    fun summary(c: app.ember.tv.data.SubtitleConfig, font: String): String = listOf(
+        label(SubtitleLooks.sizes, c.size), label(SubtitleLooks.backgrounds, c.background),
+        label(SubtitleLooks.colors, c.color), label(SubtitleLooks.positions, c.position) + " position", font,
+    ).joinToString(" · ")
+}
+
+@Composable
+private fun fontLabel(c: app.ember.tv.data.SubtitleConfig): String {
+    val context = LocalContext.current
+    val id = app.ember.tv.data.SubtitleFonts.normalize(c.font)
+    if (id == app.ember.tv.data.SubtitleFonts.CUSTOM && app.ember.tv.data.SubtitleFonts.hasCustom(context) && c.customFontName.isNotBlank()) return c.customFontName
+    return app.ember.tv.data.SubtitleFonts.options.firstOrNull { it.first == id }?.second ?: "Default font"
+}
+
+@Composable
+internal fun SubtitleStyleGuideDialog(vm: HomeViewModel, close: () -> Unit) {
+    val c = vm.playerSettings.subtitleConfig
+    var step by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val last = SubtitleStyleGuide.steps.lastIndex
+    val options = remember { androidx.compose.ui.focus.FocusRequester() }
+    fun pick(change: (app.ember.tv.data.SubtitleConfig) -> app.ember.tv.data.SubtitleConfig) {
+        vm.playerSettings.updateSubtitleConfig(change)
+        if (step < last) step++
+    }
+    TvDialog(close, width = 860.dp, height = 620.dp, scrollContent = true) {
+        DialogHeading("Subtitle style")
+        Text("Step ${step + 1} of ${last + 1} · ${SubtitleStyleGuide.steps[step]}", color = Mute, fontSize = 14.sp,
+            modifier = Modifier.testTag("subtitle_guide_step"))
+        SubtitlePreview(c, width = 520.dp)
+        Column(Modifier.focusRequester(options).focusRestorer(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            key(step) {
+                when (step) {
+                    0 -> SubtitleChoice("Size", SubtitleLooks.sizes, c.size, c, { x, v -> x.copy(size = v) }) { m -> pick { it.copy(size = m) } }
+                    1 -> SubtitleChoice("Outline", SubtitleLooks.backgrounds, c.background, c, { x, v -> x.copy(background = v) }) { m -> pick { it.copy(background = m) } }
+                    2 -> SubtitleChoice("Colour", SubtitleLooks.colors, c.color, c, { x, v -> x.copy(color = v) }) { m -> pick { it.copy(color = m) } }
+                    3 -> {
+                        SubtitleChoice(stringResource(R.string.ui_position), SubtitleLooks.positions, c.position, c, { x, v -> x.copy(position = v) }) { m -> pick { it.copy(position = m) } }
+                        Text(stringResource(R.string.st_higher_keeps_subtitles_above_a_projector), color = Mute, fontSize = 13.sp)
+                    }
+                    else -> SubtitleFontSettings(vm, c)
+                }
+            }
+        }
+        ButtonRow(spacing = 10.dp) {
+            if (step > 0) Chip("Back") { step-- }
+            Chip(if (step == last) "Done" else "Next", modifier = Modifier.testTag("subtitle_guide_next")) { if (step == last) close() else step++ }
+        }
+    }
+    // Each step starts on its choices, so OK picks and moves on.
+    LaunchedEffect(step) { androidx.compose.runtime.withFrameNanos { }; runCatching { options.requestFocus() } }
+}
+
 /** Subtitle fonts (#219): Android's own, or a custom .ttf, .otf or .ttc from a link. */
 @Composable
 private fun SubtitleFontSettings(vm: HomeViewModel, c: app.ember.tv.data.SubtitleConfig) {

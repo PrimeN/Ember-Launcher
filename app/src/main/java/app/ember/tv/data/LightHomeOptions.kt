@@ -28,7 +28,8 @@ internal object LightLayout {
         val radius get() = width * .071f
     }
     private data class Spacing(val outside: Double, val inside: Double, val gutter: Double)
-    private val spacing = Spacing(24.0, 21.0, 25.0)
+    /** #392: the dock's inside margin clears its 30 dp corners and a focused tile's 20% lift. */
+    private val spacing = Spacing(24.0, 32.0, 25.0)
 
     /** The spacing is visual design data; solve equal tile tracks within the available width. */
     fun grid(window: Float): Grid {

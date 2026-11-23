@@ -90,6 +90,8 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     var heroFocused by remember { mutableStateOf(false) }
     var launching by remember(profile) { mutableStateOf<String?>(null) }
     val current = slides.firstOrNull { it.id == selected } ?: slides.firstOrNull()
+    // #393: while a card in an app's rows is focused, the picture behind is that card's, not the carousel's.
+    var shelfCard by remember(profile) { mutableStateOf<app.ember.tv.light.ShelfCard?>(null) }
     // App rows (#62): the dock app in focus, and its own rows once it has stayed focused a moment.
     var shelfPkg by remember(profile) { mutableStateOf<String?>(null) }
     val shelfFocus = remember { FocusRequester() }
@@ -118,6 +120,7 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
         value = runCatching { LightMediaProvider.shelf(context, pkg) }.getOrDefault(emptyList())
     }
     val shelf = remember(serverShelf, shared) { AppShelf.merge(serverShelf, shared) }
+    LaunchedEffect(shelfPkg, shelf.isEmpty()) { if (shelfPkg == null || shelf.isEmpty()) shelfCard = null }
     val heroInView by remember(state) { derivedStateOf { state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset < 32 } }
     val topFocus = remember { FocusRequester() }
     val heroFocus = remember { FocusRequester() }
@@ -201,9 +204,12 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             else vm.showNotice("This app no longer provides a playable link.")
         }
     }
-    val baseTint=when(vm.look.lightWallpaper){"ocean"->Color(0xFF75CCD9);"ember"->Color(0xFFE9AC8F);"aurora"->Color(0xFFB6A9EF);else->Color(0xFFBFD4FF)}
+    // #394: Ember glow and the default wallpaper follow the theme's own colours, like the rest of Ember.
+    val accent = androidx.tv.material3.MaterialTheme.colorScheme.primary
+    val baseTint=when(vm.look.lightWallpaper){"ocean"->Color(0xFF75CCD9);"aurora"->Color(0xFFB6A9EF);else->androidx.compose.ui.graphics.lerp(accent,Color.White,.35f)}
     val sample=desktop.wallpaperColours && render.colorAnalysis && !render.lowPower
-    val tint=rememberLightPalette(current?.artwork,sample,baseTint)
+    val shelfArt = shelfCard?.let { it.meta?.background ?: it.artwork }
+    val tint=rememberLightPalette(shelfArt ?: current?.artwork,sample,baseTint)
     // Same loader as Modern: right-sized URLs, a quick card-size picture first, and the previous
     // picture kept on screen until the next one is decoded. The next titles are fetched ahead.
     val heroMeta = current?.meta
@@ -211,11 +217,12 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
     val heroMetas = remember(slides) { slides.mapNotNull { it.meta } }
     PrefetchHeroArtwork(heroMetas, heroMetas.indexOfFirst { it.mediaKey() == heroMeta?.mediaKey() }.coerceAtLeast(0))
     var heroImage by remember(profile) { mutableStateOf<ReadyArtwork?>(null) }
-    LaunchedEffect(ready, current?.id) {
+    LaunchedEffect(ready, current?.id, shelfArt) {
+        if (shelfArt != null) return@LaunchedEffect
         val meta = current?.meta ?: return@LaunchedEffect
         if (ready.drawable != null && ready.meta?.mediaKey() == meta.mediaKey()) heroImage = ready
     }
-    val externalArt = current?.takeIf { it.meta == null }?.artwork
+    val externalArt = shelfArt ?: current?.takeIf { it.meta == null }?.artwork
     LaunchedEffect(externalArt, render) {
         val url = externalArt ?: return@LaunchedEffect
         val request = coil.request.ImageRequest.Builder(context).data(if (url.startsWith("http")) heroArtworkUrl(url, render) else url)
@@ -242,15 +249,15 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
             // The dock sits so that the top of the next app row peeks out at the bottom edge.
             val dockTop = (maxHeight - (if (dockHeight > 0.dp) dockHeight else (grid.height + 74f).dp) - DOCK_GAP - ROW_PEEK).coerceAtLeast(maxHeight * .5f)
             val heroHeight by animateDpAsState(if (idle) maxHeight else dockTop, tween(millis), label = "Light carousel height")
-            LightWallpaper(vm.look.lightWallpaper)
-            val wallpaperColors = remember(vm.look.lightWallpaper) { lightWallpaperColors(vm.look.lightWallpaper) }
+            val wallpaperColors = themedLightWallpaperColors(vm.look.lightWallpaper)
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(wallpaperColors)))
             val publish = LocalArtworkPresented.current
-            val shownArt = heroImage?.takeIf {current != null}?.let {art ->
+            val shownArt = heroImage?.takeIf {current != null || shelfArt != null}?.let {art ->
                 art.copy(focus=art.focus ?: HeroFocus(.5f,.3f),viewport=HeroViewport(lightOrigin.x,lightOrigin.y,
                     with(densityNow){windowWidth.toPx()},with(densityNow){windowHeight.toPx()},crop=true))
             } ?: ReadyArtwork(null,null)
             SideEffect {publish(shownArt)}
-            heroImage?.takeIf { current != null && it.drawable != null }?.let { shown ->
+            heroImage?.takeIf { (current != null || shelfArt != null) && it.drawable != null }?.let { shown ->
                 // Keep one full-window crop behind both the hero and drawer, including idle transitions.
                 val imageModifier = Modifier.fillMaxSize()
                 if (millis == 0) LightHeroImage(shown, imageModifier)
@@ -271,7 +278,13 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                     Column {
                         Spacer(Modifier.height(dockTop))
                         Box(Modifier.onSizeChanged { dockHeight = with(densityNow) { it.height.toDp() } }) {
-                        Row(Modifier.onFocusChanged { dockHasFocus = it.hasFocus }.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
+                        Row(Modifier.onFocusChanged {
+                            dockHasFocus = it.hasFocus
+                            // #392: the dock is the first row: on it, Home shows the carousel and the dock, with the
+                            // next row only peeking. The grid scrolls up only while focus is in it.
+                            if (it.hasFocus && (state.firstVisibleItemIndex != 0 || state.firstVisibleItemScrollOffset != 0))
+                                scope.launch { if (millis == 0) state.scrollToItem(0) else state.animateScrollToItem(0) }
+                        }.glassSurface(RoundedCornerShape(DOCK_RADIUS),dock=true).padding(horizontal = grid.inset.dp, vertical = 20.dp), horizontalArrangement = Arrangement.spacedBy(grid.gap.dp)) {
                             apps.take(6).forEachIndexed { i, app -> LightAppTile(app, grid, millis, launching == app.pkg,
                                 Modifier.then(if (i == 0) Modifier.focusRequester(appsFocus) else Modifier).focusRequester(dockFocus[i]).lightArrows(onUp = ::dockUp)
                                     .onFocusChanged { if (it.hasFocus) { shelfIndex = i; shelfPkg = app.pkg.takeIf {LightNavigation.destination(it)==null} } }, { launch(app) }, { onAppOptions(app) }) }
@@ -300,7 +313,7 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                 Box(Modifier.fillMaxWidth().height(heroHeight).background(Brush.verticalGradient(0f to Color(0x99000000), 1f to Color(0xCC000000))))
                 Column(Modifier.align(Alignment.TopStart).height(heroHeight).fillMaxWidth().padding(bottom = 28.dp)
                     .onFocusChanged { shelfHasFocus = it.hasFocus }, verticalArrangement = Arrangement.Bottom) {
-                    LightAppShelf(shelf, shelfFocus, Modifier.testTag("light_rows").lightArrows(onUp = ::goTop, onDown = ::rowsDown)) { card ->
+                    LightAppShelf(shelf, shelfFocus, Modifier.testTag("light_rows").lightArrows(onUp = ::goTop, onDown = ::rowsDown), onFocused = { shelfCard = it }) { card ->
                         card.meta?.let { onOpenTitle(it); return@LightAppShelf }
                         val item = card.media ?: return@LightAppShelf
                         val app = vm.appAccess.page(false).firstOrNull { it.pkg == item.pkg }
@@ -431,7 +444,7 @@ private fun LightIcon(label: String, icon: ImageVector, modifier: Modifier = Mod
     // glass: the same material as the rest of the top bar and the system (#65).
     var focused by remember { mutableStateOf(false) }
     Focusable(onClick, modifier.size(36.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label }, radius = TvTokens.Shape.Large,
-        container = if (glass) Color.Transparent else Color.White.copy(alpha = .06f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.65f), focusedContent = Color(0xFF101722)) {
+        container = if (glass) Color.Transparent else Color.White.copy(alpha = .06f), focusedContainer = PillColor, focusedContent = OnPillColor) {
         Box(Modifier.fillMaxSize().then(if (glass && !focused) Modifier.glassSurface(RoundedCornerShape(TvTokens.Shape.Large.dp), dock = true) else Modifier),
             contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(20.dp)) }
     }
@@ -441,7 +454,7 @@ private fun LightIcon(label: String, icon: ImageVector, modifier: Modifier = Mod
 private fun LightButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, glass: Boolean = false, onLongClick:(()->Unit)?=null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Focusable(onClick, modifier.onFocusChanged { focused = it.isFocused }, onLongClick=onLongClick,radius = TvTokens.Shape.Panel,
-        container = if (glass) Color.Transparent else LocalLightTint.current.copy(alpha=.22f), focusedContainer = androidx.compose.ui.graphics.lerp(LocalLightTint.current,Color.White,.7f), focusedContent = Color(0xFF101722)) {
+        container = if (glass) Color.Transparent else LocalLightTint.current.copy(alpha=.22f), focusedContainer = PillColor, focusedContent = OnPillColor) {
         Row(Modifier.then(if (glass && !focused) Modifier.glassSurface(RoundedCornerShape(TvTokens.Shape.Panel.dp), dock = true) else Modifier)
             .padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, Modifier.size(19.dp)); Text(label, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -522,17 +535,21 @@ private fun LightFolderTile(grid: LightLayout.Grid, modifier: Modifier = Modifie
     }
 }
 
+/** Ember's page colour and accent for the current theme (#394). */
 @Composable
-private fun LightWallpaper(style: String) {
-    Box(Modifier.fillMaxSize().background(Brush.linearGradient(lightWallpaperColors(style))))
-}
+internal fun themedLightWallpaperColors(style: String): List<Color> =
+    lightWallpaperColors(style, androidx.tv.material3.MaterialTheme.colorScheme.primary, AccentTones.page(LocalAccentIndex.current))
 
-internal fun lightWallpaperColors(style: String): List<Color> = when (style) {
+/**
+ * Light's wallpapers. Aurora, Ocean and Black are fixed; Ember glow and the default (and Title art
+ * before its picture arrives) are drawn from Ember's own page colour and the theme's accent (#394).
+ */
+internal fun lightWallpaperColors(style: String, accent: Color = Accents[0].second, page: Color = AccentTones.page(0)): List<Color> = when (style) {
         "aurora" -> listOf(Color(0xFF111838), Color(0xFF384F70), Color(0xFF372A56))
         "ocean" -> listOf(Color(0xFF071C32), Color(0xFF235F70), Color(0xFF0A2D43))
-        "ember" -> listOf(Color(0xFF17121B), Color(0xFF674039), Color(0xFF251820))
+        "ember" -> listOf(page, androidx.compose.ui.graphics.lerp(page, accent, .38f), androidx.compose.ui.graphics.lerp(page, accent, .10f))
         "black" -> listOf(Color.Black, Color.Black)
-        else -> listOf(Color(0xFF0E1423), Color(0xFF242A43), Color(0xFF10141F))
+        else -> listOf(page, androidx.compose.ui.graphics.lerp(page, accent, .14f), androidx.compose.ui.graphics.lerp(page, Color.Black, .25f))
 }
 
 @Composable
@@ -554,7 +571,7 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
                 Focusable(onClick = { vm.look.updateLightWallpaper(id) }, modifier = Modifier.width(tile).semantics { selected = chosen }.testTag("wallpaper_$id"),
                     radius = TvTokens.Shape.Card, container = if (chosen) WashHi else PanelHi) {
                     Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(lightWallpaperColors(id)))) {
+                        Box(Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(themedLightWallpaperColors(id)))) {
                             // Title art changes with your titles; a hint of a picture says so.
                             if (id == "art") Box(Modifier.align(Alignment.Center).fillMaxWidth(.6f).fillMaxHeight(.5f).clip(RoundedCornerShape(5.dp)).background(Color.White.copy(alpha = .18f)))
                         }
@@ -582,6 +599,8 @@ internal fun LightHomeSettings(vm: HomeViewModel) {
             if (options.recommendations) {
                 val apps = vm.appAccess.page(false)
                 SettingValueRow(stringResource(R.string.st_light_recommending_apps), AppChoices.count(apps.count { it.pkg !in home.mutedApps }, apps.size)) { chooseApps = true }
+                // #391: games and live events apps push, such as sports, stay out unless you want them.
+                SettingToggle("Live sports & events", "Games and live broadcasts apps recommend", home.liveEvents) { vm.personalHomes.update { it.copy(liveEvents = !it.liveEvents) } }
             }
         }
         Section(stringResource(R.string.st_light_app_rows), stringResource(R.string.tx_plex_jellyfin_and_emby_show_your), id = "light-app-rows") {
