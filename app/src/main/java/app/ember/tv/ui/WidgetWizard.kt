@@ -365,7 +365,7 @@ private fun SourceKindCard(kind: String, name: String, about: String, on: Boolea
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(about, fontSize = 11.sp, lineHeight = 13.sp, color = LocalContentColor.current.copy(alpha = .7f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(about, fontSize = 12.sp, lineHeight = 14.sp, color = LocalContentColor.current.copy(alpha = .7f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (on) Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(18.dp).background(accent, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
