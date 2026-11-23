@@ -98,12 +98,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** #387: the switch between the everyday player options and all of them, first on both pages. */
+internal const val PLAYER_MODE_KEY = "player-mode"
 /** Settings > Player: which player and how it behaves. */
-internal val PLAYER_KEYS = listOf("player-choice", "player_look", "player-shortcuts", "resume", "seek-mode", "leaving", "skip-intro", "next-episode", "trailers", "playback_info")
+internal val PLAYER_KEYS = listOf(PLAYER_MODE_KEY, "player-choice", "player_look", "player-shortcuts", "resume", "seek-mode", "leaving", "skip-intro", "next-episode", "trailers", "playback_info")
 /** Settings > Audio & video: the built-in player's technical sound and picture options. */
-internal val AUDIO_VIDEO_KEYS = listOf("audio-output", "audio-timing", "decoding", "decoder-rules", "audio-effects", "dolby_vision", "display", "buffer")
+internal val AUDIO_VIDEO_KEYS = listOf(PLAYER_MODE_KEY, "audio-output", "audio-timing", "decoding", "decoder-rules", "audio-effects", "dolby_vision", "display", "buffer")
 /** Settings > Languages & subtitles starts with the preferred sound track. */
 internal val LANGUAGE_KEYS = listOf("audio_track")
+/** #387: what Simple shows: the player, resume, next episode and lip sync. */
+internal val PLAYER_SIMPLE_KEYS = setOf(PLAYER_MODE_KEY, "player-choice", "resume", "next-episode", "audio-timing")
+/** The sections a page shows; a search hit on an advanced option shows them all for that visit. */
+internal fun playerKeys(all: List<String>, advanced: Boolean, target: String? = null): List<String> =
+    if (advanced || (target != null && target in all && target !in PLAYER_SIMPLE_KEYS)) all else all.filter { it in PLAYER_SIMPLE_KEYS }
 internal fun androidx.compose.foundation.lazy.LazyListScope.playerPage(vm: HomeViewModel, keys: List<String> = PLAYER_KEYS) {
     keys.forEach { key -> item(key = "player:$key") { PlayerPart(vm, key) } }
 }
@@ -111,8 +118,12 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.playerPage(vm: HomeV
 private fun PlayerPart(vm: HomeViewModel, key: String) {
     val c = vm.playerSettings.playbackConfig
     val context=LocalContext.current
+    fun paragraphs(vararg parts: String) = parts.joinToString("\n\n") { it.trim() }
     when (key) {
-        "player-choice" -> Section(stringResource(R.string.ui_player), stringResource(R.string.ui_used_when_you_pick_a_source)) {
+        PLAYER_MODE_KEY -> ToggleRow("Advanced settings",
+            if (vm.playerSettings.advanced) "Showing every player option" else "Showing the everyday options",
+            vm.playerSettings.advanced) { vm.playerSettings.updateAdvanced(!vm.playerSettings.advanced) }
+        "player-choice" -> Section(stringResource(R.string.ui_player), "Which player opens a source.", id = "player-choice", info = stringResource(R.string.ui_used_when_you_pick_a_source)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
                 item(key = "builtin") {
                     Chip(stringResource(R.string.ui_built_in), selected = vm.playing.playerPref == Prefs.PLAYER_BUILTIN) { vm.playing.updatePlayerPref(Prefs.PLAYER_BUILTIN) }
@@ -125,49 +136,58 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 }
             }
         }
-        "player_look" -> Section(stringResource(R.string.ui_player_look), stringResource(R.string.ui_advanced_ember_s_controls_with_the), id = "player_look") {
+        "player_look" -> Section(stringResource(R.string.ui_player_look), "How the player's controls look.", id = "player_look",
+            info = stringResource(R.string.ui_advanced_ember_s_controls_with_the)) {
         // #207: each layout as a small picture.
         PictureChoice("player", SettingDefinitions.playerInterface.options, app.ember.tv.player.PlayerInterfaces.resolve(c, vm.look.uiStyle)) { v ->
             vm.playerSettings.updatePlaybackConfig { it.copy(playerInterface = v) }
         }
     }
-        "audio-timing" -> Section(stringResource(R.string.ui_sound_timing_lip_sync), stringResource(R.string.ui_for_receivers_soundbars_and_projectors_that), id = "audio-timing") {
+        "audio-timing" -> Section(stringResource(R.string.ui_sound_timing_lip_sync), "Fix sound that runs early or late.", id = "audio-timing",
+            info = stringResource(R.string.ui_for_receivers_soundbars_and_projectors_that)) {
         AudioTimingControls(c.audioDelayMs) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(audioDelayMs = v) } }
-        ToggleRow("Separate Bluetooth timing", "Automatically follows the selected audio output", c.bluetoothDelayMs != null) {
+        ToggleRow("Separate Bluetooth timing", "Follows the selected audio output", c.bluetoothDelayMs != null) {
             vm.playerSettings.updatePlaybackConfig { it.copy(bluetoothDelayMs = if(it.bluetoothDelayMs == null) it.audioDelayMs else null) }
         }
         c.bluetoothDelayMs?.let { ms -> AudioTimingControls(ms) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(bluetoothDelayMs = v) } } }
     }
-        "seek-mode" -> Section("Seeking", "Fast jumps use nearby keyframes; saved resume positions stay precise.", id="seek-mode") {
+        "seek-mode" -> Section("Seeking", "How skipping forward and back lands.", id="seek-mode",
+            info = "Fast jumps to nearby keyframes, so skipping is quicker but less exact. Saved resume positions stay precise either way.") {
             Choice(listOf("precise" to "Precise", "fast" to "Fast / nearby keyframe"), c.seekMode) { value -> vm.playerSettings.updatePlaybackConfig {it.copy(seekMode=value)} }
         }
-        "decoder-rules" -> Section("Decoder preferences", "Hints for automatic selection. Explicit in-player choices take priority.", id="decoder-rules") {
+        "decoder-rules" -> Section("Decoder preferences", "Hints for choosing a decoder.", id="decoder-rules",
+            info = paragraphs("Hints for automatic selection. Explicit in-player choices take priority.",
+                "Codec rules take priority over file extensions. Standard playback orders available device decoders; compatibility playback can use software decoding.")) {
             val rules=c.decoderRules
             val choices=app.ember.tv.player.DecoderRules.choices
             Choice(choices,rules.local,"Local files") { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(local=value))} }
             Choice(choices,rules.network,"Network and server streams") { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(network=value))} }
             var expanded by remember {mutableStateOf(false)}
-            Chip(if(expanded) "Hide format rules" else "Format-specific rules",selected=expanded) {expanded=!expanded}
+            SettingsDisclosure(if(expanded) "Hide format rules" else "Format-specific rules",expanded) {expanded=!expanded}
             if(expanded) {
-                Note("Codec rules take priority over file extensions. Standard playback orders available device decoders; compatibility playback can use software decoding.")
                 app.ember.tv.player.DecoderRules.codecChoices.forEach { (mime,label) ->
                     Choice(choices,rules.codecs[mime] ?: "inherit",label) { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(codecs=it.decoderRules.codecs+(mime to value)))} }
                 }
                 app.ember.tv.player.DecoderRules.extensionChoices.forEach { ext ->
                     Choice(choices,rules.extensions[ext] ?: "inherit",".$ext files") { value -> vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=it.decoderRules.copy(extensions=it.decoderRules.extensions+(ext to value)))} }
                 }
-                Chip("Reset decoder rules") {vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=app.ember.tv.player.DecoderRules())}}
+            }
+            SettingActionRow("Reset decoder preferences", "Back to Automatic for every file and format") {
+                vm.playerSettings.updatePlaybackConfig {it.copy(decoderRules=app.ember.tv.player.DecoderRules())}
+                vm.showNotice("Decoder preferences reset.")
             }
         }
-        "audio-effects" -> Section("Audio effects", "For decoded audio. HDMI passthrough remains unchanged.", id="audio-effects") {
+        "audio-effects" -> Section("Audio effects", "Equalizer, bass and night listening.", id="audio-effects",
+            info = paragraphs("For decoded audio. HDMI passthrough remains unchanged.",
+                "Boosts reserve headroom to reduce clipping. Disable passthrough to process encoded surround tracks in compatibility playback.")) {
             Choice(app.ember.tv.player.AudioEffects.presets,c.audioEffects.preset,"Equalizer") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(preset=value))}}
             Choice(listOf("0" to "Off","2" to "+2 dB","4" to "+4 dB","6" to "+6 dB"),c.audioEffects.bass.toString(),"Bass") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(bass=value.toInt()))}}
             Choice(app.ember.tv.player.AudioEffects.channelChoices,c.audioEffects.channels,"Channels") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(channels=value))}}
             // #310
             Choice(app.ember.tv.player.NightListening.choices,c.audioEffects.compression,"Night listening") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(audioEffects=it.audioEffects.copy(compression=value))}}
-            Note("Boosts reserve headroom to reduce clipping. Disable passthrough to process encoded surround tracks in compatibility playback.")
         }
-        "player-shortcuts" -> Section("Player shortcuts", "Choose up to eight quick controls; every option remains in the full menu.", id="player-shortcuts") {
+        "player-shortcuts" -> Section("Player shortcuts", "Up to eight quick controls.", id="player-shortcuts",
+            info = "Choose up to eight quick controls for the player. Every option remains in the full menu.") {
             val selected=app.ember.tv.player.PlayerShortcuts.normalized(c.quickShortcuts)
             fun save(values:List<String>) {vm.playerSettings.updatePlaybackConfig {it.copy(quickShortcuts=values)}}
             selected.forEachIndexed { index,id ->
@@ -182,9 +202,9 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             if(selected.size<8)ButtonRow {
                 app.ember.tv.player.PlayerShortcuts.choices.filter {it.first !in selected}.forEach { (id,label) -> Chip("Add $label") {save(selected+id)} }
             }
-            Chip("Reset shortcuts") {save(app.ember.tv.player.PlayerShortcuts.defaults)}
+            SettingActionRow("Reset shortcuts") {save(app.ember.tv.player.PlayerShortcuts.defaults);vm.showNotice("Player shortcuts reset.")}
         }
-        "dolby_vision" -> Section(stringResource(R.string.ui_dolby_vision), stringResource(R.string.ui_auto_plays_dolby_vision_only_when)) {
+        "dolby_vision" -> Section(stringResource(R.string.ui_dolby_vision), "When to use Dolby Vision.", id = "dolby_vision", info = stringResource(R.string.ui_auto_plays_dolby_vision_only_when)) {
         Choice(
             listOf("auto" to "Auto", "always" to "Always use it", "hdr10" to "Always HDR10"),
             c.dolbyVision,
@@ -196,31 +216,32 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             c.resume,
         ) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(resume = v) } }
     }
-        "leaving" -> Section(stringResource(R.string.st_leaving_the_player), stringResource(R.string.st_what_back_and_home_do_while), id = "leaving") {
+        "leaving" -> Section(stringResource(R.string.st_leaving_the_player), stringResource(R.string.st_what_back_and_home_do_while), id = "leaving",
+            info = paragraphs(stringResource(R.string.st_ask_first_shows_stop_watching_with), stringResource(R.string.st_android_does_not_let_apps_stop),
+                stringResource(R.string.st_back_to_the_last_video_for) + stringResource(R.string.st_press_back_twice_suits_remotes_without))) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(SettingDefinitions.leaving.options, if (c.confirmExit) "ask" else "leave", stringResource(R.string.tx_back_button)) { v ->
                 vm.playerSettings.updatePlaybackConfig { it.copy(confirmExit = v == "ask") }
             }
-            Note(stringResource(R.string.st_ask_first_shows_stop_watching_with))
             ToggleRow(stringResource(R.string.st_home_keep_playing_in_a_small), null, c.pip) { vm.playerSettings.updatePlaybackConfig { it.copy(pip = !it.pip) } }
             Choice(app.ember.tv.player.QuickReturn.keys, app.ember.tv.player.QuickReturn.key(c), stringResource(R.string.tx_back_to_the_last_video_from)) { v ->
                 vm.playerSettings.updatePlaybackConfig { app.ember.tv.player.QuickReturn.choose(it, v) }
             }
-            Note(stringResource(R.string.st_android_does_not_let_apps_stop) +
-                stringResource(R.string.st_back_to_the_last_video_for) +
-                stringResource(R.string.st_press_back_twice_suits_remotes_without))
         }
     }
-        "skip-intro" -> Section(stringResource(R.string.ui_skip_intro), stringResource(R.string.ui_uses_the_intro_recap_and_credits), id = "skip-intro") {
+        "skip-intro" -> Section(stringResource(R.string.ui_skip_intro), "Intro, recap and credits buttons.", id = "skip-intro",
+            info = paragraphs(stringResource(R.string.ui_uses_the_intro_recap_and_credits), stringResource(R.string.st_when_server_markers_are_missing_send))) {
         Choice(
             SettingDefinitions.skipIntro.options,
             c.skipIntro,
         ) { v -> vm.playerSettings.updatePlaybackConfig { it.copy(skipIntro = v) } }
-        ToggleRow(stringResource(R.string.st_introdb_fallback), stringResource(R.string.st_when_server_markers_are_missing_send), c.introDb) {
+        ToggleRow(stringResource(R.string.st_introdb_fallback), "When your server has no markers", c.introDb) {
             vm.playerSettings.updatePlaybackConfig { it.copy(introDb = !it.introDb) }
         }
     }
-        "audio-output" -> Section(stringResource(R.string.ui_audio_output), stringResource(R.string.ui_for_a_receiver_or_soundbar_over), id = "audio-output") {
+        "audio-output" -> Section(stringResource(R.string.ui_audio_output), stringResource(R.string.ui_for_a_receiver_or_soundbar_over), id = "audio-output",
+            info = paragraphs(stringResource(R.string.ui_dolby_truehd_dts_hd_and_atmos), stringResource(R.string.st_use_choose_myself_only_if_your) +
+                stringResource(R.string.st_a_format_the_receiver_cannot_take))) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ToggleRow(
                 stringResource(R.string.st_passthrough_bitstream), if (c.passthrough) null else stringResource(R.string.st_off_decode_everything_to_pcm),
@@ -241,36 +262,28 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                         }
                     }
                 }
-                Note(
-                    stringResource(R.string.ui_dolby_truehd_dts_hd_and_atmos) +
-                        stringResource(R.string.st_use_choose_myself_only_if_your) +
-                        stringResource(R.string.st_a_format_the_receiver_cannot_take),
-                )
             }
         }
     }
-        "decoding" -> Section(stringResource(R.string.ui_decoding), stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot)) {
+        "decoding" -> Section(stringResource(R.string.ui_decoding), "Which engine and decoders play video.", id = "decoding",
+            info = paragraphs(stringResource(R.string.ui_ffmpeg_decodes_audio_the_tv_cannot), stringResource(R.string.st_automatic_keeps_ember_s_controls_and),
+                "Lighter software decoding skips some deblocking to reduce processor work. Explicit decoder rules and in-player choices take priority.",
+                "Advanced (gpu-next) gives better scaling and HDR tone mapping. If it fails on this device, Ember retries once on Stable (gpu).",
+                stringResource(R.string.st_for_interlaced_live_tv_or_older), stringResource(R.string.st_decoder_preferences_below_apply_to_standard),
+                stringResource(R.string.st_software_includes_ffmpeg_and_mpeg_h),
+                stringResource(R.string.ui_video_always_uses_the_tv_s) + stringResource(R.string.st_tunneled_playback_gives_tighter_a_v))) {
             Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine, stringResource(R.string.tx_playback_engine)) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
-            Note(stringResource(R.string.st_automatic_keeps_ember_s_controls_and))
             // #311
             Choice(app.ember.tv.player.NativeDecoderProfile.choices,app.ember.tv.player.NativeDecoderProfile.normalized(c.compatibilityDecoder),"Compatibility decoding") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityDecoder=value)}}
-            Note("Lighter software decoding skips some deblocking to reduce processor work. Explicit decoder rules and in-player choices take priority.")
             Choice(app.ember.tv.player.RendererPolicy.choices,app.ember.tv.player.RendererPolicy.initial(c.compatibilityRenderer),"Compatibility renderer") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityRenderer=value)}}
-            Note("Advanced (gpu-next) gives better scaling and HDR tone mapping. If it fails on this device, Ember retries once on Stable (gpu).")
-            ToggleRow("Automatic Hi10P fallback","Full-quality software decoding for 10-bit H.264 on NVIDIA Shield, in Automatic mode.",c.hi10pFallback) {vm.playerSettings.updatePlaybackConfig {it.copy(hi10pFallback=!it.hi10pFallback)}}
-            ToggleRow("Remember working video decoders","Learns after stable playback, including which player worked for a title; resets after device or app updates.",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}
-            Chip("Reset learned decoder choices") {app.ember.tv.player.DecoderHealth.clear(context)}
             Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing)) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
             }
-            Note(stringResource(R.string.st_for_interlaced_live_tv_or_older))
-            Note(stringResource(R.string.st_decoder_preferences_below_apply_to_standard))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ToggleRow("Automatic Hi10P fallback","10-bit H.264 on NVIDIA Shield",c.hi10pFallback) {vm.playerSettings.updatePlaybackConfig {it.copy(hi10pFallback=!it.hi10pFallback)}}
             Choice(
                 listOf("on" to "Software when needed", "prefer" to "Prefer software", "off" to "TV decoders only"),
                 c.ffmpeg, stringResource(R.string.ui_sound_decoding),
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpeg = m) } }
-            Note(stringResource(R.string.st_software_includes_ffmpeg_and_mpeg_h))
             Choice(
                 listOf(
                     "fallback" to stringResource(R.string.ui_ffmpeg_video_fallback),
@@ -282,13 +295,15 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
             ToggleRow(stringResource(R.string.ui_tunneled_playback), null, c.tunneling) {
                 vm.playerSettings.updatePlaybackConfig { it.copy(tunneling = !it.tunneling) }
             }
-            Note(
-                stringResource(R.string.ui_video_always_uses_the_tv_s) +
-                    stringResource(R.string.st_tunneled_playback_gives_tighter_a_v),
-            )
-        }
+            ToggleRow("Remember what works","Learns which decoder and player work for a title",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}
+            // #386: a full-width row the d-pad reaches like the rows around it, and it says when it is done.
+            SettingActionRow("Reset compatibility and decoder history","Forget which decoder and player worked for each title") {
+                app.ember.tv.player.DecoderHealth.clear(context)
+                vm.showNotice("Compatibility and decoder history cleared.")
+            }
     }
-        "display" -> Section(stringResource(R.string.ui_display), stringResource(R.string.ui_match_the_display_to_the_video)) {
+        "display" -> Section(stringResource(R.string.ui_display), stringResource(R.string.ui_match_the_display_to_the_video), id = "display",
+            info = paragraphs(stringResource(R.string.ui_frame_rate_matching_plays_23_976), stringResource(R.string.st_leave_resolution_matching_off_to_let))) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(
                 listOf("always" to "Match frame rate", "seamless" to "Only if seamless", "off" to "Off"),
@@ -299,65 +314,58 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                     vm.playerSettings.updatePlaybackConfig { it.copy(matchResolution = !it.matchResolution) }
                 }
             }
-            Note(
-                stringResource(R.string.ui_frame_rate_matching_plays_23_976) +
-                    stringResource(R.string.st_leave_resolution_matching_off_to_let),
-            )
         }
     }
-        "buffer" -> Section(stringResource(R.string.ui_buffer), stringResource(R.string.ui_how_far_ahead_the_player_loads)) {
+        "buffer" -> Section(stringResource(R.string.ui_buffer), stringResource(R.string.ui_how_far_ahead_the_player_loads), id = "buffer",
+            info = stringResource(R.string.ui_large_keeps_up_to_two_minutes)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(
                 listOf("normal" to "Normal", "large" to "Large (4K remux)", "huge" to "Huge"),
                 c.buffer,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(buffer = m) } }
-            Note(stringResource(R.string.ui_large_keeps_up_to_two_minutes))
             // #309: network time limits for both players, and optional custom buffering.
             val stream = c.stream.normalized()
             fun saveStream(value: app.ember.tv.player.StreamConfig) = vm.playerSettings.updatePlaybackConfig { it.copy(stream = value.normalized()) }
             app.ember.tv.player.timeoutFields.forEach { f ->
                 Choice(f.choices(stream).map { it.toString() to "$it ${f.unit}" }, f.read(stream).toString(), f.label) { v -> saveStream(f.write(stream, v.toInt())) }
             }
-            ToggleRow("Custom buffering", "Set the memory and timing yourself instead of the preset above.", stream.custom) { saveStream(stream.copy(custom = !stream.custom)) }
+            ToggleRow("Custom buffering", "Set memory and timing yourself", stream.custom) { saveStream(stream.copy(custom = !stream.custom)) }
             if (stream.custom) {
                 app.ember.tv.player.bufferFields.forEach { f ->
                     Choice(f.choices(stream).map { it.toString() to "$it ${f.unit}" }, f.read(stream).toString(), f.label) { v -> saveStream(f.write(stream, v.toInt())) }
                 }
-                ToggleRow("Wait for refill", "Pause until the buffer refills after running out.", stream.pauseForBuffer) { saveStream(stream.copy(pauseForBuffer = !stream.pauseForBuffer)) }
+                ToggleRow("Wait for refill", "Pause until the buffer refills", stream.pauseForBuffer) { saveStream(stream.copy(pauseForBuffer = !stream.pauseForBuffer)) }
                 val plan = remember(c) { app.ember.tv.player.StreamConfig.plan(context, c) }
-                Note("This device allows ${plan.forwardMiB} MiB ahead and ${plan.rewindMiB} MiB behind. Changes apply to the next video.")
+                Note("Up to ${plan.forwardMiB} MiB ahead and ${plan.rewindMiB} MiB behind on this TV. Applies to the next video.")
             }
         }
     }
-        "audio_track" -> Section(stringResource(R.string.ui_audio_track), stringResource(R.string.ui_which_track_a_title_starts_with)) {
+        "audio_track" -> Section(stringResource(R.string.ui_audio_track), stringResource(R.string.ui_which_track_a_title_starts_with), id = "audio_track",
+            info = stringResource(R.string.ui_best_quality_prefers_truehd_and_atmos)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(
                 listOf("quality" to "Best quality", "language" to "My language, then quality", "default" to "File's default"),
                 c.audioPick,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(audioPick = m) } }
-            Note(stringResource(R.string.ui_best_quality_prefers_truehd_and_atmos))
         }
     }
-        "trailers" -> Section(stringResource(R.string.ui_trailers), stringResource(R.string.ui_experimental)) {
+        "trailers" -> Section(stringResource(R.string.ui_trailers), stringResource(R.string.ui_experimental), id = "trailers",
+            info = paragraphs(stringResource(R.string.ui_plays_youtube_trailers_in_the_built), stringResource(R.string.st_youtube_changes_often_so_this_can),
+                stringResource(R.string.st_trailers_are_stereo_no_atmos_and))) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ToggleRow(stringResource(R.string.ui_play_trailers_in_ember_experimental), null, c.trailersInApp) { vm.playerSettings.updatePlaybackConfig { it.copy(trailersInApp = !it.trailersInApp) } }
-            Note(
-                stringResource(R.string.ui_plays_youtube_trailers_in_the_built) +
-                    stringResource(R.string.st_youtube_changes_often_so_this_can) +
-                    stringResource(R.string.st_trailers_are_stereo_no_atmos_and),
-            )
         }
     }
-        "playback_info" -> Section(stringResource(R.string.ui_playback_info)) {
+        "playback_info" -> Section(stringResource(R.string.ui_playback_info), "What shows when a video starts.", id = "playback_info",
+            info = stringResource(R.string.ui_during_playback_press_info_menu_or)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // #218: the two choices as pictures.
             PictureChoice("info", listOf("start" to stringResource(R.string.ui_show_at_start), "ask" to "Only when I ask"), if (c.infoOnStart) "start" else "ask") { v ->
                 vm.playerSettings.updatePlaybackConfig { it.copy(infoOnStart = v == "start") }
             }
-            Note(stringResource(R.string.ui_during_playback_press_info_menu_or))
         }
     }
-        "next-episode" -> Section(stringResource(R.string.ui_next_episode), stringResource(R.string.ui_works_in_the_built_in_player)) {
+        "next-episode" -> Section(stringResource(R.string.ui_next_episode), stringResource(R.string.ui_works_in_the_built_in_player), id = "next-episode") {
             // #217: one slider: Off, or the countdown before the next episode plays.
             StepSlider(stringResource(R.string.ui_play_next_episode_automatically), NextEpisodeSteps.values,
                 NextEpisodeSteps.of(vm.playing.autoplay, vm.playing.countdown), NextEpisodeSteps::label, width = 520.dp) { secs ->

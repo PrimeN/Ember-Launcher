@@ -379,6 +379,11 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.SOURCES_COMBINED)
         set(v) = sp.edit { putBoolean(PreferenceKeys.SOURCES_COMBINED.name, v) }
 
+    /** #387: Settings › Playback shows every option, not just the everyday ones. */
+    var playerSettingsAdvanced: Boolean
+        get() = sp.read(PreferenceKeys.PLAYER_SETTINGS_ADVANCED)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.PLAYER_SETTINGS_ADVANCED.name, v) }
+
     // ---- Stremio stream result format ----
     /** Show addon sources with the name and description templates instead of the built-in layout. */
     /** Source badges: "legacy" = Basic (default), "modern" = bundled Detailed images, or "custom" (data/Badges.kt). */

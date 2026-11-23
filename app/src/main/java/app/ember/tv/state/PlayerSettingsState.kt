@@ -45,6 +45,14 @@ class PlayerSettingsState(private val prefs: Prefs) {
         prefs.playbackConfig = playbackConfig
     }
 
+    /** #387: Simple shows a few everyday player options; Advanced shows them all. */
+    var advanced by mutableStateOf(prefs.playerSettingsAdvanced); private set
+
+    fun updateAdvanced(on: Boolean) {
+        advanced = on
+        prefs.playerSettingsAdvanced = on
+    }
+
     var sourcesCombined by mutableStateOf(prefs.sourcesCombined); private set
 
     fun updateSourcesCombined(on: Boolean) {

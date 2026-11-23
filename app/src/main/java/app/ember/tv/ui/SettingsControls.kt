@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.state.ToggleableState
@@ -111,4 +113,54 @@ internal fun SettingsDisclosure(label:String,expanded:Boolean,modifier:Modifier=
                 androidx.compose.material.icons.Icons.Outlined.ExpandMore,null,modifier=Modifier.size(22.dp))
         }
     }
+}
+
+/**
+ * A one-press action as a full-width settings row (#386), lined up with the toggles and choices around
+ * it so the d-pad always reaches it.
+ */
+@Composable
+internal fun SettingActionRow(label: String, note: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    RecordSettingOption(label)
+    var focused by remember { mutableStateOf(false) }
+    val floating = LocalFloating.current
+    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+        radius = TvTokens.Shape.Control,
+        container = if (floating) Color.Transparent else Wash,
+        focusedContainer = PillColor,
+        focusedContent = OnPillColor,
+        outline = false, focusedScale = TvTokens.Focus.None) {
+        Row(Modifier.fillMaxWidth().heightIn(min = if (floating) 46.dp else 52.dp)
+            .padding(horizontal = TvTokens.Space.ButtonX.dp, vertical = if (floating) 8.dp else 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(label, fontSize = if (floating) TvTokens.Type.Label.sp else TvTokens.Type.SettingsLabel.sp)
+                note?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
+            }
+        }
+    }
+}
+
+/** A small ⓘ beside a section title (#388): the longer explanation opens in a popup instead of filling the page. */
+@Composable
+internal fun SettingInfoButton(title: String, info: String) {
+    var open by remember { mutableStateOf(false) }
+    val anchor = remember { androidx.compose.ui.focus.FocusRequester() }
+    ToolbarIcon("About $title", androidx.compose.material.icons.Icons.Outlined.Info,
+        modifier = Modifier.focusRequester(anchor).size(34.dp)) { open = true }
+    if (open) SettingInfoDialog(title, info) { open = false }
+    RestoreToolbarFocus(open, anchor)
+}
+
+@Composable
+internal fun SettingInfoDialog(title: String, info: String, close: () -> Unit) {
+    val ok = remember { androidx.compose.ui.focus.FocusRequester() }
+    TvDialog(close, width = 600.dp, scrollContent = true) {
+        DialogHeading(title)
+        info.split("\n\n").filter { it.isNotBlank() }.forEach {
+            Text(it.trim(), color = Fg, fontSize = TvTokens.Type.Label.sp, lineHeight = 22.sp)
+        }
+        Chip("Got it", modifier = Modifier.focusRequester(ok)) { close() }
+    }
+    LaunchedEffect(Unit) { withFrameNanos { }; runCatching { ok.requestFocus() } }
 }

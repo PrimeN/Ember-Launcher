@@ -229,8 +229,9 @@ fun SettingsScreen(vm: HomeViewModel) {
             }
             SettingsTab.METADATA -> item(key = "metadata") { MetadataPage(vm, openKeys) }
             SettingsTab.WEATHER -> item(key = "weather") { WeatherSection(vm) }
-            SettingsTab.PLAYER -> playerPage(vm)
-            SettingsTab.AUDIO_VIDEO -> playerPage(vm, AUDIO_VIDEO_KEYS)
+            // #387: Simple shows the everyday options; a search hit shows the page in full.
+            SettingsTab.PLAYER -> playerPage(vm, playerKeys(PLAYER_KEYS, vm.playerSettings.advanced, searchTarget))
+            SettingsTab.AUDIO_VIDEO -> playerPage(vm, playerKeys(AUDIO_VIDEO_KEYS, vm.playerSettings.advanced, searchTarget))
             SettingsTab.WATCH_STATUS -> item(key="watch-status") {WatchStatusSettings(vm)}
             SettingsTab.PLAY_BUTTON -> item(key = "playbutton") { PlayButtonPage(vm) }
             SettingsTab.ADDONS -> {
@@ -315,8 +316,8 @@ fun SettingsScreen(vm: HomeViewModel) {
     val sectionIndex = searchTarget?.let { target ->
         val keys = when (tab) {
             SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE -> lookKeys(tab, vm.look.uiStyle)
-            SettingsTab.PLAYER -> PLAYER_KEYS
-            SettingsTab.AUDIO_VIDEO -> AUDIO_VIDEO_KEYS
+            SettingsTab.PLAYER -> playerKeys(PLAYER_KEYS, vm.playerSettings.advanced, target)
+            SettingsTab.AUDIO_VIDEO -> playerKeys(AUDIO_VIDEO_KEYS, vm.playerSettings.advanced, target)
             SettingsTab.CACHE -> CACHE_KEYS
             SettingsTab.DEBUG -> SettingsMerges.diagnosticsKeys
             SettingsTab.DEVICE_TOOLS -> lookKeys(SettingsTab.REMOTE, vm.look.uiStyle) + listOf("device-tools", "engineering")

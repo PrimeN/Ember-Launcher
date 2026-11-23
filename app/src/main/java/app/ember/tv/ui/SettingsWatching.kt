@@ -110,7 +110,7 @@ internal fun Choice(options: List<Pair<String, String>>, selected: String, label
     var open by remember { mutableStateOf(false) }
     val value = options.firstOrNull { it.first == selected }?.second ?: selected
     options.forEach { RecordSettingOption(it.second) }
-    SettingValueRow(title, value, modifier = Modifier.widthIn(max = 760.dp)) { open = true }
+    SettingValueRow(title, value) { open = true }
     if (open) OptionMenu(title, options.map { (id, text) -> MenuOption(text, selected = id == selected) { onPick(id) } }) { open = false }
 }
 

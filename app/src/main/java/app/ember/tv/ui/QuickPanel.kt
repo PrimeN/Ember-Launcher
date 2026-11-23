@@ -14,7 +14,6 @@ import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -258,14 +257,10 @@ private class Tile(
     val onClick: () -> Unit,
 )
 
-/** A tile fill does not sample the wallpaper behind the sliding panel. */
+/** A solid tile fill (no outline, #389) that does not sample the wallpaper behind the sliding panel. */
 internal fun quickTileFill(panel: Color, highlight: Color = Color.Transparent): Color =
     highlight.compositeOver(lerp(panel.copy(alpha = 1f), Color.Black, .28f))
 
-internal fun quickTileEdge(fill: Color): Color = ControlStateCue.edge(fill).copy(alpha = .52f)
-
-private fun Modifier.quickTileBorder(fill: Color, focused: Boolean): Modifier =
-    if (focused) this else border(1.dp, quickTileEdge(fill), RoundedCornerShape(TvTokens.Shape.Control.dp))
 
 /** The video you just left (#216): the panel's width, a third of the screen's height. */
 @Composable
@@ -276,7 +271,7 @@ private fun ReturnTile(title: String, modifier: Modifier, onClick: () -> Unit) {
     val soft = if (focused) OnPillColor.copy(alpha = .75f) else Mute
     val fill = quickTileFill(FloatingPanelStyle.background)
     // #248: the grid sets the padding.
-    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.quickTileBorder(fill, focused).testTag("quick_return"),
+    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().height(height).onFocusChanged { focused = it.isFocused }.testTag("quick_return"),
         radius = TvTokens.Shape.Control, container = fill, focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.None) {
         Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MaterialGlyph(IcPlayIcon, if (focused) OnPillColor else Fg, 22.dp)
@@ -304,7 +299,7 @@ private fun Tiles(tiles: List<Tile>, top: (@Composable () -> Unit)? = null) {
                     var focused by remember(t.title) {mutableStateOf(false)}
                     val fill = quickTileFill(FloatingPanelStyle.background, if (t.highlight) WashHi else Color.Transparent)
                     Focusable(onClick=t.onClick,
-                        modifier=t.modifier.weight(1f).height(tileHeight).onFocusChanged {focused=it.isFocused}.quickTileBorder(fill, focused),
+                        modifier=t.modifier.weight(1f).height(tileHeight).onFocusChanged {focused=it.isFocused},
                         radius=TvTokens.Shape.Control,container=fill,
                         focusedContainer=PillColor,focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.None) {
                         Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
