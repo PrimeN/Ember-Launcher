@@ -11,7 +11,9 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecRenderer.DecoderInitializa
 internal enum class PlaybackFailure(val changesDecoder: Boolean = false, val changesCore: Boolean = false) {
     VIDEO_DECODER_INIT(true, true), VIDEO_DECODER_RUNTIME(true, true), AUDIO_DECODER(true, true),
     AUDIO_OUTPUT, UNSUPPORTED_FORMAT(true, true), EXTRACTOR(changesCore = true),
-    NETWORK, AUTHENTICATION, SOURCE_MISSING, SOURCE_ACCESS, HTTP_REJECTED, DRM, GPU_RENDERER, UNKNOWN,
+    NETWORK, AUTHENTICATION, SOURCE_MISSING, SOURCE_ACCESS, HTTP_REJECTED, DRM, GPU_RENDERER,
+    /** A renderer stopped on an unexpected error: the other engine has its own pipeline (#385). */
+    RUNTIME(changesCore = true), UNKNOWN,
 }
 
 /** Classify codes and typed causes only. Error messages can contain private stream addresses. */
@@ -68,6 +70,7 @@ internal object PlaybackFailureClassifier {
         PlaybackException.ERROR_CODE_IO_UNSPECIFIED, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
         PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT, PlaybackException.ERROR_CODE_TIMEOUT,
         PlaybackException.ERROR_CODE_DISCONNECTED -> PlaybackFailure.NETWORK
+        PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK -> PlaybackFailure.RUNTIME
         else -> PlaybackFailure.UNKNOWN
     }
 }

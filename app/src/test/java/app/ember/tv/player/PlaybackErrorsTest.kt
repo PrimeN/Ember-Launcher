@@ -41,6 +41,12 @@ class PlaybackErrorsTest {
         assertFalse(PlaybackErrors.mayBeHls(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, "https://live.test/play/42"))
         assertFalse(PlaybackErrors.mayBeHls(unsupported, "rtmp://live.test/42"))
         assertFalse(PlaybackErrors.mayBeHls(unsupported, null))
+        // #385: a recognised file that failed part-way (an MKV with compressed tracks) is not a playlist.
+        assertFalse(PlaybackErrors.mayBeHls(PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, "https://debrid.test/d/abc"))
+    }
+    @Test fun anUnexpectedRendererErrorMayTryTheOtherEngine() {
+        assertTrue(PlaybackFailureClassifier.classify(PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK).changesCore)
+        assertFalse(PlaybackFailureClassifier.classify(PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK).changesDecoder)
     }
 
     @Test fun liveLinksSwapBetweenTsAndHls() {

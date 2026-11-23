@@ -61,9 +61,13 @@ internal object PlaybackErrors {
         }
     }
 
-    /** An unreadable file from a web link that named no type: live addons often serve HLS without .m3u8. */
+    /**
+     * A web link that named no type and that no container reader recognised: live addons often serve
+     * HLS without .m3u8. A file a reader did recognise but could not finish (an MKV with compressed
+     * tracks) is not a playlist, so it goes straight to the next engine (#385).
+     */
     fun mayBeHls(code: Int, url: String?): Boolean =
-        malformedContainer(code) && url != null && url.toHttpUrlOrNull() != null && mimeHint(url) == null
+        code == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED && url != null && url.toHttpUrlOrNull() != null && mimeHint(url) == null
 
     /** IPTV links often exist as both .ts and .m3u8: the other form, or null when there is none. */
     fun alternateLiveUrl(url: String): String? {
