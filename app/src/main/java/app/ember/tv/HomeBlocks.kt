@@ -155,6 +155,8 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
         val shownCollections = if (profile.kids) emptyList() else collections.onHome
         val (pinned, unpinned) = shownCollections.partition { it.pinToTop }
         fun addCollections(list: List<app.ember.tv.data.MediaCollection>) = list.forEach { add(HomeViewModel.HomeBlock.Collection("collection:${it.id}", it)) }
+        // #405: collections the layout places show where they are put; any it doesn't know yet keep the old places.
+        val laidOut = layout.map { it.first }.filter(HomeSectionsState::isCollectionSection).toSet()
         for ((id, on) in layout) {
             if (!on) continue
             val before = size
@@ -197,6 +199,8 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
                         else if (w.id in widgets.loading && count { it is HomeViewModel.HomeBlock.Loading } < 3) add(HomeViewModel.HomeBlock.Loading(id, w.title, w))
                         else widgets.errors[w.id]?.let { add(HomeViewModel.HomeBlock.Notice(id, w.title, it)) }
                     }
+                } else if (HomeSectionsState.isCollectionSection(id)) {
+                    shownCollections.firstOrNull { HomeSectionsState.collectionSection(it.id) == id }?.let { add(HomeViewModel.HomeBlock.Collection(id, it)) }
                 } else if (id.startsWith("explore:") && !profile.kids) {
                     explore.homeRows.firstOrNull { it.catalogKey == id }?.let { add(HomeViewModel.HomeBlock.Row(id, it)) }
                 } else if (id.startsWith("smart:") && personalOn) {
@@ -214,8 +218,8 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
         }
         // Pinned collections go right after the banner and apps when those lead, else first.
         val lead = indexOfFirst { it !is HomeViewModel.HomeBlock.Hero && it !is HomeViewModel.HomeBlock.Apps && it !is HomeViewModel.HomeBlock.Shortcuts }.let { if (it < 0) size else it }
-        pinned.reversed().forEach { add(lead, HomeViewModel.HomeBlock.Collection("collection:${it.id}", it)) }
-        addCollections(unpinned)
+        pinned.filter { HomeSectionsState.collectionSection(it.id) !in laidOut }.reversed().forEach { add(lead, HomeViewModel.HomeBlock.Collection("collection:${it.id}", it)) }
+        addCollections(unpinned.filter { HomeSectionsState.collectionSection(it.id) !in laidOut })
     }.mapNotNull { block ->
         if (block is HomeViewModel.HomeBlock.Row) block.copy(row = block.row.copy(items = block.row.items.filter(this::homeTitleVisible))).takeIf { it.row.items.isNotEmpty() }
         else block

@@ -34,6 +34,8 @@
     <!-- Needed on Android 11+ so the launcher can see the apps it lists. -->
     <queries>
         <!-- Narrow visibility for detected manufacturer menus; no QUERY_ALL_PACKAGES. -->
+        <!-- #403: whether a real web browser exists, for an addon's settings page. -->
+        <intent><action android:name="android.intent.action.VIEW" /><category android:name="android.intent.category.BROWSABLE" /><data android:scheme="https" /></intent>
         <package android:name="mediatek.factorymenu.ui" />
         <package android:name="com.mediatek.engineermode" />
         <package android:name="com.mediatek.tvsettings" />

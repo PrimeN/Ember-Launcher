@@ -46,16 +46,17 @@ class SettingsNavigationTest {
     @Test fun relatedSettingsShareACategory() {
         assertEquals(listOf(SettingsTab.APPEARANCE,SettingsTab.SIZE,SettingsTab.PERFORMANCE),SettingsCategory.LOOK.pages)
         // #164: the regrouped menu.
-        assertEquals(listOf(SettingsTab.WIDGETS,SettingsTab.HOME_TOOLS,SettingsTab.DEFAULT_HOME,SettingsTab.HOME_EXTRAS,SettingsTab.LIGHT_HOME),SettingsCategory.HOME.pages)
+        assertEquals(listOf(SettingsTab.WIDGETS,SettingsTab.HOME_TOOLS,SettingsTab.HOME_EXTRAS,SettingsTab.LIGHT_HOME),SettingsCategory.HOME.pages)
         assertEquals(listOf(SettingsTab.ADDONS,SettingsTab.DISCOVER,SettingsTab.POSTERS,SettingsTab.STREAMING,SettingsTab.LIVE),SettingsCategory.SOURCES.pages)
         // #274: the source list's look beside the Play button.
         assertEquals(listOf(SettingsTab.PLAYER,SettingsTab.AUDIO_VIDEO,SettingsTab.SUBTITLES,SettingsTab.PLAY_BUTTON,SettingsTab.STREMIO,SettingsTab.WATCH_STATUS),SettingsCategory.PLAYBACK.pages)
-        assertEquals(listOf(SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.UPDATES,SettingsTab.DEBUG,SettingsTab.FEATURES),SettingsCategory.SYSTEM.pages)
+        // #407: Startup is a System setting.
+        assertEquals(listOf(SettingsTab.DEFAULT_HOME,SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.UPDATES,SettingsTab.DEBUG,SettingsTab.FEATURES),SettingsCategory.SYSTEM.pages)
         assertEquals(SettingsTab.DEVICE_TOOLS,SettingsLocation.jump("REMOTE")!!.page);assertEquals(SettingsTab.ADDONS,SettingsLocation.open(SettingsTab.CATALOGS).page)
         assertEquals(SettingsTab.HOME_EXTRAS,SettingsLocation.restore("HOME","SCREENSAVER").page)
         assertTrue(SettingsMerges.diagnosticsKeys.containsAll(CACHE_KEYS));assertEquals(0,SettingsMerges.diagnosticsKeys.indexOf(CACHE_KEYS.first()))
         assertEquals(SettingsMerges.diagnosticsKeys.size,SettingsMerges.diagnosticsKeys.distinct().size)
-        assertEquals(SettingsCategory.HOME,SettingsCategory.of(SettingsTab.DEFAULT_HOME))
+        assertEquals(SettingsCategory.SYSTEM,SettingsCategory.of(SettingsTab.DEFAULT_HOME))
         assertEquals(SettingsCategory.HOME,SettingsCategory.of(SettingsTab.WEATHER))
         assertEquals(SettingsCategory.HOME,SettingsCategory.of(SettingsTab.SCREENSAVER))
         assertEquals(SettingsCategory.SOURCES,SettingsCategory.of(SettingsTab.POSTERS))

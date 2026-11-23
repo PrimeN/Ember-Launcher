@@ -38,7 +38,7 @@ import app.ember.tv.home.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-/** Home tools are split across Settings > Home: Apps & folders, Startup and Extras. */
+/** Home tools: Apps & folders and Extras under Settings > Home; Startup under Settings > System (#407). */
 internal enum class HomeToolsPart { APPS, FOLDERS, STARTUP, EXTRAS }
 
 /** Wording for the app pickers on Apps & folders (#190). */

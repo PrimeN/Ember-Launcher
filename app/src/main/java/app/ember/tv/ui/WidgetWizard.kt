@@ -95,6 +95,7 @@ internal object WidgetSteps {
 
     /** The kinds of source, as cards on the first step. */
     const val APPS = "apps"
+    const val COLLECTION = "collection"
     const val FILTERS = "filters"; const val LISTS = "lists"; const val CATALOG = "catalog"; const val TRAKT = "trakt"; const val MDB = "mdblist"
     /** #264: the picker that adds catalogs to the ones already chosen. */
     const val MORE = "more"
@@ -131,7 +132,7 @@ internal object WidgetSteps {
 }
 
 @Composable
-internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: () -> Unit) {
+internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, onCollection: (() -> Unit)? = null, close: () -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var overlay by remember { mutableStateOf<String?>(null) }
     var panel by remember(initial.id) { mutableStateOf(WidgetSteps.kindOf(initial.source).takeIf { it == WidgetSteps.LISTS || it == WidgetSteps.MDB || it == WidgetSteps.APPS }) }
@@ -207,7 +208,7 @@ internal fun WidgetEditorDialog(vm: HomeViewModel, initial: HomeWidget, close: (
                 Text(WidgetSteps.intro(step), fontSize = 13.sp, color = Mute)
             }
             when (step) {
-                WidgetSteps.SOURCE -> SourceStep(vm, draft, check, titles, panel, stepFocus,
+                WidgetSteps.SOURCE -> SourceStep(vm, draft, check, titles, panel, stepFocus, onCollection.takeIf { !existing },
                     onKind = { kind -> message = null; if (kind == WidgetSteps.LISTS || kind == WidgetSteps.MDB || kind == WidgetSteps.APPS) panel = kind else { panel = null; overlay = kind } },
                     onChoose = ::chosen, onRetry = { retry++ }, onProblem = { message = it },
                     onAddMore = { overlay = WidgetSteps.MORE }, onRemove = { i -> draft = draft.copy(more = draft.more.filterIndexed { j, _ -> j != i }) })
@@ -293,6 +294,7 @@ private fun WizardButton(label: String, ready: Boolean, modifier: Modifier = Mod
 
 @Composable
 private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.Check, titles: List<Meta>, panel: String?, first: FocusRequester,
+    onCollection: (() -> Unit)?,
     onKind: (String) -> Unit, onChoose: (CollectionSource, String?) -> Unit, onRetry: () -> Unit, onProblem: (String?) -> Unit,
     onAddMore: () -> Unit, onRemove: (Int) -> Unit) {
     val kind = WidgetSteps.kindOf(draft.source)
@@ -301,6 +303,9 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
             SourceKindCard(id, text.first, text.second, kind == id || panel == id && kind == null,
                 (if (i == 0) Modifier.focusRequester(first) else Modifier).testTag(if (id == WidgetSteps.FILTERS) "widget_filters" else "widget_kind_$id")) { onKind(id) }
         }
+        // #406: a collection is made from here too; it has its own editor for folders and their sources.
+        if (onCollection != null) SourceKindCard(WidgetSteps.COLLECTION, "Collection", "Folder tiles that open their own lists", false,
+            Modifier.testTag("widget_kind_collection")) { onCollection() }
     }
     when (panel) {
         WidgetSteps.LISTS -> {
@@ -344,21 +349,26 @@ private fun SourceKindCard(kind: String, name: String, about: String, on: Boolea
         WidgetSteps.FILTERS -> Icons.Outlined.Tune; WidgetSteps.LISTS -> Icons.Outlined.Bookmarks
         WidgetSteps.CATALOG -> Icons.Outlined.Widgets; WidgetSteps.TRAKT -> Icons.Outlined.PlaylistPlay
         WidgetSteps.APPS -> Icons.Outlined.Apps
+        WidgetSteps.COLLECTION -> Icons.Outlined.Folder
         else -> Icons.Outlined.FormatListNumbered
     }
-    Focusable(onClick = onClick, modifier = modifier.width(172.dp).height(128.dp).semantics { this.selected = on }
+    // #406: compact cards, so the kinds fit on one or two lines instead of filling the popup.
+    Focusable(onClick = onClick, modifier = modifier.width(214.dp).height(76.dp).semantics { this.selected = on }
         .then(if (on) Modifier.border(2.dp, accent, RoundedCornerShape(TvTokens.Shape.Card.dp)) else Modifier),
         radius = TvTokens.Shape.Card, container = if (on) WashHi else PanelHi, focusedContainer = PillColor, focusedContent = OnPillColor,
         outline = false, focusedScale = TvTokens.Focus.Card) {
         Box(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.size(34.dp).background(accent.copy(alpha = .2f), RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
-                    MaterialGlyph(icon, accent, 20.dp)
+            Row(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.size(30.dp).background(accent.copy(alpha = .2f), RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
+                    MaterialGlyph(icon, accent, 18.dp)
                 }
-                Text(name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(about, fontSize = 12.sp, lineHeight = 15.sp, color = LocalContentColor.current.copy(alpha = .7f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(about, fontSize = 11.sp, lineHeight = 13.sp, color = LocalContentColor.current.copy(alpha = .7f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
             }
-            if (on) Box(Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp).background(accent, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
+            if (on) Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(18.dp).background(accent, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
                 MaterialGlyph(Icons.Outlined.Check, MaterialTheme.colorScheme.onPrimary, 14.dp)
             }
         }

@@ -156,6 +156,7 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
     var renaming by remember(url) { mutableStateOf(false) }
     var removing by remember(url) { mutableStateOf(false) }
     var details by remember(url) { mutableStateOf(false) }
+    var configuring by remember(url) { mutableStateOf<String?>(null) }
     val does = info?.let { a -> AddonSummary.does(a.provides, a.epgProvider) } ?: if (on) "Manifest not loaded" else "Off"
     val has = info?.let { a -> AddonSummary.has(a.catalogs.size, a.types) }.orEmpty()
     val warning = info?.configurationRequired == true || info?.adult == true
@@ -187,10 +188,11 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
         add(MenuOption(if (on) "Turn off" else "Turn on", icon = Icons.Outlined.PowerSettingsNew) { vm.pauseAddon(url, on) })
         info?.configureUrl?.let { link ->
             add(MenuOption(if (info?.configurationRequired == true) "Set it up" else "Its settings", icon = Icons.Outlined.Settings) {
-                val opened = runCatching {
+                // #403: Google TV has no browser; its stand-in only says "no app can do this". Then the page opens on a phone.
+                val opened = WebLinks.hasBrowser(context) && runCatching {
                     context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, link.toUri()).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                 }.isSuccess
-                if (!opened) vm.showNotice("No web browser on this TV. Open the addon's settings from a phone or computer.")
+                if (!opened) configuring = link
             })
         }
         add(MenuOption("Rename", icon = Icons.Outlined.Edit) { renaming = true })
@@ -202,11 +204,35 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
         add(MenuOption("Remove", icon = Icons.Outlined.Delete) { removing = true })
     }) { menu = false }
     if (details) SettingInfoDialog(label, AddonSummary.details(info, url, on)) { details = false }
+    configuring?.let { link ->
+        MediaDialog("${label}: its settings", { configuring = null }) {
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                QrCode(link, 220.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                    Text("This TV has no web browser. Scan the code with your phone to open $label's settings page.", fontSize = 15.sp)
+                    Text("The code holds your addon link, which can include your own keys, so only scan it yourself. After saving there, add the new link here or choose Refresh.",
+                        color = Mute, fontSize = 13.sp)
+                    Chip("Done") { configuring = null }
+                }
+            }
+        }
+    }
     if (renaming) AddonRenameDialog(vm, url, info) { renaming = false }
     // #131: removing loses the addon's configured link, so it asks first.
     if (removing) ConfirmDestructive("Remove ${info?.name ?: "this addon"}?",
         "Its catalogs, streams and subtitles stop appearing. To add it back you'll need its link again.",
         { removing = false }, stringResource(R.string.ui_remove)) { vm.removeAddon(url) }
+}
+
+/** #403: a web page can open on this TV only with a real browser, not Google TV's placeholder. */
+internal object WebLinks {
+    private val placeholders = setOf("com.google.android.tv.frameworkpackagestubs", "com.android.tv.frameworkpackagestubs", "com.google.android.tv.frameworkpackagestub")
+    fun isPlaceholder(pkg: String?) = pkg == null || pkg in placeholders
+    fun hasBrowser(context: android.content.Context): Boolean = runCatching {
+        val view = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://example.com/"))
+            .addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+        context.packageManager.queryIntentActivities(view, 0).any { !isPlaceholder(it.activityInfo?.packageName) }
+    }.getOrDefault(false)
 }
 
 /** The words on an addon's card and in its info popup (#400). */

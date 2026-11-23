@@ -109,8 +109,7 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     HOME_TOOLS("Apps & folders", "Home"),
     // #245: the navbar tabs moved to Appearance, beside the navbar style.
     TOP_MENU("Top menu", "Look", "APPEARANCE"),
-    // #318: startup, then the screensaver beside the presentation slideshow; Light's own page last.
-    DEFAULT_HOME("Startup", "Home"),
+    // #318: the screensaver beside the presentation slideshow; Light's own page last.
     HOME_EXTRAS("Screensaver & extras", "Home"),
     SCREENSAVER("Screensaver", "Home", "HOME_EXTRAS"),
     WEATHER("Weather", "Home", "HOME_EXTRAS"),
@@ -136,6 +135,8 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     TRACKERS("Trackers", "Accounts"),
     SERVERS("Media servers", "Accounts"),
     KEYS("API keys", "Accounts"),
+    // #407: what Ember does when the TV starts is a System setting, first in that group.
+    DEFAULT_HOME("Startup", "System"),
     DEVICE_TOOLS("TV & remote", "System"),
     REMOTE("Remote", "System", "DEVICE_TOOLS"),
     PHONE("Phone setup", "System"),
@@ -208,7 +209,6 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.DISCOVER -> item(key = "discover-sections") { DiscoverSettings(vm) }
             SettingsTab.HOME_ROWS, SettingsTab.WIDGETS -> {
                 item(key = "widgets") { WidgetsSettings(vm) }
-                item(key = "collections") { Section(stringResource(R.string.st_collections), stringResource(R.string.st_rows_of_folder_tiles_on_home), id = "collections") { CollectionsSettings(vm) } }
             }
             SettingsTab.LIGHT_HOME -> {
                 if (vm.look.uiStyle != app.ember.tv.data.InterfaceStyles.LIGHT) item(key = "light-note") {

@@ -41,6 +41,17 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var importing by remember { mutableStateOf(false) }
     var menu by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     var showOff by remember { mutableStateOf(false) }
+    // #405/#406: collections are widgets: created from Create widget, edited, moved and deleted here.
+    var editingCollection by remember(vm.profiles.profileId) { mutableStateOf<MediaCollection?>(null) }
+    var creatingCollection by remember(vm.profiles.profileId) { mutableStateOf(false) }
+    var removingCollection by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
+    var collectionTools by remember { mutableStateOf(false) }
+    fun collectionOf(section: String) = if (app.ember.tv.state.HomeSectionsState.isCollectionSection(section))
+        vm.collections.list.firstOrNull { it.id == app.ember.tv.state.HomeSectionsState.collectionId(section) } else null
+    fun shownOnHome(section: String) = if (app.ember.tv.state.HomeSectionsState.isCollectionSection(section)) vm.collectionShown(section) else vm.sections.sectionOn(section)
+    fun toggleOnHome(section: String) = if (app.ember.tv.state.HomeSectionsState.isCollectionSection(section)) vm.toggleCollectionOnHome(section) else vm.sections.toggleSection(section)
+    // A collection hidden in its own settings counts as off here too.
+    val layoutView = vm.sections.layout.map { (id, on) -> id to (if (app.ember.tv.state.HomeSectionsState.isCollectionSection(id)) vm.collectionShown(id) else on) }
     // #183: Home's "Edit widget" lands here with the editor already open.
     LaunchedEffect(vm.widgetToEdit) {
         val id = vm.widgetToEdit ?: return@LaunchedEffect
@@ -54,12 +65,14 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     val info = vm.sections.sectionInfo.associateBy { it.id }
     fun own(section: String) = if (HomeWidgets.isSection(section)) vm.widgets.list.firstOrNull { HomeWidgets.section(it.id) == section } else null
     // #189: everything on Home is a widget. The ones that come with Ember and your own share one list, in Home order.
-    Section("Home widgets", "Everything on Home is a widget. The banner, your apps, your lists and your catalogs come with Ember; add your own from a catalog, a list or filters. Home shows them in this order.", id = "home-widgets") {
+    Section("Home widgets", "Everything on Home is a widget, shown in this order.", id = "home-widgets",
+        info = "The banner, your apps, your lists and your catalogs come with Ember. Add your own from a catalog, a list or filters, or make a collection of folder tiles.\n\nThe switch beside a widget hides or shows it; turned-off widgets wait in their own list. Addon catalogs become widgets when they are on Home. Press OK on a widget to edit or move it. Your own widgets and collections can also be deleted.") {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ButtonRow {
                 if (!kids) Chip("Create widget", modifier = Modifier.testTag("widget_create")) { editing = WidgetDrafts.new() }
                 // #163: like collections, widgets move between TVs and profiles as a file.
                 if (!kids) Chip("Import") { importing = true }
+                if (!kids) Chip("Collection packs") { collectionTools = true }
                 if (!kids && vm.widgets.list.isNotEmpty()) Chip("Export all") {
                     val pack = HomeWidgets.pack(vm.widgets.list)
                     scope.launch {
@@ -82,22 +95,23 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
             }
             message?.let { Text(it, color = Mute, fontSize = 13.sp) }
             // #238/#239: the list is what is on Home; what is off waits below, folded.
-            val (onIds, offIds) = WidgetDrafts.split(vm.sections.layout, info.keys)
+            val (onIds, offIds) = WidgetDrafts.split(layoutView, info.keys)
             Text(ManagerCards.counts(onIds.size, offIds.size), color = Mute, fontSize = 13.sp)
             @Composable fun card(section: String, on: Boolean) {
                 val built = info.getValue(section)
                 val w = own(section)
+                val collection = collectionOf(section)
                 ManagerCard(w?.title ?: built.label, listOf(
-                    if (w != null) "Yours · " + WidgetDrafts.summary(w, vm.allCatalogs) else "Built in · " + built.note,
+                    if (w != null) "Yours · " + WidgetDrafts.summary(w, vm.allCatalogs) else if (collection != null) "Yours · " + built.note else "Built in · " + built.note,
                     // #168: why a widget is not on Home, instead of a row that is silently missing.
                     WidgetDrafts.state(on, if (w == null) null else WidgetDrafts.status(on, w.id in vm.widgets.loading, vm.widgets.errors[w.id], vm.widgetItems(w).size)),
                 ), onClick = { menu = section }, tag = "widget_card", trailing = {
                     // #199: hide or show in one press, without the menu.
-                    SwitchChip("On Home", on, modifier = Modifier.semantics { contentDescription = (w?.title ?: built.label) + ", on Home" }) { vm.sections.toggleSection(section) }
+                    SwitchChip("On Home", on, modifier = Modifier.semantics { contentDescription = (w?.title ?: built.label) + ", on Home" }) { toggleOnHome(section) }
                 }) {
                     val ink = androidx.tv.material3.LocalContentColor.current
                     // The editor's picture, scaled down so a long Home still fits a few to the screen.
-                    Box(Modifier.requiredWidth(156.dp).scale(.68f)) { WidgetStylePreview(WidgetDrafts.picture(section, w?.style), ink) }
+                    Box(Modifier.requiredWidth(156.dp).scale(.68f)) { WidgetStylePreview(WidgetDrafts.picture(section, w?.style ?: collection?.let { WidgetDrafts.COLLECTION }), ink) }
                 }
             }
             onIds.forEach { card(it, true) }
@@ -109,7 +123,6 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
                     ids.forEach { card(it, false) }
                 }
             }
-            Note("The switch beside a widget hides or shows it; turned-off widgets wait in their own list. Addon catalogs become widgets when they are on Home. Press OK on a widget to edit or move it: the banner's catalog and artwork, what each list includes, a row's card shape. Your own can also be deleted.")
             Chip("Back to the default order") { vm.sections.resetLayout() }
         }
     }
@@ -117,14 +130,15 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var adjusting by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     menu?.let { section ->
         val w = own(section)
-        val order = vm.sections.layout.filter { it.second && it.first in info }.map { it.first }
+        val collection = collectionOf(section)
+        val order = layoutView.filter { it.second && it.first in info }.map { it.first }
         OptionMenu(w?.title ?: info[section]?.label ?: "Widget", buildList {
-            WidgetDrafts.actions(w != null && !kids, w == null && WidgetDrafts.editable(section), vm.sections.sectionOn(section)).forEach { label ->
+            WidgetDrafts.actions((w != null || collection != null) && !kids, w == null && collection == null && WidgetDrafts.editable(section), shownOnHome(section)).forEach { label ->
                 add(MenuOption(label) { when (label) {
                     // #195: built-in widgets can't be deleted, but what applies to them can be adjusted.
-                    "Edit" -> if (w != null) editing = w else adjusting = section
-                    "Delete" -> removing = w
-                    else -> vm.sections.toggleSection(section)
+                    "Edit" -> if (w != null) editing = w else if (collection != null) editingCollection = collection else adjusting = section
+                    "Delete" -> if (collection != null) removingCollection = collection.id else removing = w
+                    else -> toggleOnHome(section)
                 } })
             }
             // #239: moves count only the widgets on Home, so every step shows.
@@ -138,7 +152,15 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
         val original = vm.allCatalogs.firstOrNull { it.key == key }?.originalLabel ?: vm.rows.firstOrNull { it.catalogKey == key }?.title ?: "Catalog"
         CatalogRenameDialog(vm, key, original) { renaming = null }
     }
-    editing?.let { WidgetEditorDialog(vm, it) { editing = null } }
+    editing?.let { WidgetEditorDialog(vm, it, onCollection = { editing = null; creatingCollection = true }) { editing = null } }
+    if (creatingCollection) CollectionEditor(vm, null) { creatingCollection = false }
+    editingCollection?.let { c -> CollectionEditor(vm, c) { editingCollection = null } }
+    removingCollection?.let { id ->
+        val c = vm.collections.list.firstOrNull { it.id == id }
+        ConfirmDestructive("Delete ${c?.title?.ifBlank { null } ?: "this collection"}?", CollectionDeletion.collectionMessage(c?.folders?.size ?: 0),
+            { removingCollection = null }) { vm.collections.remove(id) }
+    }
+    if (collectionTools) MediaDialog("Collections", { collectionTools = false }, wide = true) { CollectionsSettings(vm) }
     if (importing) WidgetImportDialog(vm, { importing = false }) { message = it }
     removing?.let { w ->
         ConfirmDestructive("Delete ${w.title}?", "This deletes the widget from Home. This can't be undone; its source (a catalog, list or filters) is not affected.",
@@ -170,6 +192,8 @@ internal object WidgetDrafts {
         else -> HomeWidgets.ROW
     }
     const val APPS = "apps"
+    /** #405: a collection's card picture. */
+    const val COLLECTION = "collection"
     /** A widget card's menu (#189, #195), before the moves. Built-in widgets are edited where a setting applies, never deleted. */
     fun actions(own: Boolean, editable: Boolean, on: Boolean): List<String> = buildList {
         if (own || editable) add("Edit")
@@ -314,6 +338,15 @@ private fun WidgetStylePreview(style: String, ink: Color) {
     fun Modifier.block(color: Color, corner: Int = 3) = clip(RoundedCornerShape(corner.dp)).background(color)
     Box(Modifier.fillMaxWidth().height(80.dp).block(ink.copy(alpha = .1f), 8).padding(if (style == HomeWidgets.CAROUSEL) 0.dp else 8.dp), contentAlignment = Alignment.Center) {
         when (style) {
+            // #405: a collection: a row of folder tiles.
+            WidgetDrafts.COLLECTION -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                (1..4).forEach { _ ->
+                    Column {
+                        Box(Modifier.width(16.dp).height(5.dp).block(strong, 2))
+                        Box(Modifier.width(40.dp).height(28.dp).block(soft, 4))
+                    }
+                }
+            }
             // #202: the rank sits on each picture's corner.
             HomeWidgets.NUMBERED -> Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 (1..4).forEach { n ->

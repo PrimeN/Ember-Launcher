@@ -50,6 +50,9 @@ class PlayerSettingsModeTest {
         val toggle = compose.onNodeWithTag("toggle").fetchSemanticsNode().boundsInRoot
         val choice = compose.onNodeWithTag("choice").fetchSemanticsNode().boundsInRoot
         assertEquals(toggle.right, choice.right, 1f)
+        // #402: the value itself sits at the right, not in the middle of the row.
+        val value = compose.onNodeWithText("First", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("value ends at ${value.right}, row at ${choice.right}", choice.right - value.right < 80f)
     }
 
     @Test fun aResetRowIsReachedWithTheRemoteAndSaysItRan() {

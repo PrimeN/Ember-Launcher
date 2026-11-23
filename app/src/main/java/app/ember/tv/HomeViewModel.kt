@@ -840,7 +840,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         onCatalogVisibilityChanged = { values ->
             catalogs.updateCatalogHomes(values.mapKeys { HomeSectionsState.catalogKey(it.key) })
         },
+        // #405: each collection is a Home widget, ordered and switched with the others.
+        collectionSections = { if (profile.kids) emptyList() else collections.list.map { c ->
+            HomeSectionsState.SectionInfo(HomeSectionsState.collectionSection(c.id), c.title.ifBlank { "Collection" },
+                "Collection · ${c.folders.size} ${if (c.folders.size == 1) "folder" else "folders"}") to (c.id !in collections.hidden)
+        } },
+        pinnedSections = { collections.list.filter { it.pinToTop }.map { HomeSectionsState.collectionSection(it.id) }.toSet() },
     )
+    /** #405: a collection's switch on Home: shown only when its section is on and it isn't hidden. */
+    fun collectionShown(sectionId: String): Boolean =
+        sections.sectionOn(sectionId) && HomeSectionsState.collectionId(sectionId) !in collections.hidden
+    fun toggleCollectionOnHome(sectionId: String) {
+        val id = HomeSectionsState.collectionId(sectionId)
+        if (collectionShown(sectionId)) collections.toggle(id)
+        else {
+            if (id in collections.hidden) collections.toggle(id)
+            if (!sections.sectionOn(sectionId)) sections.toggleSection(sectionId)
+        }
+    }
     internal val layout get() = sections.layout
     val homeCatalogsWanted:Boolean get() {
         val catalogs=sections.layout.filter {HomeSectionsState.isCatalogSection(it.first)}

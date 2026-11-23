@@ -27,6 +27,10 @@ class HomeSectionsState(
     private val catalogSections: () -> List<Pair<SectionInfo, Boolean>> = { emptyList() },
     private val onCatalogVisibilityChanged: (Map<String, Boolean>) -> Unit = {},
     private val extraSections: () -> List<Pair<SectionInfo, Boolean>> = { emptyList() },
+    /** #405: collections are Home sections too, after the catalogs (where they always went). */
+    private val collectionSections: () -> List<Pair<SectionInfo, Boolean>> = { emptyList() },
+    /** Collections marked "pin to top" that the layout has not placed yet go right after the banner and apps. */
+    private val pinnedSections: () -> Set<String> = { emptySet() },
 ) {
     data class SectionInfo(val id: String, val label: String, val note: String)
 
@@ -43,6 +47,7 @@ class HomeSectionsState(
             SmartRows.ALL.filter { it.first != SmartRows.UP_NEXT }.forEach { (id, label) -> add(SectionInfo(smartSection(id), label, "Extra row.")) }
             addAll(extraSections().map { it.first })
             add(SectionInfo(HOME_CATALOGS, "Addon catalogs", "The catalogs switched on for Home in ${SettingsTab.ADDONS.path}, in that order."))
+            addAll(collectionSections().map { it.first })
         }
 
     val sectionInfo: List<SectionInfo>
@@ -122,9 +127,11 @@ class HomeSectionsState(
     /** The saved order and switches, with any section not saved yet added at its default place. */
     val layout: List<Pair<String, Boolean>>
         get() {
-            return catalogLayout(baseSectionInfo.map { it.id }, homeLayout,
+            val merged = catalogLayout(baseSectionInfo.map { it.id }, homeLayout,
                 catalogSections().associate { it.first.id to it.second },
-                setOf(HOME_HERO, HOME_APPS, HOME_CONTINUE, HOME_RECENT, HOME_WATCHLIST) + extraSections().filter { it.second }.map { it.first.id })
+                setOf(HOME_HERO, HOME_APPS, HOME_CONTINUE, HOME_RECENT, HOME_WATCHLIST) + extraSections().filter { it.second }.map { it.first.id } +
+                    collectionSections().filter { it.second }.map { it.first.id })
+            return leadPinned(merged, pinnedSections().filter { id -> homeLayout.none { it.first == id } }.toSet())
         }
 
     /** Materialize the old bulk switch before changing the layout, including an intentional Off. */
@@ -187,6 +194,20 @@ class HomeSectionsState(
     }
 
     companion object {
+        const val COLLECTION_PREFIX = "collection:"
+        fun collectionSection(id: String) = COLLECTION_PREFIX + id
+        fun isCollectionSection(id: String) = id.startsWith(COLLECTION_PREFIX)
+        fun collectionId(id: String) = id.removePrefix(COLLECTION_PREFIX)
+
+        /** Pinned collections not yet placed go after the banner and apps at the top, as they always did. */
+        fun leadPinned(layout: List<Pair<String, Boolean>>, pinned: Set<String>): List<Pair<String, Boolean>> {
+            if (pinned.isEmpty()) return layout
+            val moving = layout.filter { it.first in pinned }
+            val rest = layout.filter { it.first !in pinned }.toMutableList()
+            val lead = rest.indexOfFirst { it.first != HOME_HERO && it.first != HOME_APPS }.let { if (it < 0) rest.size else it }
+            rest.addAll(lead, moving)
+            return rest
+        }
         /** Built-in sections that are rows of titles, so Poster or Wide applies (#195). The banner, apps and your own widgets are not. */
         fun hasShape(id: String): Boolean = id == HOME_CONTINUE || id == HOME_RECENT || id == HOME_WATCHLIST || id == HOME_UPNEXT || id == HOME_SERVERS ||
             id.startsWith("smart:") || id.startsWith("explore:") || isCatalogSection(id)

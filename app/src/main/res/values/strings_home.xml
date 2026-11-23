@@ -3,7 +3,7 @@
 <resources>
     <string name="home_service_label">Ember Home button</string>
     <string name="home_service_summary">Opens Ember instead of Google TV\'s home screen.</string>
-    <string name="home_service_description">Google TV does not let you choose another Home app. With this on, Ember opens when the TV\'s own home screen comes up: when you press Home, wake the TV or turn it on. In Ember\'s setting \"Catch the Home press\" it also reads the Home key. It reads nothing else, and nothing is stored or sent anywhere. Turn it off here or in Ember\'s Settings › Home › Startup.</string>
+    <string name="home_service_description">Google TV does not let you choose another Home app. With this on, Ember opens when the TV\'s own home screen comes up: when you press Home, wake the TV or turn it on. In Ember\'s setting \"Catch the Home press\" it also reads the Home key. It reads nothing else, and nothing is stored or sent anywhere. Turn it off here or in Ember\'s Settings › System › Startup.</string>
 
     <string name="home_intro">Google TV does not let you pick another Home app, so Ember gives you two ways round it, the same ones other launchers use. Method 1 takes a minute on the TV. Method 2 needs a computer or phone once and is the most complete. You can use both.</string>
 

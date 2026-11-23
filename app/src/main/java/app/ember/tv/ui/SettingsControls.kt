@@ -93,7 +93,9 @@ internal fun SettingValueRow(label: String, value: String, modifier: Modifier = 
                 note?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
             }
             Text(value, fontSize = TvTokens.Type.Label.sp, color = if (focused) OnPillColor.copy(alpha = .8f) else Mute,
-                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                // #402: the label takes the free space, so the value and arrow sit at the right edge (two weights split it in half).
+                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.widthIn(max = 440.dp))
             androidx.compose.foundation.Image(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null,
                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(if (focused) OnPillColor else Mute), modifier = Modifier.size(20.dp))
         }
