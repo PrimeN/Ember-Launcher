@@ -94,18 +94,15 @@ internal fun BadgesSection(vm: HomeViewModel) {
             }
             ButtonRow(spacing = 8.dp) {
                 val current = modes.first { it.first == f.badgeMode }
-                Chip(stringResource(R.string.st_preview_badges, current.second)) { preview = current.first to current.second }
+                // #399: Detailed opens its advanced settings: categories, their order, and single badges.
+                Chip(if (f.badgeMode == Badges.MODERN) "Advanced badge settings" else stringResource(R.string.st_preview_badges, current.second)) { preview = current.first to current.second }
                 val hidden = app.ember.tv.data.BadgeChoices.count(f.badgeMode, f.badgesOff)
                 if (f.badgeMode != Badges.LEGACY && hidden > 0) Chip(stringResource(R.string.st_show_all_hidden_badges, hidden)) { f.showAllBadges(f.badgeMode) }
             }
             if (f.badgeMode == Badges.MODERN) {
-                Text(stringResource(R.string.tx_detailed_categories), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                ButtonRow(spacing = 8.dp) {
-                    app.ember.tv.data.DetailedBadgeCategories.groups.forEach { (id, label) ->
-                        val on = id !in f.detailedBadgeCategoriesOff
-                        SwitchChip(label, on, Modifier.semantics { stateDescription = if (on) "On" else "Off" }) { f.toggleDetailedBadgeCategory(id) }
-                    }
-                }
+                // #398: categories are switched and ordered in Advanced badge settings.
+                val hiddenCount = f.detailedBadgeCategoriesOff.size
+                if (hiddenCount > 0) Note("$hiddenCount ${if (hiddenCount == 1) "category is" else "categories are"} hidden. Change it in Advanced badge settings.")
                 Note(stringResource(R.string.st_to_change_a_detailed_badge_s))
                 Chip(stringResource(R.string.st_copy_to_my_badges_and_edit)) { copying = true }
             }
@@ -139,7 +136,9 @@ internal fun BadgesSection(vm: HomeViewModel) {
             (f.badgeNote ?: Badges.message)?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
         }
     }
-    preview?.let { (mode, label) -> BadgePreview(mode, label, hiddenCategories = f.detailedBadgeCategoriesOff, off = f.badgesOff, onToggle = { f.toggleBadge(mode, it) }) { preview = null } }
+    preview?.let { (mode, label) -> BadgePreview(mode, label, hiddenCategories = f.detailedBadgeCategoriesOff, off = f.badgesOff, onToggle = { f.toggleBadge(mode, it) },
+        order = f.detailedBadgeOrder, onMoveCategory = { all, id, step -> f.moveDetailedBadgeCategory(all, id, step) },
+        onToggleCategory = if (mode == Badges.MODERN) ({ id -> f.toggleDetailedBadgeCategory(id) }) else null) { preview = null } }
     if (linking) BadgeLinkDialog(vm) { linking = false }
     if (adding) BadgeAddDialog(vm) { adding = false }
     if (copying) ConfirmDestructive("Start from the Detailed badges?",

@@ -105,7 +105,7 @@
       "borderColor": "#FB411C"
     },
     {
-      "borderColor": "#FFE50914",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-nflx",
       "imageURL": "bundled:badges/detailed/gs-s-nflx.png",
@@ -118,7 +118,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FF00A8E1",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-amzn",
       "imageURL": "bundled:badges/detailed/gs-s-amzn.png",
@@ -131,7 +131,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FFA2AAAD",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-atvp",
       "imageURL": "bundled:badges/detailed/gs-s-atvp.png",
@@ -144,7 +144,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FF113CCF",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-dsnp",
       "imageURL": "bundled:badges/detailed/gs-s-dsnp.png",
@@ -157,7 +157,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FFB100FF",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-hmax",
       "imageURL": "bundled:badges/detailed/gs-s-hmax.png",
@@ -170,7 +170,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FF1CE783",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-hulu",
       "imageURL": "bundled:badges/detailed/gs-s-hulu.png",
@@ -183,7 +183,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FFFFC72C",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-pcok",
       "imageURL": "bundled:badges/detailed/gs-s-pcok.png",
@@ -196,7 +196,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FF0064FF",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-pamp",
       "imageURL": "bundled:badges/detailed/gs-s-pamp.png",
@@ -209,7 +209,7 @@
       "type": "filter"
     },
     {
-      "borderColor": "#FFF47521",
+      "borderColor": "#FF858283",
       "groupId": "gs",
       "id": "s-croll",
       "imageURL": "bundled:badges/detailed/gs-s-croll.png",
@@ -1034,8 +1034,8 @@
     {
       "id": "gs",
       "name": "Streaming",
-      "color": "#FFB100FF",
-      "borderColor": "#FFB100FF",
+      "color": "#FFFFFF",
+      "borderColor": "#FF858283",
       "isExpanded": true
     },
     {

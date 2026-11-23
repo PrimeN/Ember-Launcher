@@ -395,6 +395,10 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.DETAILED_BADGE_CATEGORIES_OFF)
         set(v) = sp.edit { putStringSet(PreferenceKeys.DETAILED_BADGE_CATEGORIES_OFF.name, v.toSet()) }
 
+    var detailedBadgeOrder: List<String>
+        get() = sp.read(PreferenceKeys.DETAILED_BADGE_ORDER)?.split(',')?.filter { it.isNotBlank() }.orEmpty()
+        set(v) = sp.edit { if (v.isEmpty()) remove(PreferenceKeys.DETAILED_BADGE_ORDER.name) else putString(PreferenceKeys.DETAILED_BADGE_ORDER.name, v.joinToString(",")) }
+
     var badgesOff: Set<String>
         get() = sp.read(PreferenceKeys.BADGES_OFF)
         set(v) = sp.edit { putStringSet(PreferenceKeys.BADGES_OFF.name, v.toSet()) }

@@ -30,6 +30,34 @@ internal object DetailedBadgeCategories {
         else -> hidden + id
     }
 
+    /**
+     * #397: the categories in display order: your order first, then any the pack has that you have
+     * not placed, in the pack's own order.
+     */
+    fun order(chosen: List<String>, badges: List<BadgeFilter>): List<String> {
+        val inPack = badges.mapNotNull { it.groupId }.distinct()
+        return chosen.filter { it in inPack } + inPack.filter { it !in chosen }
+    }
+
+    /** Badges sorted by their category's place; within a category, the pack's order. */
+    fun sorted(mode: String, chosen: List<String>, badges: List<BadgeFilter>): List<BadgeFilter> {
+        if (mode != Badges.MODERN || chosen.isEmpty()) return badges
+        val rank = order(chosen, badges).withIndex().associate { (i, id) -> id to i }
+        return badges.sortedBy { rank[it.groupId] ?: Int.MAX_VALUE }
+    }
+
+    /** A category moved one place earlier ([step] -1) or later (+1). */
+    fun move(chosen: List<String>, badges: List<BadgeFilter>, id: String, step: Int): List<String> {
+        val list = order(chosen, badges).toMutableList()
+        val from = list.indexOf(id)
+        val to = from + step
+        if (from < 0 || to !in list.indices) return list
+        java.util.Collections.swap(list, from, to)
+        return list
+    }
+
+    fun name(id: String?): String = groups.firstOrNull { it.first == id }?.second ?: "Other"
+
     fun filter(mode: String, hidden: Set<String>, badges: List<BadgeFilter>): List<BadgeFilter> =
         if (mode != Badges.MODERN || hidden.isEmpty()) badges else badges.filter { it.groupId !in hidden }
 

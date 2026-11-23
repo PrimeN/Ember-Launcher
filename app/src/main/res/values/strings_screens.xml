@@ -45,7 +45,6 @@
     <string name="tx_create_folders_from_catalogs_and_discover">Create folders from catalogs and Discover searches.</string>
     <string name="tx_custom_font">Custom font</string>
     <string name="tx_custom_lists">Custom lists</string>
-    <string name="tx_detailed_categories">Detailed categories</string>
     <string name="tx_details_from">Details from </string>
     <string name="tx_directors">DIRECTORS</string>
     <string name="tx_downloaded_images_cached_metadata_catalogs_an">Downloaded images, cached metadata, catalogs and network responses will reload as needed. Your settings, credentials, collections, watchlists and history will stay.</string>

@@ -24,6 +24,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.ui.draw.alpha
 import app.ember.tv.R
 
 import androidx.compose.foundation.background
@@ -137,112 +142,108 @@ internal fun LazyListScope.addonsPage(vm: HomeViewModel) {
         }
     }
 }
-/** One added addon: its name (yours or the manifest's), what it offers, rename and remove. */
+/**
+ * One added addon as one card (#400): its icon, name, what it has and what it does, and an info
+ * button. OK opens one menu with its settings, on/off, rename, refresh, order and remove.
+ */
 @Composable
 internal fun AddonRow(vm: HomeViewModel, url: String) {
     val info = vm.addonInfo[url]
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val label = vm.addonLabel(url)
+    val on = vm.addonAvailable(url)
+    var menu by remember(url) { mutableStateOf(false) }
     var renaming by remember(url) { mutableStateOf(false) }
-    var newName by remember(url, renaming) { mutableStateOf(info?.name.orEmpty()) }
-    Column(
-        modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // What the addon's manifest says about itself (#60): logo, version, description, id,
-        // how many catalogs it has and which types it covers.
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            AddonLogo(info?.logo ?: info?.background, vm.addonLabel(url)) // its artwork when it has no logo (#71)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(vm.addonLabel(url), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false))
-                    info?.version?.let { v ->
-                        Text("v$v", fontSize = TvTokens.Type.Caption.sp, color = Fg, maxLines = 1,
-                            modifier = Modifier.background(WashHi, RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp))
+    var removing by remember(url) { mutableStateOf(false) }
+    var details by remember(url) { mutableStateOf(false) }
+    val does = info?.let { a -> AddonSummary.does(a.provides, a.epgProvider) } ?: if (on) "Manifest not loaded" else "Off"
+    val has = info?.let { a -> AddonSummary.has(a.catalogs.size, a.types) }.orEmpty()
+    val warning = info?.configurationRequired == true || info?.adult == true
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Focusable(onClick = { menu = true }, modifier = Modifier.weight(1f).testTag("addon_card"),
+            radius = TvTokens.Shape.Card, container = PanelHi, focusedScale = TvTokens.Focus.Inline) {
+            val ink = androidx.tv.material3.LocalContentColor.current
+            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.alpha(if (on) 1f else .45f)) { AddonLogo(info?.logo ?: info?.background, label) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false))
+                        if (!on) Text("Off", fontSize = TvTokens.Type.Caption.sp, maxLines = 1,
+                            modifier = Modifier.background(ink.copy(alpha = .16f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp))
+                        else if (warning) Text(if (info?.configurationRequired == true) "Needs setting up" else "Adult", fontSize = TvTokens.Type.Caption.sp, maxLines = 1,
+                            color = Color(0xFFFFB4AB))
                     }
+                    if (has.isNotBlank()) Text(has, fontSize = 13.sp, color = ink.copy(alpha = .78f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(does, fontSize = TvTokens.Type.Caption.sp, color = ink.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                info?.description?.let { Text(it, fontSize = 13.sp, color = Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                info?.originalName?.let { Text(stringResource(R.string.tx_renamed_from, it), fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1) }
-                info?.manifestId?.let { Text(stringResource(R.string.tx_id, it), fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (info != null) {
-                        if (info.catalogs.isNotEmpty()) {
-                            androidx.tv.material3.Icon(Icons.Outlined.Folder, contentDescription = "Catalogs", tint = Mute, modifier = Modifier.size(16.dp))
-                            Text(info.catalogs.size.toString(), fontSize = TvTokens.Type.Caption.sp, color = Mute)
-                        }
-                        if (info.types.isNotEmpty()) {
-                            androidx.tv.material3.Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = "Types", tint = Mute,
-                                modifier = Modifier.padding(start = if (info.catalogs.isNotEmpty()) 6.dp else 0.dp).size(16.dp))
-                            Text(info.types.joinToString(", "), fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false))
-                        }
-                    }
-                }
-                Text(
-                    info?.let { a ->
-                        (a.provides.mapNotNull {
-                            when (it) {
-                                "catalog" -> "Rows"
-                                "meta" -> "Details"
-                                "stream" -> "Sources"
-                                "subtitles" -> "Subtitles"
-                                else -> null
-                            }
-                        } + listOfNotNull("TV guide".takeIf { a.epgProvider }, "Has its own settings".takeIf { a.configurable && !a.configurationRequired }))
-                            .joinToString(" · ").ifBlank { "Nothing this launcher uses" }
-                    } ?: if (vm.addonAvailable(url)) "Manifest not loaded" else "Paused",
-                    fontSize = TvTokens.Type.Caption.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                androidx.tv.material3.Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = ink.copy(alpha = .7f), modifier = Modifier.size(20.dp))
             }
         }
-        // What the manifest says about its content and setup (#71).
-        info?.let { a ->
-            val flags = listOfNotNull(
-                "Needs setting up before it works".takeIf { a.configurationRequired },
-                "Adult content · never used on kids profiles".takeIf { a.adult },
-                "Peer-to-peer sources · can share your IP address".takeIf { a.p2p },
-                a.contactEmail?.let { "Contact: $it" },
-            )
-            if (flags.isNotEmpty()) Text(flags.joinToString("\n"), fontSize = TvTokens.Type.Caption.sp,
-                color = if (a.configurationRequired || a.adult) Color(0xFFFFB4AB) else Mute)
+        ToolbarIcon("About $label", Icons.Outlined.Info) { details = true }
+    }
+    if (menu) OptionMenu(label, buildList {
+        add(MenuOption(if (on) "Turn off" else "Turn on", icon = Icons.Outlined.PowerSettingsNew) { vm.pauseAddon(url, on) })
+        info?.configureUrl?.let { link ->
+            add(MenuOption(if (info?.configurationRequired == true) "Set it up" else "Its settings", icon = Icons.Outlined.Settings) {
+                val opened = runCatching {
+                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, link.toUri()).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.isSuccess
+                if (!opened) vm.showNotice("No web browser on this TV. Open the addon's settings from a phone or computer.")
+            })
         }
-        ToggleRow(stringResource(R.string.st_enabled), null, vm.addonAvailable(url)) { vm.pauseAddon(url, vm.addonAvailable(url)) }
-        ButtonRow(spacing = 8.dp) {
-            info?.configureUrl?.let { link ->
-                val context = androidx.compose.ui.platform.LocalContext.current
-                Chip(if (info?.configurationRequired == true) stringResource(R.string.st_set_it_up) else stringResource(R.string.st_its_settings)) {
-                    val opened = runCatching {
-                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, link.toUri())
-                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-                    }.isSuccess
-                    if (!opened) vm.showNotice("No web browser on this TV. Open the addon's settings from a phone or computer.")
-                }
-            }
-            if (!renaming) Chip(stringResource(R.string.ui_rename)) { renaming = true }
-            Chip(stringResource(R.string.st_refresh)) { vm.refreshAddon(url) }
-            // #267: the order addons are asked in.
-            MoveButton(vm.addonLabel(url), vm.addons.indexOf(url), vm.addons.lastIndex) { step -> vm.moveAddon(url, step) }
-            // #131: removing loses the addon's configured link, so it asks first.
-            var removing by remember(url) { mutableStateOf(false) }
-            Chip(stringResource(R.string.ui_remove)) { removing = true }
-            if (removing) ConfirmDestructive("Remove ${info?.name ?: "this addon"}?",
-                "Its catalogs, streams and subtitles stop appearing. To add it back you'll need its link again.",
-                { removing = false }, stringResource(R.string.ui_remove)) { vm.removeAddon(url) }
+        add(MenuOption("Rename", icon = Icons.Outlined.Edit) { renaming = true })
+        add(MenuOption("Refresh", icon = Icons.Outlined.Refresh) { vm.refreshAddon(url) })
+        // #267: the order addons are asked in.
+        moveOptions(vm.addons.indexOf(url), vm.addons.lastIndex).forEach { (name, step) ->
+            add(MenuOption("Move: $name", icon = Icons.Outlined.OpenWith) { vm.moveAddon(url, step) })
         }
-        if (renaming) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextInput(newName, { newName = it }, info?.originalName ?: info?.name ?: "Name")
-                Chip(stringResource(R.string.ui_save)) {
-                    vm.renameAddon(url, newName)
-                    renaming = false
-                }
-                if (info?.originalName != null) {
-                    Chip(stringResource(R.string.ui_use_original)) {
-                        vm.renameAddon(url, "")
-                        renaming = false
-                    }
-                }
-                Chip(stringResource(R.string.ui_cancel)) { renaming = false }
-            }
+        add(MenuOption("Remove", icon = Icons.Outlined.Delete) { removing = true })
+    }) { menu = false }
+    if (details) SettingInfoDialog(label, AddonSummary.details(info, url, on)) { details = false }
+    if (renaming) AddonRenameDialog(vm, url, info) { renaming = false }
+    // #131: removing loses the addon's configured link, so it asks first.
+    if (removing) ConfirmDestructive("Remove ${info?.name ?: "this addon"}?",
+        "Its catalogs, streams and subtitles stop appearing. To add it back you'll need its link again.",
+        { removing = false }, stringResource(R.string.ui_remove)) { vm.removeAddon(url) }
+}
+
+/** The words on an addon's card and in its info popup (#400). */
+internal object AddonSummary {
+    fun does(provides: List<String>, guide: Boolean): String = (provides.mapNotNull {
+        when (it) { "catalog" -> "Rows"; "meta" -> "Details"; "stream" -> "Sources"; "subtitles" -> "Subtitles"; else -> null }
+    } + listOfNotNull("TV guide".takeIf { guide })).joinToString(" · ").ifBlank { "Nothing this launcher uses" }
+
+    fun has(catalogs: Int, types: List<String>): String = listOfNotNull(
+        catalogs.takeIf { it > 0 }?.let { "$it ${if (it == 1) "catalog" else "catalogs"}" },
+        types.takeIf { it.isNotEmpty() }?.let { list -> list.take(4).joinToString(", ") + if (list.size > 4) " +${list.size - 4}" else "" },
+    ).joinToString(" · ")
+
+    fun details(a: app.ember.tv.data.AddonInfo?, url: String, on: Boolean): String = buildList {
+        if (a == null) { add(if (on) "Its manifest has not loaded yet." else "This addon is off."); return@buildList }
+        a.description?.takeIf { it.isNotBlank() }?.let(::add)
+        add(listOfNotNull(a.version?.let { "Version $it" }, a.manifestId?.let { "ID: $it" }, a.originalName?.let { "Renamed from $it" }).joinToString("\n"))
+        add("Provides: " + does(a.provides, a.epgProvider) + if (a.configurable && !a.configurationRequired) " · Has its own settings" else "")
+        if (a.types.isNotEmpty()) add("Types: " + a.types.joinToString(", "))
+        listOfNotNull(
+            "Needs setting up before it works.".takeIf { a.configurationRequired },
+            "Adult content · never used on kids profiles.".takeIf { a.adult },
+            "Peer-to-peer sources · can share your IP address.".takeIf { a.p2p },
+            a.contactEmail?.let { "Contact: $it" },
+        ).takeIf { it.isNotEmpty() }?.let { add(it.joinToString("\n")) }
+    }.filter { it.isNotBlank() }.joinToString("\n\n")
+}
+
+@Composable
+private fun AddonRenameDialog(vm: HomeViewModel, url: String, info: app.ember.tv.data.AddonInfo?, close: () -> Unit) {
+    var name by remember(url) { mutableStateOf(info?.name.orEmpty()) }
+    MediaDialog("Rename ${vm.addonLabel(url)}", close, resizeForKeyboard = true) {
+        TextInput(name, { name = it }, info?.originalName ?: info?.name ?: "Name")
+        ButtonRow(spacing = 10.dp) {
+            Chip(stringResource(R.string.ui_save)) { vm.renameAddon(url, name); close() }
+            if (info?.originalName != null) Chip(stringResource(R.string.ui_use_original)) { vm.renameAddon(url, ""); close() }
+            Chip(stringResource(R.string.ui_cancel)) { close() }
         }
     }
 }
@@ -267,27 +268,19 @@ internal fun AddAddonField(vm: HomeViewModel) {
 // ---------------------------------------------------------------- Catalogs
 internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
     item(key = "catshead") {
-        Section(stringResource(R.string.ui_catalogs), stringResource(R.string.ui_choose_which_addon_catalogs_appear_as)) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(R.string.ui_the_order_is_shared_home_rows),
-                    color = Mute,
-                    fontSize = 13.sp,
-                    modifier = Modifier.width(760.dp),
-                )
-                if (vm.allCatalogs.isEmpty()) {
-                    Text(if (vm.addons.isEmpty()) "No addons yet. Add one in ${SettingsTab.ADDONS.path}." else "Loading catalogs…", color = Mute, fontSize = 13.sp)
-                } else {
-                    Chip(stringResource(R.string.ui_reset_order_and_choices)) { vm.resetCatalogs() }
-                }
-            }
+        // #401: one plain line; the longer explanation sits behind the info button.
+        Section(stringResource(R.string.ui_catalogs), "Each catalog is a list of titles from an addon. Choose where each one shows.",
+            info = stringResource(R.string.ui_choose_which_addon_catalogs_appear_as) + "\n\n" + stringResource(R.string.ui_the_order_is_shared_home_rows) +
+                "\n\nHome: a row on the Home screen. Live TV: channels on the Live TV page. Discover: a list to browse on the Discover page.") {
+            if (vm.allCatalogs.isEmpty())
+                Text(if (vm.addons.isEmpty()) "No addons yet. Add one in ${SettingsTab.ADDONS.path}." else "Loading catalogs…", color = Mute, fontSize = 13.sp)
         }
     }
     // #193: grouped by addon, closed until opened, and by type inside; not one flat list of hundreds.
     val list = vm.allCatalogs
     if (list.isEmpty()) return
     val groups = CatalogBrowse.groups(list, CatalogBrowse.show, CatalogBrowse.type, vm::isOnHome, vm::isOnLive, vm::isInDiscover)
-    item(key = "catfilters") { CatalogFilters(list, groups) }
+    item(key = "catfilters") { CatalogFilters(vm, list, groups) }
     if (groups.isEmpty()) item(key = "catnone") { Text(stringResource(R.string.tx_no_catalogs_match_these_filters), color = Mute, fontSize = 14.sp) }
     groups.forEach { g ->
         val open = CatalogBrowse.isOpen(g.id, list.size)
@@ -300,28 +293,38 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
         }
     }
 }
-/** What the catalog list shows (#193): the Show and Type filters, and opening or closing every addon. */
+/**
+ * What the catalog list shows (#193, #401): two dropdown rows instead of rows of buttons (which
+ * catalogs, and which type), and one more row for opening every addon and starting over.
+ */
 @Composable
-private fun CatalogFilters(list: List<CatalogDef>, groups: List<CatalogBrowse.Group>) {
+private fun CatalogFilters(vm: HomeViewModel, list: List<CatalogDef>, groups: List<CatalogBrowse.Group>) {
+    var picking by remember { mutableStateOf<String?>(null) }
+    val types = CatalogBrowse.types(list)
+    val allTypes = stringResource(R.string.st_all_types)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ButtonRow(spacing = 8.dp) { CatalogBrowse.shows.forEach { (id, name) -> Chip(name, selected = CatalogBrowse.show == id) { CatalogBrowse.show = id } } }
-        val types = CatalogBrowse.types(list)
-        if (types.size > 1) ButtonRow(spacing = 8.dp) {
-            Chip(stringResource(R.string.st_all_types), selected = CatalogBrowse.type == CatalogBrowse.ALL) { CatalogBrowse.type = CatalogBrowse.ALL }
-            types.forEach { type -> Chip(CatalogBrowse.typeName(type), selected = CatalogBrowse.type == type) { CatalogBrowse.type = type } }
-        }
-        if (list.size > CatalogBrowse.SMALL && groups.size > 1) ButtonRow(spacing = 8.dp) {
-            Chip(stringResource(R.string.st_open_all)) { CatalogBrowse.open = groups.map { it.id }.toSet() }
-            Chip(stringResource(R.string.st_close_all)) { CatalogBrowse.open = emptySet() }
-        }
+        SettingValueRow("Which catalogs", CatalogBrowse.shows.first { it.first == CatalogBrowse.show }.second.let { if (CatalogBrowse.show == CatalogBrowse.ALL) "All catalogs" else it }) { picking = "show" }
+        if (types.size > 1) SettingValueRow("Catalog type", if (CatalogBrowse.type == CatalogBrowse.ALL) allTypes else CatalogBrowse.typeName(CatalogBrowse.type)) { picking = "type" }
+        SettingValueRow("Catalog options", "Open, close or reset") { picking = "more" }
         Text(CatalogBrowse.summary(groups.sumOf { it.shown }, list.size, groups.size), color = Mute, fontSize = 13.sp)
     }
+    when (picking) {
+        "show" -> OptionMenu("Show", CatalogBrowse.shows.map { (id, name) ->
+            MenuOption(if (id == CatalogBrowse.ALL) "All catalogs" else name, selected = CatalogBrowse.show == id) { CatalogBrowse.show = id } }) { picking = null }
+        "type" -> OptionMenu("Type", listOf(MenuOption(allTypes, selected = CatalogBrowse.type == CatalogBrowse.ALL) { CatalogBrowse.type = CatalogBrowse.ALL }) +
+            types.map { type -> MenuOption(CatalogBrowse.typeName(type), selected = CatalogBrowse.type == type) { CatalogBrowse.type = type } }) { picking = null }
+        "more" -> OptionMenu("Catalogs", (if (groups.size > 1) listOf(
+                MenuOption(stringResource(R.string.st_open_all)) { CatalogBrowse.open = groups.map { it.id }.toSet() },
+                MenuOption(stringResource(R.string.st_close_all)) { CatalogBrowse.open = emptySet() }) else emptyList()) +
+            MenuOption(stringResource(R.string.ui_reset_order_and_choices), icon = Icons.Outlined.Refresh) { vm.resetCatalogs() }) { picking = null }
+    }
 }
-/** One addon's catalogs (#193): OK opens or closes it. Open, it can switch all of its listed catalogs at once. */
+/** One addon's catalogs (#193): OK opens or closes it; its ⋮ changes all of its listed catalogs at once (#401). */
 @Composable
 private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Focusable(onClick = { CatalogBrowse.toggle(g.id) }, modifier = Modifier.fillMaxWidth().testTag("catalog_group"), radius = TvTokens.Shape.Card, container = PanelHi) {
+    var bulk by remember(g.id) { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Focusable(onClick = { CatalogBrowse.toggle(g.id) }, modifier = Modifier.weight(1f).testTag("catalog_group"), radius = TvTokens.Shape.Card, container = PanelHi) {
             val ink = androidx.tv.material3.LocalContentColor.current
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(if (open) "▾" else "▸", fontSize = 18.sp)
@@ -331,13 +334,16 @@ private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: 
                 }
             }
         }
-        if (open && g.shown > 1) ButtonRow(spacing = 8.dp) {
-            val all = g.byType.flatMap { it.second }.map { it.catalog }
-            fun home(on: Boolean) = all.forEach { c -> if (c.homeable && vm.isOnHome(c) != on) vm.toggleCatalogHome(c) }
-            fun discover(on: Boolean) = all.forEach { c -> if (c.browsable && vm.isInDiscover(c) != on) vm.toggleCatalogDiscover(c) }
-            Chip(stringResource(R.string.st_all_on_home)) { home(true) }; Chip(stringResource(R.string.st_none_on_home)) { home(false) }
-            Chip(stringResource(R.string.st_all_in_discover)) { discover(true) }; Chip(stringResource(R.string.st_none_in_discover)) { discover(false) }
-        }
+        if (g.shown > 1) ToolbarIcon("Change all of ${g.name}", Icons.Outlined.MoreVert) { bulk = true }
+    }
+    if (bulk) {
+        val all = g.byType.flatMap { it.second }.map { it.catalog }
+        fun home(on: Boolean) = all.forEach { c -> if (c.homeable && vm.isOnHome(c) != on) vm.toggleCatalogHome(c) }
+        fun discover(on: Boolean) = all.forEach { c -> if (c.browsable && vm.isInDiscover(c) != on) vm.toggleCatalogDiscover(c) }
+        OptionMenu("${g.name} · ${g.shown} catalogs", listOf(
+            MenuOption(stringResource(R.string.st_all_on_home)) { home(true) }, MenuOption(stringResource(R.string.st_none_on_home)) { home(false) },
+            MenuOption(stringResource(R.string.st_all_in_discover)) { discover(true) }, MenuOption(stringResource(R.string.st_none_in_discover)) { discover(false) },
+        )) { bulk = false }
     }
 }
 /**

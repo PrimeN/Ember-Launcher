@@ -45,6 +45,13 @@ class SourceFormatState(
         loadBadges()
     }
 
+    /** #397: Detailed categories in the order they show under a source. */
+    var detailedBadgeOrder by mutableStateOf(prefs.detailedBadgeOrder); private set
+    fun moveDetailedBadgeCategory(all: List<app.ember.tv.data.BadgeFilter>, id: String, step: Int) {
+        detailedBadgeOrder = app.ember.tv.data.DetailedBadgeCategories.move(detailedBadgeOrder, all, id, step)
+        prefs.detailedBadgeOrder = detailedBadgeOrder
+    }
+
     fun toggleDetailedBadgeCategory(id: String) {
         detailedBadgeCategoriesOff = app.ember.tv.data.DetailedBadgeCategories.toggle(detailedBadgeCategoriesOff, id)
         prefs.detailedBadgeCategoriesOff = detailedBadgeCategoriesOff
@@ -130,7 +137,8 @@ class SourceFormatState(
     fun badgesFor(s: StreamOption): List<app.ember.tv.data.BadgeFilter> {
         @Suppress("UNUSED_VARIABLE") val r = app.ember.tv.data.Badges.rev
         return if (badgeMode == app.ember.tv.data.Badges.LEGACY) emptyList() else app.ember.tv.data.BadgeChoices.mark(badgeMode, badgesOff,
-            app.ember.tv.data.DetailedBadgeCategories.filter(badgeMode, detailedBadgeCategoriesOff, app.ember.tv.data.Badges.forSource(s)))
+            app.ember.tv.data.DetailedBadgeCategories.sorted(badgeMode, detailedBadgeOrder,
+                app.ember.tv.data.DetailedBadgeCategories.filter(badgeMode, detailedBadgeCategoriesOff, app.ember.tv.data.Badges.forSource(s))))
     }
 
     var streamFormatOn by mutableStateOf(prefs.streamFormatOn); private set
