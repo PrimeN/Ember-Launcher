@@ -348,6 +348,11 @@ kotlin {
     }
 }
 
+// #408: conscrypt-android carries Android natives only; JVM unit tests use Robolectric's own Conscrypt.
+configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+    exclude(group = "org.conscrypt", module = "conscrypt-android")
+}
+
 dependencies {
     mpvUpstream("dev.jdtech.mpv:libmpv:1.1.0@aar")
     implementation(files(isolateMpvNative.flatMap { it.output }))
