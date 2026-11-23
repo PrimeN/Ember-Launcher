@@ -57,6 +57,9 @@ internal class AudioEffectProcessor(private val settings: AudioEffectState) : Ba
     override fun onFlush() { dsp = null; frame = FloatArray(inputAudioFormat.channelCount.coerceAtLeast(0)) }
     override fun onReset() { dsp = null; frame = FloatArray(0) }
     override fun queueInput(inputBuffer: ByteBuffer) {
+        // #384: the pipeline also queues empty input; before the first real buffer our output is the
+        // shared empty buffer, the same object, and copying it into itself throws.
+        if (!inputBuffer.hasRemaining()) return
         val output = replaceOutputBuffer(inputBuffer.remaining())
         val effects = settings.value
         if (!effects.active) { output.put(inputBuffer); output.flip(); return }

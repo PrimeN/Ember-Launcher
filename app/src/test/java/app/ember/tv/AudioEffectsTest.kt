@@ -48,4 +48,11 @@ class AudioEffectsTest {
         processor.queueInput(input());val swapped=processor.output.order(ByteOrder.nativeOrder())
         assertEquals(-2000,swapped.short.toInt());assertEquals(1000,swapped.short.toInt())
     }
+    @Test fun emptyInputBeforeTheFirstBufferIsIgnored() {
+        // #384: the pipeline queues the shared empty buffer, which is also a fresh processor's output.
+        val processor=AudioEffectProcessor(AudioEffectState())
+        processor.configure(AudioProcessor.AudioFormat(48000,2,C.ENCODING_PCM_16BIT));processor.flush()
+        processor.queueInput(AudioProcessor.EMPTY_BUFFER)
+        assertFalse(processor.output.hasRemaining())
+    }
 }

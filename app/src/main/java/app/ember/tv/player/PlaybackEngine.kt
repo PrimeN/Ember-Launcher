@@ -224,10 +224,13 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
         if (failure.changesDecoder) {
             memoryKey()?.let { if (health?.engine(it) == "standard") health?.forgetEngine(it) }
         }
-        return switch(automatic = true, videoMime = videoMime)
+        return switch(automatic = true, videoMime = videoMime, unreadable = failure == PlaybackFailure.EXTRACTOR)
     }
 
-    private fun canSwitchAutomatically(current: EngineSource, videoMime: String?): Boolean {
+    private fun canSwitchAutomatically(current: EngineSource, videoMime: String?, unreadable: Boolean = false): Boolean {
+        // #383: a file Standard cannot read at all (an MKV with zlib-compressed tracks) never reaches a
+        // decoder, so decoder and tunneling preferences do not keep it from the engine that can.
+        if (unreadable) return true
         val c = config()
         val mime = videoMime ?: standard.videoFormat?.sampleMimeType
             ?: standard.currentTracks.groups.firstNotNullOfOrNull { group ->
@@ -241,10 +244,10 @@ internal class PlaybackEngine(private val context:Context,val standard:ExoPlayer
                 current.filename) in setOf("inherit", "auto")
     }
 
-    fun switch(automatic: Boolean = false, videoMime: String? = null): Boolean {
+    fun switch(automatic: Boolean = false, videoMime: String? = null, unreadable: Boolean = false): Boolean {
         if(attempted||active!==standard)return false
         val current=source?:return false
-        if (automatic && (mode != "auto" || !canSwitchAutomatically(current, videoMime))) return false
+        if (automatic && (mode != "auto" || !canSwitchAutomatically(current, videoMime, unreadable))) return false
         val parameters = selectedTracks(standard)
         val audio = if (C.TRACK_TYPE_AUDIO in parameters.disabledTrackTypes) null else {
             parameters.overrides.values.firstOrNull { it.type == C.TRACK_TYPE_AUDIO }?.let {

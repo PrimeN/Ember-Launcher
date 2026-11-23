@@ -119,4 +119,19 @@ class PlaybackEngineTransitionTest {
         }finally{engine.player.release();if(!constructed)candidate.release()}
     }
 
+    @Test fun aFileStandardCannotReadGoesToCompatibilityWhateverTheDecoderPreferences() {
+        // #383: an MKV with zlib-compressed tracks fails in the extractor, before any decoder is chosen.
+        val context=RuntimeEnvironment.getApplication()
+        val original=ExoPlayer.Builder(context).build();val candidate=ExoPlayer.Builder(context).build()
+        var constructed=false
+        val standard=intercept(original){name->if(name=="getAudioFormat")Format.Builder().setSampleMimeType("audio/ac3").build() else Unit}
+        val engine=PlaybackEngine(context,standard,{PlaybackConfig(rememberDecoderChoices=false,ffmpegVideo="always")},
+            compatibilityFactory={_,_,_->constructed=true;candidate}) {}
+        try {
+            engine.configure(EngineSource(listOf("https://debrid.example/d/abc"),"Film","key"))
+            original.setMediaItem(MediaItem.fromUri("https://debrid.example/d/abc"))
+            assertFalse(engine.recover(androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED));assertFalse(constructed)
+            assertTrue(engine.recover(androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED));assertTrue(constructed)
+        }finally{engine.player.release();if(!constructed)candidate.release()}
+    }
 }
