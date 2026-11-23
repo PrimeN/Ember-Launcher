@@ -572,6 +572,7 @@ internal fun FeaturesPage(vm: HomeViewModel) {
                 ToggleRow(stringResource(R.string.ui_trackers), stringResource(R.string.ui_trakt_simkl_and_the_rest_continue), vm.featureOn(F.TRACKERS)) { vm.toggleFeature(F.TRACKERS) }
                 ToggleRow(stringResource(R.string.ui_extra_home_rows), stringResource(R.string.ui_recommended_because_you_watched_hidden_gems), vm.featureOn(F.SMART_ROWS)) { vm.toggleFeature(F.SMART_ROWS) }
                 ToggleRow(stringResource(R.string.ui_rotating_banner), stringResource(R.string.ui_the_large_picture_at_the_top), vm.heroOn) { vm.updateHeroOn(!vm.heroOn) }
+                ToggleRow("Ad blocking", "Blocks ads in every app on the TV with your NextDNS profile (${SettingsTab.KEYS.path}). Needs ${SettingsTab.SYSTEM_ACCESS.path} once.", vm.featureOn(F.AD_BLOCK)) { vm.toggleFeature(F.AD_BLOCK) }
                 ToggleRow(stringResource(R.string.ui_cast_crew), stringResource(R.string.ui_directors_and_cast_on_title_screens), vm.featureOn(F.CAST)) { vm.toggleFeature(F.CAST) }
                 ToggleRow(stringResource(R.string.ui_ratings), stringResource(R.string.ui_imdb_trakt_and_other_ratings_on), vm.metadata.ratingsOn) { vm.metadata.updateRatingsOn(!vm.metadata.ratingsOn) }
                 ToggleRow(stringResource(R.string.ui_refresh_in_the_background), stringResource(R.string.ui_every_few_hours_on_the_network), vm.backgroundRefresh) { vm.toggleBackgroundRefresh() }

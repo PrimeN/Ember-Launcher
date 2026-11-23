@@ -125,6 +125,12 @@ object ApiKeys {
             listOf(Field("SUBDL_API_KEY", "API key")),
         ),
         Service(
+            "NextDNS",
+            "Optional ad and tracker blocking for every app on the TV: Ember sets the TV's Private DNS to your profile. Needs ${SettingsTab.SYSTEM_ACCESS.path} once; switch it off in ${SettingsTab.FEATURES.path}.",
+            "my.nextdns.io > create a free profile, then copy its ID from Setup (6 letters and numbers, e.g. abc123). Another Private DNS host name also works.",
+            listOf(Field("NEXTDNS_PROFILE", "Profile ID")),
+        ),
+        Service(
             "Watchmode",
             "Where to watch on title screens. Free plan: about 1,000 requests a month.",
             "api.watchmode.com > sign up; the key is on your account page.",
@@ -159,6 +165,7 @@ object ApiKeys {
         "OpenSubtitles.com" to "A few downloads a day without signing in; more with an account or VIP.",
         "SubDL" to "Free key, rate limited.",
         "Watchmode" to "Free: about 1,000 requests a month.",
+        "NextDNS" to "Free: 300,000 lookups a month; blocking stops being applied past that until next month unless you upgrade.",
     )
 
     /** Ready when every field that isn't optional has a key, entered here or built in. */

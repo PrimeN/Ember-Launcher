@@ -51,7 +51,7 @@ class SettingsNavigationTest {
         // #274: the source list's look beside the Play button.
         assertEquals(listOf(SettingsTab.PLAYER,SettingsTab.AUDIO_VIDEO,SettingsTab.SUBTITLES,SettingsTab.PLAY_BUTTON,SettingsTab.STREMIO,SettingsTab.WATCH_STATUS),SettingsCategory.PLAYBACK.pages)
         // #407: Startup is a System setting.
-        assertEquals(listOf(SettingsTab.DEFAULT_HOME,SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.UPDATES,SettingsTab.DEBUG,SettingsTab.FEATURES),SettingsCategory.SYSTEM.pages)
+        assertEquals(listOf(SettingsTab.DEFAULT_HOME,SettingsTab.SYSTEM_ACCESS,SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.UPDATES,SettingsTab.DEBUG,SettingsTab.FEATURES),SettingsCategory.SYSTEM.pages)
         assertEquals(SettingsTab.DEVICE_TOOLS,SettingsLocation.jump("REMOTE")!!.page);assertEquals(SettingsTab.ADDONS,SettingsLocation.open(SettingsTab.CATALOGS).page)
         assertEquals(SettingsTab.HOME_EXTRAS,SettingsLocation.restore("HOME","SCREENSAVER").page)
         assertTrue(SettingsMerges.diagnosticsKeys.containsAll(CACHE_KEYS));assertEquals(0,SettingsMerges.diagnosticsKeys.indexOf(CACHE_KEYS.first()))

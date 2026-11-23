@@ -137,6 +137,8 @@ internal enum class SettingsTab(val label: String, val group: String, private va
     KEYS("API keys", "Accounts"),
     // #407: what Ember does when the TV starts is a System setting, first in that group.
     DEFAULT_HOME("Startup", "System"),
+    // #408: settings Ember changes on the TV itself through its debugging service.
+    SYSTEM_ACCESS("System access", "System"),
     DEVICE_TOOLS("TV & remote", "System"),
     REMOTE("Remote", "System", "DEVICE_TOOLS"),
     PHONE("Phone setup", "System"),
@@ -273,6 +275,7 @@ fun SettingsScreen(vm: HomeViewModel) {
                 item(key = "startup") { HomeToolsPage(vm, HomeToolsPart.STARTUP) }
                 item(key = "defaulthome") { DefaultHomePage() }
             }
+            SettingsTab.SYSTEM_ACCESS -> item(key = "system-access") { SystemAccessPage(vm) }
             SettingsTab.DEVICE_TOOLS -> {
                 // #164: the remote's settings lead the page they joined.
                 appearancePage(vm, SettingsTab.REMOTE)

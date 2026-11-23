@@ -164,6 +164,7 @@ internal suspend fun HomeViewModel.saveApiKeyAndWait(id:String,value:String):Str
         "Saved."
     }
     if (id == "RPDB_API_KEY") Posters.keyRev++
+    if (id == app.ember.tv.system.AdBlockDns.FIELD) syncAdBlock()
     watch.keyChanged(id)
     if (id == "TMDB_API_KEY") explore.reset()
     smartRowsLoadedAt = 0L

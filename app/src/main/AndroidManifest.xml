@@ -10,6 +10,8 @@
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- System access (#408): granted by the TV's debugging service, never by a prompt; lets Ember set Private DNS and animation speed. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Optional Light carousel: public apps' Watch Next/preview rows, when the TV grants access. -->
     <uses-permission android:name="android.permission.READ_TV_LISTINGS" />

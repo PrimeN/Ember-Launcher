@@ -4,6 +4,7 @@ import androidx.compose.material.icons.outlined.Settings as IcSettings
 import androidx.compose.material.icons.outlined.Check
 
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.AdminPanelSettings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Backup as IcBackup
 import androidx.compose.material.icons.outlined.ClosedCaption as IcClosedCaption
@@ -313,6 +314,7 @@ internal fun SettingsTab.icon(): androidx.compose.ui.graphics.vector.ImageVector
     SettingsTab.KEYS -> Icons.Outlined.IcKey
     SettingsTab.DEFAULT_HOME -> Icons.Outlined.IcHome
     SettingsTab.DEVICE_TOOLS -> Icons.Outlined.IcSettings
+    SettingsTab.SYSTEM_ACCESS -> Icons.Outlined.AdminPanelSettings
     SettingsTab.PHONE -> Icons.Outlined.IcPhoneAndroid
     SettingsTab.SCREENSAVER -> Icons.Outlined.IcWallpaper
     SettingsTab.BACKUP -> Icons.Outlined.IcBackup

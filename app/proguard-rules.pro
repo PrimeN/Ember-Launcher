@@ -71,3 +71,7 @@
 -dontwarn org.newsclub.net.unix.**
 -dontwarn org.apache.logging.log4j.**
 -dontwarn javax.el.**
+
+# System access (#408): libadb-android and its SPAKE2 pairing use JNI and Conscrypt by name.
+-keep class io.github.muntashirakon.** { *; }
+-keep class org.conscrypt.** { *; }

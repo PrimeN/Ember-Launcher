@@ -158,6 +158,7 @@ internal fun HomeViewModel.toggleFeature(id: String) {
         }
         app.ember.tv.data.Features.SERVERS -> refreshServers(force = true)
         app.ember.tv.data.Features.LIVE -> if (featureOn(id)) iptv.refresh(force = false)
+        app.ember.tv.data.Features.AD_BLOCK -> syncAdBlock()
     }
 }
 
@@ -214,4 +215,15 @@ internal fun HomeViewModel.toggleBackgroundRefresh() {
     backgroundRefresh = !backgroundRefresh
     prefs.backgroundRefresh = backgroundRefresh
     app.ember.tv.work.RefreshWorker.schedule(getApplication<Application>())
+}
+
+/** #409: Private DNS follows the Features switch and the NextDNS profile; connects once for the permission if needed. */
+internal fun HomeViewModel.syncAdBlock() {
+    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val ctx = getApplication<android.app.Application>()
+        val state = app.ember.tv.system.AdBlockDns.sync(ctx)
+        if (state == app.ember.tv.system.AdBlockDns.State.NEEDS_ACCESS && app.ember.tv.system.SystemAccess.connect(ctx)) {
+            app.ember.tv.system.AdBlockDns.sync(ctx)
+        }
+    }
 }

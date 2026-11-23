@@ -145,7 +145,25 @@ private fun ApiKeyDialog(vm: HomeViewModel, s: ApiKeys.Service, close: () -> Uni
         Text(stringResource(R.string.ui_get_one, s.where), color = Mute, fontSize = 13.sp)
         vm.keysMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
         s.fields.forEach { f -> KeyField(vm, f) }
+        if (s.name == app.ember.tv.system.AdBlockDns.SERVICE) AdBlockStatus(vm)
         ButtonRow { Chip(stringResource(R.string.st_done)) { close() } }
+    }
+}
+
+/** #409: whether ad blocking is on, and what it still needs. */
+@Composable
+private fun AdBlockStatus(vm: HomeViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val state = remember(vm.keysRev, vm.featuresOff) { app.ember.tv.system.AdBlockDns.refresh(context) }
+    val S = app.ember.tv.system.AdBlockDns.State
+    when (state) {
+        S.ON -> Text("Ad blocking is on for the whole TV.", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+        S.FEATURE_OFF -> Text("Ad blocking is switched off in ${SettingsTab.FEATURES.path}.", color = Mute, fontSize = 13.sp)
+        S.NEEDS_ACCESS -> {
+            Text("Ember needs System access once to turn it on.", color = Mute, fontSize = 13.sp)
+            ButtonRow { Chip("Open System access") { vm.openSettingsPage(SettingsTab.SYSTEM_ACCESS.name) } }
+        }
+        S.NO_PROFILE -> Unit
     }
 }
 

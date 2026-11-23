@@ -168,6 +168,7 @@ internal fun DefaultHomePage() {
                 )
                 if (address == null) Note(stringResource(R.string.home_no_address))
                 Note(stringResource(R.string.home_m2_wireless))
+                Note("No computer? ${SettingsTab.SYSTEM_ACCESS.path} does this from the TV.")
                 Steps(stringResource(R.string.home_m2_step4))
                 Text(stringResource(R.string.home_m2_undo_title), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
                 Commands(off.map { "adb shell pm enable --user 0 $it" } + "adb reboot")

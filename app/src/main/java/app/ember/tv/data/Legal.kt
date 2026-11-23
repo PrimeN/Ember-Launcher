@@ -68,6 +68,16 @@ object Legal {
                         "You review ordinary filters before applying them. Mistral's own data policies and plan charges apply; manual discovery remains available without it.",
                 ),
                 Item(
+                    "Optional ad blocking (NextDNS)",
+                    "Only when you enter a NextDNS profile in ${SettingsTab.KEYS.path}, $APP sets the TV's Private DNS to it, so the TV's DNS lookups (the names of sites and services apps connect to) go to NextDNS for every app. " +
+                        "NextDNS's own privacy policy and your profile's logging settings apply. Switch it off in ${SettingsTab.FEATURES.path}.",
+                    "https://nextdns.io/privacy",
+                ),
+                Item(
+                    "System access",
+                    "${SettingsTab.SYSTEM_ACCESS.path} connects only to this TV's own debugging service, on the TV itself. The pairing page for your phone is served on your home network while the pairing window is open and accepts only the six-digit code.",
+                ),
+                Item(
                     "Subtitles",
                     "OpenSubtitles and SubDL receive the title's id and, if \"Match to the exact file\" is on, a hash of the video " +
                         "($APP reads 128 KB of the file to compute it; the video itself is never uploaded). OpenSubtitles.com receives your login if you enter one.",
@@ -171,12 +181,15 @@ object Legal {
                 Item("Kotlin, kotlinx.coroutines, kotlinx.serialization", "Language and libraries. Apache License 2.0.", "https://kotlinlang.org"),
                 Item("OkHttp", "Networking. Apache License 2.0.", "https://square.github.io/okhttp/"),
                 Item("Coil", "Image loading. Apache License 2.0.", "https://coil-kt.github.io/coil/"),
+                Item("libadb-android", "${SettingsTab.SYSTEM_ACCESS.path}: talks to the TV's own debugging service. Used under the Apache License 2.0.", "https://github.com/MuntashirAkon/libadb-android"),
+                Item("spake2-java", "Wireless debugging pairing for libadb-android. GNU Lesser General Public License 3.0, linked dynamically.", "https://github.com/MuntashirAkon/spake2-java"),
+                Item("Conscrypt", "TLS for Wireless debugging. Apache License 2.0.", "https://github.com/google/conscrypt"),
                 Item("ZXing", "QR code for ${SettingsTab.PHONE.path}. Apache License 2.0.", "https://github.com/zxing/zxing"),
                 Item("AndroidX ProfileInstaller", "Installs startup profiles so the app starts faster. Apache License 2.0.", "https://developer.android.com/jetpack/androidx"),
                 // #323: libraries that Ember's own dependencies bring into the app.
                 Item("Mozilla Rhino", "JavaScript engine used by NewPipe Extractor for trailers. Mozilla Public License 2.0; its source is available from Mozilla.", "https://github.com/mozilla/rhino"),
                 Item("jsoup, Bouncy Castle, SLF4J, MBassador, nanojson and Protocol Buffers",
-                    "Brought in by NewPipe Extractor (jsoup, nanojson, Protocol Buffers) and SMBJ (Bouncy Castle, SLF4J, MBassador). MIT and BSD licenses; their notices are bundled below.",
+                    "Brought in by NewPipe Extractor (jsoup, nanojson, Protocol Buffers) and SMBJ and System access (Bouncy Castle), SMBJ (SLF4J, MBassador). MIT and BSD licenses; their notices are bundled below.",
                     licenseAsset = "licenses/Bundled-MIT-BSD-NOTICES.txt"),
                 Item("Tink, Guava, Gson, Okio, asn-one and others",
                     "Tink, Guava, Gson and Error Prone annotations (through AndroidX Security), Okio (OkHttp), asn-one (SMBJ), AndroidSVG and Accompanist (Coil), JSR-305, JSpecify and JetBrains annotations. Apache License 2.0.",
@@ -226,6 +239,10 @@ object Legal {
                 Item("Watchmode", "Streaming availability, prices and app links. Not endorsed by Watchmode.", "https://www.watchmode.com"),
                 Item("Streaming Availability", "Optional regional availability, prices, quality and service links through RapidAPI. Requires your provider plan; not affiliated with or endorsed by Movie of the Night or RapidAPI.", "https://www.movieofthenight.com/about/api"),
             ),
+        ),
+        Group(
+            "Ad blocking",
+            listOf(Item("NextDNS", "Optional ad and tracker blocking through the TV's Private DNS, with your own profile. Not affiliated with or endorsed by NextDNS.", "https://nextdns.io")),
         ),
         Group(
             "AI-assisted discovery",

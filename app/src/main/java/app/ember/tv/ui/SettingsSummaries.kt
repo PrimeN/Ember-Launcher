@@ -41,6 +41,7 @@ internal fun SettingsTab.summary():String=stringResource(when(this) {
     SettingsTab.KEYS->R.string.settings_summary_keys
     SettingsTab.DEFAULT_HOME->R.string.settings_summary_startup_screensaver
     SettingsTab.DEVICE_TOOLS->R.string.settings_summary_tv_remote
+    SettingsTab.SYSTEM_ACCESS->R.string.settings_summary_system_access
     SettingsTab.PHONE->R.string.settings_summary_phone
     SettingsTab.SCREENSAVER->R.string.settings_summary_screensaver
     SettingsTab.BACKUP->R.string.settings_summary_backup

@@ -389,6 +389,10 @@ dependencies {
     implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.5")
     // QR code for Settings > Phone setup.
     implementation("com.google.zxing:core:3.5.4")
+    // System access (#408): adb to the TV itself, Wireless debugging pairing (TLS from Conscrypt), and the key's certificate.
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    implementation("org.conscrypt:conscrypt-android:2.5.3")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.81")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil:2.7.0") // ImageView loading for the screensaver
     implementation("io.coil-kt:coil-gif:2.7.0") // animated collection covers

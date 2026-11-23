@@ -59,6 +59,7 @@ internal fun SettingsTab.title(): String = stringResource(
         SettingsTab.KEYS -> R.string.settings_keys
         SettingsTab.DEFAULT_HOME -> R.string.settings_page_startup_screensaver
         SettingsTab.DEVICE_TOOLS -> R.string.settings_page_tv_remote
+        SettingsTab.SYSTEM_ACCESS -> R.string.settings_page_system_access
         SettingsTab.PHONE -> R.string.settings_phone
         SettingsTab.SCREENSAVER -> R.string.settings_screensaver
         SettingsTab.BACKUP -> R.string.settings_page_backup

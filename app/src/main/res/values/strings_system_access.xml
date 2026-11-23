@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_page_system_access">System access</string>
+    <string name="settings_summary_system_access">Change TV settings from Ember, no computer needed</string>
+</resources>

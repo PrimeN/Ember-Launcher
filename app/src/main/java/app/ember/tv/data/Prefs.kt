@@ -720,4 +720,6 @@ object Features {
     const val TRACKERS = "trackers"
     const val SMART_ROWS = "smartRows"
     const val CAST = "cast"
+    /** #409: the TV's Private DNS set to the NextDNS profile in API keys. */
+    const val AD_BLOCK = "adBlock"
 }
