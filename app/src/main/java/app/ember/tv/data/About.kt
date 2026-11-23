@@ -14,8 +14,16 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
-            "1.0.0", "Ready for everyone",
+            "1.1.0", "Ready for everyone",
             listOf(
+                "New navbar styles: Ember Collapsed with a matte menu, and a Sidebar; your profile now sits in the menu.",
+                "Player settings: Simple shows the everyday options, Advanced shows them all; longer explanations open from an info button.",
+                "Subtitle style set step by step with a live preview; the audio track starts in your language by default.",
+                "Ember Light: the background follows the row you are on, colours follow your theme, and apps' live sports and events can be hidden.",
+                "Advanced badge settings: order badge categories and switch them on or off.",
+                "Addons, catalogs and Discover settings as compact cards; addon settings open on your phone by QR code.",
+                "Collections sit and sort with your Home widgets; create one from Create widget. Startup moved to System.",
+                "Files the main player cannot open move to compatibility playback again, and a crash in the audio effects is fixed.",
                 "Widgets for your apps' Continue watching and your recently used apps.",
                 "Rename apps, and automatic weekly backups kept on the TV.",
                 "Notifications in quick settings, a full-screen clock, a choice for what Back does on Home, and a screensaver clock that moves to protect the screen.",
