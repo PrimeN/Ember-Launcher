@@ -238,14 +238,36 @@ internal object AdbIdentity {
         dir.mkdirs()
         val pair = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
         val now = System.currentTimeMillis()
-        val name = org.bouncycastle.asn1.x500.X500Name("CN=Ember")
-        val holder = org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder(
-            name, BigInteger.valueOf(now), Date(now - DAY), Date(now + 30 * 365 * DAY), name, pair.public,
-        ).build(org.bouncycastle.operator.jcajce.JcaContentSignerBuilder("SHA256withRSA").build(pair.private))
-        val cert = CertificateFactory.getInstance("X.509").generateCertificate(holder.encoded.inputStream())
+        val cert = selfSigned(pair, now)
         keyFile.writeBytes(pair.private.encoded)
         certFile.writeBytes(cert.encoded)
         return pair.private to cert
+    }
+
+    /** A self-signed X.509 certificate for the key, built from its parts (adb only needs one to exist). */
+    private fun selfSigned(pair: java.security.KeyPair, now: Long): Certificate {
+        val bc = org.bouncycastle.asn1.x509.AlgorithmIdentifier(
+            org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers.sha256WithRSAEncryption, org.bouncycastle.asn1.DERNull.INSTANCE,
+        )
+        val name = org.bouncycastle.asn1.x500.X500Name("CN=Ember")
+        val tbs = org.bouncycastle.asn1.x509.V3TBSCertificateGenerator().apply {
+            setSerialNumber(org.bouncycastle.asn1.ASN1Integer(now))
+            setIssuer(name)
+            setSubject(name)
+            setStartDate(org.bouncycastle.asn1.x509.Time(Date(now - DAY)))
+            setEndDate(org.bouncycastle.asn1.x509.Time(Date(now + 30 * 365 * DAY)))
+            setSignature(bc)
+            setSubjectPublicKeyInfo(org.bouncycastle.asn1.x509.SubjectPublicKeyInfo.getInstance(pair.public.encoded))
+        }.generateTBSCertificate()
+        val signature = java.security.Signature.getInstance("SHA256withRSA").run {
+            initSign(pair.private)
+            update(tbs.getEncoded(org.bouncycastle.asn1.ASN1Encoding.DER))
+            sign()
+        }
+        val der = org.bouncycastle.asn1.DERSequence(
+            org.bouncycastle.asn1.ASN1EncodableVector().apply { add(tbs); add(bc); add(org.bouncycastle.asn1.DERBitString(signature)) },
+        ).getEncoded(org.bouncycastle.asn1.ASN1Encoding.DER)
+        return CertificateFactory.getInstance("X.509").generateCertificate(der.inputStream())
     }
 
     private const val DAY = 86_400_000L

@@ -29,6 +29,17 @@ class SystemAccessTest {
         assertTrue(app.ember.tv.data.ApiKeys.LIMITS.containsKey(AdBlockDns.SERVICE))
     }
 
+    @Test fun debuggingIdentityIsMadeOnceAndKept() {
+        val dir = kotlin.io.path.createTempDirectory("adb").toFile()
+        val (key, cert) = app.ember.tv.system.AdbIdentity.load(dir)
+        val x509 = cert as java.security.cert.X509Certificate
+        x509.verify(x509.publicKey)
+        assertEquals("CN=Ember", x509.subjectX500Principal.name)
+        val (again, sameCert) = app.ember.tv.system.AdbIdentity.load(dir)
+        assertEquals(key, again)
+        assertEquals(cert, sameCert)
+    }
+
     @Test fun systemAccessIsASystemPage() {
         assertEquals(SettingsCategory.SYSTEM, SettingsCategory.of(SettingsTab.SYSTEM_ACCESS))
     }
