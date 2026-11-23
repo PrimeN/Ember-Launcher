@@ -117,6 +117,7 @@ class DeviceToolsTest {
         val permissions = doc.getElementsByTagName("uses-permission")
         val grants = (0 until permissions.length).map { (permissions.item(it) as org.w3c.dom.Element).getAttributeNS(ns, "name") }
         assertFalse("android.permission.QUERY_ALL_PACKAGES" in grants)
-        assertFalse("android.permission.WRITE_SECURE_SETTINGS" in grants)
+        // #408: declared for System access; only the TV's debugging service can grant it, never a prompt.
+        assertTrue("android.permission.WRITE_SECURE_SETTINGS" in grants)
     }
 }
