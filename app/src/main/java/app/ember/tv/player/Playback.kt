@@ -181,20 +181,21 @@ object Playback {
         }
 
         /**
-         * #422/#423: DTS-HD and DTS:X are sent as their DTS core when the soundbar takes only DTS,
-         * or when their own passthrough keeps failing here and DTS still works.
+         * #423: with a soundbar, DTS-HD and DTS:X are checked as their DTS core, which the sink
+         * sends when the TV doesn't report DTS-HD. (#422: DTS-HD that keeps failing is decoded.)
          */
         fun adjust(format: Format): Format {
             val mime = format.sampleMimeType ?: return format
             if (mime != MimeTypes.AUDIO_DTS_HD && mime != MimeTypes.AUDIO_DTS_X) return format
-            val blocked = choice.blockedPassthrough
-            if (!(soundbar || "dtshd" in blocked) || "dts" in blocked) return format
+            if (!soundbar || "dts" in choice.blockedPassthrough) return format
             return format.buildUpon().setSampleMimeType(MimeTypes.AUDIO_DTS).setCodecs(null).build()
         }
 
         fun permits(format: Format): Boolean {
             if (format.sampleMimeType == MimeTypes.AUDIO_RAW) return true
             if (!passthrough || choice.pcm) return false
+            val own = format.sampleMimeType?.let { MimeTypes.getEncoding(it, format.codecs) }
+            if (own != null && PassthroughHealth.id(own) in choice.blockedPassthrough) return false
             val sent = adjust(format)
             val mime = sent.sampleMimeType ?: return false
             val encoding = MimeTypes.getEncoding(mime, sent.codecs)
@@ -225,8 +226,6 @@ object Playback {
         override fun getFormatOffloadSupport(format: Format): AudioOffloadSupport =
             if (output.permits(format)) super.getFormatOffloadSupport(output.adjust(format)) else AudioOffloadSupport.DEFAULT_UNSUPPORTED
 
-        override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) =
-            super.configure(if (inputFormat.sampleMimeType == MimeTypes.AUDIO_RAW) inputFormat else output.adjust(inputFormat), specifiedBufferSize, outputChannels)
         override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
             val p = super.getCurrentPositionUs(sourceEnded)
             return if (p == AudioSink.CURRENT_POSITION_NOT_SET) p else maxOf(0L, p + delay.us)

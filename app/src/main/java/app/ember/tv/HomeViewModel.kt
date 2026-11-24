@@ -1,5 +1,6 @@
 package app.ember.tv
 
+import app.ember.tv.data.EpisodesLeft
 import app.ember.tv.data.counted
 import app.ember.tv.data.Collections as CollectionStore
 import app.ember.tv.data.CollectionSource
@@ -425,7 +426,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // #425: episode counts for the shows you're part-way through.
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             androidx.compose.runtime.snapshotFlow { inProgressItems.filter { it.season != null && it.episode != null } to look.episodesLeft }
-                .collectLatest { (items, on) -> if (on) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.ember.tv.data.EpisodesLeft.load(items) } }
+                .collectLatest { (items, on) -> if (on) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { EpisodesLeft.load(items) } }
         }
     }
 
