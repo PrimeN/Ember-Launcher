@@ -156,7 +156,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         toggle("play.combined", PLAY, "Combine sources from all addons", read = { vm.playerSettings.sourcesCombined }, write = vm.playerSettings::updateSourcesCombined)
         out.config(serializer<app.ember.tv.player.PlaybackConfig>(), "play.config", PLAY, "", { vm.playerSettings.playbackConfig }, vm.playerSettings::updatePlaybackConfig, mapOf(
             "passthrough" to Field("Passthrough (bitstream)", note = "Off decodes everything to PCM"),
-            "passthroughMode" to Field("Passthrough formats", listOf("auto" to "As HDMI reports", "manual" to "Choose myself")),
+            "passthroughMode" to Field("Passthrough formats", listOf("auto" to "As HDMI reports", "soundbar" to "Soundbar on the TV (ARC)", "manual" to "Choose myself")),
             "ffmpeg" to Field("Software audio decoding", listOf("on" to "When needed", "prefer" to "Prefer software", "off" to "TV decoders only")),
             "ffmpegVideo" to Field("Software video decoding", listOf("fallback" to "When the TV can't", "always" to "Always", "off" to "Off")),
             "tunneling" to Field("Tunneled playback"),

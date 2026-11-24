@@ -33,6 +33,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -252,11 +253,28 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 stringResource(R.string.st_passthrough_bitstream), if (c.passthrough) null else stringResource(R.string.st_off_decode_everything_to_pcm),
                 c.passthrough,
             ) { vm.playerSettings.updatePlaybackConfig { it.copy(passthrough = !it.passthrough) } }
+            // #421
+            ToggleRow("Keep surround when decoding", "DTS and TrueHD that aren't passed through are decoded by Ember in 5.1 or 7.1; some TVs' own decoders give stereo.",
+                c.keepSurround, unavailable = if (c.ffmpeg == "off") "Needs FFmpeg sound decoding (Decoding)." else null) {
+                vm.playerSettings.updatePlaybackConfig { it.copy(keepSurround = !it.keepSurround) }
+            }
+            // #422: formats whose passthrough kept failing on this TV.
+            val context = androidx.compose.ui.platform.LocalContext.current
+            var healthRev by remember { mutableIntStateOf(0) }
+            val blocked = remember(healthRev) { app.ember.tv.player.PassthroughHealth.blocked(context) }
+            if (blocked.isNotEmpty()) {
+                val names = app.ember.tv.player.Playback.FORMAT_LABELS.filter { it.first in blocked }.joinToString(", ") { it.second }
+                SettingActionRow("Try passthrough again", "Kept failing on this TV, now decoded: $names.") {
+                    app.ember.tv.player.PassthroughHealth.reset(context); healthRev++
+                }
+            }
             if (c.passthrough) {
                 Choice(
-                    listOf("auto" to "As HDMI reports", "manual" to "Choose myself"),
+                    listOf("auto" to "As HDMI reports", "soundbar" to "Soundbar on the TV (ARC)", "manual" to "Choose myself"),
                     c.passthroughMode, "Formats",
                 ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(passthroughMode = m) } }
+                // #423
+                if (c.passthroughMode == "soundbar") Note("Dolby Digital, DD+ (with Atmos) and DTS go to the soundbar; DTS-HD is sent as DTS. Tracks it can take are chosen first, so a film keeps 5.1 instead of stereo.")
                 if (c.passthroughMode == "manual") {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
                         items(app.ember.tv.player.Playback.FORMAT_LABELS, key = { it.first }) { (id, label) ->

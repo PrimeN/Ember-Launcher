@@ -21,6 +21,8 @@ internal data class WatchedUi(val showBadges:Boolean=false,val blurEpisodes:Bool
     fun badge(meta:Meta)=showBadges && title(meta)
 }
 internal val LocalWatchedUi=compositionLocalOf {WatchedUi()}
+/** #426: watched titles in this row are dimmed (Home's catalog and widget rows with "Dim"). */
+internal val LocalDimWatched=compositionLocalOf {false}
 
 @Composable internal fun WatchedBadge(watched:Boolean,modifier:Modifier=Modifier) {
     if(!watched || !LocalWatchedUi.current.showBadges)return

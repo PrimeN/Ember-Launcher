@@ -184,8 +184,8 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
                 }
                 else -> if (HomeSectionsState.isCatalogSection(id)) {
                     val key = HomeSectionsState.catalogKey(id)
-                    val row=rows.firstOrNull {it.catalogKey==key}
-                    if(row!=null) {
+                    val row=rows.firstOrNull {it.catalogKey==key}?.let(::withoutWatched)
+                    if(row!=null && row.items.isNotEmpty()) {
                         catalogsShown+=key
                         add(HomeViewModel.HomeBlock.Row("addon:$key",row))
                     } else if(catalogs.loading && count {it is HomeViewModel.HomeBlock.Loading}<3) {
@@ -194,7 +194,7 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
                 } else if (HomeWidgets.isSection(id) && !profile.kids) {
                     widgets.list.firstOrNull { HomeWidgets.section(it.id) == id }?.let { w ->
                         if (w.source.provider == HomeWidgets.DEVICE) { deviceBlock(id, w)?.let(::add); return@let }
-                        val items = widgetItems(w)
+                        val items = widgetItems(w).let { list -> if (look.watchedOnHome == "hide") list.filterNot(::isWatched) else list }
                         if (items.isNotEmpty()) add(HomeViewModel.HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
                         else if (w.id in widgets.loading && count { it is HomeViewModel.HomeBlock.Loading } < 3) add(HomeViewModel.HomeBlock.Loading(id, w.title, w))
                         else widgets.errors[w.id]?.let { add(HomeViewModel.HomeBlock.Notice(id, w.title, it)) }
@@ -224,3 +224,7 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
         if (block is HomeViewModel.HomeBlock.Row) block.copy(row = block.row.copy(items = block.row.items.filter(this::homeTitleVisible))).takeIf { it.row.items.isNotEmpty() }
         else block
     }.let { HomeViewModel.joinShortcuts(it) }
+
+/** #426: with "Hide", watched titles leave your catalog and widget rows on Home. */
+internal fun HomeViewModel.withoutWatched(row: CatalogRow): CatalogRow =
+    if (look.watchedOnHome != "hide") row else row.copy(items = row.items.filterNot(::isWatched))

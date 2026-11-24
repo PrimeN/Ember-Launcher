@@ -121,7 +121,12 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
             option("audio-pitch-correction","yes");option("volume-max","400")
             if(source.audioLanguages.isNotEmpty())option("alang",source.audioLanguages.joinToString(","))
             if(source.subtitleLanguages.isNotEmpty())option("slang",source.subtitleLanguages.joinToString(","))
-            if(config.passthrough)option("audio-spdif",if(config.passthroughMode=="manual")config.formats.joinToString(",") { when(it){"dtshd"->"dts-hd";"eac3joc"->"eac3";else->it} } else "ac3,eac3,dts,dts-hd,truehd")
+            // #423: a soundbar on ARC takes DD, DD+ and DTS (mpv sends DTS-HD's DTS core).
+            if(config.passthrough)option("audio-spdif",when(config.passthroughMode) {
+                "manual"->config.formats.joinToString(",") { when(it){"dtshd"->"dts-hd";"eac3joc"->"eac3";else->it} }
+                "soundbar"->"ac3,eac3,dts"
+                else->"ac3,eac3,dts,dts-hd,truehd"
+            })
             native.init();native.addObserver(this)
             picture(config.deband,config.interpolation,config.scaler,config.deinterlacing)
             listOf("time-pos","duration","demuxer-cache-time").forEach {native.observeProperty(it,MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)}

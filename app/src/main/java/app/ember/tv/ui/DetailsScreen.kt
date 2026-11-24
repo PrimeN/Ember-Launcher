@@ -442,6 +442,8 @@ fun DetailsScreen(
             }
 
             }
+            // #424: IMDb's parents guide.
+            d.parentsGuide?.takeIf { it.isNotEmpty() }?.let { guide -> item(key = "parents-guide") { ParentsGuideRow(guide) } }
             // ---- directors and cast ----
             val people = d.credits?.people.orEmpty()
             if (people.isNotEmpty()) {
@@ -620,6 +622,29 @@ private fun RelatedTitlesRows(related:app.ember.tv.data.RelatedTitles,current:ap
                         .background(Color(0xCC000000),RoundedCornerShape(8.dp)).padding(horizontal=6.dp,vertical=2.dp))
                 }
             }
+        }
+    }
+}
+
+/** #424: "Parents guide" with a chip per category, coloured by IMDb's community severity. */
+@Composable
+private fun ParentsGuideRow(guide: List<app.ember.tv.tracker.ParentsGuide.Entry>) {
+    Column(Modifier.padding(horizontal = 48.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Parents guide", fontSize = TvTokens.Type.Section.sp, fontWeight = FontWeight.Medium, color = Fg)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            guide.forEach { e ->
+                val (bg, fg) = when (e.severity) {
+                    "Severe" -> Color(0x33FF6B5E) to Color(0xFFFFB4AB)
+                    "Moderate" -> Color(0x33F2C14E) to Color(0xFFF7D98A)
+                    else -> Color(0x337BD88F) to Color(0xFFB4EBC0)
+                }
+                Row(Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(e.category, fontSize = 13.sp, color = Fg)
+                    Text(e.severity, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = fg)
+                }
+            }
+            Text("IMDb", fontSize = 12.sp, color = Mute)
         }
     }
 }

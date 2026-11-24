@@ -53,7 +53,7 @@ internal object SettingsReset {
                 confirmExit = d.confirmExit, pip = d.pip, quickReturn = d.quickReturn, returnKey = d.returnKey, skipIntro = d.skipIntro,
                 introDb = d.introDb, rememberTracks = d.rememberTracks, trailersInApp = d.trailersInApp, infoOnStart = d.infoOnStart,
                 seekMode = d.seekMode, quickShortcuts = d.quickShortcuts)
-            SettingsTab.AUDIO_VIDEO -> c.copy(passthrough = d.passthrough, passthroughMode = d.passthroughMode, formats = d.formats,
+            SettingsTab.AUDIO_VIDEO -> c.copy(passthrough = d.passthrough, passthroughMode = d.passthroughMode, formats = d.formats, keepSurround = d.keepSurround,
                 audioDelayMs = d.audioDelayMs, engine = d.engine, deinterlacing = d.deinterlacing, ffmpeg = d.ffmpeg,
                 ffmpegVideo = d.ffmpegVideo, tunneling = d.tunneling, dolbyVision = d.dolbyVision, frameRate = d.frameRate,
                 matchResolution = d.matchResolution, buffer = d.buffer, bluetoothDelayMs = d.bluetoothDelayMs,

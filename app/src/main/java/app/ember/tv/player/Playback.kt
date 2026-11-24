@@ -37,7 +37,10 @@ data class PlaybackConfig(
     /** Send Dolby and DTS audio untouched to the receiver or soundbar (bitstream). */
     val passthrough: Boolean = true,
     /** "auto": trust what the HDMI link reports. "manual": use [formats], for receivers behind ARC/eARC that under-report. */
+    /** "auto" (as HDMI reports), "manual" ([formats]) or "soundbar" (#423: what a soundbar on the TV's ARC takes). */
     val passthroughMode: String = "auto",
+    /** #421: DTS and TrueHD that aren't passed through are decoded by FFmpeg, which keeps 5.1/7.1. */
+    val keepSurround: Boolean = true,
     /** Manual passthrough formats: ac3, eac3, eac3joc (DD+ Atmos), dts, dtshd, truehd. */
     val formats: Set<String> = setOf("ac3", "eac3", "eac3joc", "dts", "dtshd", "truehd"),
     /** Software audio (FFmpeg/MPEG-H): "on" (when needed), "prefer" (first), "off" (device only). */
@@ -148,6 +151,8 @@ object Playback {
         /** Try software video decoders first (only sensible up to 1080p). */
         @Volatile var preferSoftware: Boolean = false
         @Volatile var pcm: Boolean = false
+        /** #422: formats whose passthrough keeps failing on this TV ([PassthroughHealth]). */
+        @Volatile var blockedPassthrough: Set<String> = emptySet()
         /** Let FFmpeg decode the video: after the TV's decoder failed, or always when set so. */
         @Volatile var ffmpegVideo: Boolean = false
     }
@@ -167,18 +172,43 @@ object Playback {
     /** User settings restrict encoded output. Media3 still decides what the current device supports. */
     internal class AudioOutputPolicy(config: PlaybackConfig, private val choice: CodecChoice) {
         private val passthrough = config.passthrough
-        private val manualEncodings = if (config.passthroughMode == "manual") {
-            config.formats.mapNotNull(::encoding).toSet()
-        } else null
+        private val soundbar = config.passthroughMode == "soundbar"
+        private val manualEncodings = when (config.passthroughMode) {
+            "manual" -> config.formats.mapNotNull(::encoding).toSet()
+            // #423: what ARC carries; DTS-HD and DTS:X go as their DTS core (see [adjust]).
+            "soundbar" -> SOUNDBAR_ENCODINGS
+            else -> null
+        }
+
+        /**
+         * #422/#423: DTS-HD and DTS:X are sent as their DTS core when the soundbar takes only DTS,
+         * or when their own passthrough keeps failing here and DTS still works.
+         */
+        fun adjust(format: Format): Format {
+            val mime = format.sampleMimeType ?: return format
+            if (mime != MimeTypes.AUDIO_DTS_HD && mime != MimeTypes.AUDIO_DTS_X) return format
+            val blocked = choice.blockedPassthrough
+            if (!(soundbar || "dtshd" in blocked) || "dts" in blocked) return format
+            return format.buildUpon().setSampleMimeType(MimeTypes.AUDIO_DTS).setCodecs(null).build()
+        }
 
         fun permits(format: Format): Boolean {
             if (format.sampleMimeType == MimeTypes.AUDIO_RAW) return true
             if (!passthrough || choice.pcm) return false
+            val sent = adjust(format)
+            val mime = sent.sampleMimeType ?: return false
+            val encoding = MimeTypes.getEncoding(mime, sent.codecs)
+            if (PassthroughHealth.id(encoding) in choice.blockedPassthrough) return false
             val encodings = manualEncodings ?: return true
-            val mime = format.sampleMimeType ?: return false
-            return MimeTypes.getEncoding(mime, format.codecs) in encodings
+            return encoding in encodings || soundbar && encoding == AudioFormat.ENCODING_DTS_HD
         }
     }
+
+    /** #423: Dolby Digital, DD+ (with Atmos) and DTS, the formats ARC carries. */
+    private val SOUNDBAR_ENCODINGS = setOf(AudioFormat.ENCODING_AC3, AudioFormat.ENCODING_E_AC3, AudioFormat.ENCODING_E_AC3_JOC, AudioFormat.ENCODING_DTS)
+
+    /** #421: formats FFmpeg decodes when they aren't passed through; some TVs' own DTS decoders give only stereo. */
+    internal val SURROUND_BY_FFMPEG = setOf(MimeTypes.AUDIO_DTS, MimeTypes.AUDIO_DTS_HD, MimeTypes.AUDIO_DTS_EXPRESS, MimeTypes.AUDIO_DTS_X, MimeTypes.AUDIO_TRUEHD)
 
     /**
      * Shifts the audio clock that the picture follows: reporting the position [AudioDelay.us] ahead
@@ -187,13 +217,16 @@ object Playback {
      */
     private class DelayedSink(sink: AudioSink, private val delay: AudioDelay, private val output: AudioOutputPolicy) : androidx.media3.exoplayer.audio.ForwardingAudioSink(sink) {
         override fun supportsFormat(format: Format): Boolean =
-            output.permits(format) && super.supportsFormat(format)
+            output.permits(format) && super.supportsFormat(output.adjust(format))
 
         override fun getFormatSupport(format: Format): Int =
-            if (output.permits(format)) super.getFormatSupport(format) else AudioSink.SINK_FORMAT_UNSUPPORTED
+            if (output.permits(format)) super.getFormatSupport(output.adjust(format)) else AudioSink.SINK_FORMAT_UNSUPPORTED
 
         override fun getFormatOffloadSupport(format: Format): AudioOffloadSupport =
-            if (output.permits(format)) super.getFormatOffloadSupport(format) else AudioOffloadSupport.DEFAULT_UNSUPPORTED
+            if (output.permits(format)) super.getFormatOffloadSupport(output.adjust(format)) else AudioOffloadSupport.DEFAULT_UNSUPPORTED
+
+        override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) =
+            super.configure(if (inputFormat.sampleMimeType == MimeTypes.AUDIO_RAW) inputFormat else output.adjust(inputFormat), specifiedBufferSize, outputChannels)
         override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
             val p = super.getCurrentPositionUs(sourceEnded)
             return if (p == AudioSink.CURRENT_POSITION_NOT_SET) p else maxOf(0L, p + delay.us)
@@ -224,6 +257,28 @@ object Playback {
             )
             // Lets Dolby Vision fall back to the HEVC (HDR10) layer, and any codec to a second decoder.
             setEnableDecoderFallback(true)
+        }
+
+        /**
+         * #421: with Keep surround, DTS and TrueHD that must be decoded skip the TV's own decoders
+         * (some fold 5.1 to stereo) and go to FFmpeg. Passthrough doesn't ask the selector, so it is
+         * unchanged; an explicit decoder choice in the player wins.
+         */
+        override fun buildAudioRenderers(
+            context: Context,
+            extensionRendererMode: Int,
+            mediaCodecSelector: MediaCodecSelector,
+            enableDecoderFallback: Boolean,
+            audioSink: AudioSink,
+            eventHandler: Handler,
+            eventListener: androidx.media3.exoplayer.audio.AudioRendererEventListener,
+            out: ArrayList<Renderer>,
+        ) {
+            val selector = if (c.keepSurround && c.ffmpeg != "off") MediaCodecSelector { mime, secure, tunneling ->
+                if (mime in SURROUND_BY_FFMPEG && manager.audioMode == DecoderMode.AUTO) emptyList()
+                else mediaCodecSelector.getDecoderInfos(mime, secure, tunneling)
+            } else mediaCodecSelector
+            super.buildAudioRenderers(context, extensionRendererMode, selector, enableDecoderFallback, audioSink, eventHandler, eventListener, out)
         }
 
         /** Nextlib owns extension ordering and recovery modes. The platform renderer additionally
@@ -312,10 +367,12 @@ object Playback {
     // ---- audio track choice ----
 
     /** Higher is better: object audio and lossless first, then lossy surround, then stereo. */
-    fun audioScore(f: Format): Int {
+    fun audioScore(f: Format, soundbar: Boolean = false): Int {
         val mime = f.sampleMimeType.orEmpty()
         val codecs = f.codecs.orEmpty()
         val base = when {
+            // #423: a soundbar on ARC can't take TrueHD or lossless PCM surround; a DD+, DTS or DD track keeps 5.1 there.
+            soundbar && (mime == MimeTypes.AUDIO_TRUEHD || mime == MimeTypes.AUDIO_FLAC || mime == MimeTypes.AUDIO_RAW || mime == MimeTypes.AUDIO_ALAC) -> 45
             mime == MimeTypes.AUDIO_TRUEHD -> 90
             mime == MimeTypes.AUDIO_E_AC3_JOC || codecs.contains("ec+3") -> 88
             mime == MimeTypes.AUDIO_DTS_X -> 86
@@ -349,7 +406,8 @@ object Playback {
         } else {
             options
         }
-        val (g, i) = pool.maxByOrNull { (g, i) -> audioScore(g.getTrackFormat(i)) } ?: return null
+        val soundbar = c.passthrough && c.passthroughMode == "soundbar"
+        val (g, i) = pool.maxByOrNull { (g, i) -> audioScore(g.getTrackFormat(i), soundbar) } ?: return null
         return TrackSelectionOverride(g.mediaTrackGroup, i)
     }
 

@@ -98,6 +98,8 @@ class PlayerActivity : ComponentActivity() {
     internal var streamDeclaredSize: Long = -1
     internal val streamTransfer = StreamTransferStats()
     internal val statsState = StreamStatsState()
+    /** #422: when the sound broke up recently while passed through. */
+    internal val passthroughUnderruns = ArrayDeque<Long>()
     internal var prevQuality: String? = null
     /** The playing source's binge group and file hash, from its addon (#74). */
     internal var prevBingeGroup: String? = null

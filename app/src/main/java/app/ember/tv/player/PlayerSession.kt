@@ -115,6 +115,8 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     }
     decoderRecovery.reset();codecs.pcm=false
     codecs.sourceUrl=url;codecs.sourceFilename=release;codecs.manualVideo=userVideoMode!=null
+    codecs.blockedPassthrough=PassthroughHealth.blocked(this)
+    passthroughUnderruns.clear()
     decoderManager.selectVideoDecoder(userVideoMode ?: if(config.ffmpegVideo=="always")DecoderMode.FFMPEG else DecoderMode.AUTO)
     decoderManager.selectAudioDecoder(userAudioMode ?: DecoderMode.AUTO)
     codecs.ffmpegVideo=decoderManager.videoMode==DecoderMode.FFMPEG

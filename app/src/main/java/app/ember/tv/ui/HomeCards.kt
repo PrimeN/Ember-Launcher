@@ -177,7 +177,8 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
             container = PanelHi,card=true,
             tintArt = meta.background ?: meta.poster,
         ) {
-            Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+            val dim = LocalDimWatched.current && LocalWatchedUi.current.title(meta)
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { }.then(if (dim) Modifier.alpha(0.4f) else Modifier)) {
                 LandscapeImage(meta, Modifier.fillMaxSize(), onImage = backdrop::loaded)
                 WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xD9000000))))

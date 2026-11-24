@@ -66,6 +66,12 @@ class Prefs(context: Context) {
     var appFocusColors: Boolean
         get() = runCatching { sp.read(PreferenceKeys.APP_FOCUS_COLORS) }.getOrDefault(true)
         set(value) = sp.edit { putBoolean(PreferenceKeys.APP_FOCUS_COLORS.name, value) }
+    var episodesLeft:Boolean
+        get()=runCatching {sp.read(PreferenceKeys.EPISODES_LEFT)}.getOrDefault(true)
+        set(value)=sp.edit {putBoolean(PreferenceKeys.EPISODES_LEFT.name,value)}
+    var watchedOnHome:String
+        get()=runCatching {sp.read(PreferenceKeys.WATCHED_ON_HOME)}.getOrDefault("show").takeIf { it in setOf("show","dim","hide") } ?: "show"
+        set(value)=sp.edit {putString(PreferenceKeys.WATCHED_ON_HOME.name,value)}
     var showWatchedBadges:Boolean
         get()=runCatching {sp.read(PreferenceKeys.SHOW_WATCHED_BADGES)}.getOrDefault(true)
         set(value)=sp.edit {putBoolean(PreferenceKeys.SHOW_WATCHED_BADGES.name,value)}
@@ -727,4 +733,6 @@ object Features {
     const val AD_BLOCK = "adBlock"
     /** #419: Collection and More like this on title pages (TMDB). */
     const val RELATED = "related"
+    /** #424: IMDb's parents guide on title pages (imdbapi.dev). */
+    const val PARENTS_GUIDE = "parentsGuide"
 }

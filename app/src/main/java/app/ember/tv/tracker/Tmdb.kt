@@ -106,6 +106,27 @@ object Tmdb {
         }.getOrNull()
     }
 
+    /**
+     * #425: a show's episode count per season (specials left out) and its last aired episode.
+     * Finds the show from [tmdbId], or from [imdbId].
+     */
+    suspend fun showEpisodes(tmdbId: Long?, imdbId: String?): app.ember.tv.data.ShowEpisodes? {
+        if (!available) return null
+        return runCatching {
+            val id = tmdbId ?: imdbId?.let { imdb ->
+                Http.metadata("https://api.themoviedb.org/3/find/$imdb?api_key=$key&external_source=imdb_id")
+                    .arr("tv_results").list().firstOrNull().long("id")
+            } ?: return null
+            val j = Http.metadata("https://api.themoviedb.org/3/tv/$id?api_key=$key")
+            val seasons = j.arr("seasons").list().mapNotNull { s ->
+                val n = s.int("season_number")?.takeIf { it > 0 } ?: return@mapNotNull null
+                n to (s.int("episode_count") ?: 0)
+            }.toMap()
+            val last = j.obj("last_episode_to_air")?.let { e -> e.int("season_number")?.let { s -> e.int("episode_number")?.let { n -> s to n } } }
+            app.ember.tv.data.ShowEpisodes(seasons, last)
+        }.getOrNull()
+    }
+
     /** IMDb id for a TMDB title. Stream addons look titles up by IMDb id. */
     suspend fun imdbFor(kind: Kind, id: Long): String? {
         if (!available) return null

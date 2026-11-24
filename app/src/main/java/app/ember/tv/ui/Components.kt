@@ -332,7 +332,9 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
     Column(modifier = Modifier.width(width), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Focusable(onClick = onClick, onLongClick = onLongClick ?: actions?.let { action -> { action(meta) } }, modifier = Modifier.restoreFocus(meta.mediaKey()).mediaSemantics(meta, saved).focusBackdrop(backdrop),card=true,
             tintArt = meta.poster ?: meta.background) {
-            Box(Modifier.clearAndSetSemantics { }) {
+            // #426: a watched title in a dimmed Home row.
+            val dim = LocalDimWatched.current && LocalWatchedUi.current.title(meta)
+            Box(Modifier.clearAndSetSemantics { }.then(if (dim) Modifier.alpha(0.4f) else Modifier)) {
                 PosterImage(meta, Modifier.width(width).height(width * meta.cardRatio), onImage = backdrop::loaded)
                 WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
                 meta.safeProgress?.let { progress ->

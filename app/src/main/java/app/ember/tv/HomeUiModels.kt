@@ -168,6 +168,8 @@ data class DetailsUi(
     val tmdbCredits: Credits? = null,
     /** #419: Collection and More like this. */
     val related: app.ember.tv.data.RelatedTitles? = null,
+    /** #424: IMDb's parents guide, strongest first. */
+    val parentsGuide: List<app.ember.tv.tracker.ParentsGuide.Entry>? = null,
     /** Facts from AniList or TVDB for the line under the title (studio, network, status, next episode). */
     val facts: List<String> = emptyList(),
     /** Which metadata services added something, e.g. ["AniList", "TVDB"]. */

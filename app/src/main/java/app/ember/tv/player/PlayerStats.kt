@@ -154,7 +154,7 @@ internal fun PlayerActivity.updateStats() {
         val output = when {
             mpv != null -> live?.audioOut?.let { if (it.startsWith("spdif", true)) "passthrough" else "decoded ($it)" }
             passthrough() -> "passthrough"
-            standardAudioTrack != null -> "decoded to PCM"
+            standardAudioTrack != null -> "decoded to PCM" + (StreamStatsFormat.channels(Integer.bitCount(standardAudioTrack!!.channelConfig))?.let { " $it" } ?: "")
             else -> null
         }
         val dot = when {

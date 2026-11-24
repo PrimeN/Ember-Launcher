@@ -274,7 +274,7 @@ fun ModernHome(
                             // Focusing it brings all of it on screen, as the banner does.
                             onFocus = { onAmbient(null); scope.launch { state.animateScrollToItem(at) } },
                             title = b.row.displayTitle, bleed = (if(isEmberX)EmberXLayout.Gutter else TvTokens.Space.Page).dp)
-                    } else ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
+                    } else androidx.compose.runtime.CompositionLocalProvider(LocalDimWatched provides (vm.look.watchedOnHome == "dim" && (b.key.startsWith("addon:") || b.widget != null))) { ModernSection(b.row.displayTitle, b.row.addonName.takeIf { it.isNotBlank() && vm.look.rowAddonLabels }) {
                         // #161: one of your widgets draws in its own style and card shape.
                         val look = WidgetLook.of(b.widget, wide, b.shape)
                         MediaRow(
@@ -282,7 +282,7 @@ fun ModernHome(
                             onSeeAll = if (vm.canSeeAll(b.row)) ({ onSeeAll(b.row) }) else null,
                             numbered = look.numbered,
                         )
-                    } }
+                    } } }
                     is HomeViewModel.HomeBlock.Collection -> CollectionRow(b.collection, animations = vm.collections.heroPreviews && !vm.profiles.profile.kids,
                         onMove = if (vm.profiles.profile.kids) null else ({ f, delta -> vm.collections.moveFolder(b.collection, f, delta) }),
                         onDelete = if (vm.profiles.profile.kids) null else ({ f -> if (f == null) vm.collections.remove(b.collection.id) else vm.collections.removeFolder(b.collection.id, f.id) })) { f -> vm.collections.openFolder(b.collection, f) }

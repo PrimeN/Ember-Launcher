@@ -30,6 +30,12 @@ class LookState(
     var tileLabelsOff by mutableStateOf(prefs.tileLabelsOff);private set
     fun toggleTileLabel(kind:String){tileLabelsOff=app.ember.tv.data.TileLabels.toggle(tileLabelsOff,kind);prefs.tileLabelsOff=tileLabelsOff}
     fun updateShowWatchedBadges(value:Boolean){showWatchedBadges=value;prefs.showWatchedBadges=value}
+    /** #425 */
+    var episodesLeft by mutableStateOf(prefs.episodesLeft.also { app.ember.tv.data.EpisodesLeft.enabled = it });private set
+    fun updateEpisodesLeft(value:Boolean){episodesLeft=value;prefs.episodesLeft=value;app.ember.tv.data.EpisodesLeft.enabled=value}
+    /** #426: "show", "dim" or "hide" watched titles in Home rows. */
+    var watchedOnHome by mutableStateOf(prefs.watchedOnHome);private set
+    fun updateWatchedOnHome(value:String){watchedOnHome=value;prefs.watchedOnHome=value}
     fun updateBlurUnwatchedEpisodes(value:Boolean){blurUnwatchedEpisodes=value;prefs.blurUnwatchedEpisodes=value}
     fun updateCardFocusStyle(value:String){cardFocusStyle=app.ember.tv.data.CardFocusStyle.normalize(value);prefs.cardFocusStyle=cardFocusStyle}
     var mediaFocusBackground by mutableStateOf(prefs.mediaFocusBackground); private set

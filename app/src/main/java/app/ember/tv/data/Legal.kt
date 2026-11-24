@@ -68,6 +68,11 @@ object Legal {
                         "You review ordinary filters before applying them. Mistral's own data policies and plan charges apply; manual discovery remains available without it.",
                 ),
                 Item(
+                    "Parents guide (imdbapi.dev)",
+                    "With Parents guide on in ${SettingsTab.FEATURES.path}, a title page asks imdbapi.dev for IMDb's parents guide using the title's IMDb id. Nothing about you is sent.",
+                    "https://imdbapi.dev",
+                ),
+                Item(
                     "Optional ad blocking (NextDNS)",
                     "Only when you enter a NextDNS profile in ${SettingsTab.KEYS.path}, $APP sets the TV's Private DNS to it, so the TV's DNS lookups (the names of sites and services apps connect to) go to NextDNS for every app. " +
                         "NextDNS's own privacy policy and your profile's logging settings apply. Switch it off in ${SettingsTab.FEATURES.path}.",

@@ -170,6 +170,7 @@ internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
         audio && userAudioMode !in setOf(null, DecoderMode.AUTO) && !outputFailure) return false
     val message: String
     if(audio && decoderRecovery.pcmFallback()) {
+        notePassthroughFailure()
         codecs.pcm=true
         val was=p.playWhenReady;val at=p.currentPosition
         p.stop();p.seekTo(at);p.playWhenReady=was
@@ -233,3 +234,39 @@ internal fun PlayerActivity.retryReclaimedDecoder(p: androidx.media3.exoplayer.E
 
 internal const val RECLAIM_RETRY_WINDOW_MS = 60_000L
 private const val RECLAIM_RETRY_DELAY_MS = 300L
+
+/**
+ * #422: the format being passed through when the audio output failed counts against it; after
+ * two failures on this TV it isn't passed through any more ([PassthroughHealth]).
+ */
+@OptIn(UnstableApi::class)
+internal fun PlayerActivity.notePassthroughFailure() {
+    val track = standardAudioTrack ?: return
+    if (track.offload || androidx.media3.common.util.Util.isEncodingLinearPcm(track.encoding)) return
+    val id = PassthroughHealth.id(track.encoding) ?: return
+    if (PassthroughHealth.record(this, id)) {
+        codecs.blockedPassthrough = PassthroughHealth.blocked(this)
+        Toast.makeText(this, if (id == "dtshd") "DTS-HD keeps failing here: sending DTS instead" else "This format keeps failing here: Ember will decode it", Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * #422: sound that keeps breaking up while passed through (8 underruns in 10 seconds) is treated
+ * like an output error: this title switches to decoded sound and the format's failure is counted.
+ */
+@OptIn(UnstableApi::class)
+internal fun PlayerActivity.passthroughBreakingUp() {
+    val p = player ?: return
+    if (codecs.pcm || playbackEngine?.compatibility != null || !passthrough()) return
+    val now = android.os.SystemClock.elapsedRealtime()
+    passthroughUnderruns.addLast(now)
+    while (passthroughUnderruns.isNotEmpty() && now - passthroughUnderruns.first() > PassthroughHealth.UNDERRUN_WINDOW_MS) passthroughUnderruns.removeFirst()
+    if (passthroughUnderruns.size < PassthroughHealth.UNDERRUN_STORM) return
+    passthroughUnderruns.clear()
+    if (!decoderRecovery.pcmFallback()) return
+    notePassthroughFailure()
+    codecs.pcm = true
+    val was = p.playWhenReady; val at = p.currentPosition
+    p.stop(); p.seekTo(at); p.prepare(); p.playWhenReady = was
+    Toast.makeText(this, "Sound kept breaking up: decoding it instead", Toast.LENGTH_SHORT).show()
+}

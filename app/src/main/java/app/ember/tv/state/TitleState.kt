@@ -204,6 +204,19 @@ class TitleState(
         }
     }
 
+    /** #424: IMDb's parents guide for the title, by its IMDb id. */
+    private fun loadParentsGuide(meta: Meta) {
+        if (!featureOn(app.ember.tv.data.Features.PARENTS_GUIDE)) return
+        val imdb = meta.imdb ?: return
+        visit.scope.launch {
+            val guide = app.ember.tv.tracker.ParentsGuide.load(imdb)?.takeIf { it.isNotEmpty() } ?: return@launch
+            ensureActive()
+            val d = details ?: return@launch
+            if (d.meta.id != meta.id) return@launch
+            details = d.copy(parentsGuide = guide)
+        }
+    }
+
     /** #419: Collection and More like this, beside the credits; needs a TMDB key. */
     private fun loadRelated(meta: Meta) {
         if (!Tmdb.available || !featureOn(app.ember.tv.data.Features.RELATED)) return
@@ -251,7 +264,7 @@ class TitleState(
                         if (details?.meta?.id == full.id) {
                             val enriched = full.copy(imdbId = imdb ?: full.imdbId, tmdbId = tmdb ?: full.tmdbId)
                             details = details?.copy(meta = enriched)
-                            loadTmdbCredits(enriched); loadRelated(enriched); loadRatings(enriched, null); loadOffers(enriched)
+                            loadTmdbCredits(enriched); loadRelated(enriched); loadParentsGuide(enriched); loadRatings(enriched, null); loadOffers(enriched)
                             loadNativeAddons()
                         }
                     }
@@ -278,6 +291,7 @@ class TitleState(
             ensureActive()
             loadOffers(meta)
             loadRelated(meta)
+            loadParentsGuide(meta)
             // #263: with addon metadata first, TMDB's cast is only asked for when the addon gives none.
             val addonFirst = app.ember.tv.data.AddonMetadata.first
             if (!addonFirst) loadTmdbCredits(meta)

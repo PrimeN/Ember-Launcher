@@ -271,6 +271,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
 
         override fun onAudioUnderrun(eventTime: AnalyticsListener.EventTime, bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) {
             statsState.underruns++
+            passthroughBreakingUp()
         }
 
         override fun onLoadError(eventTime: AnalyticsListener.EventTime, loadEventInfo: androidx.media3.exoplayer.source.LoadEventInfo,
