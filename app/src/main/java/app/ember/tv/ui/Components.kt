@@ -565,9 +565,14 @@ fun Modifier.mediaSemantics(meta: Meta, saved: Boolean): Modifier {
  * bright enough to stand out on dark pages (dark or grey artwork is lifted toward white).
  */
 internal fun focusTint(color: Color): Color {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(color.toArgb(), hsv)
-    hsv[1] = hsv[1].coerceIn(0.35f, 0.85f)
-    hsv[2] = hsv[2].coerceAtLeast(0.88f)
-    return Color(android.graphics.Color.HSVToColor(hsv))
+    val r = color.red; val g = color.green; val b = color.blue
+    val max = maxOf(r, g, b); val min = minOf(r, g, b); val d = max - min
+    val hue = when {
+        d == 0f -> 0f
+        max == r -> 60f * (((g - b) / d) % 6f)
+        max == g -> 60f * ((b - r) / d + 2f)
+        else -> 60f * ((r - g) / d + 4f)
+    }.let { if (it < 0f) it + 360f else it }
+    val saturation = (if (max == 0f) 0f else d / max).coerceIn(0.35f, 0.85f)
+    return Color.hsv(hue, saturation, max.coerceAtLeast(0.88f))
 }
