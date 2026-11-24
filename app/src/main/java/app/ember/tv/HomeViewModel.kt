@@ -437,6 +437,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             prefs.deviceTuned = true
             if (freshInstall) tuneForThisTv()
         }
+        // #437: Spark rows used as Home widgets load (and refresh) without opening Discover.
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow {
+                Triple(profiles.profileId, personalOn, widgets.list.any { it.source.provider == HomeWidgets.LIST && HomeWidgets.isSparkList(it.source.catalogId) })
+            }.collectLatest { (_, personal, used) -> if (used && personal && Tmdb.available) spark.open() }
+        }
         // #429: the front Continue watching title's sources, once Home has settled.
         viewModelScope.launch {
             androidx.compose.runtime.snapshotFlow { inProgressItems.firstOrNull() }
@@ -772,12 +778,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal fun widgetItems(w: HomeWidget): List<Meta> = if (w.source.provider == HomeWidgets.LIST) {
         if (!personalOn) emptyList() else when (val list = w.source.catalogId) {
             "continue" -> inProgressItems; "recent" -> recentItems; "watchlist" -> combinedWatchlist
+            // #437: one of Spark's rows.
+            in HomeWidgets.sparkLists.map { it.first } -> spark.rowFor(list!!)?.items.orEmpty()
             // A tracker row (Up next, recommendations, your tracker lists…) by its Home key.
             else -> smartRows.firstOrNull { it.catalogKey == list }?.items.orEmpty()
         }.take(w.limit)
     } else widgets.items[w.id].orEmpty()
     /** Your lists a widget can show: the three built-in ones, then whatever your trackers offer right now. */
-    internal fun widgetLists(): List<Pair<String, String>> = HomeWidgets.lists + if (!personalOn) emptyList() else
+    internal fun widgetLists(): List<Pair<String, String>> = HomeWidgets.lists +
+        (if (personalOn && app.ember.tv.tracker.Tmdb.available) HomeWidgets.sparkLists else emptyList()) + if (!personalOn) emptyList() else
         smartRows.mapNotNull { row -> row.catalogKey?.takeIf(HomeWidgets::isTrackerList)?.let { it to listOf(row.displayTitle, row.addonName).filter(String::isNotBlank).joinToString(" · ") } }.distinctBy { it.first }
     /** Trakt's public lists for the widget editors: "popular", "trending", or a search. */
     internal suspend fun traktLists(tab: String, query: String) = app.ember.tv.data.Collections.traktLists(tab, query)
@@ -787,7 +796,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         allCatalogs.any { addonAvailable(it.addon.url) && isInDiscover(it) } || discover.discoverCatalogs.isNotEmpty(),
         collections.onDiscover.isNotEmpty(), profiles.profile.kids, spark = app.ember.tv.tracker.Tmdb.available)
     /** #435 Spark: picks from what this profile watches, in Discover. */
-    val spark: SparkState by lazy { SparkState(getApplication(), viewModelScope, { profiles.profileId }) { if (profiles.personalOn) hub.historySources() else emptyList() } }
+    val spark: SparkState by lazy { SparkState(getApplication(), viewModelScope, prefs, { profiles.profileId }) { if (profiles.personalOn) hub.historySources() else emptyList() } }
     val profile: app.ember.tv.data.Profile get() = profiles.profile
     internal val personalOn: Boolean get() = profiles.personalOn
     internal fun profileAllows(c: CatalogDef): Boolean = profiles.allows(c)

@@ -40,7 +40,7 @@ import java.io.File
  * history) say what you like; TMDB is asked for titles like them; Spark scores and groups them into
  * named rows, each pick with its reason. Built about once a day; kept per profile on the TV.
  */
-class SparkState(private val context: Context, private val scope: CoroutineScope, private val profileId: () -> String,
+class SparkState(private val context: Context, private val scope: CoroutineScope, private val prefs: app.ember.tv.data.Prefs, private val profileId: () -> String,
     /** #436: connected services that can give their whole history. */
     private val historySources: () -> List<app.ember.tv.tracker.Tracker> = { emptyList() }) {
     var rows by mutableStateOf<List<SparkRow>>(emptyList()); private set
@@ -54,15 +54,33 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
     var imported by mutableStateOf<Imported?>(null); private set
     var importing by mutableStateOf(false); private set
     var importNote by mutableStateOf<String?>(null); private set
+    /** #437 "Keep everything": also keep each title's full details from Trakt (story, genres, runtime, rating…). */
+    var keepEverything by mutableStateOf(prefs.sparkKeepEverything); private set
+    fun updateKeepEverything(on: Boolean) {
+        keepEverything = on; prefs.sparkKeepEverything = on
+        if (on && imported != null) importHistory()
+    }
+    /** #437: bring your trackers' history in again on its own: "off", "daily" or "weekly". */
+    var autoRefresh by mutableStateOf(prefs.sparkAutoRefresh); private set
+    fun updateAutoRefresh(value: String) { autoRefresh = value; prefs.sparkAutoRefresh = value; refreshHistoryIfDue() }
+
+    /** Pulls the history again when automatic refresh is on and the last pull is old enough. */
+    private fun refreshHistoryIfDue() {
+        val every = when (autoRefresh) { "daily" -> DAY_MS; "weekly" -> 7 * DAY_MS; else -> return }
+        if (importing || historySources().isEmpty()) return
+        if (System.currentTimeMillis() - (imported?.at ?: 0L) >= every) importHistory(quiet = true)
+    }
 
     /** One film or show from a tracker, kept on the TV for Spark (ids, name, year, plays, last watched, your rating). */
     @Serializable
     data class ImportedTitle(val movie: Boolean, val imdb: String? = null, val tmdb: Long? = null, val name: String? = null, val year: Int? = null,
-        val plays: Int = 1, val lastAt: Long? = null, val rating: Int? = null, val watched: Boolean = true)
+        val plays: Int = 1, val lastAt: Long? = null, val rating: Int? = null, val watched: Boolean = true,
+        val details: app.ember.tv.tracker.TitleDetails? = null)
 
     @Serializable
     data class Imported(val titles: List<ImportedTitle> = emptyList(), val sources: List<String> = emptyList(), val at: Long = 0) {
         val rated get() = titles.count { it.rating != null }
+        val detailed get() = titles.count { it.details != null }
     }
 
     @Serializable
@@ -85,14 +103,15 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
      * #436: pulls your whole history and ratings from each connected service that can give it (Trakt
      * with dates; Simkl, WeTrakr and others without), keeps it for this profile, and builds new picks.
      */
-    fun importHistory() {
+    fun importHistory(quiet: Boolean = false) {
         if (importing) return
         val sources = historySources()
-        if (sources.isEmpty()) { importNote = "Connect Trakt, Simkl or WeTrakr to bring your history in."; return }
+        if (sources.isEmpty()) { if (!quiet) importNote = "Connect Trakt, Simkl or WeTrakr to bring your history in."; return }
         val profile = profileId()
-        importing = true; importNote = null
+        val full = keepEverything
+        importing = true; if (!quiet) importNote = null
         scope.launch {
-            val pulled = withContext(Dispatchers.IO) { sources.map { t -> t.name to runCatching { t.tasteHistory() } } }
+            val pulled = withContext(Dispatchers.IO) { sources.map { t -> t.name to runCatching { t.tasteHistory(full) } } }
             val ok = pulled.filter { it.second.isSuccess }
             if (profileId() == profile && ok.isNotEmpty()) {
                 val titles = LinkedHashMap<String, ImportedTitle>()
@@ -100,18 +119,19 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
                     val k = (if (h.movie) "m:" else "s:") + (h.tmdb?.toString() ?: h.imdb ?: continue)
                     val old = titles[k]
                     titles[k] = ImportedTitle(h.movie, h.imdb ?: old?.imdb, h.tmdb ?: old?.tmdb, h.name ?: old?.name, h.year ?: old?.year,
-                        maxOf(h.plays, old?.plays ?: 0), listOfNotNull(h.lastAt, old?.lastAt).maxOrNull(), h.rating ?: old?.rating, h.watched || old?.watched == true)
+                        maxOf(h.plays, old?.plays ?: 0), listOfNotNull(h.lastAt, old?.lastAt).maxOrNull(), h.rating ?: old?.rating, h.watched || old?.watched == true,
+                        h.details ?: old?.details)
                 }
                 val next = Imported(titles.values.toList(), ok.map { it.first }, System.currentTimeMillis())
                 imported = next
                 withContext(Dispatchers.IO) { runCatching { importFile(profile).writeText(json.encodeToString(Imported.serializer(), next)) } }
-                importNote = "Brought in ${"%,d".format(next.titles.size)} titles from ${next.sources.joinToString(" and ")}" +
+                if (!quiet) importNote = "Brought in ${"%,d".format(next.titles.size)} titles from ${next.sources.joinToString(" and ")}" +
                     (if (next.rated > 0) ", with ${"%,d".format(next.rated)} ratings" else "") + "." +
                     pulled.filter { it.second.isFailure }.takeIf { it.isNotEmpty() }?.let { f -> " ${f.joinToString(" and ") { it.first }} didn't answer." }.orEmpty()
                 importing = false
                 build(force = true)
             } else {
-                importNote = "Couldn't reach ${sources.joinToString(" or ") { it.name }}. Try again in a moment."
+                if (!quiet) importNote = "Couldn't reach ${sources.joinToString(" or ") { it.name }}. Try again in a moment."
                 importing = false
             }
         }
@@ -138,9 +158,20 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             importNote = null
         }
         if (System.currentTimeMillis() - builtAt > STALE_MS || rows.isEmpty()) build()
+        refreshHistoryIfDue()
     }
 
     fun refresh() = build()
+
+    /** #437: the row a Home widget shows: "spark:top", "spark:taste1".."spark:taste3", "spark:because", "spark:gems", "spark:language". */
+    fun rowFor(slot: String): SparkRow? = when (slot) {
+        "spark:top" -> rows.firstOrNull { it.id == "top" }
+        "spark:taste1", "spark:taste2", "spark:taste3" -> rows.filter { it.id.startsWith("genre:") }.getOrNull(slot.last().digitToInt() - 1)
+        "spark:because" -> rows.firstOrNull { it.id.startsWith("because:") }
+        "spark:gems" -> rows.firstOrNull { it.id == "gems" }
+        "spark:language" -> rows.firstOrNull { it.id.startsWith("lang:") }
+        else -> null
+    }
 
     private fun build(force: Boolean = false) {
         if (force) job?.cancel() else if (job?.isActive == true) return
@@ -211,6 +242,15 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
 
         // ---- each title's facts (kept for six months; only the titles that say most about you) ----
         val facts = before.facts.filterValues { now - it.fetchedAt < FACTS_MS }.toMutableMap()
+        // #437: titles kept with their full details need no TMDB lookup: Trakt's genres, language and year are used.
+        for (h in history?.titles.orEmpty()) {
+            val d = h.details ?: continue
+            val k = h.tmdb?.let { (if (h.movie) "movie:" else "tv:") + it } ?: h.imdb?.let { imdb[it] } ?: continue
+            if (k in facts) continue
+            val genres = app.ember.tv.spark.SparkNames.traktGenres(d.genres, tv = !h.movie)
+            if (genres.isEmpty() && d.language == null) continue
+            facts[k] = SparkFacts(k, h.name.orEmpty(), genres, h.year, d.language, now)
+        }
         val wanted = (seeds.sortedByDescending { kotlin.math.abs(it.weight) }.take(MAX_FACTS) + seeds.sortedByDescending { it.at }.take(MAX_SEEDS))
             .distinctBy { it.key }.filter { it.key !in facts }
         for (chunk in wanted.chunked(8)) chunk.map { s -> async {

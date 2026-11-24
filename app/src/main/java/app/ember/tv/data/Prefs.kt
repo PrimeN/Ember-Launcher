@@ -431,6 +431,12 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.STREAM_DESC_TEMPLATE)
         set(v) = sp.edit { if (v == null) remove(PreferenceKeys.STREAM_DESC_TEMPLATE.name) else putString(PreferenceKeys.STREAM_DESC_TEMPLATE.name, v) }
 
+    var sparkKeepEverything: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.SPARK_KEEP_EVERYTHING) }.getOrDefault(false)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.SPARK_KEEP_EVERYTHING.name, v) }
+    var sparkAutoRefresh: String
+        get() = runCatching { sp.read(PreferenceKeys.SPARK_AUTO_REFRESH) }.getOrDefault("off").takeIf { it in setOf("off", "daily", "weekly") } ?: "off"
+        set(v) = sp.edit { putString(PreferenceKeys.SPARK_AUTO_REFRESH.name, v) }
     var deviceTuned: Boolean
         get() = runCatching { sp.read(PreferenceKeys.DEVICE_TUNED) }.getOrDefault(false)
         set(v) = sp.edit { putBoolean(PreferenceKeys.DEVICE_TUNED.name, v) }

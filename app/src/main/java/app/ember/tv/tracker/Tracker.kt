@@ -72,7 +72,7 @@ interface Tracker {
      * #436 Spark: every title you watched or rated here, one entry per film or show. Services that
      * sync give their whole history; ones with dates (Trakt) say when each was last watched.
      */
-    suspend fun tasteHistory(): List<HistoryTitle> {
+    suspend fun tasteHistory(full: Boolean = false): List<HistoryTitle> {
         if (!syncs) return emptyList()
         val ratings = runCatching { syncRatings() }.getOrDefault(emptyMap())
         return HistoryTitle.fromSync(syncWatched(), ratings)

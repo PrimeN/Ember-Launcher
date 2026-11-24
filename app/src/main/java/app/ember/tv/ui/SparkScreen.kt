@@ -59,7 +59,7 @@ internal fun SparkScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
 }
 
 @Composable
-private fun SparkHistoryPanel(vm: HomeViewModel) {
+internal fun SparkHistoryPanel(vm: HomeViewModel) {
     val spark = vm.spark
     val sources = androidx.compose.runtime.remember(vm.profiles.profileId) { if (vm.profiles.personalOn) vm.hub.historySources().map { it.name } else emptyList() }
     val got = spark.imported
@@ -67,7 +67,9 @@ private fun SparkHistoryPanel(vm: HomeViewModel) {
         Text(
             if (got != null) "Spark learns from this TV and your history from ${got.sources.joinToString(" and ")}: " +
                 "%,d titles".format(got.titles.size) + (if (got.rated > 0) ", %,d ratings".format(got.rated) else "") +
-                " · brought in ${app.ember.tv.data.DisplayDates.dayMonth(got.at)}"
+                (if (got.detailed > 0) ", full details kept" else "") +
+                " · brought in ${app.ember.tv.data.DisplayDates.dayMonth(got.at)}" +
+                (if (spark.autoRefresh != "off") " · refreshes ${spark.autoRefresh}" else "")
             else if (sources.isNotEmpty()) "Spark learns from what you play on this TV. Bring in your whole ${sources.joinToString(" and ")} history and ratings for better picks right away."
             else "Spark learns from what you play on this TV. Connect Trakt, Simkl or WeTrakr to give it your whole history.",
             color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2,

@@ -176,6 +176,37 @@ object SparkNames {
         10765 to "Sci-fi and fantasy series", 10768 to "Power and politics",
     )
     fun genre(id: Int) = genres[id] ?: "Other"
+
+    /** #437: Trakt's genre names as TMDB genre ids (shows use TMDB's combined TV genres). */
+    fun traktGenres(names: List<String>, tv: Boolean): List<Int> = names.mapNotNull { n ->
+        when (n.lowercase()) {
+            "action" -> if (tv) 10759 else 28
+            "adventure" -> if (tv) 10759 else 12
+            "animation", "anime" -> 16
+            "comedy" -> 35
+            "crime" -> 80
+            "documentary", "biography" -> 99
+            "drama" -> 18
+            "family" -> 10751
+            "children" -> if (tv) 10762 else 10751
+            "fantasy" -> if (tv) 10765 else 14
+            "science-fiction" -> if (tv) 10765 else 878
+            "superhero" -> if (tv) 10759 else 28
+            "history" -> 36
+            "horror" -> 27
+            "music", "musical" -> 10402
+            "mystery", "suspense" -> 9648
+            "romance" -> 10749
+            "thriller" -> if (tv) 9648 else 53
+            "war" -> if (tv) 10768 else 10752
+            "western" -> 37
+            "reality", "game-show" -> 10764
+            "soap" -> 10766
+            "talk-show" -> 10767
+            "news" -> 10763
+            else -> null
+        }
+    }.distinct()
     fun row(id: Int) = rows[id] ?: "More ${genre(id).lowercase()}"
     fun language(code: String): String = java.util.Locale(code).getDisplayLanguage(java.util.Locale.ENGLISH).ifBlank { code }
 }

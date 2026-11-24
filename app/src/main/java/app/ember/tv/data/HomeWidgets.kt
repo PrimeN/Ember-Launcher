@@ -42,6 +42,17 @@ object HomeWidgets {
     val lists = listOf("watchlist" to "Your watchlist", "continue" to "In progress", "recent" to "Recently watched")
     /** A tracker row (Up next, recommendations, your tracker lists…) by its Home key, e.g. "smart:upnext". */
     fun isTrackerList(id: String?) = id != null && id.startsWith("smart:") && id.length in 7..200
+    /** #437: Spark's rows, by place: the row's own name (it follows your taste) shows on Home. */
+    val sparkLists = listOf(
+        "spark:top" to "Spark · Top picks for you",
+        "spark:taste1" to "Spark · Your favourite kind",
+        "spark:taste2" to "Spark · Your second favourite kind",
+        "spark:taste3" to "Spark · Your third favourite kind",
+        "spark:because" to "Spark · Because you watched…",
+        "spark:gems" to "Spark · Hidden gems for you",
+        "spark:language" to "Spark · More in your other language",
+    )
+    fun isSparkList(id: String?) = sparkLists.any { it.first == id }
 
     /** Things on this TV rather than titles: [CollectionSource.catalogId] is one of [deviceSources]. */
     const val DEVICE = "device"
@@ -116,7 +127,7 @@ object HomeWidgets {
     fun sourceError(source: CollectionSource): String? = when {
         source.provider !in setOf("addon", "ember", "trakt", "tmdb", LIST, MDBLIST, DEVICE) -> "Choose a source."
         source.provider == DEVICE && deviceSources.none { it.first == source.catalogId } -> "Choose what to show from this TV."
-        source.provider == LIST && lists.none { it.first == source.catalogId } && !isTrackerList(source.catalogId) -> "Choose one of your lists."
+        source.provider == LIST && lists.none { it.first == source.catalogId } && !isTrackerList(source.catalogId) && !isSparkList(source.catalogId) -> "Choose one of your lists."
         source.provider == MDBLIST && source.catalogId?.let { mdbPath.matches(it) } != true -> "Enter an MDBList list link, user/list-name or number."
         source.provider == "addon" && source.catalogId.isNullOrBlank() -> "Choose a catalog."
         source.provider == "trakt" && source.traktListId == null -> "Enter a Trakt list link or number."

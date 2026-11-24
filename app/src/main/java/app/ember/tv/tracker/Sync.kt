@@ -4,6 +4,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -352,6 +353,8 @@ data class HistoryTitle(
     /** 1–10, when you rated it. */
     val rating: Int? = null,
     val watched: Boolean = true,
+    /** #437 "Keep everything": the service's own details of the title, when asked for. */
+    val details: TitleDetails? = null,
 ) {
     companion object {
         /** Episodes grouped by show; ratings of films and shows attached (and rated-only titles kept). */
@@ -369,6 +372,39 @@ data class HistoryTitle(
                 out[k] = out[k]?.copy(rating = value) ?: HistoryTitle(r.movie, r.imdb, r.tmdb, rating = value, watched = false, plays = 0)
             }
             return out.values.toList()
+        }
+    }
+}
+
+/** #437: what a tracker knows about a title (Trakt's full details), kept when "Keep everything" is on. */
+@kotlinx.serialization.Serializable
+data class TitleDetails(
+    val overview: String? = null,
+    /** The service's genre names, e.g. "science-fiction". */
+    val genres: List<String> = emptyList(),
+    val runtime: Int? = null,
+    val certification: String? = null,
+    val language: String? = null,
+    val country: String? = null,
+    val score: Double? = null,
+    val votes: Int? = null,
+    val status: String? = null,
+    val network: String? = null,
+    val airedEpisodes: Int? = null,
+    val released: String? = null,
+    val tagline: String? = null,
+    val trailer: String? = null,
+    val homepage: String? = null,
+) {
+    companion object {
+        /** From a Trakt movie or show object read with extended=full. */
+        fun trakt(o: kotlinx.serialization.json.JsonElement?): TitleDetails? {
+            if (o == null) return null
+            val genres = o.arr("genres").list().mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+            val d = TitleDetails(o.str("overview"), genres, o.int("runtime"), o.str("certification"), o.str("language"), o.str("country"),
+                o.dbl("rating"), o.int("votes"), o.str("status"), o.str("network"), o.int("aired_episodes"),
+                o.str("released") ?: o.str("first_aired")?.take(10), o.str("tagline"), o.str("trailer"), o.str("homepage"))
+            return d.takeIf { it.overview != null || it.genres.isNotEmpty() || it.language != null }
         }
     }
 }

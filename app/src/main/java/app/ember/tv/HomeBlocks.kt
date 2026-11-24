@@ -195,7 +195,10 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
                     widgets.list.firstOrNull { HomeWidgets.section(it.id) == id }?.let { w ->
                         if (w.source.provider == HomeWidgets.DEVICE) { deviceBlock(id, w)?.let(::add); return@let }
                         val items = widgetItems(w).let { list -> if (look.watchedOnHome == "hide") list.filterNot(::isWatched) else list }
-                        if (items.isNotEmpty()) add(HomeViewModel.HomeBlock.Row(id, CatalogRow("", w.title, items, catalogKey = id), widget = w))
+                        // #437: a Spark row keeps Spark's own, current name unless you renamed the widget.
+                        val spark = w.source.catalogId?.takeIf { w.source.provider == HomeWidgets.LIST && HomeWidgets.isSparkList(it) }
+                        val title = spark?.let { s -> this@buildHomeBlocks.spark.rowFor(s)?.title?.takeIf { w.title.isBlank() || HomeWidgets.sparkLists.any { it.second == w.title } } } ?: w.title
+                        if (items.isNotEmpty()) add(HomeViewModel.HomeBlock.Row(id, CatalogRow(if (spark != null) "Spark" else "", title, items, catalogKey = id), widget = w))
                         else if (w.id in widgets.loading && count { it is HomeViewModel.HomeBlock.Loading } < 3) add(HomeViewModel.HomeBlock.Loading(id, w.title, w))
                         else widgets.errors[w.id]?.let { add(HomeViewModel.HomeBlock.Notice(id, w.title, it)) }
                     }

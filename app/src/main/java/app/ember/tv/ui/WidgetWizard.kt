@@ -310,7 +310,7 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
     when (panel) {
         WidgetSteps.LISTS -> {
             Text(stringResource(R.string.tx_choose_a_list), color = Mute, fontSize = 13.sp)
-            ButtonRow { vm.widgetLists().take(18).forEach { (id, label) ->
+            ButtonRow { vm.widgetLists().take(30).forEach { (id, label) ->
                 Chip(label, draft.source.provider == HomeWidgets.LIST && draft.source.catalogId == id, maxLines = 1) {
                     onChoose(CollectionSource(provider = HomeWidgets.LIST, catalogId = id, title = label), label)
                 }

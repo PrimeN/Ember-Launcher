@@ -81,3 +81,26 @@ class SparkHistoryTest {
         assertEquals(false, h.first { it.tmdb == 3L }.watched)
     }
 }
+
+/** #437 keeping everything, and Spark rows as Home widgets. */
+class SparkKeepAndWidgetsTest {
+    @Test fun traktGenresBecomeTmdbIds() {
+        assertEquals(listOf(878, 53), SparkNames.traktGenres(listOf("science-fiction", "thriller", "indie"), tv = false))
+        assertEquals(listOf(10765, 9648), SparkNames.traktGenres(listOf("science-fiction", "thriller", "mystery"), tv = true))
+    }
+
+    @Test fun traktFullDetailsAreRead() {
+        val o = kotlinx.serialization.json.Json.parseToJsonElement("""{"title":"Arrival","year":2016,"overview":"Linguist.","genres":["drama","science-fiction"],
+            "runtime":116,"certification":"PG-13","language":"en","country":"us","rating":7.8,"votes":40000,"released":"2016-11-11"}""")
+        val d = app.ember.tv.tracker.TitleDetails.trakt(o)!!
+        assertEquals(listOf("drama", "science-fiction"), d.genres)
+        assertEquals(116, d.runtime); assertEquals("en", d.language); assertEquals(7.8, d.score!!, 0.001)
+        assertEquals(null, app.ember.tv.tracker.TitleDetails.trakt(kotlinx.serialization.json.Json.parseToJsonElement("""{"title":"X"}""")))
+    }
+
+    @Test fun sparkListsAreValidWidgetSources() {
+        val ok = app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.LIST, catalogId = "spark:taste2")
+        assertEquals(null, app.ember.tv.data.HomeWidgets.sourceError(ok))
+        assertTrue(app.ember.tv.data.HomeWidgets.sparkLists.size == 7)
+    }
+}

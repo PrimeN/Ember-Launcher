@@ -328,10 +328,12 @@ class TraktTracker(context: Context) : TraktLikeTracker(
     }
 
     /** #436: your whole Trakt history with names, years, play counts and when each was last watched, plus your ratings. */
-    override suspend fun tasteHistory(): List<HistoryTitle> = coroutineScope {
-        val movies = async { authedGet("sync/watched/movies").list() }
-        val shows = async { authedGet("sync/watched/shows?extended=noseasons").list() }
-        val rated = async { authedGet("sync/ratings/movies").list() + authedGet("sync/ratings/shows").list() }
+    override suspend fun tasteHistory(full: Boolean): List<HistoryTitle> = coroutineScope {
+        // #437: "Keep everything" asks for Trakt's full details of each title too.
+        val more = if (full) "?extended=full" else ""
+        val movies = async { authedGet("sync/watched/movies$more").list() }
+        val shows = async { authedGet("sync/watched/shows?extended=noseasons" + if (full) ",full" else "").list() }
+        val rated = async { authedGet("sync/ratings/movies$more").list() + authedGet("sync/ratings/shows$more").list() }
         fun at(s: String?) = s?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() }
         val out = LinkedHashMap<String, HistoryTitle>()
         fun key(movie: Boolean, o: JsonElement?) = (if (movie) "m:" else "s:") + (o.obj("ids").long("trakt") ?: o.obj("ids").str("imdb"))
@@ -339,7 +341,7 @@ class TraktTracker(context: Context) : TraktLikeTracker(
             val o = row.obj(if (movie) "movie" else "show")
             val ids = o.obj("ids")
             out[key(movie, o)] = HistoryTitle(movie, ids.str("imdb"), ids.long("tmdb"), o.str("title"), o.int("year"),
-                (row.int("plays") ?: 1).coerceAtLeast(1), at(row.str("last_watched_at")))
+                (row.int("plays") ?: 1).coerceAtLeast(1), at(row.str("last_watched_at")), details = if (full) TitleDetails.trakt(o) else null)
         }
         for (row in rated.await()) {
             val movie = row.str("type") == "movie"
@@ -348,7 +350,7 @@ class TraktTracker(context: Context) : TraktLikeTracker(
             val ids = o.obj("ids")
             val k = key(movie, o)
             out[k] = out[k]?.copy(rating = row.int("rating")) ?: HistoryTitle(movie, ids.str("imdb"), ids.long("tmdb"), o.str("title"), o.int("year"),
-                plays = 0, lastAt = at(row.str("rated_at")), rating = row.int("rating"), watched = false)
+                plays = 0, lastAt = at(row.str("rated_at")), rating = row.int("rating"), watched = false, details = if (full) TitleDetails.trakt(o) else null)
         }
         out.values.toList()
     }
