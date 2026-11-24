@@ -425,6 +425,13 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.STREAM_DESC_TEMPLATE)
         set(v) = sp.edit { if (v == null) remove(PreferenceKeys.STREAM_DESC_TEMPLATE.name) else putString(PreferenceKeys.STREAM_DESC_TEMPLATE.name, v) }
 
+    var skipDeadLinks: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.SKIP_DEAD_LINKS) }.getOrDefault(true)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.SKIP_DEAD_LINKS.name, v) }
+    var earlySources: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.EARLY_SOURCES) }.getOrDefault(true)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.EARLY_SOURCES.name, v) }
+
     /** Play the next episode when one ends. */
     var autoplay: Boolean
         get() = sp.read(PreferenceKeys.AUTOPLAY)

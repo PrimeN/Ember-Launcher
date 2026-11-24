@@ -25,6 +25,10 @@ internal object PreferenceKeys {
     val ARTWORK_QUALITY = PreferenceKey<String?>("artworkQuality", PreferenceType.STRING, "balanced")
     val ASK_PROFILE = PreferenceKey<Boolean>("askProfile", PreferenceType.BOOLEAN, false)
     val AUTOPLAY = PreferenceKey<Boolean>("autoplay", PreferenceType.BOOLEAN, true)
+    /** #428: a source that fails before it plays is followed by the next ready one. */
+    val SKIP_DEAD_LINKS = PreferenceKey<Boolean>("skipDeadLinks", PreferenceType.BOOLEAN, true)
+    /** #429: sources for the Continue watching title in focus are looked up before it's opened. */
+    val EARLY_SOURCES = PreferenceKey<Boolean>("earlySources", PreferenceType.BOOLEAN, true)
     val BACKGROUND_REFRESH = PreferenceKey<Boolean>("backgroundRefresh", PreferenceType.BOOLEAN, true)
     val BADGE_MODE = PreferenceKey<String?>("badgeMode", PreferenceType.STRING, "legacy")
     val DETAILED_BADGE_CATEGORIES_OFF = PreferenceKey<Set<String>>("detailedBadgeCategoriesOff", PreferenceType.SET, emptySet())
@@ -164,7 +168,7 @@ internal object PreferenceKeys {
     val all = listOf(
         ACCENT, ACCENT2, ACCENT3, ADDON_NAMES, ADDON_TIMEOUT, ADDONS,
         AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, TITLE_FOCUS_COLOURS, EPISODES_LEFT, WATCHED_ON_HOME, APP_ICONS, ROW_ADDON_LABELS, PLAY_BUTTON_RESTORED, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
-        AUTOPLAY, BACKGROUND_REFRESH, BADGE_MODE, BLUR_UNWATCHED_EPISODES, CACHE_CONFIG, CARD_FOCUS_STYLE, TILE_LABELS_OFF, CATALOG_DISCOVER_OFF,
+        AUTOPLAY, SKIP_DEAD_LINKS, EARLY_SOURCES, BACKGROUND_REFRESH, BADGE_MODE, BLUR_UNWATCHED_EPISODES, CACHE_CONFIG, CARD_FOCUS_STYLE, TILE_LABELS_OFF, CATALOG_DISCOVER_OFF,
         CATALOG_HOME, CATALOG_HOME_DEFAULTS_OFF, CATALOG_LIVE, CATALOG_NAMES, CATALOG_ORDER, CATALOGS_ON_HOME_FIXED,
         COLLECTION_AUTO_PAGE, COLLECTION_FOCUS_BACKGROUND, COLLECTION_FOLDERS_OFF, COLLECTION_HERO_PREVIEWS, COLLECTIONS_DISCOVER, COLLECTIONS_OFF,
         CONTENT_DENSITY, COUNTDOWN, CURRENT_PROFILE, CUSTOM_PERFORMANCE, DETAILED_BADGE_CATEGORIES_OFF, DETAILED_BADGE_ORDER, BADGES_OFF, DEVICE_PERFORMANCE, DISCOVER_SECTIONS,

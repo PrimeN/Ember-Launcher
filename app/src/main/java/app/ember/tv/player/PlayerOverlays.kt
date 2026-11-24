@@ -176,7 +176,24 @@ internal fun PlayerActivity.matchDisplayMode(p: ExoPlayer) {
     modeApplied = true
     val display = if (android.os.Build.VERSION.SDK_INT >= 30) display else @Suppress("DEPRECATION") windowManager.defaultDisplay
     display ?: return
-    Playback.applyMode(this, Playback.modeFor(display, f.frameRate, f.width, f.height, config.matchResolution && !seamless, seamless))
+    if (Playback.applyMode(this, Playback.modeFor(display, f.frameRate, f.width, f.height, config.matchResolution && !seamless, seamless))) holdForDisplaySwitch(p)
+}
+
+/** #427: holds playback while the TV switches mode and its HDMI sound link comes back, then plays from where it was. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.holdForDisplaySwitch(p: ExoPlayer) {
+    if (!p.playWhenReady) return
+    val at = android.os.SystemClock.elapsedRealtime()
+    val started = resumed
+    val position = p.currentPosition
+    p.playWhenReady = false
+    displaySettle?.cancel()
+    displaySettle = lifecycleScope.launch {
+        DisplaySettle.await(this@holdForDisplaySwitch, at)
+        if (isFinishing) return@launch
+        if (started) p.seekTo(position)
+        p.playWhenReady = true
+    }
 }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])

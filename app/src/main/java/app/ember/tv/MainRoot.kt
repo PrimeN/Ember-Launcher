@@ -440,6 +440,12 @@ private fun RootContent(
         var ambient by remember(vm.profiles.profile) { mutableStateOf<Meta?>(null) }
         var presentedHero by remember(vm.profiles.profile) { mutableStateOf<Meta?>(null) }
         var pendingAmbient by remember(vm.profiles.profile) { mutableStateOf<Meta?>(null) }
+        // #429: a Continue watching card you stay on has its sources looked up before you open it.
+        LaunchedEffect(pendingAmbient) {
+            val m = pendingAmbient ?: return@LaunchedEffect
+            delay(600)
+            if (vm.isContinueItem(m)) vm.warmSources(m)
+        }
         LaunchedEffect(pendingAmbient) {
             if (pendingAmbient != null) delay(180)
             ambient = pendingAmbient

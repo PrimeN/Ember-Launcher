@@ -123,6 +123,7 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     codecs.preferSoftware=false
     audioPicked = false
     modeApplied = false
+    displaySettle?.cancel(); displaySettle = null
     dropped = 0
     loadSpeed = 0
     recoveries = 0

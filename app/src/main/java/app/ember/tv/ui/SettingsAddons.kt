@@ -175,6 +175,8 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
                             modifier = Modifier.background(ink.copy(alpha = .16f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp))
                         else if (warning) Text(if (info?.configurationRequired == true) "Needs setting up" else "Adult", fontSize = TvTokens.Type.Caption.sp, maxLines = 1,
                             color = Color(0xFFFFB4AB))
+                        // #430: how its recent source lookups went.
+                        if (on) app.ember.tv.data.AddonHealth.of(url)?.let { h -> AddonHealthChip(h) }
                     }
                     if (has.isNotBlank()) Text(has, fontSize = 13.sp, color = ink.copy(alpha = .78f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(does, fontSize = TvTokens.Type.Caption.sp, color = ink.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -634,4 +636,19 @@ internal fun catalogLockReason(c: app.ember.tv.data.CatalogDef, place: String): 
     c.searchOnly -> "${c.label} only answers searches, so it can't be on $place. Search uses it."
     place == "Discover" -> "${c.label} needs a choice Ember can't make for it, so it can't be in Discover."
     else -> "${c.label} needs a genre or another choice before it loads, so it can't be a $place row. Use it in Discover, a collection or the hero."
+}
+
+/** #430: OK, Slow or Down, from the addon's recent source lookups. */
+@Composable
+internal fun AddonHealthChip(level: app.ember.tv.data.AddonHealth.Level) {
+    val colour = when (level) {
+        app.ember.tv.data.AddonHealth.Level.OK -> Color(0xFF7FD48A)
+        app.ember.tv.data.AddonHealth.Level.SLOW -> Color(0xFFFFC66B)
+        app.ember.tv.data.AddonHealth.Level.DOWN -> Color(0xFFFF8A80)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier.background(colour.copy(alpha = .16f), RoundedCornerShape(TvTokens.Shape.Small.dp)).padding(horizontal = 7.dp, vertical = 1.dp)) {
+        Box(Modifier.size(7.dp).background(colour, androidx.compose.foundation.shape.CircleShape))
+        Text(level.label, fontSize = TvTokens.Type.Caption.sp, color = colour, maxLines = 1)
+    }
 }

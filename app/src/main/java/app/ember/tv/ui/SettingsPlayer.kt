@@ -446,6 +446,12 @@ internal fun PlayButtonPage(vm: HomeViewModel) {
         Section(stringResource(R.string.ui_play_button), stringResource(R.string.ui_one_press_plays_the_best_source)) {
             ToggleRow(stringResource(R.string.ui_show_the_play_button), stringResource(R.string.ui_on_title_screens_above_the_sources), r.enabled) { vm.playerSettings.updatePlayRules { it.copy(enabled = !it.enabled) } }
         }
+        Section("Sources", "Finding and starting a source.") {
+            // #428
+            ToggleRow("Skip dead links", "When a source fails before it plays, the next ready source plays instead.", vm.playing.skipDeadLinks) { vm.playing.updateSkipDeadLinks(!vm.playing.skipDeadLinks) }
+            // #429
+            ToggleRow("Find sources early", "Looks up sources for the Continue watching title you're on, so they're ready when you open it.", vm.playing.earlySources) { vm.playing.updateEarlySources(!vm.playing.earlySources) }
+        }
         if (r.enabled) {
             Section(stringResource(R.string.ui_highest_picture), stringResource(R.string.ui_pick_no_higher_than_your_screen)) {
                 Choice(listOf("4K" to "4K", "FHD" to "1080p", "HD" to "720p"), r.maxQuality) { q -> vm.playerSettings.updatePlayRules { it.copy(maxQuality = q) } }

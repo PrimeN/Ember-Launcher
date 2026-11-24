@@ -194,6 +194,8 @@ class MainActivity : ComponentActivity() {
             vm.profiles.askProfileIfWanted()
         }
         vm.onLauncherResume()
+        // #428: a source that failed before it played is followed by the next ready one.
+        vm.nextAfterDeadLink()?.let { playWith(it, Prefs.PLAYER_BUILTIN) }
         offerReturn()
     }
 

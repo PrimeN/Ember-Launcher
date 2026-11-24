@@ -28,6 +28,7 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         app.ember.tv.ui.IconArtworkCache.init(this)
         ApiKeys.init(this)
         app.ember.tv.data.SourceFreshness.init(this)
+        app.ember.tv.data.AddonHealth.init(this)
         // The app icon follows the accent colour (also after a restore).
         app.ember.tv.data.AppIcon.init(this)
         // Queue the saved library read; disk IO/migration stays off the startup thread.

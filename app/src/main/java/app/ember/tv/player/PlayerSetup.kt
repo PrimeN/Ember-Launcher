@@ -440,6 +440,15 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
             if (recover(error)) return
             if(playbackEngine?.recover(error)==true)return
             if (serverPlayback != null) { showServerRecovery(); return }
+            // #428: a link that fails before it plays: the title page plays the next ready source.
+            val original = intent?.getStringExtra(PlayRequest.EXTRA_URL)
+            if (!resumed && !trailer && original != null && fileQueue == null && prefs.skipDeadLinks &&
+                PlaybackFailureClassifier.deadLink(PlaybackFailureClassifier.classify(error))) {
+                app.ember.tv.data.DeadLinks.report(resumeKey, original, startOver)
+                Toast.makeText(this@createPlayer, "This source didn't work. Trying the next one…", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
             // The underlying cause, e.g. "FfmpegDecoderException: ..." or "EOFException".
             val cause = generateSequence(error.cause) { it.cause }.lastOrNull()?.let { c ->
                 (c.javaClass.simpleName + (c.message?.let { ": " + app.ember.tv.data.CrashLog.redact(it).take(80) } ?: ""))

@@ -246,6 +246,8 @@ class PlayerActivity : ComponentActivity() {
     internal lateinit var config: PlaybackConfig
     internal var audioPicked = false
     internal var modeApplied = false
+    /** #427: the wait after a display mode switch. */
+    internal var displaySettle: kotlinx.coroutines.Job? = null
     internal var videoDecoder: String? = null
     internal var decoderLearned=false
     internal var audioDecoder: String? = null

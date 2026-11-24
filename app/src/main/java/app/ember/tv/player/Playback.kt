@@ -446,11 +446,14 @@ object Playback {
         return best.takeIf { it.modeId != current.modeId }
     }
 
-    fun applyMode(activity: Activity, mode: Display.Mode?) {
-        mode ?: return
+    /** True when a different mode was asked for. */
+    fun applyMode(activity: Activity, mode: Display.Mode?): Boolean {
+        mode ?: return false
         val lp = activity.window.attributes
+        if (lp.preferredDisplayModeId == mode.modeId) return false
         lp.preferredDisplayModeId = mode.modeId
         activity.window.attributes = lp
+        return true
     }
 
     // ---- info panel ----

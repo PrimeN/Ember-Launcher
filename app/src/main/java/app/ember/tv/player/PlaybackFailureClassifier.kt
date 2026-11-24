@@ -50,6 +50,12 @@ internal object PlaybackFailureClassifier {
         return name?.let { format to it }
     }
 
+    /** #428: the link itself is bad (gone, refused, unreachable or not a video), not this TV's decoding. */
+    fun deadLink(failure: PlaybackFailure): Boolean = failure in setOf(
+        PlaybackFailure.NETWORK, PlaybackFailure.AUTHENTICATION, PlaybackFailure.SOURCE_MISSING,
+        PlaybackFailure.SOURCE_ACCESS, PlaybackFailure.HTTP_REJECTED, PlaybackFailure.EXTRACTOR,
+    )
+
     /** #414: a reclaimed decoder whose one retry was already used is handled as a decoder failure, as before. */
     fun asDecoderFailure(failure: PlaybackFailure, mime: String?): PlaybackFailure =
         if (failure != PlaybackFailure.DECODER_RECLAIMED) failure

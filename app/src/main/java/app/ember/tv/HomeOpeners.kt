@@ -253,3 +253,28 @@ internal fun HomeViewModel.openHomeShortcut(value:app.ember.tv.data.HomeShortcut
     }
     return null
 }
+
+/** #428: after a source failed before it played, the next ready source for the same title or episode. */
+internal fun HomeViewModel.nextAfterDeadLink(): PlayRequest? {
+    val report = app.ember.tv.data.DeadLinks.take() ?: return null
+    if (!playing.skipDeadLinks) return null
+    val d = details ?: return null
+    if (d.meta.playbackKey(d.episode) != report.resumeKey || d.streams.none { it.url == report.url }) return null
+    val s = app.ember.tv.data.DeadLinks.next(d.streams, report.url, app.ember.tv.data.DeadLinks.deadFor(report.resumeKey), playerSettings.playRules)
+    if (s == null) { showNotice("That source didn't work, and there's no other ready source to try."); return null }
+    val req = playRequest(s) ?: return null
+    showNotice("That source didn't work. Playing the next one: ${s.addonName} · ${s.qualityLabel}.")
+    return req.copy(startOver = report.startOver, resumeDecided = true)
+}
+
+/** #429: looks up sources for a Continue watching title before it's opened. */
+internal fun HomeViewModel.warmSources(meta: Meta) {
+    if (!playing.earlySources || addons.isEmpty() || !contentAllowed(meta) || meta.serverRef != null) return
+    val (type, id) = app.ember.tv.data.SourceWarmup.target(meta) ?: return
+    viewModelScope.launch {
+        val infos = runCatching { loadAddonInfos() }.getOrNull() ?: return@launch
+        app.ember.tv.data.SourceWarmup.warm(client, infos, type, id, addonTimeout * 2000L) { addon, r, ms ->
+            app.ember.tv.data.AddonHealth.record(addon.url, app.ember.tv.data.AddonHealth.outcome(r), ms)
+        }
+    }
+}

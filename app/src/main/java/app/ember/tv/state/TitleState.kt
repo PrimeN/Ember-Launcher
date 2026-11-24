@@ -520,7 +520,13 @@ class TitleState(
             }
             coroutineScope {
                 streamAddons.forEach { addon -> launch {
-                    val both = kotlinx.coroutines.withTimeoutOrNull(limit) { runCatching { client.sources(addon, type, id) } }
+                    // #429: a lookup made before the title was opened is taken instead of asking again.
+                    val started = System.currentTimeMillis()
+                    val warm = app.ember.tv.data.SourceWarmup.lookup(type, id, addon.url)?.let { d ->
+                        kotlinx.coroutines.withTimeoutOrNull(limit) { runCatching { d.await() }.getOrNull() }?.takeIf { it.isSuccess }
+                    }
+                    val both = warm ?: kotlinx.coroutines.withTimeoutOrNull(limit) { runCatching { client.sources(addon, type, id) } }
+                        .also { r -> app.ember.tv.data.AddonHealth.record(addon.url, app.ember.tv.data.AddonHealth.outcome(r), System.currentTimeMillis() - started) }
                     val result = both?.map { it.first }
                     ensureActive()
                     if (details?.meta?.id != forTitle || details?.episode?.id != forEpisode) return@launch

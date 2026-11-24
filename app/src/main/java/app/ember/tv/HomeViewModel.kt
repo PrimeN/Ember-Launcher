@@ -428,6 +428,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             androidx.compose.runtime.snapshotFlow { inProgressItems.filter { it.season != null && it.episode != null } to look.episodesLeft }
                 .collectLatest { (items, on) -> if (on) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { EpisodesLeft.load(items) } }
         }
+        // #429: the front Continue watching title's sources, once Home has settled.
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow { inProgressItems.firstOrNull() }
+                .collectLatest { first -> if (first != null) { delay(2_000); warmSources(first) } }
+        }
     }
 
     internal var appsJob: Job? = null
