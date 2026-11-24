@@ -14,6 +14,16 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "1.3.0", "Set up for your TV",
+            listOf(
+                "On first start Ember sets the buffer and frame-rate matching for your box and screen, and \"Set up for this TV\" in Player settings does it again any time.",
+                "A file much shorter or longer than the title stops and asks, catching samples, trailers, fakes and wrong episodes.",
+                "Optional poster ribbons (New, age rating, movie or series, genre, year, running time), drawn by Ember with no key or service needed.",
+                "A notifications bell with a count beside the settings buttons in quick settings.",
+                "Live TV: press Left while watching for a channel guide over the video, with what's on now and next.",
+            ),
+        ),
+        Release(
             "1.2.0", "Better sound, smarter sources",
             listOf(
                 "Surround stays surround: formats your receiver can't take are decoded to 5.1 or 7.1, a soundbar mode for TVs with a soundbar on ARC, and a format whose passthrough keeps failing is decoded instead of going silent.",
