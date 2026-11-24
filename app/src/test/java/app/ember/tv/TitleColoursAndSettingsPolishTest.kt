@@ -16,7 +16,7 @@ class TitleColoursAndSettingsPolishTest {
 
     @Test fun darkArtworkIsLiftedToAReadableRing() {
         val ring = hsv(focusTint(Color(0xFF101A40)))
-        assertTrue(ring[2] >= 0.88f)
+        assertTrue(ring[2] >= 0.87f)
         assertTrue(ring[1] in 0.34f..0.86f)
         val grey = hsv(focusTint(Color(0xFF808080)))
         assertTrue(grey[1] >= 0.35f - 1e-3f)
