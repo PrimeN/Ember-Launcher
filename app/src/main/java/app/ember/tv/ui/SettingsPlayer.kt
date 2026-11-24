@@ -53,6 +53,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import app.ember.tv.screensaver.Photos
 import app.ember.tv.screensaver.ScreensaverFeed
 import app.ember.tv.HomeViewModel
+import app.ember.tv.tuneForThisTv
 import app.ember.tv.data.CatalogDef
 import androidx.compose.ui.platform.testTag
 import app.ember.tv.data.NavTabs
