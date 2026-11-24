@@ -22,6 +22,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.withStarted
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.DecoderReuseEvaluation
@@ -128,8 +129,17 @@ internal fun PlayerActivity.describe(f: androidx.media3.common.Format?) = Playba
  */
 internal fun PlayerActivity.recover(e: PlaybackException): Boolean {
     if(playbackEngine?.compatibility!=null)return false
-    val failure = PlaybackFailureClassifier.classify(e)
+    val classified = PlaybackFailureClassifier.classify(e)
     val p = player ?: return false
+    val now = android.os.SystemClock.elapsedRealtime()
+    if (classified == PlaybackFailure.DECODER_RECLAIMED && (reclaimRetryAt == 0L || now - reclaimRetryAt > RECLAIM_RETRY_WINDOW_MS)) {
+        retryReclaimedDecoder(p)
+        reclaimRetryAt = now
+        return true
+    }
+    // The retry did not hold: from here it is a decoder failure, as before.
+    val failure = PlaybackFailureClassifier.asDecoderFailure(classified,
+        (e as? androidx.media3.exoplayer.ExoPlaybackException)?.rendererFormat?.sampleMimeType)
     if (failure == PlaybackFailure.NETWORK && ioRetries < 2) {
         ioRetries++
         lastRetryAt = android.os.SystemClock.elapsedRealtime()
@@ -195,4 +205,31 @@ internal fun PlayerActivity.useFfmpegVideo(p: ExoPlayer) {
 internal fun PlayerActivity.cancelRecovery() {
     pendingRecovery?.let(handler::removeCallbacks)
     pendingRecovery = null
+    reclaimRetryJob?.cancel()
+    reclaimRetryJob = null
 }
+
+/**
+ * #414: another app or picture-in-picture took the hardware decoder. Nothing is forgotten or
+ * switched: once the player is on screen again, the same decoder is opened again at the same place.
+ */
+internal fun PlayerActivity.retryReclaimedDecoder(p: androidx.media3.exoplayer.ExoPlayer) {
+    val at = p.currentPosition
+    val visit = playbackVisit
+    val media = p.currentMediaItem
+    val key = resumeKey
+    cancelRecovery()
+    reclaimRetryJob = lifecycleScope.launch {
+        lifecycle.withStarted {}
+        kotlinx.coroutines.delay(RECLAIM_RETRY_DELAY_MS)
+        if (player === p && playbackVisit == visit && resumeKey == key && p.currentMediaItem == media) {
+            p.seekTo(at)
+            // prepare keeps playWhenReady, so a pause stays a pause.
+            p.prepare()
+        }
+        reclaimRetryJob = null
+    }
+}
+
+internal const val RECLAIM_RETRY_WINDOW_MS = 60_000L
+private const val RECLAIM_RETRY_DELAY_MS = 300L

@@ -40,6 +40,21 @@ class PlayerPortNovemberTest {
         assertFalse(SubtitleStyleProbe.routeToMpv(true, true, false, true, sdr, ac4))
     }
 
+    /** #414: a decoder another app took is not broken: no decoder or engine change, and its memory is kept. */
+    @Test fun reclaimedDecoderIsRetriedNotReplaced() {
+        val PF = app.ember.tv.player.PlaybackFailureClassifier
+        val failure = PF.classify(androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED, MimeTypes.VIDEO_H265)
+        assertEquals(app.ember.tv.player.PlaybackFailure.DECODER_RECLAIMED, failure)
+        assertFalse(failure.changesDecoder)
+        assertFalse(failure.changesCore)
+        assertEquals(app.ember.tv.player.PlaybackFailure.VIDEO_DECODER_RUNTIME, PF.asDecoderFailure(failure, MimeTypes.VIDEO_H265))
+        assertEquals(app.ember.tv.player.PlaybackFailure.AUDIO_DECODER, PF.asDecoderFailure(failure, MimeTypes.AUDIO_E_AC3))
+        assertEquals(app.ember.tv.player.PlaybackFailure.VIDEO_DECODER_RUNTIME,
+            PF.classify(androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED, MimeTypes.VIDEO_H265))
+        val error = androidx.media3.common.PlaybackException("x", null, androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED)
+        assertNull(PF.failedVideoDecoder(error))
+    }
+
     @Test fun qualityIsMeasuredInACleanWindow() {
         assertTrue(PlaybackQuality(1000, 20).learnable(video = true))
         assertFalse(PlaybackQuality(1000, 40).learnable(video = true))

@@ -539,6 +539,9 @@ class PlayerActivity : ComponentActivity() {
     internal var recoveries = 0
     /** Network hiccups (a dropped connection, a link that stalls) are retried a couple of times. */
     internal var ioRetries = 0
+    /** #414: when the same hardware decoder was last retried after another app took it (one retry per minute). */
+    internal var reclaimRetryAt = 0L
+    internal var reclaimRetryJob: kotlinx.coroutines.Job? = null
 
     // ---- sound timing and skip intro ----
     internal val audioDelay = Playback.AudioDelay()

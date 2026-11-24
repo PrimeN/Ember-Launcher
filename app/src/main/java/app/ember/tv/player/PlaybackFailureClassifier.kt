@@ -13,7 +13,10 @@ internal enum class PlaybackFailure(val changesDecoder: Boolean = false, val cha
     AUDIO_OUTPUT, UNSUPPORTED_FORMAT(true, true), EXTRACTOR(changesCore = true),
     NETWORK, AUTHENTICATION, SOURCE_MISSING, SOURCE_ACCESS, HTTP_REJECTED, DRM, GPU_RENDERER,
     /** A renderer stopped on an unexpected error: the other engine has its own pipeline (#385). */
-    RUNTIME(changesCore = true), UNKNOWN,
+    RUNTIME(changesCore = true),
+    /** #414: another app (or picture-in-picture) took the hardware decoder; it is not broken, so the same one is tried again. */
+    DECODER_RECLAIMED,
+    UNKNOWN,
 }
 
 /** Classify codes and typed causes only. Error messages can contain private stream addresses. */
@@ -47,13 +50,19 @@ internal object PlaybackFailureClassifier {
         return name?.let { format to it }
     }
 
+    /** #414: a reclaimed decoder whose one retry was already used is handled as a decoder failure, as before. */
+    fun asDecoderFailure(failure: PlaybackFailure, mime: String?): PlaybackFailure =
+        if (failure != PlaybackFailure.DECODER_RECLAIMED) failure
+        else if (MimeTypes.isAudio(mime)) PlaybackFailure.AUDIO_DECODER else PlaybackFailure.VIDEO_DECODER_RUNTIME
+
     private fun causes(error: Throwable): Sequence<Throwable> =
         generateSequence(error) { it.cause }.take(16)
 
     fun classify(code: Int, mime: String? = null): PlaybackFailure = when (code) {
         PlaybackException.ERROR_CODE_DECODER_INIT_FAILED, PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED ->
             if (MimeTypes.isAudio(mime)) PlaybackFailure.AUDIO_DECODER else PlaybackFailure.VIDEO_DECODER_INIT
-        PlaybackException.ERROR_CODE_DECODING_FAILED, PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED ->
+        PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED -> PlaybackFailure.DECODER_RECLAIMED
+        PlaybackException.ERROR_CODE_DECODING_FAILED ->
             if (MimeTypes.isAudio(mime)) PlaybackFailure.AUDIO_DECODER else PlaybackFailure.VIDEO_DECODER_RUNTIME
         PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED, PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES -> PlaybackFailure.UNSUPPORTED_FORMAT
         PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,

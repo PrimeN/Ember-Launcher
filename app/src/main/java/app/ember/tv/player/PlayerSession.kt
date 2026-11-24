@@ -118,6 +118,7 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     loadSpeed = 0
     recoveries = 0
     ioRetries = 0
+    reclaimRetryAt = 0L
     p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_AUDIO).build()
     val media = MediaItem.Builder()
         .setUri(url)
