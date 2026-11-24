@@ -13,6 +13,7 @@ internal object SettingsOptionSeed {
         E(SettingsTab.FEATURES, "Features", "Features", "Rotating banner"),
         E(SettingsTab.FEATURES, "Features", "Features", "Ad blocking"),
         E(SettingsTab.FEATURES, "Features", "Features", "Cast & crew"),
+        E(SettingsTab.FEATURES, "Features", "Features", "Collection and More like this"),
         E(SettingsTab.FEATURES, "Features", "Features", "Ratings"),
         E(SettingsTab.FEATURES, "Features", "Features", "Refresh in the background"),
         E(SettingsTab.FEATURES, "Off unless you set them up", "Off unless you set them up", "Off unless you set them up"),

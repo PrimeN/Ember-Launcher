@@ -577,6 +577,8 @@ internal fun FeaturesPage(vm: HomeViewModel) {
                 ToggleRow(stringResource(R.string.ui_rotating_banner), stringResource(R.string.ui_the_large_picture_at_the_top), vm.heroOn) { vm.updateHeroOn(!vm.heroOn) }
                 ToggleRow("Ad blocking", "Blocks ads in every app on the TV with your NextDNS profile (${SettingsTab.KEYS.path}). Needs ${SettingsTab.SYSTEM_ACCESS.path} once.", vm.featureOn(F.AD_BLOCK)) { vm.toggleFeature(F.AD_BLOCK) }
                 ToggleRow(stringResource(R.string.ui_cast_crew), stringResource(R.string.ui_directors_and_cast_on_title_screens), vm.featureOn(F.CAST)) { vm.toggleFeature(F.CAST) }
+                ToggleRow("Collection and More like this", "A film's other parts and similar titles on its page, from TMDB.", vm.featureOn(F.RELATED),
+                    unavailable = if (app.ember.tv.tracker.Tmdb.available) null else "Needs a TMDB key in ${SettingsTab.KEYS.path}.") { vm.toggleFeature(F.RELATED) }
                 ToggleRow(stringResource(R.string.ui_ratings), stringResource(R.string.ui_imdb_trakt_and_other_ratings_on), vm.metadata.ratingsOn) { vm.metadata.updateRatingsOn(!vm.metadata.ratingsOn) }
                 ToggleRow(stringResource(R.string.ui_refresh_in_the_background), stringResource(R.string.ui_every_few_hours_on_the_network), vm.backgroundRefresh) { vm.toggleBackgroundRefresh() }
             }

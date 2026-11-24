@@ -204,6 +204,20 @@ class TitleState(
         }
     }
 
+    /** #419: Collection and More like this, beside the credits; needs a TMDB key. */
+    private fun loadRelated(meta: Meta) {
+        if (!Tmdb.available || !featureOn(app.ember.tv.data.Features.RELATED)) return
+        if (meta.tmdbId == null && meta.imdb == null) return
+        if (meta.type !in setOf("movie", "series", "tv", "show", "anime")) return
+        visit.scope.launch {
+            val related = Tmdb.related(meta.type == "movie", meta.tmdbId, meta.imdb)?.takeUnless { it.empty } ?: return@launch
+            ensureActive()
+            val d = details ?: return@launch
+            if (d.meta.id != meta.id) return@launch
+            details = d.copy(related = related)
+        }
+    }
+
     /** The server file a title was opened from, kept among the sources once addons are asked too. */
     private data class PinnedServer(val season: Int?, val episode: Int?, val streams: List<StreamOption>)
     private var pinnedServer: PinnedServer? = null
@@ -237,7 +251,7 @@ class TitleState(
                         if (details?.meta?.id == full.id) {
                             val enriched = full.copy(imdbId = imdb ?: full.imdbId, tmdbId = tmdb ?: full.tmdbId)
                             details = details?.copy(meta = enriched)
-                            loadTmdbCredits(enriched); loadRatings(enriched, null); loadOffers(enriched)
+                            loadTmdbCredits(enriched); loadRelated(enriched); loadRatings(enriched, null); loadOffers(enriched)
                             loadNativeAddons()
                         }
                     }
@@ -263,6 +277,7 @@ class TitleState(
             val meta = withImdb(meta)
             ensureActive()
             loadOffers(meta)
+            loadRelated(meta)
             // #263: with addon metadata first, TMDB's cast is only asked for when the addon gives none.
             val addonFirst = app.ember.tv.data.AddonMetadata.first
             if (!addonFirst) loadTmdbCredits(meta)

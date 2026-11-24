@@ -75,6 +75,37 @@ object Tmdb {
         }.getOrNull()
     }
 
+    /**
+     * #419: a film's collection (its parts in release order) and TMDB's recommendations, falling
+     * back to similar titles. Finds the TMDB title from [tmdbId], or from [imdbId].
+     */
+    suspend fun related(movie: Boolean, tmdbId: Long?, imdbId: String?): app.ember.tv.data.RelatedTitles? {
+        if (!available) return null
+        return runCatching {
+            val type = if (movie) "movie" else "tv"
+            val kind = if (movie) app.ember.tv.discover.ExploreKind.MOVIE else app.ember.tv.discover.ExploreKind.TV
+            val id = tmdbId ?: imdbId?.let { imdb ->
+                Http.metadata("https://api.themoviedb.org/3/find/$imdb?api_key=$key&external_source=imdb_id")
+                    .arr(if (movie) "movie_results" else "tv_results").list().firstOrNull().long("id")
+            } ?: return null
+            val j = Http.metadata("https://api.themoviedb.org/3/$type/$id?api_key=$key&append_to_response=recommendations,similar")
+            fun titles(list: List<kotlinx.serialization.json.JsonElement>) = list.mapNotNull {
+                app.ember.tv.discover.ExploreRepository.parseTitle(it, kind)?.takeUnless { t -> t.adult || t.meta.tmdbId == id }?.meta
+            }
+            val recommended = titles(j.obj("recommendations").arr("results").list()).ifEmpty { titles(j.obj("similar").arr("results").list()) }.take(20)
+            val collection = j.obj("belongs_to_collection")
+            val parts = collection.long("id")?.let { cid ->
+                runCatching {
+                    Http.metadata("https://api.themoviedb.org/3/collection/$cid?api_key=$key").arr("parts").list()
+                        .mapNotNull { app.ember.tv.discover.ExploreRepository.parseTitle(it, app.ember.tv.discover.ExploreKind.MOVIE) }
+                        .filterNot { it.adult }
+                        .sortedBy { it.date?.takeIf { d -> d.isNotBlank() } ?: "9999" }.map { it.meta }
+                }.getOrNull()
+            }.orEmpty()
+            app.ember.tv.data.RelatedTitles(collection.str("name"), parts.takeIf { it.size > 1 }.orEmpty(), recommended)
+        }.getOrNull()
+    }
+
     /** IMDb id for a TMDB title. Stream addons look titles up by IMDb id. */
     suspend fun imdbFor(kind: Kind, id: Long): String? {
         if (!available) return null

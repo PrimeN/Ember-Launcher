@@ -725,4 +725,6 @@ object Features {
     const val CAST = "cast"
     /** #409: the TV's Private DNS set to the NextDNS profile in API keys. */
     const val AD_BLOCK = "adBlock"
+    /** #419: Collection and More like this on title pages (TMDB). */
+    const val RELATED = "related"
 }

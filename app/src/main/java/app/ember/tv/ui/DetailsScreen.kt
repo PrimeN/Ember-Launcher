@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.DisposableEffect
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -463,6 +464,11 @@ fun DetailsScreen(
                 }
             }
 
+            // #419: the film's collection and titles like it.
+            d.related?.let {related->
+                item(key="related") {RelatedTitlesRows(related,meta,filterPersonTitles,onOpenPersonTitle)}
+            }
+
             if(!split)sourceItems()
         }
         if(split) {
@@ -576,4 +582,44 @@ fun DetailsScreen(
         PersonDialog(selected,meta,{person=null},filterPersonTitles) { title -> person=null;onOpenPersonTitle(title) }
     } }
 
+}
+
+/** #419: "Collection | More like this" tabs over one row of landscape cards, as on the title's page. */
+@Composable
+private fun RelatedTitlesRows(related:app.ember.tv.data.RelatedTitles,current:app.ember.tv.data.Meta,
+    filter:suspend (List<app.ember.tv.data.Meta>)->List<app.ember.tv.data.Meta>,open:(app.ember.tv.data.Meta)->Unit) {
+    val collection by produceState(emptyList<app.ember.tv.data.Meta>(),related) {value=filter(related.collection)}
+    val similar by produceState(emptyList<app.ember.tv.data.Meta>(),related) {value=filter(related.moreLikeThis)}
+    val tabs=buildList {
+        if(collection.isNotEmpty())add("Collection" to collection)
+        if(similar.isNotEmpty())add("More like this" to similar)
+    }
+    if(tabs.isEmpty())return
+    var tab by remember(tabs.size) {mutableIntStateOf(0)}
+    val shown=tabs[tab.coerceIn(0,tabs.lastIndex)]
+    Column(Modifier.padding(horizontal=48.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            tabs.forEachIndexed {i,(label,_)->
+                if(i>0)Text("|",color=Mute,fontSize=TvTokens.Type.Section.sp)
+                val on=i==tab
+                Focusable(onClick={tab=i},modifier=Modifier.onFocusChanged {if(it.isFocused)tab=i}.semantics {selected=on},
+                    radius=TvTokens.Shape.Pill,container=Color.Transparent,focusedContainer=PillColor,focusedContent=OnPillColor,
+                    outline=false,focusedScale=TvTokens.Focus.Control) {
+                    Text(label,Modifier.padding(horizontal=10.dp,vertical=4.dp),fontSize=TvTokens.Type.Section.sp,
+                        fontWeight=if(on)FontWeight.SemiBold else FontWeight.Medium,color=if(on)androidx.tv.material3.LocalContentColor.current else Mute)
+                }
+            }
+            if(shown.first=="Collection")related.collectionName?.let {Text(it,color=Mute,fontSize=TvTokens.Type.Caption.sp,modifier=Modifier.padding(start=8.dp))}
+        }
+        LazyRow(horizontalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(vertical=8.dp,horizontal=4.dp)) {
+            items(shown.second,key={"related:${shown.first}:${it.mediaKey()}"}) {m->
+                val here=m.tmdbId!=null && m.tmdbId==current.tmdbId
+                Box {
+                    WideCard(m,saved=false,width=248.dp) {if(!here)open(m)}
+                    if(here)Text("Now viewing",fontSize=12.sp,color=Color.White,modifier=Modifier.align(Alignment.TopStart).padding(8.dp)
+                        .background(Color(0xCC000000),RoundedCornerShape(8.dp)).padding(horizontal=6.dp,vertical=2.dp))
+                }
+            }
+        }
+    }
 }

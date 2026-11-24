@@ -269,6 +269,11 @@ data class Person(val name: String, val role: String?, val photo: String? = null
 /** Cast, directors and a trailer for a title screen. [trailer] is a YouTube video id. */
 data class Credits(val people: List<Person>, val trailer: String?)
 
+/** #419: the film's collection (every part, this one included) and titles like it, from TMDB. */
+data class RelatedTitles(val collectionName: String?, val collection: List<Meta>, val moreLikeThis: List<Meta>) {
+    val empty: Boolean get() = collection.isEmpty() && moreLikeThis.isEmpty()
+}
+
 data class Episode(
     val id: String,
     val season: Int,
