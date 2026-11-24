@@ -104,8 +104,8 @@ internal object MarginSteps {
 
 /** One setting per line: name (and a note) on the left, On/Off on the right. */
 @Composable
-internal fun ToggleRow(label: String, note: String?, on: Boolean, onToggle: () -> Unit) {
-    SettingToggle(label, note, on, onToggle)
+internal fun ToggleRow(label: String, note: String?, on: Boolean, unavailable: String? = null, onToggle: () -> Unit) {
+    SettingToggle(label, note, on, unavailable, onToggle)
 }
 
 
@@ -163,6 +163,9 @@ private fun AppearancePart(vm: HomeViewModel, key: String) {
         }
         "card-focus" -> Section(stringResource(R.string.st_card_focus_effects),stringResource(R.string.st_for_apps_and_media_cards_low),id="card-focus") {
             PictureChoice("cardfocus",app.ember.tv.data.CardFocusStyle.choices,app.ember.tv.data.CardFocusStyle.normalize(vm.look.cardFocusStyle),vm.look::updateCardFocusStyle)
+            // #417: works with every style above, Off included (it tints the outline then).
+            ToggleRow("Title colours", if (vm.look.titleFocusColours) "The focus ring takes each poster's own colour, with any effect above."
+                else "Off: the focus ring uses your accent colour.", vm.look.titleFocusColours) { vm.look.updateTitleFocusColours(!vm.look.titleFocusColours) }
         }
         "focus-backgrounds" -> Section(stringResource(R.string.st_focused_backgrounds), stringResource(R.string.st_tile_colors_use_already_loaded_images), id = "focus-backgrounds") { FocusBackgroundSettings(vm) }
         "interface" -> Section(

@@ -24,6 +24,9 @@ class LookState(
     var showWatchedBadges by mutableStateOf(prefs.showWatchedBadges);private set
     var blurUnwatchedEpisodes by mutableStateOf(prefs.blurUnwatchedEpisodes);private set
     var cardFocusStyle by mutableStateOf(prefs.cardFocusStyle);private set
+    /** #417: focus rings take each title's own colour, with any focus style. */
+    var titleFocusColours by mutableStateOf(prefs.titleFocusColours);private set
+    fun updateTitleFocusColours(value:Boolean){titleFocusColours=value;prefs.titleFocusColours=value}
     var tileLabelsOff by mutableStateOf(prefs.tileLabelsOff);private set
     fun toggleTileLabel(kind:String){tileLabelsOff=app.ember.tv.data.TileLabels.toggle(tileLabelsOff,kind);prefs.tileLabelsOff=tileLabelsOff}
     fun updateShowWatchedBadges(value:Boolean){showWatchedBadges=value;prefs.showWatchedBadges=value}

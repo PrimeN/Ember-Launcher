@@ -14,6 +14,8 @@ internal object PreferenceKeys {
     val ADDONS = PreferenceKey<String?>("addons", PreferenceType.STRING, "")
     val AI_DISCOVERY_ENABLED = PreferenceKey<Boolean>("aiDiscoveryEnabled", PreferenceType.BOOLEAN, false)
     val APP_FOCUS_COLORS = PreferenceKey<Boolean>("appFocusColors", PreferenceType.BOOLEAN, true)
+    /** #417: the focus ring and glow take each title's own colour. */
+    val TITLE_FOCUS_COLOURS = PreferenceKey<Boolean>("titleFocusColours", PreferenceType.BOOLEAN, false)
     val APP_ICONS = PreferenceKey<String?>("appIcons", PreferenceType.STRING, "circle")
     /** The addon's name after each catalog row's title (#144). */
     val ROW_ADDON_LABELS = PreferenceKey<Boolean>("rowAddonLabels", PreferenceType.BOOLEAN, true)
@@ -157,7 +159,7 @@ internal object PreferenceKeys {
     val WL = PreferenceKey<String?>("wl", PreferenceType.STRING, "[]")
     val all = listOf(
         ACCENT, ACCENT2, ACCENT3, ADDON_NAMES, ADDON_TIMEOUT, ADDONS,
-        AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, APP_ICONS, ROW_ADDON_LABELS, PLAY_BUTTON_RESTORED, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
+        AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, TITLE_FOCUS_COLOURS, APP_ICONS, ROW_ADDON_LABELS, PLAY_BUTTON_RESTORED, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
         AUTOPLAY, BACKGROUND_REFRESH, BADGE_MODE, BLUR_UNWATCHED_EPISODES, CACHE_CONFIG, CARD_FOCUS_STYLE, TILE_LABELS_OFF, CATALOG_DISCOVER_OFF,
         CATALOG_HOME, CATALOG_HOME_DEFAULTS_OFF, CATALOG_LIVE, CATALOG_NAMES, CATALOG_ORDER, CATALOGS_ON_HOME_FIXED,
         COLLECTION_AUTO_PAGE, COLLECTION_FOCUS_BACKGROUND, COLLECTION_FOLDERS_OFF, COLLECTION_HERO_PREVIEWS, COLLECTIONS_DISCOVER, COLLECTIONS_OFF,

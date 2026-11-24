@@ -5,6 +5,8 @@ import androidx.compose.runtime.*
 import app.ember.tv.data.CardFocusStyle
 
 internal val LocalCardFocusStyle=compositionLocalOf {CardFocusStyle.SUBTLE}
+/** #417: tint card focus with the title's own colour. */
+internal val LocalTitleFocusColours=compositionLocalOf {false}
 /** Tile kinds whose label underneath is hidden (#43). */
 internal val LocalTileLabelsOff=compositionLocalOf {emptySet<String>()}
 @Composable internal fun tileLabelShown(kind:String)=app.ember.tv.data.TileLabels.shown(LocalTileLabelsOff.current,kind)

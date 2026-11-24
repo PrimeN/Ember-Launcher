@@ -82,6 +82,7 @@ internal object SettingsOptionSeed {
         E(SettingsTab.PERFORMANCE, "artwork", "Glass", "Glass"),
         E(SettingsTab.PERFORMANCE, "focus-backgrounds", "Focused backgrounds", "Focused backgrounds"),
         E(SettingsTab.PERFORMANCE, "card-focus", "Card focus effects", "Card focus effects"),
+        E(SettingsTab.PERFORMANCE, "card-focus", "Card focus effects", "Title colours"),
         E(SettingsTab.PERFORMANCE, "reset-page", "Reset this page", "Reset this page"),
         E(SettingsTab.REMOTE, "Remote's Settings button", "Remote's Settings button", "Remote's Settings button"),
         E(SettingsTab.REMOTE, "Remote's Settings button", "Remote's Settings button", "Ember"),

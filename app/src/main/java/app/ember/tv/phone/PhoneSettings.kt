@@ -118,6 +118,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         choice("look.focusCollections", LOOK, "Focused background: collections", FocusBackground.choices, read = { look.collectionFocusBackground }, write = look::updateCollectionFocusBackground)
         toggle("look.appFocusColors", LOOK, "App tile colours", read = { look.appFocusColors }, write = look::updateAppFocusColors)
         choice("look.cardFocus", LOOK, "Card focus effects", CardFocusStyle.choices, read = { look.cardFocusStyle }, write = look::updateCardFocusStyle)
+        toggle("look.titleFocusColours", LOOK, "Title colours on focus", read = { look.titleFocusColours }, write = look::updateTitleFocusColours)
         toggle("look.remoteSounds", LOOK, "Remote sounds", read = { look.remoteSounds }, write = look::updateRemoteSounds)
         choice("look.settingsKey", LOOK, "Remote Settings button opens", listOf("ember" to "Ember", "tv" to "TV or projector"), read = { look.remoteSettingsKey }, write = look::updateRemoteSettingsKey)
         out.config(serializer<app.ember.tv.data.LightHomeOptions>(), "look.light", LOOK, "Light Home: ", { look.lightHome }, look::updateLightHome, mapOf(

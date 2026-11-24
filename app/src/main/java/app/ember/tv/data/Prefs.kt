@@ -60,6 +60,9 @@ class Prefs(context: Context) {
         get() = runCatching { sp.read(PreferenceKeys.ROW_ADDON_LABELS) }.getOrDefault(true)
         set(value) = sp.edit { putBoolean(PreferenceKeys.ROW_ADDON_LABELS.name, value) }
 
+    var titleFocusColours: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.TITLE_FOCUS_COLOURS) }.getOrDefault(false)
+        set(value) = sp.edit { putBoolean(PreferenceKeys.TITLE_FOCUS_COLOURS.name, value) }
     var appFocusColors: Boolean
         get() = runCatching { sp.read(PreferenceKeys.APP_FOCUS_COLORS) }.getOrDefault(true)
         set(value) = sp.edit { putBoolean(PreferenceKeys.APP_FOCUS_COLORS.name, value) }

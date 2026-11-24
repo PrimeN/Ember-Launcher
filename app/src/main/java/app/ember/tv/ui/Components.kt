@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -86,6 +87,8 @@ fun Focusable(
     focusedScale: Float = TvTokens.Focus.Card,
     enabled: Boolean = true,
     card: Boolean = false,
+    /** #417: artwork whose colour tints the focus ring and glow when Title colours is on. */
+    tintArt: String? = null,
     content: @Composable () -> Unit,
 ) {
     val navigation = LocalNavigationFocus.current
@@ -100,12 +103,15 @@ fun Focusable(
     val focusModifier = if (navigation != null && scene != null) {
         modifier.focusRequester(requester).onFocusChanged { if (it.isFocused) navigation.focused(scene, itemId) }
     } else modifier
-    val ring = Ring
+    var cardFocused by remember {mutableStateOf(false)}
+    // #417: only a focused card samples its artwork (a 32 px copy, cached), so rows cost nothing extra.
+    val titleTint=if(card && tintArt!=null && LocalTitleFocusColours.current && cardFocused)
+        rememberLightPalette(tintArt,true,Ring).let(::focusTint) else null
+    val ring = titleTint ?: Ring
     val render=LocalRenderOptions.current
     val reduceFeedback=LocalReduceMotion.current || RuntimeBudgets.pressured
     val reduced=reduceFeedback || !render.animationsEnabled
     val style=LocalCardFocusStyle.current
-    var cardFocused by remember {mutableStateOf(false)}
     val motion=card && app.ember.tv.data.CardFocusStyle.animated(style,render.lowPower,reduced)
     val pulse=cardPulse(card && outline && app.ember.tv.data.CardFocusStyle.pulse(style,render.lowPower,reduced,cardFocused,LocalSceneInteractive.current))
     val cardScale=render.cardFocusScale(focusedScale,style,reduceFeedback)
@@ -140,8 +146,11 @@ fun Focusable(
             ) else Border.None,
         ),
         // An explicit Glow style gets one soft accent halo. Other styles never add a dark ring.
+        // #417: with Title colours, every animated style also gets a faint halo in the title's colour.
         glow = if(card && outline && motion && style==app.ember.tv.data.CardFocusStyle.GLOW) {
             ClickableSurfaceDefaults.glow(focusedGlow=androidx.tv.material3.Glow(elevationColor=ring.copy(alpha=.22f),elevation=4.dp))
+        } else if(card && outline && motion && titleTint!=null) {
+            ClickableSurfaceDefaults.glow(focusedGlow=androidx.tv.material3.Glow(elevationColor=titleTint.copy(alpha=.16f),elevation=3.dp))
         } else ClickableSurfaceDefaults.glow(),
     ) { content() }
 }
@@ -322,7 +331,8 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
     @Suppress("NAME_SHADOWING") val width = width * meta.cardWidthScale
     val backdrop = rememberMediaFocus(meta)
     Column(modifier = Modifier.width(width), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Focusable(onClick = onClick, onLongClick = onLongClick ?: actions?.let { action -> { action(meta) } }, modifier = Modifier.restoreFocus(meta.mediaKey()).mediaSemantics(meta, saved).focusBackdrop(backdrop),card=true) {
+        Focusable(onClick = onClick, onLongClick = onLongClick ?: actions?.let { action -> { action(meta) } }, modifier = Modifier.restoreFocus(meta.mediaKey()).mediaSemantics(meta, saved).focusBackdrop(backdrop),card=true,
+            tintArt = meta.poster ?: meta.background) {
             Box(Modifier.clearAndSetSemantics { }) {
                 PosterImage(meta, Modifier.width(width).height(width * meta.cardRatio), onImage = backdrop::loaded)
                 WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
@@ -548,4 +558,16 @@ fun Modifier.mediaSemantics(meta: Meta, saved: Boolean): Modifier {
     contentDescription = meta.spokenLabel(saved)+if(watched)", Watched" else ""
     meta.safeProgress?.let { progressBarRangeInfo = ProgressBarRangeInfo(it.coerceIn(0f, 1f), 0f..1f) }
 }
+}
+
+/**
+ * #417: a title's colour made fit for a focus ring: saturated enough to read as that title, and
+ * bright enough to stand out on dark pages (dark or grey artwork is lifted toward white).
+ */
+internal fun focusTint(color: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(color.toArgb(), hsv)
+    hsv[1] = hsv[1].coerceIn(0.35f, 0.85f)
+    hsv[2] = hsv[2].coerceAtLeast(0.88f)
+    return Color(android.graphics.Color.HSVToColor(hsv))
 }

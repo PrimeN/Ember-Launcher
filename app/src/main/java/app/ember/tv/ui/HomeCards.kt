@@ -175,6 +175,7 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
                 if (focused) onFocus()
             },
             container = PanelHi,card=true,
+            tintArt = meta.background ?: meta.poster,
         ) {
             Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
                 LandscapeImage(meta, Modifier.fillMaxSize(), onImage = backdrop::loaded)

@@ -210,6 +210,7 @@ internal fun Root(
         app.ember.tv.ui.LocalSceneInteractive provides interactive,
         app.ember.tv.ui.LocalWatchedUi provides app.ember.tv.ui.WatchedUi(vm.look.showWatchedBadges,vm.look.blurUnwatchedEpisodes,vm::isWatched,vm::isEpisodeWatched,ready=vm.watchedReady),
         app.ember.tv.ui.LocalCardFocusStyle provides vm.look.cardFocusStyle,
+        app.ember.tv.ui.LocalTitleFocusColours provides vm.look.titleFocusColours,
         app.ember.tv.ui.LocalProfileMenu provides app.ember.tv.ui.ProfileMenuConfig(
             profiles = vm.profiles.all,
             actions = app.ember.tv.ui.profileMenuActions(vm.profiles.profile, NavTabs.LIBRARY in vm.visibleTabs),
