@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
+import app.ember.tv.isSaved
 import app.ember.tv.data.Meta
 
 /** #435 Spark in Discover: what it has learned, then its named rows of picks, each with a reason. */
