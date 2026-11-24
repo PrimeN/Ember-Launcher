@@ -132,7 +132,8 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
                 ToggleRow("Fast animations", "Menus and screens animate twice as fast in every app.", fast) {
                     act { SystemTweaks.setFastAnimations(app, !fast) }
                 }
-                if (recsInstalled) ToggleRow("Google TV recommendations", "A background service only Google's home uses. Off saves memory.", recsOn) {
+                if (recsInstalled) ToggleRow("Google TV recommendations", "A background service only Google's home uses. Off saves memory.", recsOn,
+                    unavailable = if (!devOn && state != SystemAccess.State.CONNECTED) "Turn on Developer options and connect first." else null) {
                     act { SystemTweaks.setPackage(app, SystemTweaks.RECOMMENDATIONS, !recsOn) }
                 }
                 SettingActionRow("Ad blocking", adBlockLine(adBlock)) { vm.openSettingsPage(SettingsTab.KEYS.name) }

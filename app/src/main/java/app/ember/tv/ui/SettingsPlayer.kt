@@ -273,16 +273,19 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                 stringResource(R.string.st_software_includes_ffmpeg_and_mpeg_h),
                 stringResource(R.string.ui_video_always_uses_the_tv_s) + stringResource(R.string.st_tunneled_playback_gives_tighter_a_v))) {
             Choice(listOf("auto" to "Automatic","standard" to "Standard","compatibility" to "Compatibility"),c.engine, stringResource(R.string.tx_playback_engine)) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(engine=value)}}
+            // #418: options for the engine that isn't in use stay in place, dimmed, saying why.
+            val noCompatibility = if (c.engine == "standard") "Not used: the engine is set to Standard." else null
+            val noStandard = if (c.engine == "compatibility") "Not used: the engine is set to Compatibility." else null
             // #311
-            Choice(app.ember.tv.player.NativeDecoderProfile.choices,app.ember.tv.player.NativeDecoderProfile.normalized(c.compatibilityDecoder),"Compatibility decoding") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityDecoder=value)}}
-            Choice(app.ember.tv.player.RendererPolicy.choices,app.ember.tv.player.RendererPolicy.initial(c.compatibilityRenderer),"Compatibility renderer") {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityRenderer=value)}}
-            Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing)) { mode ->
+            Choice(app.ember.tv.player.NativeDecoderProfile.choices,app.ember.tv.player.NativeDecoderProfile.normalized(c.compatibilityDecoder),"Compatibility decoding",unavailable=noCompatibility) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityDecoder=value)}}
+            Choice(app.ember.tv.player.RendererPolicy.choices,app.ember.tv.player.RendererPolicy.initial(c.compatibilityRenderer),"Compatibility renderer",unavailable=noCompatibility) {value -> vm.playerSettings.updatePlaybackConfig {it.copy(compatibilityRenderer=value)}}
+            Choice(listOf("off" to "Off","auto" to "Automatic","always" to "Always"),c.deinterlacing, stringResource(R.string.tx_compatibility_deinterlacing),unavailable=noCompatibility) { mode ->
                 vm.playerSettings.updatePlaybackConfig {it.copy(deinterlacing=mode)}
             }
             ToggleRow("Automatic Hi10P fallback","10-bit H.264 on NVIDIA Shield",c.hi10pFallback) {vm.playerSettings.updatePlaybackConfig {it.copy(hi10pFallback=!it.hi10pFallback)}}
             Choice(
                 listOf("on" to "Software when needed", "prefer" to "Prefer software", "off" to "TV decoders only"),
-                c.ffmpeg, stringResource(R.string.ui_sound_decoding),
+                c.ffmpeg, stringResource(R.string.ui_sound_decoding), unavailable = noStandard,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpeg = m) } }
             Choice(
                 listOf(
@@ -290,9 +293,10 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                     "always" to stringResource(R.string.ui_ffmpeg_video_always),
                     "off" to stringResource(R.string.ui_ffmpeg_video_off),
                 ),
-                c.ffmpegVideo, stringResource(R.string.ui_video_decoding),
+                c.ffmpegVideo, stringResource(R.string.ui_video_decoding), unavailable = noStandard,
             ) { m -> vm.playerSettings.updatePlaybackConfig { it.copy(ffmpegVideo = m) } }
-            ToggleRow(stringResource(R.string.ui_tunneled_playback), null, c.tunneling) {
+            ToggleRow(stringResource(R.string.ui_tunneled_playback), null, c.tunneling,
+                unavailable = noStandard ?: if (c.ffmpegVideo == "always") "Not used while software decodes all video." else null) {
                 vm.playerSettings.updatePlaybackConfig { it.copy(tunneling = !it.tunneling) }
             }
             ToggleRow("Remember what works","Learns which decoder and player work for a title",c.rememberDecoderChoices) {vm.playerSettings.updatePlaybackConfig {it.copy(rememberDecoderChoices=!it.rememberDecoderChoices)}}

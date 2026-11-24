@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.outlined.Info
@@ -40,15 +41,16 @@ internal fun AudioTimingControls(value: Int, modifier: Modifier = Modifier, chan
 
 /** The whole row is one labeled switch on every settings surface. */
 @Composable
-internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: () -> Unit) {
+internal fun SettingToggle(label: String, note: String?, on: Boolean, unavailable: String? = null, onToggle: () -> Unit) {
     RecordSettingOption(label)
     var focused by remember { mutableStateOf(false) }
     val floating = LocalFloating.current
-    Focusable(onClick = onToggle, role = Role.Switch,
+    val explain = rememberUnavailableNotice(unavailable)
+    Focusable(onClick = { if (unavailable == null) onToggle() else explain() }, role = Role.Switch,
         modifier = Modifier.fillMaxWidth().semantics {
             toggleableState = if (on) ToggleableState.On else ToggleableState.Off
-            stateDescription = if (on) "On" else "Off"
-        }.onFocusChanged { focused = it.isFocused }, radius = TvTokens.Shape.Control,
+            stateDescription = (if (on) "On" else "Off") + (unavailable?.let { ", not available: $it" } ?: "")
+        }.onFocusChanged { focused = it.isFocused }.unavailableLook(unavailable), radius = TvTokens.Shape.Control,
         container = if (floating) Color.Transparent else Wash,
         focusedContainer = PillColor,
         focusedContent = OnPillColor,
@@ -58,7 +60,7 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(label, fontSize = if (floating) TvTokens.Type.Label.sp else TvTokens.Type.SettingsLabel.sp)
-                note?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
+                (unavailable ?: note)?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
             }
             Box(Modifier.size(44.dp, 24.dp).clip(RoundedCornerShape(50))
                 .background(if (on) MaterialTheme.colorScheme.primary else Color.Gray),
@@ -74,12 +76,14 @@ internal fun SettingToggle(label: String, note: String?, on: Boolean, onToggle: 
  * arrow, in the same full-width row as [SettingToggle].
  */
 @Composable
-internal fun SettingValueRow(label: String, value: String, modifier: Modifier = Modifier, note: String? = null, onClick: () -> Unit) {
+internal fun SettingValueRow(label: String, value: String, modifier: Modifier = Modifier, note: String? = null, unavailable: String? = null, onClick: () -> Unit) {
     RecordSettingOption(label)
     var focused by remember { mutableStateOf(false) }
     val floating = LocalFloating.current
-    Focusable(onClick = onClick,
-        modifier = modifier.fillMaxWidth().semantics { stateDescription = value }.onFocusChanged { focused = it.isFocused },
+    val explain = rememberUnavailableNotice(unavailable)
+    Focusable(onClick = { if (unavailable == null) onClick() else explain() },
+        modifier = modifier.fillMaxWidth().semantics { stateDescription = value + (unavailable?.let { ", not available: $it" } ?: "") }
+            .onFocusChanged { focused = it.isFocused }.unavailableLook(unavailable),
         radius = TvTokens.Shape.Control,
         container = if (floating) Color.Transparent else Wash,
         focusedContainer = PillColor,
@@ -90,7 +94,7 @@ internal fun SettingValueRow(label: String, value: String, modifier: Modifier = 
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(label, fontSize = if (floating) TvTokens.Type.Label.sp else TvTokens.Type.SettingsLabel.sp)
-                note?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
+                (unavailable ?: note)?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
             }
             Text(value, fontSize = TvTokens.Type.Label.sp, color = if (focused) OnPillColor.copy(alpha = .8f) else Mute,
                 // #402: the label takes the free space, so the value and arrow sit at the right edge (two weights split it in half).
@@ -122,11 +126,13 @@ internal fun SettingsDisclosure(label:String,expanded:Boolean,modifier:Modifier=
  * it so the d-pad always reaches it.
  */
 @Composable
-internal fun SettingActionRow(label: String, note: String? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun SettingActionRow(label: String, note: String? = null, modifier: Modifier = Modifier, unavailable: String? = null, onClick: () -> Unit) {
     RecordSettingOption(label)
     var focused by remember { mutableStateOf(false) }
     val floating = LocalFloating.current
-    Focusable(onClick = onClick, modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+    val explain = rememberUnavailableNotice(unavailable)
+    Focusable(onClick = { if (unavailable == null) onClick() else explain() },
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.unavailableLook(unavailable),
         radius = TvTokens.Shape.Control,
         container = if (floating) Color.Transparent else Wash,
         focusedContainer = PillColor,
@@ -137,10 +143,22 @@ internal fun SettingActionRow(label: String, note: String? = null, modifier: Mod
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(label, fontSize = if (floating) TvTokens.Type.Label.sp else TvTokens.Type.SettingsLabel.sp)
-                note?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
+                (unavailable ?: note)?.let { Text(it, fontSize = TvTokens.Type.Caption.sp, color = if (focused) OnPillColor.copy(alpha = .75f) else Mute) }
             }
         }
     }
+}
+
+/**
+ * #418: a setting that can't apply right now stays where it is, dimmed, with the reason in place
+ * of its note. It still takes focus (so the page doesn't jump) and pressing it repeats the reason.
+ */
+internal fun Modifier.unavailableLook(reason: String?): Modifier = if (reason == null) this else this.then(Modifier.alpha(0.45f))
+
+@Composable
+internal fun rememberUnavailableNotice(reason: String?): () -> Unit {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return remember(reason) { { if (reason != null) android.widget.Toast.makeText(context, reason, android.widget.Toast.LENGTH_SHORT).show() } }
 }
 
 /** A small ⓘ beside a section title (#388): the longer explanation opens in a popup instead of filling the page. */

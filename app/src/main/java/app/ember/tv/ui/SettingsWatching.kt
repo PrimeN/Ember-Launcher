@@ -105,12 +105,12 @@ import java.util.Locale
 
 /** One setting with several answers (#270): a row showing the current answer that opens a menu; [label] defaults to the section title. */
 @Composable
-internal fun Choice(options: List<Pair<String, String>>, selected: String, label: String? = null, onPick: (String) -> Unit) {
+internal fun Choice(options: List<Pair<String, String>>, selected: String, label: String? = null, unavailable: String? = null, onPick: (String) -> Unit) {
     val title = label ?: LocalSettingsSection.current.orEmpty()
     var open by remember { mutableStateOf(false) }
     val value = options.firstOrNull { it.first == selected }?.second ?: selected
     options.forEach { RecordSettingOption(it.second) }
-    SettingValueRow(title, value) { open = true }
+    SettingValueRow(title, value, unavailable = unavailable) { open = true }
     if (open) OptionMenu(title, options.map { (id, text) -> MenuOption(text, selected = id == selected) { onPick(id) } }) { open = false }
 }
 
