@@ -10,7 +10,7 @@ import app.ember.tv.data.Prefs
 import app.ember.tv.discover.*
 import kotlinx.coroutines.*
 
-enum class DiscoverSection { EXPLORE, CATALOGS, COLLECTIONS }
+enum class DiscoverSection { EXPLORE, SPARK, CATALOGS, COLLECTIONS }
 
 /** A separate state owner keeps add-on catalog paging and Explore queries independent. */
 class ExploreState(

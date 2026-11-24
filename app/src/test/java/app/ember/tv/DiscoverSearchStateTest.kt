@@ -138,7 +138,7 @@ class DiscoverSearchStateTest {
 
     @Test fun freshDiscoverShowsOnlyExploreAndContentEnablesAutomaticSections() {
         assertEquals(listOf(DiscoverSection.EXPLORE), DiscoverVisibility.visible(emptyMap(), false, false, false))
-        assertEquals(DiscoverSection.entries.toList(), DiscoverVisibility.visible(emptyMap(), true, true, false))
+        assertEquals(DiscoverSection.entries.toList(), DiscoverVisibility.visible(emptyMap(), true, true, false, spark = true))
     }
 
     @Test fun manualOffPersistsWhenContentArrivesAndManualOnAllowsEmptySetup() {

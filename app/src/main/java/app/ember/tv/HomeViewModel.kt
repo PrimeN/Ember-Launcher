@@ -784,7 +784,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val discoverSections: List<app.ember.tv.state.DiscoverSection> get() = app.ember.tv.data.DiscoverVisibility.visible(
         look.discoverSections,
         allCatalogs.any { addonAvailable(it.addon.url) && isInDiscover(it) } || discover.discoverCatalogs.isNotEmpty(),
-        collections.onDiscover.isNotEmpty(), profiles.profile.kids)
+        collections.onDiscover.isNotEmpty(), profiles.profile.kids, spark = app.ember.tv.tracker.Tmdb.available)
+    /** #435 Spark: picks from what this profile watches, in Discover. */
+    val spark by lazy { app.ember.tv.state.SparkState(getApplication(), viewModelScope) { profiles.profileId } }
     val profile: app.ember.tv.data.Profile get() = profiles.profile
     internal val personalOn: Boolean get() = profiles.personalOn
     internal fun profileAllows(c: CatalogDef): Boolean = profiles.allows(c)

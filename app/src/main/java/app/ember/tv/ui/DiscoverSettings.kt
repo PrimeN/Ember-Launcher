@@ -13,11 +13,13 @@ internal fun DiscoverSettings(vm: HomeViewModel) {
         val tiles = DiscoverSection.entries.map { section ->
             val on = vm.look.discoverSections[section.name] ?: when (section) {
                 DiscoverSection.EXPLORE -> true
+                DiscoverSection.SPARK -> app.ember.tv.tracker.Tmdb.available
                 DiscoverSection.CATALOGS -> section in vm.discoverSections
                 DiscoverSection.COLLECTIONS -> vm.collections.onDiscover.isNotEmpty()
             }
             val line = when (section) {
                 DiscoverSection.EXPLORE -> "Movies and shows · needs TMDB"
+                DiscoverSection.SPARK -> "Picks from what you watch · needs TMDB"
                 DiscoverSection.CATALOGS -> "Your addons' catalogs"
                 DiscoverSection.COLLECTIONS -> "Collections you pick"
             }

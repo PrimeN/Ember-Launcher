@@ -74,6 +74,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
         when (section) {
             DiscoverSection.CATALOGS -> { state.pause(); vm.discover.openDiscover() }
             DiscoverSection.COLLECTIONS, null -> state.pause()
+            DiscoverSection.SPARK -> { state.pause(); vm.spark.open() }
             DiscoverSection.EXPLORE -> state.open()
         }
     }
@@ -107,6 +108,8 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                             ToolbarIcon("Catalog filters", androidx.compose.material.icons.Icons.Outlined.FilterList,
                                 Modifier.focusRequester(filterFocus), selected = vm.discover.extraArgs != def.defaultExtras || vm.discover.discoverGenre != null) { catalogFilters = true }
                     }
+                    DiscoverSection.SPARK -> if (app.ember.tv.tracker.Tmdb.available)
+                        ToolbarIcon(if (vm.spark.loading) "Spark is looking…" else "Fresh picks", androidx.compose.material.icons.Icons.Outlined.Refresh) { vm.spark.refresh() }
                     DiscoverSection.COLLECTIONS -> Unit
                     null -> Unit
                 }
@@ -119,6 +122,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                     "Enable a section in Discover settings, or add catalogs and collections.", "Discover settings", { vm.openSettingsPage("DISCOVER") })
             }
             DiscoverSection.COLLECTIONS -> Box(Modifier.fillMaxWidth().weight(1f)) { DiscoverCollections(vm) }
+            DiscoverSection.SPARK -> Box(Modifier.fillMaxWidth().weight(1f)) { SparkScreen(vm, onOpen) }
             DiscoverSection.CATALOGS -> Box(Modifier.fillMaxWidth().weight(1f)) { AddonDiscoverScreen(vm, onOpen) }
             DiscoverSection.EXPLORE -> Column(Modifier.fillMaxWidth().weight(1f).padding(horizontal = TvTokens.Space.Page.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // #244: each filter in use as a tag to remove.

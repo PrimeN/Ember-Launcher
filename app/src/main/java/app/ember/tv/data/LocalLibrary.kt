@@ -326,6 +326,9 @@ object LocalLibrary {
             .filter { !it.finished && it.progress >= 0.01f && !isListHidden("continue", it.meta) }
             .map { it.meta.copy(progress = it.progress, progressSource = it.meta.serverName ?: "Ember", badge = it.meta.badge ?: episodeLabel(it.meta)) }
 
+    /** #435 Spark: every play on this profile (episodes one by one), as kept. */
+    val plays: List<LibraryEntry> get() { version; return view(data).plays }
+
     /** Everything played lately, newest first; one entry per title. */
     val recent: List<Meta>
         get() = view(data).plays.distinctBy { it.meta.titleKey() }.filter { it.meta.titleKey() !in view(data).hidden }.take(MAX_TITLES)
