@@ -40,7 +40,9 @@ import java.io.File
  * history) say what you like; TMDB is asked for titles like them; Spark scores and groups them into
  * named rows, each pick with its reason. Built about once a day; kept per profile on the TV.
  */
-class SparkState(private val context: Context, private val scope: CoroutineScope, private val profileId: () -> String) {
+class SparkState(private val context: Context, private val scope: CoroutineScope, private val profileId: () -> String,
+    /** #436: connected services that can give their whole history. */
+    private val historySources: () -> List<app.ember.tv.tracker.Tracker> = { emptyList() }) {
     var rows by mutableStateOf<List<SparkRow>>(emptyList()); private set
     var summary by mutableStateOf<String?>(null); private set
     var builtAt by mutableStateOf(0L); private set
@@ -48,6 +50,20 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
     /** No history to learn from yet. */
     var noHistory by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
+    /** #436: history pulled from your trackers for this profile: how many titles, from where, when. */
+    var imported by mutableStateOf<Imported?>(null); private set
+    var importing by mutableStateOf(false); private set
+    var importNote by mutableStateOf<String?>(null); private set
+
+    /** One film or show from a tracker, kept on the TV for Spark (ids, name, year, plays, last watched, your rating). */
+    @Serializable
+    data class ImportedTitle(val movie: Boolean, val imdb: String? = null, val tmdb: Long? = null, val name: String? = null, val year: Int? = null,
+        val plays: Int = 1, val lastAt: Long? = null, val rating: Int? = null, val watched: Boolean = true)
+
+    @Serializable
+    data class Imported(val titles: List<ImportedTitle> = emptyList(), val sources: List<String> = emptyList(), val at: Long = 0) {
+        val rated get() = titles.count { it.rating != null }
+    }
 
     @Serializable
     private data class Saved(
@@ -63,6 +79,52 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
     private var loadedFor: String? = null
     private var job: Job? = null
 
+    private fun importFile(profile: String) = File(File(context.filesDir, "spark").apply { mkdirs() }, profile.replace(Regex("[^A-Za-z0-9_-]"), "_") + "-history.json")
+
+    /**
+     * #436: pulls your whole history and ratings from each connected service that can give it (Trakt
+     * with dates; Simkl, WeTrakr and others without), keeps it for this profile, and builds new picks.
+     */
+    fun importHistory() {
+        if (importing) return
+        val sources = historySources()
+        if (sources.isEmpty()) { importNote = "Connect Trakt, Simkl or WeTrakr to bring your history in."; return }
+        val profile = profileId()
+        importing = true; importNote = null
+        scope.launch {
+            val pulled = withContext(Dispatchers.IO) { sources.map { t -> t.name to runCatching { t.tasteHistory() } } }
+            val ok = pulled.filter { it.second.isSuccess }
+            if (profileId() == profile && ok.isNotEmpty()) {
+                val titles = LinkedHashMap<String, ImportedTitle>()
+                for ((_, r) in ok) for (h in r.getOrThrow()) {
+                    val k = (if (h.movie) "m:" else "s:") + (h.tmdb?.toString() ?: h.imdb ?: continue)
+                    val old = titles[k]
+                    titles[k] = ImportedTitle(h.movie, h.imdb ?: old?.imdb, h.tmdb ?: old?.tmdb, h.name ?: old?.name, h.year ?: old?.year,
+                        maxOf(h.plays, old?.plays ?: 0), listOfNotNull(h.lastAt, old?.lastAt).maxOrNull(), h.rating ?: old?.rating, h.watched || old?.watched == true)
+                }
+                val next = Imported(titles.values.toList(), ok.map { it.first }, System.currentTimeMillis())
+                imported = next
+                withContext(Dispatchers.IO) { runCatching { importFile(profile).writeText(json.encodeToString(Imported.serializer(), next)) } }
+                importNote = "Brought in ${"%,d".format(next.titles.size)} titles from ${next.sources.joinToString(" and ")}" +
+                    (if (next.rated > 0) ", with ${"%,d".format(next.rated)} ratings" else "") + "." +
+                    pulled.filter { it.second.isFailure }.takeIf { it.isNotEmpty() }?.let { f -> " ${f.joinToString(" and ") { it.first }} didn't answer." }.orEmpty()
+                importing = false
+                build(force = true)
+            } else {
+                importNote = "Couldn't reach ${sources.joinToString(" or ") { it.name }}. Try again in a moment."
+                importing = false
+            }
+        }
+    }
+
+    /** #436: forgets the history brought in for this profile (what you play on the TV still counts). */
+    fun forgetImported() {
+        val profile = profileId()
+        imported = null; importNote = "Imported history forgotten."
+        scope.launch(Dispatchers.IO) { runCatching { importFile(profile).delete() } }
+        build(force = true)
+    }
+
     private fun file(profile: String) = File(File(context.filesDir, "spark").apply { mkdirs() }, profile.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".json")
 
     /** Shows what was built before, and builds again when it is a day old. */
@@ -72,52 +134,51 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             loadedFor = profile
             saved = runCatching { json.decodeFromString(Saved.serializer(), file(profile).readText()) }.getOrDefault(Saved())
             rows = saved.rows; summary = saved.summary; builtAt = saved.builtAt; error = null; noHistory = false
+            imported = runCatching { json.decodeFromString(Imported.serializer(), importFile(profile).readText()) }.getOrNull()
+            importNote = null
         }
         if (System.currentTimeMillis() - builtAt > STALE_MS || rows.isEmpty()) build()
     }
 
     fun refresh() = build()
 
-    private fun build() {
-        if (job?.isActive == true) return
+    private fun build(force: Boolean = false) {
+        if (force) job?.cancel() else if (job?.isActive == true) return
         if (!Tmdb.available) return
         val profile = profileId()
         loading = true; error = null
         job = scope.launch {
-            val result = runCatching { withContext(Dispatchers.IO) { make(saved) } }
+            val history = imported
+            val result = runCatching { withContext(Dispatchers.IO) { make(saved, history) } }
             if (profileId() != profile) { loading = false; return@launch }
             result.onSuccess { next ->
                 saved = next
                 rows = next.rows; summary = next.summary; builtAt = next.builtAt
                 noHistory = next.summary == null
                 withContext(Dispatchers.IO) { runCatching { file(profile).writeText(json.encodeToString(Saved.serializer(), next)) } }
-            }.onFailure { error = "Spark couldn't reach TMDB. Try again in a moment." }
+            }.onFailure { if (it !is kotlinx.coroutines.CancellationException) error = "Spark couldn't reach TMDB. Try again in a moment." }
             loading = false
         }
     }
 
     private class Seen(val meta: Meta, var episodes: Int, var finished: Boolean, var progress: Float, var at: Long)
 
-    private suspend fun make(before: Saved): Saved = coroutineScope {
+    private suspend fun make(before: Saved, history: Imported?): Saved = coroutineScope {
         val key = ApiKeys.get("TMDB_API_KEY")
         val now = System.currentTimeMillis()
-        // ---- what you watched: one entry per title ----
+        // ---- what you watched on this TV: one entry per title ----
         val titles = LinkedHashMap<String, Seen>()
         for (p in LocalLibrary.plays) {
             val k = p.meta.titleKey()
             val s = titles.getOrPut(k) { Seen(p.meta, 0, false, 0f, p.at) }
             s.episodes++; s.finished = s.finished || p.finished; s.progress = maxOf(s.progress, p.progress); s.at = maxOf(s.at, p.at)
         }
-        for (m in LocalLibrary.trackerHistory) titles.getOrPut(m.titleKey()) { Seen(m, 1, true, 1f, now - 30L * DAY_MS) }
-        if (titles.isEmpty()) return@coroutineScope before.copy(rows = emptyList(), summary = null, builtAt = now)
+        if (history == null) for (m in LocalLibrary.trackerHistory) titles.getOrPut(m.titleKey()) { Seen(m, 1, true, 1f, now - 30L * DAY_MS) }
+        if (titles.isEmpty() && history?.titles.isNullOrEmpty()) return@coroutineScope before.copy(rows = emptyList(), summary = null, builtAt = now)
 
-        // ---- TMDB ids, and each title's facts (kept for a month) ----
+        // ---- TMDB ids ----
         val imdb = before.imdb.toMutableMap()
-        suspend fun keyOf(m: Meta): String? {
-            val tv = m.type != "movie"
-            val type = if (tv) "tv" else "movie"
-            m.tmdbId?.let { return "$type:$it" }
-            val i = m.imdb ?: return null
+        suspend fun find(i: String): String? {
             imdb[i]?.let { return it }
             val found = runCatching { Http.metadata("https://api.themoviedb.org/3/find/$i?api_key=$key&external_source=imdb_id") }.getOrNull() ?: return null
             val id = found.arr("movie_results").list().firstOrNull().long("id")?.let { "movie:$it" }
@@ -125,23 +186,44 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             imdb[i] = id
             return id
         }
-        val recent = titles.values.sortedByDescending { it.at }.take(MAX_SEEDS)
-        val keyed = recent.map { s -> async { keyOf(s.meta)?.let { it to s } } }.awaitAll().filterNotNull()
+        suspend fun keyOf(m: Meta): String? {
+            m.tmdbId?.let { return (if (m.type != "movie") "tv:" else "movie:") + it }
+            return find(m.imdb ?: return null)
+        }
+        // Weighted seeds from the TV...
+        val local = titles.values.sortedByDescending { it.at }.take(MAX_SEEDS)
+            .map { s -> async { keyOf(s.meta)?.let { k ->
+                SparkSeed(k, s.meta.name, SparkModel.seedWeight(s.finished, s.progress, s.episodes, (now - s.at).coerceAtLeast(0) / DAY_MS.toDouble()), s.at)
+            } } }.awaitAll().filterNotNull()
+        // ...and from your trackers' whole history (#436). Titles with only an IMDb id are looked up for the most recent few.
+        var lookups = 0
+        val fromTrackers = ArrayList<SparkSeed>()
+        for (h in history?.titles.orEmpty().sortedByDescending { it.lastAt ?: 0 }) {
+            val k = h.tmdb?.let { (if (h.movie) "movie:" else "tv:") + it }
+                ?: h.imdb?.let { i -> imdb[i] ?: if (lookups++ < 50) find(i) else null } ?: continue
+            val at = h.lastAt ?: (history!!.at - 365L * DAY_MS)
+            val w = SparkModel.importedWeight(h.plays, h.rating, h.watched, !h.movie, (now - at).coerceAtLeast(0) / DAY_MS.toDouble())
+            if (w != 0.0) fromTrackers += SparkSeed(k, h.name ?: "", w, at)
+        }
+        val seeds = (local + fromTrackers).groupBy { it.key }.map { (_, same) ->
+            same.reduce { a, b -> SparkSeed(a.key, a.name.ifBlank { b.name }, (a.weight + b.weight).coerceIn(-2.0, 12.0), maxOf(a.at, b.at)) }
+        }
+
+        // ---- each title's facts (kept for six months; only the titles that say most about you) ----
         val facts = before.facts.filterValues { now - it.fetchedAt < FACTS_MS }.toMutableMap()
-        keyed.filter { it.first !in facts }.map { (k, s) -> async {
+        val wanted = (seeds.sortedByDescending { kotlin.math.abs(it.weight) }.take(MAX_FACTS) + seeds.sortedByDescending { it.at }.take(MAX_SEEDS))
+            .distinctBy { it.key }.filter { it.key !in facts }
+        for (chunk in wanted.chunked(8)) chunk.map { s -> async {
             runCatching {
-                val (type, id) = k.split(':')
+                val (type, id) = s.key.split(':')
                 val j = Http.metadata("https://api.themoviedb.org/3/$type/$id?api_key=$key")
-                SparkFacts(k, s.meta.name, j.arr("genres").list().mapNotNull { it.int("id") },
+                SparkFacts(s.key, s.name.ifBlank { j.str("title") ?: j.str("name") ?: "" }, j.arr("genres").list().mapNotNull { it.int("id") },
                     (j.str("release_date") ?: j.str("first_air_date"))?.take(4)?.toIntOrNull(), j.str("original_language"), now)
             }.getOrNull()
         } }.awaitAll().filterNotNull().forEach { facts[it.key] = it }
+        val named = seeds.map { s -> if (s.name.isBlank()) s.copy(name = facts[s.key]?.name.orEmpty()) else s }
+        val taste = SparkModel.taste(named, facts)
 
-        val seeds = keyed.map { (k, s) ->
-            val days = (now - s.at).coerceAtLeast(0) / DAY_MS.toDouble()
-            SparkSeed(k, s.meta.name, SparkModel.seedWeight(s.finished, s.progress, s.episodes, days), s.at)
-        }.distinctBy { it.key }
-        val taste = SparkModel.taste(seeds, facts)
 
         // ---- candidates: TMDB's picks for your strongest titles, and the best of your favourite kinds ----
         fun parse(r: JsonElement, tv: Boolean, from: SparkSeed?): SparkCandidate? {
@@ -149,7 +231,7 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             return SparkCandidate(t.meta, (if (tv) "tv:" else "movie:") + t.tmdb, t.genreIds, r.str("original_language"),
                 t.date?.take(4)?.toIntOrNull(), t.rating, t.votes, listOfNotNull(from?.name), from?.weight ?: 0.0)
         }
-        val strong = seeds.filter { it.weight > 0 }.sortedByDescending { it.weight }.take(10)
+        val strong = named.filter { it.name.isNotBlank() }.filter { it.weight > 0 }.sortedByDescending { it.weight }.take(10)
         val fromSeeds = strong.map { s -> async {
             val (type, id) = s.key.split(':')
             runCatching {
@@ -176,17 +258,20 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         val candidates = (fromSeeds + byKind + byLanguage).awaitAll().flatten()
         if (candidates.isEmpty() && strong.isNotEmpty()) throw java.io.IOException("TMDB gave nothing")
 
-        // Nothing you have already played or that your trackers say you watched.
-        val excluded = keyed.map { it.first }.toSet() + imdb.values
-        val rows = SparkModel.rows(candidates, taste, seeds.sortedByDescending { it.at }, excluded)
-        Saved(facts.filterKeys { k -> keyed.any { it.first == k } || facts.size < 400 }, imdb, rows, SparkModel.summary(taste), now)
+        // Nothing you have already played, rated or that your trackers say you watched.
+        val excluded = seeds.map { it.key }.toSet() + imdb.values
+        val rows = SparkModel.rows(candidates, taste, named.filter { it.name.isNotBlank() }.sortedByDescending { it.at }, excluded)
+        val keep = seeds.mapTo(HashSet()) { it.key }
+        Saved(facts.filterKeys { it in keep }, imdb, rows, SparkModel.summary(taste), now)
     }
 
     private companion object {
         const val DAY_MS = 86_400_000L
         const val STALE_MS = 20 * 60 * 60 * 1000L
-        const val FACTS_MS = 30 * DAY_MS
+        const val FACTS_MS = 180 * DAY_MS
         const val MAX_SEEDS = 40
+        /** Titles whose facts are looked up: those that say most about you. */
+        const val MAX_FACTS = 300
         val MOVIE_GENRES = setOf(28, 12, 16, 35, 80, 99, 18, 10751, 14, 36, 27, 10402, 9648, 10749, 878, 53, 10752, 37)
         val TV_GENRES = setOf(16, 35, 80, 99, 18, 10751, 9648, 37, 10759, 10762, 10765, 10768)
     }

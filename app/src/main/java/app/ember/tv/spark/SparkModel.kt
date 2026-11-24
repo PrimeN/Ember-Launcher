@@ -66,6 +66,24 @@ object SparkModel {
         return base * count * recency
     }
 
+    /**
+     * #436: a title from a tracker's history. Watched counts like a finished title (a show more for
+     * each episode); your rating then counts most: 9–10 strongly for, 7–8 for, 5–6 a little, 1–4
+     * against. A title only rated counts when the rating is clear (8+ or 4 and under).
+     */
+    fun importedWeight(plays: Int, rating: Int?, watched: Boolean, show: Boolean, ageDays: Double): Double {
+        if (rating != null && rating <= 4) return -1.0
+        val recency = maxOf(0.3, exp(-ageDays.coerceAtLeast(0.0) / DECAY_DAYS))
+        val base = if (watched) (1 + ln(plays.coerceAtLeast(1).toDouble()) * (if (show) 1.0 else 0.3)) * recency else 0.0
+        return when {
+            rating == null -> base
+            rating >= 9 -> maxOf(base, recency) * 2.5
+            rating >= 7 -> maxOf(base, recency) * 1.5
+            !watched -> 0.0
+            else -> base * 0.6
+        }.let { if (!watched && rating != null && rating < 8) 0.0 else it }
+    }
+
     fun taste(seeds: List<SparkSeed>, facts: Map<String, SparkFacts>): SparkTaste {
         val genres = HashMap<Int, Double>(); val languages = HashMap<String, Double>(); val decades = HashMap<Int, Double>()
         for (s in seeds) {

@@ -38,6 +38,8 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
     fun byId(id: String) = trackers.first { it.id == id }
 
     private fun active() = trackers.filter { it.isConnected() && it.id !in disabled }
+    /** #436: the connected services that can give Spark your whole history. */
+    fun historySources(): List<Tracker> = active().filter { it.syncs }
 
     suspend fun continueWatching(): List<TrackedItem> = continueWatchingOrNull().orEmpty()
     suspend fun watchlist(): List<TrackedItem> = watchlistOrNull().orEmpty()

@@ -68,6 +68,15 @@ interface Tracker {
     suspend fun syncWatchlist(): List<SyncItem> = watchlist().mapNotNull(SyncItem::of)
     /** Your ratings of movies and shows. */
     suspend fun syncRatings(): Map<SyncItem, Int> = error("$name does not sync")
+    /**
+     * #436 Spark: every title you watched or rated here, one entry per film or show. Services that
+     * sync give their whole history; ones with dates (Trakt) say when each was last watched.
+     */
+    suspend fun tasteHistory(): List<HistoryTitle> {
+        if (!syncs) return emptyList()
+        val ratings = runCatching { syncRatings() }.getOrDefault(emptyMap())
+        return HistoryTitle.fromSync(syncWatched(), ratings)
+    }
     /** False when removing from the watchlist would also delete history (Simkl). */
     val removesFromWatchlist: Boolean get() = true
     /** Applies a batch; throws when the service could not take it. */

@@ -55,3 +55,29 @@ class SparkModelTest {
         assertEquals(emptyList<DiscoverSection>(), DiscoverVisibility.visible(emptyMap(), false, false, true, spark = true))
     }
 }
+
+/** #436 history brought in from trackers. */
+class SparkHistoryTest {
+    @Test fun ratingsCountMostAndLowOnesCountAgainst() {
+        val plain = SparkModel.importedWeight(1, null, true, show = false, ageDays = 0.0)
+        assertEquals(1.0, plain, 0.001)
+        assertTrue(SparkModel.importedWeight(1, 10, true, false, 0.0) > SparkModel.importedWeight(1, 7, true, false, 0.0))
+        assertTrue(SparkModel.importedWeight(1, 7, true, false, 0.0) > plain)
+        assertEquals(-1.0, SparkModel.importedWeight(1, 3, true, false, 0.0), 0.001)
+        assertEquals(0.0, SparkModel.importedWeight(0, 6, false, false, 0.0), 0.001)
+        assertTrue(SparkModel.importedWeight(0, 9, false, false, 0.0) > 0)
+        assertTrue(SparkModel.importedWeight(40, null, true, show = true, ageDays = 0.0) > SparkModel.importedWeight(40, null, true, show = false, ageDays = 0.0))
+        assertTrue(SparkModel.importedWeight(1, null, true, false, 1000.0) < plain)
+    }
+
+    @Test fun syncedEpisodesBecomeShowsWithRatings() {
+        val watched = listOf(app.ember.tv.tracker.SyncItem(true, "tt1", 1L),
+            app.ember.tv.tracker.SyncItem(false, "tt2", 2L, 1, 1), app.ember.tv.tracker.SyncItem(false, "tt2", 2L, 1, 2))
+        val ratings = mapOf(app.ember.tv.tracker.SyncItem(true, "tt1", 1L) to 9, app.ember.tv.tracker.SyncItem(true, "tt3", 3L) to 2)
+        val h = app.ember.tv.tracker.HistoryTitle.fromSync(watched, ratings)
+        assertEquals(3, h.size)
+        assertEquals(9, h.first { it.tmdb == 1L }.rating)
+        assertEquals(2, h.first { it.tmdb == 2L }.plays)
+        assertEquals(false, h.first { it.tmdb == 3L }.watched)
+    }
+}

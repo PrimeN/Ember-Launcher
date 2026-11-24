@@ -342,3 +342,33 @@ internal fun ratingRows(rows: List<JsonElement>, movie: Boolean, value: (JsonEle
 }
 
 internal fun JsonElement?.rows(key: String): List<JsonElement> = (this as? JsonArray)?.toList() ?: this.arr(key).list()
+
+/** #436: one film or show from a tracker's history, for Spark. */
+data class HistoryTitle(
+    val movie: Boolean, val imdb: String?, val tmdb: Long?, val name: String? = null, val year: Int? = null,
+    /** Plays of a film, or episodes watched of a show. */
+    val plays: Int = 1,
+    val lastAt: Long? = null,
+    /** 1–10, when you rated it. */
+    val rating: Int? = null,
+    val watched: Boolean = true,
+) {
+    companion object {
+        /** Episodes grouped by show; ratings of films and shows attached (and rated-only titles kept). */
+        fun fromSync(watched: List<SyncItem>, ratings: Map<SyncItem, Int>): List<HistoryTitle> {
+            fun id(movie: Boolean, imdb: String?, tmdb: Long?) = (if (movie) "m:" else "s:") + (tmdb?.toString() ?: imdb ?: "")
+            val out = LinkedHashMap<String, HistoryTitle>()
+            for (w in watched) {
+                if (w.imdb == null && w.tmdb == null) continue
+                val k = id(w.movie, w.imdb, w.tmdb)
+                out[k] = out[k]?.let { it.copy(plays = it.plays + 1) } ?: HistoryTitle(w.movie, w.imdb, w.tmdb)
+            }
+            for ((r, value) in ratings) {
+                if (r.season != null || (r.imdb == null && r.tmdb == null)) continue
+                val k = id(r.movie, r.imdb, r.tmdb)
+                out[k] = out[k]?.copy(rating = value) ?: HistoryTitle(r.movie, r.imdb, r.tmdb, rating = value, watched = false, plays = 0)
+            }
+            return out.values.toList()
+        }
+    }
+}
