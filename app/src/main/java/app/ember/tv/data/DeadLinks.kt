@@ -5,7 +5,7 @@ package app.ember.tv.data
  * the title page plays the next ready source instead of leaving you to pick one.
  */
 object DeadLinks {
-    data class Report(val resumeKey: String, val url: String, val startOver: Boolean, val at: Long)
+    data class Report(val resumeKey: String, val url: String, val startOver: Boolean, val at: Long, val force: Boolean = false)
 
     const val MAX_SKIPS = 4
     private const val FRESH_MS = 60_000L
@@ -15,10 +15,10 @@ object DeadLinks {
     private val dead = HashMap<String, MutableSet<String>>()
     private val firstAt = HashMap<String, Long>()
 
-    @Synchronized fun report(resumeKey: String, url: String, startOver: Boolean, now: Long = System.currentTimeMillis()) {
+    @Synchronized fun report(resumeKey: String, url: String, startOver: Boolean, now: Long = System.currentTimeMillis(), force: Boolean = false) {
         if (now - (firstAt[resumeKey] ?: 0L) > FORGET_MS) { dead.remove(resumeKey); firstAt[resumeKey] = now }
         dead.getOrPut(resumeKey) { HashSet() } += url
-        pending = Report(resumeKey, url, startOver, now)
+        pending = Report(resumeKey, url, startOver, now, force)
     }
 
     /** The report waiting for the title page, once. */

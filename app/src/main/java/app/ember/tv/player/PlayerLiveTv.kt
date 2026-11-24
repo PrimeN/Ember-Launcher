@@ -82,3 +82,48 @@ internal fun PlayerActivity.showRecentChannels() {
         }
     })
 }
+
+/** #434: opens the guide over the video on the channel you're watching. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.openLiveGuide() {
+    val session = liveSession ?: return
+    val channels = session.channels()
+    if (channels.isEmpty()) return
+    handler.removeCallbacks(hideLiveBanner); liveBanner.value = null
+    val at = channels.indexOfFirst { it.key == session.currentKey }.coerceAtLeast(0)
+    liveGuide.value = app.ember.tv.ui.LiveGuideState(channels, at, session.currentKey, System.currentTimeMillis())
+    keepLiveGuide()
+}
+
+private const val LIVE_GUIDE_IDLE_MS = 20_000L
+
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.keepLiveGuide() {
+    handler.removeCallbacks(closeLiveGuide)
+    handler.postDelayed(closeLiveGuide, LIVE_GUIDE_IDLE_MS)
+}
+
+/** Up/Down (held to scroll) pick a channel, channel up/down jump a page, OK watches it, Back or Right closes, Left shows recent channels. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.handleLiveGuideKey(event: android.view.KeyEvent): Boolean {
+    val g = liveGuide.value ?: return false
+    val down = event.action == android.view.KeyEvent.ACTION_DOWN
+    fun move(by: Int) { if (down) { liveGuide.value = g.moved(by); keepLiveGuide() } }
+    when (event.keyCode) {
+        android.view.KeyEvent.KEYCODE_DPAD_UP -> move(-1)
+        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> move(1)
+        android.view.KeyEvent.KEYCODE_CHANNEL_UP, android.view.KeyEvent.KEYCODE_PAGE_UP -> move(-app.ember.tv.ui.LiveGuideState.PAGE)
+        android.view.KeyEvent.KEYCODE_CHANNEL_DOWN, android.view.KeyEvent.KEYCODE_PAGE_DOWN -> move(app.ember.tv.ui.LiveGuideState.PAGE)
+        android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER, android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+            if (!down && event.repeatCount == 0) {
+                val pick = g.channels.getOrNull(g.selected)
+                closeLiveGuide.run()
+                if (pick != null && pick.key != liveSession?.currentKey) { tuneChannel(pick.key); showLiveBanner() }
+            }
+        }
+        android.view.KeyEvent.KEYCODE_BACK, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> if (!down) closeLiveGuide.run()
+        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> if (!down) { closeLiveGuide.run(); showRecentChannels() }
+        else -> return false
+    }
+    return true
+}

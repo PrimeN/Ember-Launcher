@@ -66,6 +66,12 @@ class Prefs(context: Context) {
     var appFocusColors: Boolean
         get() = runCatching { sp.read(PreferenceKeys.APP_FOCUS_COLORS) }.getOrDefault(true)
         set(value) = sp.edit { putBoolean(PreferenceKeys.APP_FOCUS_COLORS.name, value) }
+    var posterRibbons:Boolean
+        get()=runCatching {sp.read(PreferenceKeys.POSTER_RIBBONS)}.getOrDefault(false)
+        set(value)=sp.edit {putBoolean(PreferenceKeys.POSTER_RIBBONS.name,value)}
+    var ribbonKinds:String
+        get()=runCatching {sp.read(PreferenceKeys.RIBBON_KINDS)}.getOrDefault("new,age,kind")
+        set(value)=sp.edit {putString(PreferenceKeys.RIBBON_KINDS.name,value)}
     var episodesLeft:Boolean
         get()=runCatching {sp.read(PreferenceKeys.EPISODES_LEFT)}.getOrDefault(true)
         set(value)=sp.edit {putBoolean(PreferenceKeys.EPISODES_LEFT.name,value)}
@@ -425,6 +431,12 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.STREAM_DESC_TEMPLATE)
         set(v) = sp.edit { if (v == null) remove(PreferenceKeys.STREAM_DESC_TEMPLATE.name) else putString(PreferenceKeys.STREAM_DESC_TEMPLATE.name, v) }
 
+    var deviceTuned: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.DEVICE_TUNED) }.getOrDefault(false)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.DEVICE_TUNED.name, v) }
+    var lengthCheck: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.LENGTH_CHECK) }.getOrDefault(true)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.LENGTH_CHECK.name, v) }
     var skipDeadLinks: Boolean
         get() = runCatching { sp.read(PreferenceKeys.SKIP_DEAD_LINKS) }.getOrDefault(true)
         set(v) = sp.edit { putBoolean(PreferenceKeys.SKIP_DEAD_LINKS.name, v) }

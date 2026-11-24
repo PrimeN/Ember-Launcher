@@ -198,6 +198,9 @@ class PlayerActivity : ComponentActivity() {
     internal var liveSession: LiveSession? = null
     internal var sessionChannel: Channel? = null
     internal val liveBanner = androidx.compose.runtime.mutableStateOf<LiveBanner?>(null)
+    /** #434: the channel guide over the video (Left), null when closed. */
+    internal val liveGuide = androidx.compose.runtime.mutableStateOf<app.ember.tv.ui.LiveGuideState?>(null)
+    internal val closeLiveGuide = Runnable { liveGuide.value = null }
     internal val hideLiveBanner = Runnable { liveBanner.value = null }
 
     /** Some providers only answer a particular player name or referrer. */
@@ -246,6 +249,8 @@ class PlayerActivity : ComponentActivity() {
     internal lateinit var config: PlaybackConfig
     internal var audioPicked = false
     internal var modeApplied = false
+    /** #431: the file length was checked for this source. */
+    internal var lengthChecked = false
     /** #427: the wait after a display mode switch. */
     internal var displaySettle: kotlinx.coroutines.Job? = null
     internal var videoDecoder: String? = null
@@ -629,6 +634,8 @@ class PlayerActivity : ComponentActivity() {
         }
         val unobstructed = !(::panel.isInitialized && panel.isVisible) &&
             !(if (advanced) controls.visible else ::view.isInitialized && view.isControllerFullyVisible)
+        // #434: while the guide is open it has the remote.
+        if (live && liveGuide.value != null && handleLiveGuideKey(event)) return true
         if (live && liveSession != null && unobstructed) {
             if (numberDigits.isNotEmpty() && event.keyCode in setOf(KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)) {
                 if (event.action == KeyEvent.ACTION_UP) {
@@ -659,7 +666,7 @@ class PlayerActivity : ComponentActivity() {
                 return true
             }
             if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) showRecentChannels()
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) openLiveGuide()
                 return true
             }
         }

@@ -8,6 +8,8 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import app.ember.tv.tracker.Kind
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -313,4 +315,24 @@ internal fun PlayerActivity.subtitleChoices(): Pair<List<Pair<String, Boolean>>,
     }
     if(sel is SubtitleController.Selection.Manual){rows+=sel.label to true;acts+={}}
     return rows to acts
+}
+
+/** #431: a file much shorter or longer than the title pauses and asks (a sample, trailer, fake or wrong episode). */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+internal fun PlayerActivity.checkFileLength(p: ExoPlayer) {
+    if (live || trailer || fileQueue != null || !prefs.lengthCheck) return
+    val runtime = intent?.getIntExtra(PlayRequest.EXTRA_RUNTIME, -1)?.takeIf { it > 0 } ?: return
+    val episode = intent?.getIntExtra(PlayRequest.EXTRA_EPISODE, -1)?.let { it > 0 } == true
+    val duration = p.duration.takeIf { it != androidx.media3.common.C.TIME_UNSET } ?: return
+    if (!FileLength.suspicious(duration, runtime, episode)) return
+    p.playWhenReady = false
+    val what = if (episode) "the episode" else "the film"
+    val url = intent?.getStringExtra(PlayRequest.EXTRA_URL)
+    showPlayerActions("This file may not be $what", buildList {
+        add(PlayerDialogAction("Play anyway", Icons.Outlined.PlayArrow) { p.playWhenReady = true })
+        if (url != null) add(PlayerDialogAction("Try the next source", Icons.Outlined.SkipNext) {
+            app.ember.tv.data.DeadLinks.report(resumeKey, url, startOver, force = true); finish()
+        })
+        add(PlayerDialogAction("Close", Icons.Outlined.Close, destructive = true) { finish() })
+    }, message = "It runs ${FileLength.minutes(duration)}, but $what runs about ${FileLength.minutes(runtime * 60_000L)}. It could be a sample, a trailer, a fake or the wrong file.") { p.playWhenReady = true }
 }

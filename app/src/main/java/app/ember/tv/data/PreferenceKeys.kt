@@ -26,6 +26,10 @@ internal object PreferenceKeys {
     val ASK_PROFILE = PreferenceKey<Boolean>("askProfile", PreferenceType.BOOLEAN, false)
     val AUTOPLAY = PreferenceKey<Boolean>("autoplay", PreferenceType.BOOLEAN, true)
     /** #428: a source that fails before it plays is followed by the next ready one. */
+    /** #431: first-start tuning has run (or was skipped for an existing install). */
+    val DEVICE_TUNED = PreferenceKey<Boolean>("deviceTuned", PreferenceType.BOOLEAN, false)
+    /** #431: stop and ask when a file's length doesn't fit the title. */
+    val LENGTH_CHECK = PreferenceKey<Boolean>("lengthCheck", PreferenceType.BOOLEAN, true)
     val SKIP_DEAD_LINKS = PreferenceKey<Boolean>("skipDeadLinks", PreferenceType.BOOLEAN, true)
     /** #429: sources for the Continue watching title in focus are looked up before it's opened. */
     val EARLY_SOURCES = PreferenceKey<Boolean>("earlySources", PreferenceType.BOOLEAN, true)
@@ -123,6 +127,9 @@ internal object PreferenceKeys {
     val SETTINGS_STYLE = PreferenceKey<String?>("settingsStyle", PreferenceType.STRING, "standard")
     val SETUP_CHECKLIST_HIDDEN = PreferenceKey<Boolean>("setupChecklistHidden", PreferenceType.BOOLEAN, false)
     val SHOW_WATCHED_BADGES = PreferenceKey<Boolean>("showWatchedBadges", PreferenceType.BOOLEAN, true)
+    /** #432: Ember's own corner tags on posters, and which kinds. */
+    val POSTER_RIBBONS = PreferenceKey<Boolean>("posterRibbons", PreferenceType.BOOLEAN, false)
+    val RIBBON_KINDS = PreferenceKey<String>("ribbonKinds", PreferenceType.STRING, "new,age,kind")
     /** #425: "N episodes left" on Continue watching cards. */
     val EPISODES_LEFT = PreferenceKey<Boolean>("episodesLeft", PreferenceType.BOOLEAN, true)
     /** #426: watched titles in Home rows: "show", "dim" or "hide". */
@@ -167,8 +174,8 @@ internal object PreferenceKeys {
     val WL = PreferenceKey<String?>("wl", PreferenceType.STRING, "[]")
     val all = listOf(
         ACCENT, ACCENT2, ACCENT3, ADDON_NAMES, ADDON_TIMEOUT, ADDONS,
-        AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, TITLE_FOCUS_COLOURS, EPISODES_LEFT, WATCHED_ON_HOME, APP_ICONS, ROW_ADDON_LABELS, PLAY_BUTTON_RESTORED, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
-        AUTOPLAY, SKIP_DEAD_LINKS, EARLY_SOURCES, BACKGROUND_REFRESH, BADGE_MODE, BLUR_UNWATCHED_EPISODES, CACHE_CONFIG, CARD_FOCUS_STYLE, TILE_LABELS_OFF, CATALOG_DISCOVER_OFF,
+        AI_DISCOVERY_ENABLED, APP_FOCUS_COLORS, TITLE_FOCUS_COLOURS, EPISODES_LEFT, WATCHED_ON_HOME, POSTER_RIBBONS, RIBBON_KINDS, APP_ICONS, ROW_ADDON_LABELS, PLAY_BUTTON_RESTORED, APPS_PAGE_OFF, ARTWORK_QUALITY, ASK_PROFILE,
+        AUTOPLAY, DEVICE_TUNED, LENGTH_CHECK, SKIP_DEAD_LINKS, EARLY_SOURCES, BACKGROUND_REFRESH, BADGE_MODE, BLUR_UNWATCHED_EPISODES, CACHE_CONFIG, CARD_FOCUS_STYLE, TILE_LABELS_OFF, CATALOG_DISCOVER_OFF,
         CATALOG_HOME, CATALOG_HOME_DEFAULTS_OFF, CATALOG_LIVE, CATALOG_NAMES, CATALOG_ORDER, CATALOGS_ON_HOME_FIXED,
         COLLECTION_AUTO_PAGE, COLLECTION_FOCUS_BACKGROUND, COLLECTION_FOLDERS_OFF, COLLECTION_HERO_PREVIEWS, COLLECTIONS_DISCOVER, COLLECTIONS_OFF,
         CONTENT_DENSITY, COUNTDOWN, CURRENT_PROFILE, CUSTOM_PERFORMANCE, DETAILED_BADGE_CATEGORIES_OFF, DETAILED_BADGE_ORDER, BADGES_OFF, DEVICE_PERFORMANCE, DISCOVER_SECTIONS,

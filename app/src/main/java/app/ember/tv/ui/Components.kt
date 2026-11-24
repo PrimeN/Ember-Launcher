@@ -353,6 +353,7 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
                         )
                     }
                 }
+                PosterRibbonTags(meta, Modifier.align(Alignment.TopEnd).padding(top = if (saved) 32.dp else 6.dp, end = 6.dp))
                 if (saved) {
                     Text(
                         stringResource(R.string.ui_saved),
@@ -576,4 +577,24 @@ internal fun focusTint(color: Color): Color {
     }.let { if (it < 0f) it + 360f else it }
     val saturation = (if (max == 0f) 0f else d / max).coerceIn(0.35f, 0.85f)
     return Color.hsv(hue, saturation, max.coerceAtLeast(0.88f))
+}
+
+/** #432: Ember's own corner tags (New, age rating, kind...), drawn here with no service behind them. */
+@Composable
+internal fun PosterRibbonTags(meta: Meta, modifier: Modifier = Modifier) {
+    val kinds = LocalRibbonKinds.current
+    if (kinds.isEmpty()) return
+    val year = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+    val tags = remember(meta, kinds, year) { app.ember.tv.data.PosterRibbons.of(meta, kinds, year) }
+    if (tags.isEmpty()) return
+    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        tags.forEach { tag ->
+            val isNew = tag == "New"
+            Text(tag, maxLines = 1, fontSize = TvTokens.Type.Caption.sp, fontWeight = FontWeight.SemiBold,
+                color = if (isNew) MaterialTheme.colorScheme.onPrimary else Color.White,
+                modifier = Modifier.clip(RoundedCornerShape(TvTokens.Shape.Tight.dp))
+                    .background(if (isNew) MaterialTheme.colorScheme.primary else Color(0xCC111215))
+                    .padding(horizontal = 6.dp, vertical = 1.dp))
+        }
+    }
 }

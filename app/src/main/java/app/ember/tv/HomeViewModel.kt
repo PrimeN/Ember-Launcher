@@ -180,6 +180,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal val linkTasks = LinkTasks(viewModelScope)
     // Capture this before any automatic source addition saves the navigation defaults.
     internal var restoreLiveDefault = !prefs.hasSavedNav
+    /** #431: a new install is tuned for this TV once; what was set shows in a dialog. */
+    private val freshInstall = !prefs.hasSavedNav
+    var tuning by mutableStateOf<List<String>?>(null)
 
     internal var allApps: List<AppEntry> = emptyList()
 
@@ -427,6 +430,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             androidx.compose.runtime.snapshotFlow { inProgressItems.filter { it.season != null && it.episode != null } to look.episodesLeft }
                 .collectLatest { (items, on) -> if (on) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { EpisodesLeft.load(items) } }
+        }
+        // #431: first start: player defaults from this box and TV.
+        if (!prefs.deviceTuned) viewModelScope.launch {
+            prefs.deviceTuned = true
+            if (freshInstall) tuneForThisTv()
         }
         // #429: the front Continue watching title's sources, once Home has settled.
         viewModelScope.launch {

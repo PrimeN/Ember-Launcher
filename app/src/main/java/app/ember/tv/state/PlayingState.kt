@@ -51,6 +51,9 @@ class PlayingState(
     /** #428 */
     var skipDeadLinks by mutableStateOf(prefs.skipDeadLinks); private set
     fun updateSkipDeadLinks(on: Boolean) { skipDeadLinks = on; prefs.skipDeadLinks = on }
+    /** #431 */
+    var lengthCheck by mutableStateOf(prefs.lengthCheck); private set
+    fun updateLengthCheck(on: Boolean) { lengthCheck = on; prefs.lengthCheck = on }
     /** #429 */
     var earlySources by mutableStateOf(prefs.earlySources); private set
     fun updateEarlySources(on: Boolean) { earlySources = on; prefs.earlySources = on }

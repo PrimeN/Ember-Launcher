@@ -330,6 +330,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
             if (state == Player.STATE_READY && android.os.SystemClock.elapsedRealtime() - lastRetryAt > 60_000L) {
                 ioRetries = 0
             }
+            if (state == Player.STATE_READY && !lengthChecked) { lengthChecked = true; checkFileLength(p) }
             if (state == Player.STATE_READY && !resumed) {
                 resumed = resume(p)
                 loadFileChapters(p)

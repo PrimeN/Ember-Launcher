@@ -65,6 +65,9 @@ import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Build
@@ -95,6 +98,7 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
     val inputs = snapshot?.inputs.orEmpty()
     val first = remember { FocusRequester() }
     var audioPicker by remember { mutableStateOf(false) }
+    var bell by remember { mutableStateOf(false) }
     val info = snapshot?.info ?: QuickActions.Info("—", "", false, "Loading…", "Display", "Audio", emptyList())
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         CompactPanelContent {
@@ -127,6 +131,8 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                                 Text(info.date, fontSize = 15.sp, color = Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(info.time, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             }
+                            // #433: notifications, with how many there are.
+                            if (!vm.profiles.profile.kids) NotificationBell(vm) { bell = true }
                             HeaderButton(stringResource(R.string.ui_ember_settings), if (onReturn == null) Modifier.focusRequester(first) else Modifier,
                                 onClick = { onClose(); onSettings() }) { EmberMark(26.dp) }
                             HeaderButton(stringResource(R.string.ui_qs_tv_settings), onClick = {
@@ -235,6 +241,44 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
         }
     }
     if (audioPicker) AudioOutputDialog { audioPicker = false }
+    if (bell) NotificationsDialog(vm, onOpened = { bell = false; onClose() }) { bell = false }
+}
+
+/** #433: a bell beside the settings buttons; the dot shows how many notifications there are. */
+@Composable
+private fun NotificationBell(vm: HomeViewModel, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val enabled = vm.launcherExtras.options.notifications
+    val revision by app.ember.tv.home.NotificationFeed.changes.collectAsState()
+    val count = remember(enabled, revision) {
+        if (enabled && app.ember.tv.home.PlaybackAccess.granted(context)) app.ember.tv.home.NotificationFeed.current(context.packageName).size else 0
+    }
+    Box {
+        HeaderButton(if (count > 0) "Notifications, $count" else "Notifications", onClick = onClick) {
+            androidx.tv.material3.Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(24.dp))
+        }
+        if (count > 0) Text(if (count > 9) "9+" else count.toString(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White,
+            modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp).clip(CircleShape).background(app.ember.tv.ui.LiveRed)
+                .padding(horizontal = 5.dp, vertical = 0.dp))
+    }
+}
+
+/** #433: the notifications list on its own, opened from the bell. */
+@Composable
+private fun NotificationsDialog(vm: HomeViewModel, onOpened: () -> Unit, onClose: () -> Unit) {
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        CompositionLocalProvider(LocalFloating provides true, LocalContentColor provides Color(0xFFE8EAED)) {
+            Column(Modifier.width(560.dp).heightIn(max = 640.dp).floatingPanelSurface().verticalScroll(rememberMenuScrollState()).padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Notifications", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                if (!vm.launcherExtras.options.notifications) {
+                    Text("Notifications from your apps can show here. Ember reads them on this TV only and keeps nothing.", color = Mute, fontSize = 14.sp)
+                    Chip("Turn on") { vm.launcherExtras.update { it.copy(notifications = true) } }
+                } else NotificationsPanel(vm, onOpened)
+                Chip("Close", onClick = onClose)
+            }
+        }
+    }
 }
 
 /** A round button in the panel's header; its name is spoken, not shown (#64). */

@@ -257,7 +257,7 @@ internal fun HomeViewModel.openHomeShortcut(value:app.ember.tv.data.HomeShortcut
 /** #428: after a source failed before it played, the next ready source for the same title or episode. */
 internal fun HomeViewModel.nextAfterDeadLink(): PlayRequest? {
     val report = app.ember.tv.data.DeadLinks.take() ?: return null
-    if (!playing.skipDeadLinks) return null
+    if (!playing.skipDeadLinks && !report.force) return null
     val d = details ?: return null
     if (d.meta.playbackKey(d.episode) != report.resumeKey || d.streams.none { it.url == report.url }) return null
     val s = app.ember.tv.data.DeadLinks.next(d.streams, report.url, app.ember.tv.data.DeadLinks.deadFor(report.resumeKey), playerSettings.playRules)
@@ -276,5 +276,15 @@ internal fun HomeViewModel.warmSources(meta: Meta) {
         app.ember.tv.data.SourceWarmup.warm(client, infos, type, id, addonTimeout * 2000L) { addon, r, ms ->
             app.ember.tv.data.AddonHealth.record(addon.url, app.ember.tv.data.AddonHealth.outcome(r), ms)
         }
+    }
+}
+
+/** #431: sets the buffer and frame-rate matching for this box and TV, and shows what it set. */
+internal fun HomeViewModel.tuneForThisTv() {
+    viewModelScope.launch {
+        val facts = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { app.ember.tv.player.DeviceTuning.facts(app) }.getOrNull() } ?: return@launch
+        val plan = app.ember.tv.player.DeviceTuning.plan(facts, playerSettings.playbackConfig)
+        playerSettings.updatePlaybackConfig { it.copy(buffer = plan.config.buffer, frameRate = plan.config.frameRate) }
+        tuning = plan.lines
     }
 }

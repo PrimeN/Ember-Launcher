@@ -338,6 +338,22 @@ internal fun PostersPage(vm: HomeViewModel, openKeys: () -> Unit) {
             }
         }
 
+        // #432
+        Section("Poster ribbons", "Small corner tags Ember draws itself on posters and cards.") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ToggleRow("Show ribbons", "Made from what Ember already knows about each title. They work offline and need no RPDB or other key, with or without rating posters.", vm.look.posterRibbons) { vm.look.updatePosterRibbons(!vm.look.posterRibbons) }
+                if (vm.look.posterRibbons) {
+                    Text("Which ribbons (up to ${app.ember.tv.data.PosterRibbons.MAX_SHOWN} show on each poster, in this order):", color = Mute, fontSize = 13.sp)
+                    ButtonRow(spacing = 10.dp) {
+                        app.ember.tv.data.PosterRibbons.Kind.entries.forEach { k ->
+                            Chip(k.label, selected = k in vm.look.ribbonKinds, maxLines = 1) { vm.look.toggleRibbonKind(k) }
+                        }
+                    }
+                    Text("New: released this year. Age rating, genre and running time appear when the addon gives them.", color = Mute, fontSize = 13.sp, modifier = Modifier.width(760.dp))
+                }
+            }
+        }
+
         Section(stringResource(R.string.ui_landscape_cards), stringResource(R.string.ui_landscape_cards_note)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val tier = Posters.rpdbTier()

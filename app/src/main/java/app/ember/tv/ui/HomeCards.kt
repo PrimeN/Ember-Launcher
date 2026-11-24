@@ -190,6 +190,7 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
                         Text(it, fontSize = 12.sp, color = Color(0xFFDADCE0), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
+                PosterRibbonTags(meta, Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = if (saved) 22.dp else 6.dp))
                 if (saved) {
                     Box(
                         Modifier.align(Alignment.TopEnd).padding(8.dp).size(9.dp).clip(CircleShape)

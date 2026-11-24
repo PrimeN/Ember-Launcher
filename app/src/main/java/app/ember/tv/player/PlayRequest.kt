@@ -68,6 +68,7 @@ data class PlayRequest(
             .putExtra(EXTRA_GENRES,contentMeta?.genres?.toTypedArray())
             .putExtra(EXTRA_ADULT,contentMeta?.adult==true)
             .putExtra(EXTRA_CONTENT_TYPE,contentMeta?.type)
+            .putExtra(EXTRA_RUNTIME,contentMeta?.runtimeMinutes ?: -1)
             .putExtra(EXTRA_KIND, kind.name)
             .putExtra(EXTRA_IMDB, imdbId)
             .putExtra(EXTRA_TMDB, tmdbId ?: -1L)
@@ -100,6 +101,8 @@ data class PlayRequest(
         const val EXTRA_GENRES="contentGenres"
         const val EXTRA_ADULT="adultContent"
         const val EXTRA_CONTENT_TYPE="contentType"
+        /** #431: the title's running time in minutes, for the file length check. */
+        const val EXTRA_RUNTIME="runtimeMinutes"
         const val EXTRA_PROFILE="watchProfile"
         const val EXTRA_SERVER_QUALITY = "serverQuality"
         const val EXTRA_SERVER_SESSION = "serverSession"

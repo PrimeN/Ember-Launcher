@@ -24,6 +24,13 @@ internal fun PlayerActivity.buildLayout(): View {
     if (live) root.addView(androidx.compose.ui.platform.ComposeView(this).apply {
         setContent { app.ember.tv.ui.EmberTheme(prefs.accent,prefs.uiStyle) { app.ember.tv.ui.LivePlaybackBanner(liveBanner.value) } }
     }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP))
+    // #434: the channel guide over the video; the remote drives it from dispatchKeyEvent.
+    if (live) root.addView(androidx.compose.ui.platform.ComposeView(this).apply {
+        isFocusable = false
+        setContent { app.ember.tv.ui.EmberTheme(prefs.accent,prefs.uiStyle) {
+            liveGuide.value?.let { g -> app.ember.tv.ui.LiveGuideOverlay(g, { c, at -> liveSession?.programmesOf(c, at) ?: (null to null) }) { c -> liveSession?.sourceLabel(c).orEmpty() } }
+        } }
+    }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     if (advanced) {
         view.useController = false
         root.addView(

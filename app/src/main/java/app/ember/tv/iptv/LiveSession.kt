@@ -29,6 +29,8 @@ class LiveSession(
         currentKey = key; onSelected(it)
     }
     fun sourceLabel(channel: Channel): String = sourceName(channel)
+    /** #434: what's on now and next on any channel, for the guide over the video. */
+    fun programmesOf(channel: Channel, at: Long): Pair<Programme?, Programme?> = programmes(channel, at)
     fun recent(): List<Channel> {
         val available = channels().associateBy { it.key }
         return (history() + listOfNotNull(previousKey, currentKey)).distinct().mapNotNull { available[it] }.take(20)

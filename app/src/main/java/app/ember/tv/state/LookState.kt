@@ -33,6 +33,14 @@ class LookState(
     /** #425 */
     var episodesLeft by mutableStateOf(prefs.episodesLeft.also { app.ember.tv.data.EpisodesLeft.enabled = it });private set
     fun updateEpisodesLeft(value:Boolean){episodesLeft=value;prefs.episodesLeft=value;app.ember.tv.data.EpisodesLeft.enabled=value}
+    /** #432 */
+    var posterRibbons by mutableStateOf(prefs.posterRibbons);private set
+    fun updatePosterRibbons(value:Boolean){posterRibbons=value;prefs.posterRibbons=value}
+    var ribbonKinds by mutableStateOf(app.ember.tv.data.PosterRibbons.parse(prefs.ribbonKinds));private set
+    fun toggleRibbonKind(kind:app.ember.tv.data.PosterRibbons.Kind){
+        ribbonKinds=if(kind in ribbonKinds)ribbonKinds-kind else ribbonKinds+kind
+        prefs.ribbonKinds=app.ember.tv.data.PosterRibbons.write(ribbonKinds)
+    }
     /** #426: "show", "dim" or "hide" watched titles in Home rows. */
     var watchedOnHome by mutableStateOf(prefs.watchedOnHome);private set
     fun updateWatchedOnHome(value:String){watchedOnHome=value;prefs.watchedOnHome=value}

@@ -341,6 +341,8 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
                     vm.playerSettings.updatePlaybackConfig { it.copy(matchResolution = !it.matchResolution) }
                 }
             }
+            // #431
+            SettingActionRow("Set up for this TV", "Sets frame-rate matching and the buffer from this box's memory and the screen's refresh rates.") { vm.tuneForThisTv() }
         }
     }
         "buffer" -> Section(stringResource(R.string.ui_buffer), stringResource(R.string.ui_how_far_ahead_the_player_loads), id = "buffer",
@@ -449,6 +451,8 @@ internal fun PlayButtonPage(vm: HomeViewModel) {
         Section("Sources", "Finding and starting a source.") {
             // #428
             ToggleRow("Skip dead links", "When a source fails before it plays, the next ready source plays instead.", vm.playing.skipDeadLinks) { vm.playing.updateSkipDeadLinks(!vm.playing.skipDeadLinks) }
+            // #431
+            ToggleRow("Check file length", "Stops and asks when a file is much shorter or longer than the title, which catches samples, trailers, fakes and wrong episodes.", vm.playing.lengthCheck) { vm.playing.updateLengthCheck(!vm.playing.lengthCheck) }
             // #429
             ToggleRow("Find sources early", "Looks up sources for the Continue watching title you're on, so they're ready when you open it.", vm.playing.earlySources) { vm.playing.updateEarlySources(!vm.playing.earlySources) }
         }

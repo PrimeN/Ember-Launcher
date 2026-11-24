@@ -21,6 +21,8 @@ internal data class WatchedUi(val showBadges:Boolean=false,val blurEpisodes:Bool
     fun badge(meta:Meta)=showBadges && title(meta)
 }
 internal val LocalWatchedUi=compositionLocalOf {WatchedUi()}
+/** #432: Ember's corner tags on posters; empty when they're off. */
+internal val LocalRibbonKinds=compositionLocalOf {emptySet<app.ember.tv.data.PosterRibbons.Kind>()}
 /** #426: watched titles in this row are dimmed (Home's catalog and widget rows with "Dim"). */
 internal val LocalDimWatched=compositionLocalOf {false}
 
