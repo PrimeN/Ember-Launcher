@@ -140,6 +140,7 @@ internal fun PersonDialog(person:Person,current:Meta,close:()->Unit,
 @Composable
 private fun PersonSide(person:Person,page:ExploreRepository.PersonPage?,photo:String?,titles:List<ExploreRepository.PersonCredit>,modifier:Modifier) {
     var bioOpen by remember {mutableStateOf(false)}
+    val locale=androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     Column(modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
             Box(Modifier.size(96.dp).clip(RoundedCornerShape(22.dp)).background(PanelHi),contentAlignment=Alignment.Center) {
@@ -157,10 +158,10 @@ private fun PersonSide(person:Person,page:ExploreRepository.PersonPage?,photo:St
             val facts=buildList {
                 page.born?.let {born->
                     val age=Period.between(born,page.died ?: LocalDate.now()).years
-                    add(Triple(Icons.Outlined.Cake,"Born",born.format(DateTimeFormatter.ofPattern("MMM d, yyyy",Locale.getDefault()))+
+                    add(Triple(Icons.Outlined.Cake,"Born",born.format(DateTimeFormatter.ofPattern("MMM d, yyyy",locale))+
                         if(page.died==null)" ($age years)" else ""))
                 }
-                page.died?.let {add(Triple(Icons.Outlined.Cake,"Died",it.format(DateTimeFormatter.ofPattern("MMM d, yyyy",Locale.getDefault()))+
+                page.died?.let {add(Triple(Icons.Outlined.Cake,"Died",it.format(DateTimeFormatter.ofPattern("MMM d, yyyy",locale))+
                     page.born?.let {b->" (aged ${Period.between(b,it).years})"}.orEmpty()))}
                 page.place?.let {add(Triple(Icons.Outlined.Place,"Birthplace",it))}
                 if(titles.isNotEmpty())add(Triple(Icons.Outlined.Movie,"Credits","${titles.size} titles"+(page.since?.let {" • since $it"} ?: "")))
