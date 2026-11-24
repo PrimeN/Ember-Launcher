@@ -14,6 +14,20 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "1.2.0", "Better sound, smarter sources",
+            listOf(
+                "Surround stays surround: formats your receiver can't take are decoded to 5.1 or 7.1, a soundbar mode for TVs with a soundbar on ARC, and a format whose passthrough keeps failing is decoded instead of going silent.",
+                "After the TV switches frame rate, playback waits for its sound to come back, so the first seconds aren't lost.",
+                "A source that won't start is skipped for the next ready one, sources for Continue watching are found before you open the title, and each add-on shows OK, Slow or Down.",
+                "Title page: Collection and More like this rows, IMDb's parents guide, and a full page for cast and crew.",
+                "Continue watching shows how many episodes are left, and watched titles on Home can be shown, dimmed or hidden.",
+                "Seek thumbnails for streamed files, and a fuller stream info panel with colour-coded health.",
+                "Focus glow can take each title's own colours, and settings pages have tabs and say why an option is unavailable.",
+                "System access and optional whole-TV ad blocking with your own NextDNS profile.",
+                "A hardware decoder taken by another app is tried again instead of being replaced, plus playback refinements from Ember Player.",
+            ),
+        ),
+        Release(
             "1.1.0", "Ready for everyone",
             listOf(
                 "New navbar styles: Ember Collapsed with a matte menu, and a Sidebar; your profile now sits in the menu.",
