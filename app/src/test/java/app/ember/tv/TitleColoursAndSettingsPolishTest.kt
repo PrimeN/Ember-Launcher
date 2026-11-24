@@ -19,7 +19,7 @@ class TitleColoursAndSettingsPolishTest {
         assertTrue(ring[2] >= 0.87f)
         assertTrue(ring[1] in 0.34f..0.86f)
         val grey = hsv(focusTint(Color(0xFF808080)))
-        assertTrue(grey[1] >= 0.35f - 1e-3f)
+        assertTrue(grey[1] >= 0.33f) // sRGB colours keep 8 bits per channel
     }
 
     @Test fun titleColoursIsOffByDefaultAndBackedUp() {
