@@ -92,6 +92,12 @@ class PlayerActivity : ComponentActivity() {
     // Auto-play state
     internal var seriesName = ""
     internal var prevAddon: String? = null
+    // #415: the stream info panel's sources and running counters.
+    internal var streamProvider: String? = null
+    internal var streamRelease: String? = null
+    internal var streamDeclaredSize: Long = -1
+    internal val streamTransfer = StreamTransferStats()
+    internal val statsState = StreamStatsState()
     internal var prevQuality: String? = null
     /** The playing source's binge group and file hash, from its addon (#74). */
     internal var prevBingeGroup: String? = null
@@ -134,6 +140,7 @@ class PlayerActivity : ComponentActivity() {
             .setConnectTimeoutMs(prefs.playbackConfig.stream.normalized().connectSeconds*1000)
             .setReadTimeoutMs(prefs.playbackConfig.stream.normalized().readSeconds*1000)
             .setUserAgent(app.ember.tv.data.Net.USER_AGENT)
+            .setTransferListener(streamTransfer)
     }
 
     /** Trailers play without saving positions or reporting to trackers and servers. */

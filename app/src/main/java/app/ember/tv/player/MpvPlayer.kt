@@ -430,6 +430,15 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         native.setPropertyString("vo",renderer)
     }
     val rendererLabel get()=RendererPolicy.label(renderer)+if(rendererSession.recovered)" · after a failure" else ""
+    /** #415: live numbers for the stream info panel; null where mpv doesn't know yet. */
+    fun liveStats()=MpvLiveStats(
+        dropped=listOfNotNull(native.getPropertyInt("frame-drop-count"),native.getPropertyInt("decoder-frame-drop-count")).sum(),
+        aheadSeconds=native.getPropertyDouble("demuxer-cache-duration"),
+        speedBps=native.getPropertyInt("cache-speed")?.toLong()?.times(8),
+        hwdec=native.getPropertyString("hwdec-current"),
+        renderer=(native.getPropertyString("current-vo") ?: renderer)+if(rendererSession.recovered)" (stable fallback)" else "",
+        audioOut=native.getPropertyString("audio-out-params/format"),
+    )
     fun diagnostics()=mapOf("Engine" to "Compatibility (libmpv)","Video decoder" to native.getPropertyString("hwdec-current").orEmpty(),
         "Renderer" to (native.getPropertyString("current-vo") ?: renderer)+if(rendererSession.recovered)" (stable fallback)" else "",
         "Decoded video transfer" to native.getPropertyString("video-params/gamma").orEmpty(),
@@ -437,3 +446,5 @@ internal class MpvPlayer(private val context: Context, val source: EngineSource,
         "Renderer input transfer" to native.getPropertyString("video-out-params/gamma").orEmpty(),
         "Audio output" to native.getPropertyString("audio-out-params/format").orEmpty())
 }
+
+internal data class MpvLiveStats(val dropped:Int,val aheadSeconds:Double?,val speedBps:Long?,val hwdec:String?,val renderer:String,val audioOut:String?)

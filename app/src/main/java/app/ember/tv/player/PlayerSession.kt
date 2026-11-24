@@ -75,6 +75,9 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     playbackVisit++
     val p = player ?: return
     hdr10PlusMetadata = false
+    streamRelease = release
+    streamTransfer.reset()
+    statsState.newStream(url)
     decoderLearned=false
     liveRetryJob?.cancel(); liveRetryJob = null
     handler.removeCallbacks(commitNumber); numberDigits = ""; numberToast?.cancel()

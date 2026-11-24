@@ -138,7 +138,7 @@ class ControlsState {
     /** Bumped whenever an option's value may have changed, so menus read them again. */
     var optionsTick by mutableIntStateOf(0)
     /** Playback stats (HUD): label and value lines; empty when off. */
-    var stats by mutableStateOf<List<Pair<String, String>>>(emptyList())
+    var stats by mutableStateOf<List<StatsRow>>(emptyList())
     /** The accent colour (Settings > Appearance), for the progress bar and the menus. */
     var accent by mutableStateOf(Color(0xFFFF7A2F))
     /** Settings > Player > Player interface (PlayerInterfaces), for the layouts sharing these controls. */

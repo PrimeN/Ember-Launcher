@@ -12,6 +12,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -364,23 +365,63 @@ private fun TabBar(s: ControlsState, modifier: Modifier) {
 
 // ---- playback stats ----
 
-/** Playback stats over the video, top left (Options > Video > Playback stats). */
+/**
+ * #415: the stream info panel over the video (Options > Video > Playback stats). Sections with a
+ * small caps title and a rule; a coloured dot before a row marks its health. Full stats use two
+ * columns so everything fits a TV screen.
+ */
 @Composable
 fun StatsHud(s: ControlsState) {
     if (s.stats.isEmpty()) return
-    Column(
-        Modifier.padding(start = 48.dp, top = if (s.visible) 112.dp else 32.dp)
-            .clip(RoundedCornerShape((if(app.ember.tv.ui.isEmberX)8 else 16).dp)).background(Color(0xA6000000)).padding(horizontal = 20.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        s.stats.forEach { (k, v) ->
-            Row {
-                Text(k, fontSize = 15.sp, color = Soft, modifier = Modifier.width(190.dp))
-                Text(v, fontSize = 15.sp, color = Color.White, maxLines = 2)
+    val groups = s.stats.groupBy { it.group }
+    val two = s.stats.size > 18
+    val columns = if (two) listOf(listOf(StatsGroup.SOURCE, StatsGroup.VIDEO), listOf(StatsGroup.AUDIO, StatsGroup.NETWORK, StatsGroup.SYSTEM))
+        else listOf(StatsGroup.entries.toList())
+    Box(Modifier.fillMaxSize().padding(end = 40.dp, top = if (s.visible) 96.dp else 28.dp), contentAlignment = Alignment.TopEnd) {
+        Row(
+            Modifier.clip(RoundedCornerShape((if (app.ember.tv.ui.isEmberX) 10 else 22).dp))
+                .background(Color(0xB8181A1F))
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape((if (app.ember.tv.ui.isEmberX) 10 else 22).dp))
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
+        ) {
+            columns.forEach { column ->
+                Column(Modifier.width(if (two) 420.dp else 460.dp)) {
+                    column.forEach { group -> groups[group]?.let { StatsSection(group, it) } }
+                }
             }
         }
     }
 }
+
+@Composable
+private fun StatsSection(group: StatsGroup, rows: List<StatsRow>) {
+    Text(group.title.uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp, color = Soft,
+        modifier = Modifier.padding(top = 6.dp, bottom = 3.dp))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+    Spacer(Modifier.height(3.dp))
+    rows.forEach { row ->
+        Row(Modifier.fillMaxWidth().height(19.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(18.dp), contentAlignment = Alignment.CenterStart) {
+                val dot = when (row.dot) {
+                    StatsDot.GOOD -> StatsGood
+                    StatsDot.WARN -> StatsWarn
+                    StatsDot.BAD -> StatsBad
+                    StatsDot.NONE -> null
+                }
+                if (dot != null) Box(Modifier.size(8.dp).clip(androidx.compose.foundation.shape.CircleShape).background(dot))
+            }
+            Text(row.label, fontSize = 13.sp, color = Color(0xFFD5D8DD), maxLines = 1, modifier = Modifier.width(118.dp))
+            Text(row.value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1,
+                overflow = if (row.label == "File") TextOverflow.Clip else TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).then(if (row.label == "File") Modifier.basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2_000) else Modifier))
+        }
+    }
+}
+
+internal val StatsGood = Color(0xFF7BD88F)
+internal val StatsWarn = Color(0xFFF2C14E)
+internal val StatsBad = Color(0xFFFF6B5E)
 
 /** Icons for the small menu's rows. */
 object MenuIcons {

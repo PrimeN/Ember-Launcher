@@ -107,6 +107,8 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     seriesName = intent.getStringExtra(PlayRequest.EXTRA_SERIES_NAME) ?: title
     prevAddon = intent.getStringExtra(PlayRequest.EXTRA_PREV_ADDON)
     prevQuality = intent.getStringExtra(PlayRequest.EXTRA_PREV_QUALITY)
+    streamProvider = intent.getStringExtra(PlayRequest.EXTRA_PROVIDER)
+    streamDeclaredSize = intent.getLongExtra(PlayRequest.EXTRA_VIDEO_SIZE, -1L)
     prevBingeGroup = intent.getStringExtra(PlayRequest.EXTRA_BINGE_GROUP)
     sourceHash = intent.getStringExtra(PlayRequest.EXTRA_VIDEO_HASH)?.let { it to intent.getLongExtra(PlayRequest.EXTRA_VIDEO_SIZE, -1L).takeIf { s -> s > 0 } }
     readNextEpisodes()
@@ -265,6 +267,15 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
 
         override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) {
             dropped += droppedFrames
+        }
+
+        override fun onAudioUnderrun(eventTime: AnalyticsListener.EventTime, bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) {
+            statsState.underruns++
+        }
+
+        override fun onLoadError(eventTime: AnalyticsListener.EventTime, loadEventInfo: androidx.media3.exoplayer.source.LoadEventInfo,
+            mediaLoadData: androidx.media3.exoplayer.source.MediaLoadData, error: java.io.IOException, wasCanceled: Boolean) {
+            if (!wasCanceled) statsState.loadErrors++
         }
 
         override fun onAudioSessionIdChanged(eventTime: AnalyticsListener.EventTime, audioSessionId: Int) {

@@ -81,6 +81,7 @@ data class PlayRequest(
             .putExtra(EXTRA_RELEASE, stream.info?.filename ?: stream.title.lineSequence().firstOrNull { it.isNotBlank() })
             .putExtra(EXTRA_PREV_ADDON, stream.addonName)
             .putExtra(EXTRA_PREV_QUALITY, stream.quality)
+            .putExtra(EXTRA_PROVIDER, stream.info?.service?.name)
             .putExtra(EXTRA_BINGE_GROUP, stream.bingeGroup)
             .putExtra(EXTRA_VIDEO_HASH, stream.videoHash)
             .putExtra(EXTRA_VIDEO_SIZE, stream.videoSize ?: -1L)
@@ -131,6 +132,8 @@ data class PlayRequest(
         const val EXTRA_BINGE_GROUP = "bingeGroup"
         const val EXTRA_VIDEO_HASH = "videoHash"
         const val EXTRA_VIDEO_SIZE = "videoSize"
+        /** #415: the debrid service or host the stream comes through, for the stream info panel. */
+        const val EXTRA_PROVIDER = "provider"
         const val EXTRA_NEXT_IDS = "nextIds"
         const val EXTRA_NEXT_SEASONS = "nextSeasons"
         const val EXTRA_NEXT_NUMBERS = "nextNumbers"
