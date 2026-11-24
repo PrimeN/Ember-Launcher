@@ -11,6 +11,7 @@ import androidx.media3.common.Tracks
  * the video is not HDR or Dolby Vision, nothing is protected, and the audio plays the same there.
  * Plain ASS stays in Standard, where Ember draws it.
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal object SubtitleStyleProbe {
     private val tags = Regex("\\\\(?:pos|move|k[fo]?|t|i?clip|fade?|fr[xyz]?|fn|an|p)(?=[(0-9+\\-])", RegexOption.IGNORE_CASE)
     private val fontTag = Regex("""\\fn[^\\{}\r\n]+""", RegexOption.IGNORE_CASE)
