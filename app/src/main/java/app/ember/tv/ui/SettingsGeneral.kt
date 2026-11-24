@@ -480,7 +480,7 @@ internal fun LazyListScope.ratingsPage(vm: HomeViewModel, openKeys: () -> Unit) 
 /** One On/Off setting in a section: the same full-width row as every other boolean setting (#36). */
 @Composable
 internal fun OnOff(label: String, on: Boolean, note: String? = null, onToggle: () -> Unit) =
-    SettingToggle(label, note, on, onToggle)
+    SettingToggle(label, note, on, onToggle = onToggle)
 
 @Composable
 internal fun MetadataPage(vm: HomeViewModel, openKeys: () -> Unit) {
