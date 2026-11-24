@@ -310,7 +310,7 @@ private fun PersonAwards(page:ExploreRepository.PersonPage,repo:ExploreRepositor
             Text("$wins wins • ${list.size-wins} nominations",color=Mute,fontSize=14.sp)
             LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=24.dp)) {
                 items(list) {award->
-                    Focusable(onClick={},outline=false,radius=14) {
+                    Focusable(onClick={},outline=false,radius=TvTokens.Shape.Control) {
                         Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,
                             horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                             Text(if(award.won)"Won" else "Nominated",fontSize=12.sp,fontWeight=FontWeight.SemiBold,
