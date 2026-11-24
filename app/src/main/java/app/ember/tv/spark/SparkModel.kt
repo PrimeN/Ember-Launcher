@@ -74,7 +74,7 @@ object SparkModel {
             f.language?.let { languages[it] = (languages[it] ?: 0.0) + s.weight }
             f.year?.let { y -> (y / 10 * 10).let { d -> decades[d] = (decades[d] ?: 0.0) + s.weight } }
         }
-        fun shares(m: Map<out Any, Double>): Double = m.values.filter { it > 0 }.sum()
+        fun shares(m: Map<*, Double>): Double = m.values.filter { it > 0 }.sum()
         fun <K> norm(m: Map<K, Double>): Map<K, Double> { val t = shares(m); return if (t <= 0) emptyMap() else m.filterValues { it > 0 }.mapValues { it.value / t } }
         return SparkTaste(norm(genres), norm(languages), norm(decades))
     }

@@ -1,5 +1,6 @@
 package app.ember.tv
 
+import app.ember.tv.state.SparkState
 import app.ember.tv.data.EpisodesLeft
 import app.ember.tv.data.counted
 import app.ember.tv.data.Collections as CollectionStore
@@ -786,7 +787,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         allCatalogs.any { addonAvailable(it.addon.url) && isInDiscover(it) } || discover.discoverCatalogs.isNotEmpty(),
         collections.onDiscover.isNotEmpty(), profiles.profile.kids, spark = app.ember.tv.tracker.Tmdb.available)
     /** #435 Spark: picks from what this profile watches, in Discover. */
-    val spark by lazy { app.ember.tv.state.SparkState(getApplication(), viewModelScope) { profiles.profileId } }
+    val spark: SparkState by lazy { SparkState(getApplication(), viewModelScope) { profiles.profileId } }
     val profile: app.ember.tv.data.Profile get() = profiles.profile
     internal val personalOn: Boolean get() = profiles.personalOn
     internal fun profileAllows(c: CatalogDef): Boolean = profiles.allows(c)
