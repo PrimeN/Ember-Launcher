@@ -9,6 +9,8 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
+        // #413: CI tries a Maven Central mirror first, so one flaky download doesn't fail the build.
+        if (providers.gradleProperty("useMavenCentralMirror").orNull == "true") maven("https://gcp.mirrors.maven.org/maven2")
         mavenCentral()
         // NewPipe Extractor (experimental in-app YouTube trailers) is published on JitPack.
         maven("https://jitpack.io")

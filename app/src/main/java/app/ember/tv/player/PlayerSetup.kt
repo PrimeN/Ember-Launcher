@@ -198,6 +198,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
 
     playbackEngine=PlaybackEngine(this,standard,{config.copy(passthrough=config.passthrough&&!codecs.pcm)}, automaticSwitchAllowed = { userVideoMode in setOf(null, DecoderMode.AUTO) && userAudioMode in setOf(null, DecoderMode.AUTO) }) { compatible ->
         videoDecoder=if(compatible)"Compatibility engine" else null
+        standardAudioTrack = null
         loudness?.release();loudness=null
         if(boostLevel>0)setBoost(boostLevel)
         if (!compatible && subsInitialized) subs.returnToStandard()
@@ -231,10 +232,26 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
     p.addAnalyticsListener(object : AnalyticsListener {
         override fun onVideoInputFormatChanged(eventTime: AnalyticsListener.EventTime, format: Format, decoderReuseEvaluation: DecoderReuseEvaluation?) {
             hdr10PlusMetadata = false
-            decoderStableSince=android.os.SystemClock.elapsedRealtime();decoderLearned=false
+            playbackEngine?.restartQualityWindow();decoderLearned=false
         }
         override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
             videoDecoder = decoderName
+            playbackEngine?.restartQualityWindow();decoderLearned=false
+        }
+
+        override fun onAudioTrackInitialized(eventTime: AnalyticsListener.EventTime, audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig) {
+            if (playbackEngine?.compatibility != null) return
+            standardAudioTrack = audioTrackConfig
+            changed()
+        }
+
+        override fun onAudioTrackReleased(eventTime: AnalyticsListener.EventTime, audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig) {
+            val active = standardAudioTrack ?: return
+            if (active.encoding == audioTrackConfig.encoding && active.sampleRate == audioTrackConfig.sampleRate &&
+                active.channelConfig == audioTrackConfig.channelConfig && active.offload == audioTrackConfig.offload) {
+                standardAudioTrack = null
+                changed()
+            }
         }
 
         override fun onAudioDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
@@ -275,12 +292,11 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
             if (config.engine == "auto" && playbackEngine?.compatibility == null && tracks.groups.any { group ->
                 group.type == C.TRACK_TYPE_VIDEO && (0 until group.length).any { group.isTrackSelected(it) && PlaybackFormats.nativeFirst(group.getTrackFormat(it).sampleMimeType, group.isTrackSupported(it, false)) }
             } && playbackEngine?.switch(automatic = true) == true) return
-            if (!nativeAssSubtitles && config.engine == "auto" && playbackEngine?.compatibility == null &&
-                authoredAssEnabled(subCfg.authoredStyles, subCfg.systemStyle) && tracks.groups.any { group ->
-                    group.type == C.TRACK_TYPE_TEXT && (0 until group.length).any {
-                        group.isTrackSelected(it) && group.getTrackFormat(it).sampleMimeType == MimeTypes.TEXT_SSA
-                    }
-                } && playbackEngine?.switch(automatic = true) == true) return
+            // #410: only styled ASS, and only when HDR, protection and the audio survive the move.
+            if (!nativeAssSubtitles && playbackEngine?.compatibility == null &&
+                SubtitleStyleProbe.routeToMpv(config.engine == "auto", subCfg.authoredStyles, subCfg.systemStyle, SubtitleStyleProbe.styledTrack(tracks),
+                    p.videoFormat ?: SubtitleStyleProbe.selected(tracks, C.TRACK_TYPE_VIDEO), p.audioFormat ?: SubtitleStyleProbe.selected(tracks, C.TRACK_TYPE_AUDIO)) &&
+                playbackEngine?.switch(automatic = true) == true) return
             if (advanced) {
                 controls.audioTracks = audioTracks()
                 changed()
@@ -336,7 +352,6 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            decoderStableSince=if(isPlaying)android.os.SystemClock.elapsedRealtime() else 0L
             controls.playing = isPlaying
             // Paused by the user: show the controls (with the synopsis and cast).
             if (advanced && !isPlaying && !p.playWhenReady && p.playbackState == Player.STATE_READY) showControls()
@@ -408,7 +423,7 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
                 codecs.decoderHealth?.forget(format, name)
             }
             if (PlaybackFailureClassifier.classify(error).changesDecoder) {
-                decoderLearned=false;decoderStableSince=0
+                decoderLearned=false;playbackEngine?.restartQualityWindow()
             }
             if (recover(error)) return
             if(playbackEngine?.recover(error)==true)return
@@ -454,8 +469,10 @@ internal fun PlayerActivity.createPlayer(savedInstanceState: Bundle?) {
         external.style(subCfg)
         subs = SubtitleController(this, { player }, external, subConfigFor(subCfg),
             { refreshSubtitlePanel(); updateSubtitleSheet(); subtitleTicker.refresh() }) { text, format, wholeFile ->
-            if (format == "ass" && !nativeAssSubtitles && config.engine == "auto" && playbackEngine?.compatibility == null &&
-                authoredAssEnabled(subCfg.authoredStyles, subCfg.systemStyle)) {
+            val current = player
+            if (format == "ass" && !nativeAssSubtitles && playbackEngine?.compatibility == null && current != null &&
+                SubtitleStyleProbe.routeToMpv(config.engine == "auto", subCfg.authoredStyles, subCfg.systemStyle, SubtitleStyleProbe.styled(text),
+                    current.videoFormat, current.audioFormat)) {
                 playbackEngine?.switch(automatic = true)
             }
             playbackEngine?.compatibility?.external(text, format, wholeFile) == true

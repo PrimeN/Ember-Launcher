@@ -238,9 +238,10 @@ class PlayerActivity : ComponentActivity() {
     internal var audioPicked = false
     internal var modeApplied = false
     internal var videoDecoder: String? = null
-    internal var decoderStableSince=0L
     internal var decoderLearned=false
     internal var audioDecoder: String? = null
+    /** #412: the audio output Android actually opened for Standard (encoding, offload); null when none is open. */
+    internal var standardAudioTrack: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig? = null
     internal lateinit var info: TextView
     /** Info and subtitle panel (Info, Menu or Guide). */
     internal lateinit var panel: android.widget.ScrollView

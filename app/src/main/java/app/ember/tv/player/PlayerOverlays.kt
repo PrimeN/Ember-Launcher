@@ -187,7 +187,7 @@ internal fun PlayerActivity.infoText(): String {
     val buffer = getString(R.string.pl_info_buffered, ((p.bufferedPosition - p.currentPosition) / 1000).coerceAtLeast(0))
     return listOfNotNull(
         Playback.describeVideo(p.videoFormat, videoDecoder, hdr10PlusMetadata && playbackEngine?.compatibility == null, playbackEngine?.compatibility != null),
-        Playback.describeAudio(p.audioFormat, audioDecoder),
+        Playback.describeAudio(p.audioFormat, audioDecoder, passthrough()),
         mode,
         buffer,
         getString(R.string.pl_info_hide),

@@ -27,6 +27,10 @@ permissions:
   contents: write # publish APK releases and their tags
   actions: write # lets the run delete the oldest artifacts when the storage quota is full
 
+env:
+  # #413: dependencies come from a Maven Central mirror first, then Maven Central (settings.gradle.kts).
+  ORG_GRADLE_PROJECT_useMavenCentralMirror: "true"
+
 jobs:
   build:
     # Validate every pull request, including beta branches from forks and merge results.

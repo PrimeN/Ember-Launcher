@@ -333,7 +333,7 @@ android {
         // UI regression tests run on the JVM with the app's real resources and manifest.
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
-            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+            it.systemProperty("robolectric.dependency.repo.url", if (providers.gradleProperty("useMavenCentralMirror").orNull == "true") "https://gcp.mirrors.maven.org/maven2" else "https://repo.maven.apache.org/maven2")
         }
     }
     buildFeatures {
