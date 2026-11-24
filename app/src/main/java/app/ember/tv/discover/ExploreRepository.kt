@@ -167,6 +167,97 @@ class ExploreRepository(
         )
     }
 
+    /** #416: everything the person page shows, in one TMDB request (details, credits, ids, photos). */
+    data class PersonCredit(val meta: Meta, val date: LocalDate?, val popularity: Double, val rating: Double, val votes: Int,
+        val role: String?, val department: String, val crew: Boolean)
+    data class PersonPage(
+        val name: String, val biography: String?, val born: LocalDate?, val died: LocalDate?, val place: String?,
+        val knownFor: String?, val photo: String?, val photoLarge: String?, val wikidata: String?, val imdb: String?,
+        val credits: List<PersonCredit>, val photos: List<String>,
+    ) {
+        /** "Actor · Producer": what they're known for first, then jobs they've done at least twice. */
+        val roles: List<String> get() {
+            val acting = if (credits.any { !it.crew }) listOf("Actor") else emptyList()
+            val jobs = credits.filter { it.crew }.mapNotNull { it.role }.groupingBy { it }.eachCount().filter { it.value >= 2 }
+                .entries.sortedByDescending { it.value }.map { it.key }
+            val lead = when (knownFor) { "Acting" -> acting; "Directing" -> listOf("Director"); "Writing" -> listOf("Writer"); "Production" -> listOf("Producer"); else -> emptyList() }
+            return (lead + acting + jobs).distinct().take(3)
+        }
+        /** Each title once, the role from the first credit for it. */
+        val titles: List<PersonCredit> get() = credits.distinctBy { it.meta.type to it.meta.tmdbId }
+        val since: Int? get() = credits.mapNotNull { it.date?.year }.minOrNull()
+        /** Their best known titles: well rated by many people, favouring acting roles for actors. */
+        val knownForTitles: List<PersonCredit> get() = titles.filter { it.votes >= 50 }
+            .sortedByDescending { kotlin.math.ln(1.0 + it.votes) * it.rating + it.popularity / 10 }.take(12)
+    }
+
+    suspend fun personPage(id: Long): PersonPage {
+        require(id > 0)
+        val p = tmdb("person/$id", mapOf("append_to_response" to "combined_credits,external_ids,images"), ttl = 24 * 60 * 60_000L)
+        val credits = withContext(Dispatchers.Default) {
+            listOf(false, true).flatMap { crew ->
+                p.obj("combined_credits").arr(if (crew) "crew" else "cast").list().mapNotNull { credit ->
+                    ensureActive()
+                    val kind = when (credit.str("media_type")) { "movie" -> ExploreKind.MOVIE; "tv" -> ExploreKind.TV; else -> return@mapNotNull null }
+                    val title = parseTitle(credit, kind)?.takeUnless { it.adult } ?: return@mapNotNull null
+                    // Talk shows and award ceremonies they appeared in as themselves are noise in a filmography.
+                    val role = if (crew) credit.str("job") else credit.str("character")
+                    if (!crew && role.orEmpty().let { it.equals("Self", true) || it.startsWith("Himself", true) || it.startsWith("Herself", true) } && kind == ExploreKind.TV) return@mapNotNull null
+                    PersonCredit(title.meta.copy(adult = false), title.date?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+                        title.popularity, title.rating, title.votes, role?.takeIf { it.isNotBlank() },
+                        credit.str("department") ?: "Acting", crew)
+                }
+            }
+        }
+        fun day(key: String) = p.str(key)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        return PersonPage(
+            name = p.str("name").orEmpty(),
+            biography = p.str("biography")?.trim()?.takeIf { it.isNotEmpty() },
+            born = day("birthday"), died = day("deathday"),
+            place = p.str("place_of_birth")?.trim()?.takeIf { it.isNotEmpty() },
+            knownFor = p.str("known_for_department")?.takeIf { it.isNotBlank() },
+            photo = p.str("profile_path")?.let { "https://image.tmdb.org/t/p/w342$it" },
+            photoLarge = p.str("profile_path")?.let { "https://image.tmdb.org/t/p/h632$it" },
+            wikidata = p.obj("external_ids").str("wikidata_id")?.takeIf { Regex("^Q[0-9]+$").matches(it) },
+            imdb = p.obj("external_ids").str("imdb_id"),
+            credits = credits,
+            photos = p.obj("images").arr("profiles").list().mapNotNull { it.str("file_path") }.distinct().take(30)
+                .map { "https://image.tmdb.org/t/p/w342$it" },
+        )
+    }
+
+    /** #416: a person's awards and nominations from Wikidata, newest first. */
+    data class PersonAward(val award: String, val year: Int?, val work: String?, val won: Boolean)
+
+    suspend fun personAwards(wikidata: String): List<PersonAward> {
+        require(Regex("^Q[0-9]+$").matches(wikidata))
+        val sparql = """PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+SELECT ?awardLabel ?date ?forLabel ?won WHERE {
+  { wd:$wikidata p:P166 ?st . ?st ps:P166 ?award . BIND(true AS ?won) } UNION { wd:$wikidata p:P1411 ?st . ?st ps:P1411 ?award . BIND(false AS ?won) }
+  FILTER NOT EXISTS { ?st wikibase:rank wikibase:DeprecatedRank }
+  OPTIONAL { ?st pq:P585 ?date } OPTIONAL { ?st pq:P1686 ?for }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+} LIMIT 400"""
+        val response = cached("wikidata-person:$sparql", 7 * 24 * 60 * 60_000L) { gate.withPermit {
+            val data = get("https://query.wikidata.org/sparql?format=json&query=${enc(sparql)}", mapOf(
+                "Accept" to "application/sparql-results+json",
+                "User-Agent" to app.ember.tv.data.Net.CONTACT_AGENT,
+            ))
+            check(data.obj("results").arr("bindings") != null) { "Award records are unavailable." }
+            data
+        } }
+        return response.obj("results").arr("bindings").list().mapNotNull { b ->
+            val award = b.obj("awardLabel").str("value")?.takeUnless { Regex("^Q[0-9]+$").matches(it) } ?: return@mapNotNull null
+            PersonAward(award, b.obj("date").str("value")?.take(4)?.toIntOrNull(),
+                b.obj("forLabel").str("value")?.takeUnless { Regex("^Q[0-9]+$").matches(it) }, b.obj("won").str("value") == "true")
+        }.distinct().sortedWith(compareByDescending<PersonAward> { it.year ?: 0 }.thenByDescending { it.won })
+    }
+
     /** On-demand, cached public credits; never guesses between people who share a name. */
     suspend fun filmography(person: ExploreRef, crew: Boolean): List<Meta> {
         require(person.id > 0)
