@@ -78,6 +78,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -145,6 +146,8 @@ class ControlsState {
     var design by mutableStateOf(PlayerInterfaces.MODERN)
     /** Seek thumbnails from Plex or Jellyfin, when the server has them. */
     var trickplay by mutableStateOf<app.ember.tv.mediaserver.Trickplay?>(null)
+    /** #420: pictures read from a streamed file, when no server made thumbnails. */
+    var streamThumbs by mutableStateOf<StreamSeekThumbs?>(null)
 }
 
 /** What the buttons do; PlayerActivity provides them. */
@@ -365,6 +368,65 @@ internal fun SheetRow(label: String, first: Boolean = false, onClick: () -> Unit
     }
 }
 
+/**
+ * #420: the seek preview above the progress bar, following the preview point: three pictures
+ * (10 seconds before, the target, 10 seconds after) with their times, the target larger. Pictures
+ * come from the media server's thumbnails, a local file, or the streamed file itself.
+ */
+@Composable
+internal fun SeekStripPlaced(s: ControlsState, modifier: Modifier = Modifier) {
+    if (s.seekPreview < 0f || s.duration <= 0) return
+    val trick = s.trickplay?.takeIf { it.valid }
+    val stream = s.streamThumbs?.takeUnless { it.failed }
+    if (trick == null && stream == null && s.localUri == null) return
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val width = if (s.localUri != null && trick == null) 240.dp else STRIP_WIDTH
+        val x = (maxWidth * s.seekPreview - width / 2).coerceIn(0.dp, (maxWidth - width).coerceAtLeast(0.dp))
+        Box(Modifier.offset(x = x)) { SeekStrip(s, trick, stream) }
+    }
+}
+
+private val STRIP_WIDTH = 584.dp
+
+@Composable
+private fun SeekStrip(s: ControlsState, trick: app.ember.tv.mediaserver.Trickplay?, stream: StreamSeekThumbs?) {
+    val at = (s.seekPreview * s.duration).toLong()
+    if (trick == null && stream == null) { s.localUri?.let { LocalSeekPreview(it, at) }; return }
+    val times = StreamSeekThumbs.strip(at, s.duration)
+    val center = StreamSeekThumbs.snap(at).coerceAtMost(s.duration)
+    if (trick == null && stream != null) LaunchedEffect(times) {
+        kotlinx.coroutines.delay(150)
+        stream.request(listOf(center) + times.filter { it != center })
+    }
+    Row(Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0x99202226)).padding(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
+        times.forEach { t ->
+            val big = t == center
+            val w = if (big) 232.dp else 156.dp
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(w, w * 9f / 16f).clip(RoundedCornerShape(10.dp)).background(Color.Black)
+                    .then(if (big) Modifier.border(2.dp, Color.White, RoundedCornerShape(10.dp)) else Modifier)) {
+                    if (trick != null) TrickCell(trick, if (big) at else t, w)
+                    else stream?.frames?.get(t)?.let { frame ->
+                        androidx.compose.foundation.Image(frame.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    }
+                }
+                Text(time(if (big) at else t), fontSize = if (big) 14.sp else 12.sp, color = if (big) Color.White else Soft,
+                    fontWeight = if (big) FontWeight.SemiBold else FontWeight.Normal)
+            }
+        }
+    }
+}
+
+/** One cell of a server's thumbnail sheet, scaled to [w]. */
+@Composable
+private fun TrickCell(t: app.ember.tv.mediaserver.Trickplay, positionMs: Long, w: androidx.compose.ui.unit.Dp) {
+    val (url, col, row) = t.at(positionMs)
+    val h = w * (t.height.toFloat() / t.width.coerceAtLeast(1))
+    AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.FillBounds,
+        modifier = Modifier.wrapContentSize(Alignment.TopStart, unbounded = true).offset(x = -w * col, y = -h * row).requiredSize(w * t.cols, h * t.rows))
+}
+
 /** One seek thumbnail: the right cell of a Plex/Jellyfin sprite sheet, cropped. */
 @Composable
 internal fun Thumbnail(t: app.ember.tv.mediaserver.Trickplay, positionMs: Long) {
@@ -410,11 +472,7 @@ private fun EmberXControls(s:ControlsState,a:ControlsActions) {
                 IconButton(Icons.Outlined.Forward10,"Forward 10 seconds"){a.seekBy(10_000)}
             }
             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal=32.dp,vertical=18.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                val trick=s.trickplay
-                if(s.seekPreview>=0f && s.duration>0) {
-                    if(trick!=null)Thumbnail(trick,(s.seekPreview*s.duration).toLong())
-                    else s.localUri?.let {LocalSeekPreview(it,(s.seekPreview*s.duration).toLong())}
-                }
+                SeekStripPlaced(s)
                 SeekBar(s,a)
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                     Text(time(if(s.seekPreview>=0f)(s.seekPreview*s.duration).toLong() else s.position)+"  ·  "+time(s.duration),

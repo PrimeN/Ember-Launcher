@@ -149,6 +149,7 @@ internal object SettingsOptionSeed {
         E(SettingsTab.PLAYER, "seek-mode", "Seeking", "Seeking"),
         E(SettingsTab.PLAYER, "seek-mode", "Seeking", "Precise"),
         E(SettingsTab.PLAYER, "seek-mode", "Seeking", "Fast / nearby keyframe"),
+        E(SettingsTab.PLAYER, "seek-mode", "Seeking", "Seek thumbnails"),
         E(SettingsTab.PLAYER, "leaving", "Leaving the player", "Leaving the player"),
         E(SettingsTab.PLAYER, "leaving", "Leaving the player", "Back button"),
         E(SettingsTab.PLAYER, "leaving", "Leaving the player", "Home: keep playing in a small window"),

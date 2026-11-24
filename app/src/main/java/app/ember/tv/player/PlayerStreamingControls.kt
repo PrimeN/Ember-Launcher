@@ -103,13 +103,7 @@ internal fun StreamingControls(s: ControlsState, a: ControlsActions) {
 
             // Bottom: play, elapsed, progress, total; then the choices and menus.
             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start = 56.dp, end = 56.dp, bottom = 34.dp)) {
-                val trick = s.trickplay
-                if (s.seekPreview >= 0f && s.duration > 0) {
-                    if (trick != null) BoxWithConstraints(Modifier.fillMaxWidth().height(150.dp)) {
-                        val x = (maxWidth * s.seekPreview - 120.dp).coerceIn(0.dp, (maxWidth - 240.dp).coerceAtLeast(0.dp))
-                        Box(Modifier.offset(x = x).align(Alignment.BottomStart).padding(bottom = 8.dp)) { Thumbnail(trick, (s.seekPreview * s.duration).toLong()) }
-                    } else s.localUri?.let { LocalSeekPreview(it, (s.seekPreview * s.duration).toLong()) }
-                }
+                SeekStripPlaced(s, Modifier.padding(bottom = 8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     StreamingIcon(if (s.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, if (s.playing) "Pause" else "Play", null,
                         Modifier.focusRequester(play), size = 52.dp, onClick = a.playPause)

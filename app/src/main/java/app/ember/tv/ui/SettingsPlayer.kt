@@ -154,6 +154,11 @@ private fun PlayerPart(vm: HomeViewModel, key: String) {
         "seek-mode" -> Section("Seeking", "How skipping forward and back lands.", id="seek-mode",
             info = "Fast jumps to nearby keyframes, so skipping is quicker but less exact. Saved resume positions stay precise either way.") {
             Choice(listOf("precise" to "Precise", "fast" to "Fast / nearby keyframe"), c.seekMode) { value -> vm.playerSettings.updatePlaybackConfig {it.copy(seekMode=value)} }
+            // #420
+            ToggleRow("Seek thumbnails", if (c.seekThumbnails) "Pictures above the progress bar while you seek. Streamed files are read in the background."
+                else "Off for streamed files; your media server's thumbnails still show.", c.seekThumbnails) {
+                vm.playerSettings.updatePlaybackConfig { it.copy(seekThumbnails = !it.seekThumbnails) }
+            }
         }
         "decoder-rules" -> Section("Decoder preferences", "Hints for choosing a decoder.", id="decoder-rules",
             info = paragraphs("Hints for automatic selection. Explicit in-player choices take priority.",

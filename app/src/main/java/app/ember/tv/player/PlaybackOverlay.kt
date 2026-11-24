@@ -168,15 +168,7 @@ internal fun PlaybackOverlay(s:ControlsState,a:ControlsActions) {
                     Box(Modifier.align(Alignment.CenterEnd)) {utilities()}
                 }
             }
-            if(s.seekPreview>=0f && s.duration>0) {
-                BoxWithConstraints(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start=inset,end=inset,bottom=dockHeight+30.dp)) {
-                    val x=(maxWidth*s.seekPreview-120.dp).coerceIn(0.dp,(maxWidth-240.dp).coerceAtLeast(0.dp))
-                    Box(Modifier.offset(x=x)) {
-                        if(s.trickplay?.valid==true)Thumbnail(s.trickplay!!,(s.seekPreview*s.duration).toLong())
-                        else s.localUri?.let {LocalSeekPreview(it,(s.seekPreview*s.duration).toLong())}
-                    }
-                }
-            }
+            SeekStripPlaced(s,Modifier.align(Alignment.BottomCenter).padding(start=inset,end=inset,bottom=dockHeight+30.dp))
             when(s.sheet) {
                 SOUND_SHEET,SUBTITLE_SHEET,"episodes"->PlaybackChoices(s,a)
                 "info"->s.details?.let {details->

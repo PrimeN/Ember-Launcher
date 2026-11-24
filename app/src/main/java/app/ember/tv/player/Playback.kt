@@ -103,6 +103,8 @@ data class PlaybackConfig(
     val rememberDecoderChoices: Boolean = true,
     val bluetoothDelayMs: Int? = null,
     val seekMode: String = "precise",
+    /** #420: picture previews while seeking a streamed file (servers' own thumbnails are always used). */
+    val seekThumbnails: Boolean = true,
     val audioEffects: AudioEffects = AudioEffects(),
     val quickShortcuts: List<String> = PlayerShortcuts.defaults,
     /** #311: Compatibility playback's video decoding. */

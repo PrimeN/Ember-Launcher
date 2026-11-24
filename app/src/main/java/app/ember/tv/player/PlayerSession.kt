@@ -78,6 +78,10 @@ internal fun PlayerActivity.start(url: String, title: String, addonSubs: List<Su
     streamRelease = release
     streamTransfer.reset()
     statsState.newStream(url)
+    // #420: seek thumbnails from the file itself, for streams no server made pictures for.
+    controls.streamThumbs?.close()
+    controls.streamThumbs = if (config.seekThumbnails && serverPlayback == null && StreamSeekThumbs.supported(url, live))
+        StreamSeekThumbs(url, sourceHeaders) else null
     decoderLearned=false
     liveRetryJob?.cancel(); liveRetryJob = null
     handler.removeCallbacks(commitNumber); numberDigits = ""; numberToast?.cancel()

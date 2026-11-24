@@ -732,6 +732,7 @@ class PlayerActivity : ComponentActivity() {
         handler.removeCallbacks(commitNumber); numberDigits = ""; numberToast?.cancel()
         handler.removeCallbacks(hideLiveBanner)
         liveBanner.value = null
+        controls.streamThumbs?.close(); controls.streamThumbs = null
         handler.removeCallbacks(saver)
         handler.removeCallbacks(tick)
         handler.removeCallbacks(infoUpdater)
