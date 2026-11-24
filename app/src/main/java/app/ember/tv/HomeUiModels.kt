@@ -167,7 +167,7 @@ data class DetailsUi(
     val addonCredits: Credits? = null,
     val tmdbCredits: Credits? = null,
     /** #419: Collection and More like this. */
-    val related: RelatedTitles? = null,
+    val related: app.ember.tv.data.RelatedTitles? = null,
     /** Facts from AniList or TVDB for the line under the title (studio, network, status, next episode). */
     val facts: List<String> = emptyList(),
     /** Which metadata services added something, e.g. ["AniList", "TVDB"]. */

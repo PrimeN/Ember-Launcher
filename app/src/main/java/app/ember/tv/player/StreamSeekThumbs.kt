@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference
  * kept. Only the newest request is worked on, so holding Left or Right never queues a backlog.
  * Android's frame reader prefers software decoders, so the player's own decoder is left alone.
  */
-internal class StreamSeekThumbs(private val url: String, private val headers: Map<String, String>) {
+class StreamSeekThumbs(private val url: String, private val headers: Map<String, String>) {
     /** Pictures by grid time (ms); Compose reads this map. */
     val frames = mutableStateMapOf<Long, Bitmap>()
     @Volatile var failed = false; private set
