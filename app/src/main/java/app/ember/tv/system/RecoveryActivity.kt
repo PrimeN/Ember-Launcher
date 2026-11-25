@@ -33,11 +33,14 @@ import java.util.zip.ZipInputStream
  * own process with plain Android views, so whatever broke Home can't break it too. From here:
  * try Ember again, the TV's settings and apps, turning Google TV's Home back on, turning on
  * debugging (ADB), and installing an app from a link (a fixed Ember, most often).
+ * #443: updating to the latest Ember or picking a specific release.
  */
 class RecoveryActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var status: TextView
     private lateinit var link: EditText
+    private lateinit var releaseList: LinearLayout
+    private val installed by lazy { runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty() }
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
@@ -87,6 +90,13 @@ class RecoveryActivity : Activity() {
             finish()
         }
         column.addView(again)
+
+        column.addView(text("Update Ember", 18f, bold = true).apply { setPadding(0, dp(20), 0, 0) })
+        column.addView(text("This TV has Ember ${installed.ifEmpty { "(unknown version)" }}. Updating keeps your settings.", 14f, 0xFFD6CBC3.toInt()))
+        column.addView(button("Update to the latest Ember", "Downloads the newest release and installs it.") { installFrom(DEFAULT_LINK) })
+        column.addView(button("Pick a release", "Lists Ember's releases so you can install a specific one.") { listReleases() })
+        releaseList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(releaseList)
 
         column.addView(text("Install an app from a link", 18f, bold = true).apply { setPadding(0, dp(20), 0, 0) })
         column.addView(text("An APK link, a GitHub release page, or a zip with an APK inside. Installing Ember keeps your settings.", 14f, 0xFFD6CBC3.toInt()))
@@ -163,6 +173,44 @@ class RecoveryActivity : Activity() {
     private fun install() {
         val url = link.text.toString().trim()
         if (!url.startsWith("http")) { say("Enter a link starting with http or https."); return }
+        installFrom(url)
+    }
+
+    private fun listReleases() {
+        say("Looking up Ember's releases…")
+        scope.launch {
+            val found = runCatching { withContext(Dispatchers.IO) { RecoveryLinks.releases(get(RELEASES_API).readText()) } }
+            found.onFailure { say("Couldn't list the releases: ${it.message ?: it.javaClass.simpleName}") }
+            val list = found.getOrNull() ?: return@launch
+            releaseList.removeAllViews()
+            if (list.isEmpty()) { say("No releases with an app were found."); return@launch }
+            say("Choose a release to install.")
+            list.forEachIndexed { i, r ->
+                val age = RecoveryLinks.compare(r.version, installed)
+                val note = buildList {
+                    if (i == 0) add("Latest")
+                    if (age == 0) add("Installed now")
+                    if (age < 0) add("Older: Android only installs it after Ember is uninstalled, which clears its settings")
+                    r.date.takeIf { it.isNotEmpty() }?.let { add(it) }
+                }.joinToString(" · ")
+                val b = button(listOf(r.tag, r.title).filter { it.isNotEmpty() }.distinct().joinToString(" · "), note.ifEmpty { null }) { pick(r, age) }
+                releaseList.addView(b)
+                if (i == 0) b.requestFocus()
+            }
+        }
+    }
+
+    private fun pick(r: RecoveryLinks.ReleaseItem, age: Int) {
+        if (age < 0) {
+            link.setText(r.apk)
+            say("${r.tag} is older than the Ember on this TV, and Android won't install an older version over a newer one. " +
+                "To go back: note this link (it's now in the box below), uninstall Ember from its app info, then install the link with a downloader app.")
+            return
+        }
+        installFrom(r.apk)
+    }
+
+    private fun installFrom(url: String) {
         say("Finding the download…")
         scope.launch {
             val result = runCatching {
@@ -216,6 +264,7 @@ class RecoveryActivity : Activity() {
 
     companion object {
         const val DEFAULT_LINK = "https://github.com/PrimeN/Ember-Launcher/releases/latest"
+        const val RELEASES_API = "https://api.github.com/repos/PrimeN/Ember-Launcher/releases?per_page=30"
         /** Google TV's and Android TV's own Home apps. */
         val HOMES = listOf("com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher")
     }
@@ -242,6 +291,33 @@ object RecoveryLinks {
             val name = (o["name"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
             (o["browser_download_url"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf { name.endsWith(".apk", true) }
         }
+    }
+
+    data class ReleaseItem(val tag: String, val title: String, val version: String, val date: String, val apk: String)
+
+    /** #443: Ember's releases (the GitHub API's list, newest first) that carry an APK; drafts are skipped. */
+    fun releases(json: String): List<ReleaseItem> {
+        val arr = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(json) }.getOrNull() as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+        return arr.mapNotNull { e ->
+            val o = e as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
+            fun str(k: String) = (o[k] as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it.isString }?.content.orEmpty()
+            if (str("draft") == "true" || (o["draft"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true") return@mapNotNull null
+            val apk = apkFrom(o.toString()) ?: return@mapNotNull null
+            val tag = str("tag_name")
+            ReleaseItem(tag, str("name").removePrefix(tag).trim(' ', '-', '·', ':', '—'), tag.trimStart('v', 'V'), str("published_at").take(10), apk)
+        }
+    }
+
+    /** Compares dotted versions like 1.4.1 and 1.10.0: negative when [a] is older than [b]. Unknown versions compare equal. */
+    fun compare(a: String, b: String): Int {
+        fun parts(v: String) = v.trimStart('v', 'V').substringBefore('-').split('.').map { it.toIntOrNull() ?: return null }
+        val x = parts(a) ?: return 0; val y = parts(b) ?: return 0
+        if (x.isEmpty() || y.isEmpty()) return 0
+        for (i in 0 until maxOf(x.size, y.size)) {
+            val d = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }
+            if (d != 0) return d
+        }
+        return 0
     }
 
     fun resolve(url: String, fetch: (String) -> String): String {

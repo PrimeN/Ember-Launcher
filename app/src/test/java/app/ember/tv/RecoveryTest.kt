@@ -46,4 +46,26 @@ class RecoveryTest {
         assertFalse(RecoveryLinks.isApk(zip("ember-tv-1.4.1.apk")))
         assertFalse(RecoveryLinks.isApk(temp.newFile().also { it.writeText("not a zip") }))
     }
+
+    @Test fun releasesAreListedNewestFirstAndComparedWithTheInstalledOne() {
+        val json = """[
+          {"tag_name":"v1.4.1","name":"v1.4.1 Squished bugs","draft":false,"published_at":"2026-11-25T03:00:00Z","assets":[{"name":"ember-tv-1.4.1-9.apk","browser_download_url":"https://x/141.apk"}]},
+          {"tag_name":"v1.4.0","name":"v1.4.0 Meet Spark","draft":false,"published_at":"2026-11-24T03:00:00Z","assets":[{"name":"ember-tv-1.4.0-8.apk","browser_download_url":"https://x/140.apk"}]},
+          {"tag_name":"v1.3.9","name":"Draft","draft":true,"assets":[{"name":"a.apk","browser_download_url":"https://x/d.apk"}]},
+          {"tag_name":"v1.0.0","name":"No app","draft":false,"assets":[]}
+        ]"""
+        val list = RecoveryLinks.releases(json)
+        assertEquals(listOf("v1.4.1", "v1.4.0"), list.map { it.tag })
+        assertEquals("Squished bugs", list[0].title)
+        assertEquals("1.4.1", list[0].version)
+        assertEquals("2026-11-25", list[0].date)
+        assertEquals("https://x/140.apk", list[1].apk)
+        assertTrue(RecoveryLinks.releases("not json").isEmpty())
+
+        assertTrue(RecoveryLinks.compare("1.4.0", "1.4.1") < 0)
+        assertTrue(RecoveryLinks.compare("v1.10.0", "1.9.3") > 0)
+        assertEquals(0, RecoveryLinks.compare("1.4", "1.4.0"))
+        assertEquals(0, RecoveryLinks.compare("1.4.1", "1.4.1-beta"))
+        assertEquals(0, RecoveryLinks.compare("1.4.1", ""))
+    }
 }
