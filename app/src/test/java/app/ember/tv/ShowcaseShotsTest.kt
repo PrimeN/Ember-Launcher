@@ -292,8 +292,13 @@ class ShowcaseShotsTest {
             vm.catalogs.rows = listOf(CatalogRow("Cinemeta", "Popular", posters.take(8)))
         }
         fill()
+        // App banners come from the package manager on a TV; here they are drawn and passed as custom art.
+        val art = names.mapIndexed { i, n ->
+            val png = java.io.ByteArrayOutputStream().also { Art.draw("banner", n).compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+            "app.showcase.$i" to app.ember.tv.home.AppArt("showcase-$i", java.util.Base64.getEncoder().encodeToString(png))
+        }.toMap()
         compose.setContent {
-            CompositionLocalProvider(app.ember.tv.ui.LocalInternetStatus provides true) {
+            CompositionLocalProvider(app.ember.tv.ui.LocalInternetStatus provides true, app.ember.tv.ui.LocalAppArtwork provides art) {
                 Frame(launcher = InterfaceStyles.LIGHT) {
                     app.ember.tv.ui.LightHome(vm, androidx.compose.foundation.lazy.rememberLazyListState(), listOf(NavTabs.HOME, NavTabs.SEARCH, NavTabs.LIVE, NavTabs.APPS),
                         onTab = {}, onOpenTitle = {}, onLaunch = {}, onAppOptions = {})
