@@ -132,7 +132,7 @@ internal fun ApiKeysGrid(vm: HomeViewModel) {
 /** #447: an API key service as a brand row: what it's for and whether its key is set. */
 internal fun keyCard(s: ApiKeys.Service): ServiceCardInfo {
     val status = ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s))
-    return ServiceCardInfo(s.name, s.name, s.usedFor.removePrefix("Optional AI: ").removePrefix("Optional: ").removePrefix("Optional ").substringBefore(". ").replaceFirstChar { it.uppercase() },
+    return ServiceCardInfo(s.name, s.name, s.usedFor.removePrefix("Optional AI: ").removePrefix("Optional: ").removePrefix("Optional ").substringBefore(". ").removeSuffix(".").replaceFirstChar { it.uppercase() },
         status = when (status) { ApiKeys.Status.SET -> "Key set"; ApiKeys.Status.MISSING_REQUIRED -> "Needs a key"; ApiKeys.Status.MISSING_OPTIONAL -> "No key" },
         state = when (status) { ApiKeys.Status.SET -> ServiceState.READY; ApiKeys.Status.MISSING_REQUIRED -> ServiceState.ATTENTION; ApiKeys.Status.MISSING_OPTIONAL -> ServiceState.OFF },
         brand = ServiceBrands.of(s.name))
