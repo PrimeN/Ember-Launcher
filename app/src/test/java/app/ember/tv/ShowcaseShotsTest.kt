@@ -53,8 +53,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Showcase pictures of Ember's real screens, filled with invented films, shows, channels and apps
- * whose artwork is drawn here. They go to the private screenshots repo with the other UI shots.
+ * Showcase pictures of Ember's real screens, filled with public-domain and Creative Commons films and shows
+ * (their art from SHOWCASE_ART, or drawn here without it), and invented channels and apps. They go to the private screenshots repo with the other UI shots.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "w960dp-h540dp-land-xhdpi")
@@ -70,7 +70,8 @@ class ShowcaseShotsTest {
                 override fun create(data: android.net.Uri, options: Options, imageLoader: ImageLoader): Fetcher? =
                     if (data.scheme != "fixture") null else object : Fetcher {
                         override suspend fun fetch(): FetchResult =
-                            DrawableResult(BitmapDrawable(context.resources, Art.draw(data.host.orEmpty(), data.lastPathSegment.orEmpty())), false, DataSource.NETWORK)
+                            DrawableResult(BitmapDrawable(context.resources, Art.real(data.host.orEmpty(), data.lastPathSegment.orEmpty())
+                                ?: Art.draw(data.host.orEmpty(), data.lastPathSegment.orEmpty())), false, DataSource.NETWORK)
                     }
             })
         }.build()
@@ -78,21 +79,58 @@ class ShowcaseShotsTest {
     }
     @After fun clean() { loader.shutdown(); Coil.reset(); Ui.day = false }
 
-    // ---- invented titles ----
-    private val films = listOf(
-        "Northern Drift" to "2024", "The Glass Orchard" to "2023", "Lanterns of Vey" to "2025", "Signal Lost" to "2022",
-        "Hollow Tide" to "2024", "Kestrel Run" to "2021", "Paper Comets" to "2025", "The Quiet Hours" to "2023",
-        "Salt and Ember" to "2024", "Orbitals" to "2026", "Velvet Static" to "2022", "Cold Harbor" to "2025",
-        "Wildflower Season" to "2024", "Midnight Cartographers" to "2023", "The Long Meridian" to "2026", "Copper Sky" to "2021",
+    // ---- public-domain and Creative Commons titles (their art comes from SHOWCASE_ART when CI has it) ----
+    private class Film(val year: String, val genres: List<String>, val runtime: String, val rating: String, val about: String, val type: String = "movie")
+    private val catalog = mapOf(
+        "Charade" to Film("1963", listOf("Comedy", "Mystery", "Romance"), "1h 53m", "PG", "A widow in Paris is chased by three men who want the fortune her late husband stole, and helped by a charming stranger with too many names."),
+        "His Girl Friday" to Film("1940", listOf("Comedy", "Drama", "Romance"), "1h 32m", "NR", "A fast-talking newspaper editor tries to win back his ace reporter, and ex-wife, before she leaves for a quiet new life."),
+        "Metropolis" to Film("1927", listOf("Sci-Fi", "Drama"), "2h 33m", "NR", "In a towering city of the future, the son of its master falls for a worker's prophet, and a machine is made in her image."),
+        "The General" to Film("1926", listOf("Comedy", "Action"), "1h 19m", "NR", "A train engineer pursues his stolen locomotive deep into enemy territory in a one-man rescue mission."),
+        "Nosferatu" to Film("1922", listOf("Horror", "Fantasy"), "1h 34m", "NR", "An estate agent travels to Transylvania to sell a house to Count Orlok, who follows him home and brings the plague with him."),
+        "Sunrise" to Film("1927", listOf("Drama", "Romance"), "1h 34m", "NR", "A farmer tempted by a woman from the city plans a terrible crime, then rediscovers his love for his wife on a day in town."),
+        "The Kid" to Film("1921", listOf("Comedy", "Drama"), "1h 8m", "NR", "The Tramp takes in an abandoned baby and raises him on the streets, until the authorities come to take the boy away."),
+        "Sherlock Jr." to Film("1924", listOf("Comedy", "Mystery"), "45m", "NR", "A projectionist who dreams of being a detective falls asleep at work and walks right into the film on the screen."),
+        "Safety Last!" to Film("1923", listOf("Comedy", "Thriller"), "1h 10m", "NR", "To impress his girl back home, a shop clerk stages a publicity stunt and ends up climbing a skyscraper himself."),
+        "The Cabinet of Dr. Caligari" to Film("1920", listOf("Horror", "Mystery"), "1h 16m", "NR", "A hypnotist and his sleepwalker arrive at a village fair, and a string of murders follows them."),
+        "Detour" to Film("1945", listOf("Crime", "Film Noir"), "1h 7m", "NR", "A pianist hitchhiking to Los Angeles takes on a dead man's identity, and a stranger who knows the truth."),
+        "D.O.A." to Film("1950", listOf("Film Noir", "Thriller"), "1h 23m", "NR", "Poisoned and with days to live, an accountant races to find out who murdered him and why."),
+        "Plan 9 from Outer Space" to Film("1957", listOf("Sci-Fi", "Horror"), "1h 19m", "NR", "Aliens raise the dead of Earth to stop humanity from building a doomsday weapon."),
+        "Night of the Living Dead" to Film("1968", listOf("Horror"), "1h 36m", "NR", "Strangers barricade themselves in a farmhouse as the dead rise and close in."),
+        "Sintel" to Film("2010", listOf("Animation", "Fantasy"), "15m", "NR", "A lonely girl searches the world for the baby dragon she raised and lost."),
+        "Big Buck Bunny" to Film("2008", listOf("Animation", "Comedy"), "10m", "G", "A gentle giant rabbit takes his revenge on three forest bullies."),
+        "Spring" to Film("2019", listOf("Animation", "Fantasy"), "8m", "NR", "A shepherd girl and her dog face ancient spirits to bring back the spring."),
+        "Tears of Steel" to Film("2012", listOf("Sci-Fi", "Action"), "12m", "NR", "In a future Amsterdam, scientists try to save the world from robots by replaying a broken-hearted moment."),
+        "Elephants Dream" to Film("2006", listOf("Animation", "Sci-Fi"), "11m", "NR", "Two men explore a vast, strange machine, and each sees it differently."),
+        "Cosmos Laundromat" to Film("2015", listOf("Animation", "Comedy"), "12m", "NR", "A suicidal sheep meets a salesman who offers him the gift of a lifetime."),
+        "The Gold Rush" to Film("1925", listOf("Comedy", "Adventure"), "1h 35m", "NR", "The Tramp heads to the Klondike in search of gold and finds hunger, a storm and love."),
+        "The Phantom of the Opera" to Film("1925", listOf("Horror", "Drama"), "1h 33m", "NR", "A masked figure haunting the Paris Opera falls for a young soprano."),
+        "House on Haunted Hill" to Film("1959", listOf("Horror", "Mystery"), "1h 15m", "NR", "A millionaire offers five guests ten thousand dollars each to survive a night in a haunted house."),
+        "Carnival of Souls" to Film("1962", listOf("Horror", "Mystery"), "1h 18m", "NR", "After surviving a car crash, a church organist is drawn to an abandoned pavilion by a pale stranger."),
+        "The Hitch-Hiker" to Film("1953", listOf("Film Noir", "Thriller"), "1h 11m", "NR", "Two friends on a fishing trip pick up a hitchhiker who turns out to be a killer."),
+        "The Lost World" to Film("1925", listOf("Adventure", "Sci-Fi"), "1h 33m", "NR", "An expedition to a remote plateau in South America finds dinosaurs still alive."),
+        "The Thief of Bagdad" to Film("1924", listOf("Adventure", "Fantasy"), "2h 20m", "NR", "A thief falls for a princess and sets out on a magical quest to win her hand."),
+        "Steamboat Bill, Jr." to Film("1928", listOf("Comedy"), "1h 10m", "NR", "A college boy joins his father's riverboat business, just as a cyclone hits town."),
+        "Battleship Potemkin" to Film("1925", listOf("Drama", "History"), "1h 15m", "NR", "Sailors mutiny against their officers, and the people of Odessa rise with them."),
+        "A Trip to the Moon" to Film("1902", listOf("Adventure", "Sci-Fi"), "14m", "NR", "Astronomers fire themselves to the moon in a capsule and meet its strange inhabitants."),
+        "The Beverly Hillbillies" to Film("1962", listOf("Comedy"), "26m", "TV-G", "A mountaineer strikes oil and moves his family to a mansion in Beverly Hills.", "series"),
+        "The Lucy Show" to Film("1962", listOf("Comedy"), "25m", "TV-G", "A widowed mother and her divorced best friend share a house and endless schemes.", "series"),
+        "Bonanza" to Film("1959", listOf("Western", "Drama"), "49m", "TV-PG", "Ben Cartwright and his three sons run the Ponderosa ranch near Virginia City.", "series"),
+        "Superman" to Film("1941", listOf("Animation", "Action"), "10m", "TV-G", "The Man of Steel takes on mad scientists, robots and saboteurs in Technicolor.", "series"),
+        "Flash Gordon" to Film("1954", listOf("Sci-Fi", "Adventure"), "26m", "TV-G", "Flash Gordon and his crew patrol the galaxy for the Galactic Bureau of Investigation.", "series"),
+        "The Cisco Kid" to Film("1950", listOf("Western"), "26m", "TV-G", "A charming outlaw and his sidekick ride the Old West righting wrongs.", "series"),
     )
     private fun art(kind: String, title: String) = "fixture://$kind/${android.net.Uri.encode(title)}"
-    private fun meta(title: String, year: String = "2025", type: String = "movie", badge: String? = null, progress: Float? = null) = Meta(
-        id = "show:" + title.lowercase().replace(' ', '-'), type = type, name = title, releaseInfo = year,
-        poster = art("poster", title), background = art("backdrop", title), logo = art("logo", title),
-        description = "A crew of strangers follows a fading radio signal across a frozen sea, and finds a city that should not exist.",
-        runtime = "2h 12m", genres = listOf("Sci-Fi", "Adventure"), badge = badge, progress = progress, ageRating = "PG-13")
-    private val posters get() = films.map { (t, y) -> meta(t, y) }
-    private val shows = listOf("The Lighthouse Keepers", "Brightwater", "Station Nine", "Hearthside", "The Overnight", "Iron Valley")
+    private fun meta(title: String, year: String? = null, type: String? = null, badge: String? = null, progress: Float? = null): Meta {
+        val f = catalog[title]
+        return Meta(id = "show:" + Art.slug(title), type = type ?: f?.type ?: "movie", name = title, releaseInfo = year ?: f?.year ?: "",
+            poster = art("poster", title), background = art("backdrop", title), logo = art("logo", title),
+            description = f?.about ?: "", runtime = f?.runtime ?: "", genres = f?.genres ?: emptyList(), badge = badge, progress = progress,
+            ageRating = f?.rating?.takeIf { it != "NR" })
+    }
+    private val films = listOf("Charade", "His Girl Friday", "Metropolis", "Sunrise", "The Cabinet of Dr. Caligari", "The General", "Nosferatu", "Safety Last!",
+        "The Kid", "Detour", "Sintel", "D.O.A.", "Sherlock Jr.", "The Gold Rush", "Carnival of Souls", "Plan 9 from Outer Space")
+    private val posters get() = films.map { meta(it) }
+    private val shows = listOf("The Beverly Hillbillies", "The Lucy Show", "Bonanza", "The Cisco Kid", "Superman", "Flash Gordon")
 
     private fun save(name: String, settle: Long = 0) {
         if (settle > 0) { Thread.sleep(settle); compose.mainClock.advanceTimeBy(1_000); compose.waitForIdle(); Thread.sleep(settle) }
@@ -147,18 +185,18 @@ class ShowcaseShotsTest {
     @Test fun homeDay() { Ui.day = true; compose.setContent { Frame(night = false) { HomeScene(NavbarStyles.CINEMA) } }; save("home-day") }
 
     @Test fun titlePage() {
-        val title = meta("Lanterns of Vey", "2025")
+        val title = meta("His Girl Friday")
         val streams = listOf(
-            StreamOption("Torrentio", "4K", "Lanterns of Vey 2025 2160p DV HDR10 TrueHD Atmos 7.1 REMUX", "https://example.invalid/1", null, null, "4K", "DV HDR10", "HEVC", "TrueHD Atmos 7.1", "REMUX", "FraMeSToR", 64.2, null, true, true),
-            StreamOption("Comet", "4K", "Lanterns of Vey 2160p HDR10 DDP Atmos 5.1 WEB-DL", "https://example.invalid/2", null, null, "4K", "HDR10", "HEVC", "DD+ Atmos 5.1", "WEB-DL", "FLUX", 18.6, null, true, true),
-            StreamOption("Your Plex", "1080p", "Lanterns of Vey (2025)", "https://example.invalid/3", null, null, "FHD", "", "H.264", "DTS-HD MA 5.1", "BluRay", "", 22.1, null, true),
+            StreamOption("Your Plex", "1080p", "His Girl Friday (1940) Criterion restoration", "https://example.invalid/1", null, null, "FHD", "", "H.264", "FLAC 1.0", "BluRay", "", 21.4, null, true, true),
+            StreamOption("Internet Archive", "1080p", "His Girl Friday 1940 1080p", "https://example.invalid/2", null, null, "FHD", "", "H.264", "AAC 2.0", "WEB", "", 2.1, null, true, true),
+            StreamOption("Your Jellyfin", "720p", "His Girl Friday (1940)", "https://example.invalid/3", null, null, "HD", "", "H.264", "AC3 2.0", "DVD", "", 1.4, null, true),
         )
-        val people = listOf("Mara Ellison" to "Director", "Teo Varga" to "Ilsa", "June Okafor" to "Pell", "Rafe Holloway" to "Captain Dorn", "Ines Calder" to "The Keeper", "Oren Blake" to "Nils")
+        val people = listOf("Howard Hawks" to "Director", "Cary Grant" to "Walter Burns", "Rosalind Russell" to "Hildy Johnson", "Ralph Bellamy" to "Bruce Baldwin", "Gene Lockhart" to "Sheriff Hartwell", "Porter Hall" to "Murphy")
             .mapIndexed { i, (n, r) -> Person(n, r, art("person", n), isCrew = i == 0) }
         val d = DetailsUi(title, streams = streams, addonCredits = Credits(people, "trailer"),
-            related = RelatedTitles("Vey Collection", listOf(meta("Lanterns of Vey", "2025"), meta("Embers of Vey", "2027")), posters.take(8)),
+            related = RelatedTitles("Cary Grant classics", listOf(meta("His Girl Friday"), meta("Charade")), posters.drop(2).take(8)),
             parentsGuide = listOf(app.ember.tv.tracker.ParentsGuide.Entry("Violence", "Moderate"), app.ember.tv.tracker.ParentsGuide.Entry("Profanity", "Mild")),
-            ratings = mapOf("imdb" to "8.1", "tmdb" to "7.9", "rt" to "94%"))
+            ratings = mapOf("imdb" to "7.8", "tmdb" to "7.6", "rt" to "99%"))
         compose.setContent { Frame { MediaPageLayoutScope(MediaPageLayouts.EMBER_X) {
             ModernBackdrop(title, dim = .35f)
             DetailsScreen(d = d, listState = rememberLazyListState(), saved = true, isContinue = false, onToggleSaved = {}, onRemoveContinue = {},
@@ -169,31 +207,34 @@ class ShowcaseShotsTest {
     }
 
     @Test fun showPage() {
-        val title = meta("The Lighthouse Keepers", "2024", type = "series")
-        val episodes = (1..10).map { Episode("e$it", 2, it, listOf("The Lamp Room", "Fog Season", "Tidewater", "Night Shift", "Breakers", "The Long Watch", "Gulls", "Low Light", "Ironside", "Beacon")[it - 1],
-            "2024-0${(it % 9) + 1}-12", art("still", "Keepers $it"), progress = if (it == 3) .45f else null, overview = "A storm cuts the island off just as the keepers find a message in the lamp.") }
+        val title = meta("The Beverly Hillbillies")
+        val episodes = (1..10).map { Episode("e$it", 1, it, listOf("The Clampetts Strike Oil", "Getting Settled", "Meanwhile, Back at the Cabin", "The Clampetts Meet Mrs. Drysdale",
+            "Jed Buys Stock", "Trick or Treat", "The Servants", "Jethro Goes to School", "Elly's First Date", "Pygmalion and Elly")[it - 1],
+            listOf("1962-09-26", "1962-10-03", "1962-10-10", "1962-10-17", "1962-10-24", "1962-10-31", "1962-11-07", "1962-11-14", "1962-11-21", "1962-11-28")[it - 1],
+            art("still", "The Beverly Hillbillies $it"), progress = if (it == 3) .45f else null,
+            overview = "Jed Clampett and his kin settle into their Beverly Hills mansion, to the horror of their banker's wife.") }
         val d = DetailsUi(title, episodes = episodes, season = 2, episode = episodes[2], streams = listOf(
-            StreamOption("Comet", "4K", "S02E03 2160p DV DDP 5.1", "https://example.invalid/e", null, null, "4K", "DV", "HEVC", "DD+ 5.1", "WEB-DL", "", 6.2, null, true, true)))
+            StreamOption("Comet", "4K", "S01E03 1080p remaster", "https://example.invalid/e", null, null, "FHD", "", "H.264", "AAC 2.0", "WEB", "", 0.9, null, true, true)))
         compose.setContent { Frame { MediaPageLayoutScope(MediaPageLayouts.MODERN) {
             ModernBackdrop(title, dim = .35f)
             DetailsScreen(d = d, listState = rememberLazyListState(), saved = false, isContinue = true, onToggleSaved = {}, onRemoveContinue = {},
-                onSeason = {}, onEpisode = {}, onMoreEpisodes = {}, onPlay = {}, onPlayWith = {}, playButton = true, best = d.streams.first(), playbackLabel = "Resume 21:40")
+                onSeason = {}, onEpisode = {}, onMoreEpisodes = {}, onPlay = {}, onPlayWith = {}, playButton = true, best = d.streams.first(), playbackLabel = "Resume 11:40")
         } } }
         save("show")
     }
 
     @Test fun player() {
         val s = ControlsState().apply {
-            visible = true; title = "Northern Drift"; seasonEpisode = null
-            details = PlayerDetails("Northern Drift", logo = art("logo", "Northern Drift"), year = "2024", rating = "IMDb 7.8",
-                synopsis = "A crew of strangers follows a fading radio signal across a frozen sea.",
-                cast = listOf("Teo Varga", "June Okafor", "Rafe Holloway").map { Person(it, null, art("person", it)) }, backdrop = art("backdrop", "Northern Drift"))
-            position = 52 * 60_000L + 7_000; duration = 128 * 60_000L; buffered = 70 * 60_000L
-            audioTracks = listOf("English · TrueHD Atmos 7.1" to true, "French · DD+ 5.1" to false)
-            subtitleOptions = listOf("Off" to false, "English" to true)
+            visible = true; title = "Metropolis"; seasonEpisode = null
+            details = PlayerDetails("Metropolis", logo = art("logo", "Metropolis"), year = "1927", rating = "IMDb 8.3",
+                synopsis = catalog.getValue("Metropolis").about,
+                cast = listOf("Brigitte Helm", "Alfred Abel", "Gustav Fröhlich").map { Person(it, null, art("person", it)) }, backdrop = art("backdrop", "Metropolis"))
+            position = 52 * 60_000L + 7_000; duration = 153 * 60_000L; buffered = 70 * 60_000L
+            audioTracks = listOf("Orchestral score · 5.1" to true, "Original 1927 score · Stereo" to false)
+            subtitleOptions = listOf("Off" to false, "English intertitles" to true)
         }
         compose.setContent { Frame {
-            coil.compose.AsyncImage(art("backdrop", "Northern Drift"), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            coil.compose.AsyncImage(art("backdrop", "Metropolis"), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
             AdvancedControls(s, ControlsActions(playPause = {}, seekBy = {}, skip = {}, openMenu = { _, _ -> }, options = { emptyList() }, next = {}, playEpisode = {},
                 touched = {}, pickAudio = {}, pickSubtitle = {}))
         } }
@@ -204,8 +245,8 @@ class ShowcaseShotsTest {
         "Harbor 24", "Metro One", "Lumen Docs", "Gourmet Lane", "Velocity Motors", "Atlas Travel", "Comedy Corner", "Nightjar Drama")
     private val clock = 90_900_000L
     private val channels = channelNames.mapIndexed { i, n -> Channel("a:$i", "a", n, "https://example.test/$i", logo = art("channel", n), group = "Entertainment", number = 101 + i) }
-    private val showsOnAir = listOf("Evening Report", "Match of the Night", "The Glass Orchard", "Late Grooves", "Puddle Pals", "Storm Watch", "Kestrel Run", "Pixel Cup",
-        "Harbor Tonight", "City Beat", "Deep Blue Planet", "Kitchen Heat", "Track Day", "Island Hopping", "Stand-up Hour", "The Quiet Hours")
+    private val showsOnAir = listOf("Evening Report", "Match of the Night", "Detour", "Late Grooves", "Puddle Pals", "Storm Watch", "Bonanza", "Pixel Cup",
+        "Harbor Tonight", "City Beat", "Deep Blue Planet", "Kitchen Heat", "Track Day", "Island Hopping", "Stand-up Hour", "Carnival of Souls")
     private fun programmes(c: Channel): List<Programme> {
         val i = channels.indexOf(c).coerceAtLeast(0)
         return listOf(Programme(clock - 900_000 - i * 60_000, clock + 1_500_000 + i * 90_000, showsOnAir[i], description = "Live from the studio with the day's biggest stories."),
@@ -240,16 +281,18 @@ class ShowcaseShotsTest {
     @Test fun liveOverlay() {
         val g = LiveGuideState(channels, 4, "a:2", clock)
         compose.setContent { Frame {
-            coil.compose.AsyncImage(art("backdrop", "Match of the Night"), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            coil.compose.AsyncImage(art("backdrop", "Detour"), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
             LiveGuideOverlay(g, { c, _ -> programmes(c).let { it[0] to it[1] } }) { "Home playlist" }
         } }
         save("live-overlay")
     }
 
     @Test fun search() {
-        val q = "cosy mystery in a small english village"
-        val answer = listOf("The Quiet Hours", "Hollow Tide", "Wildflower Season", "Cold Harbor", "Copper Sky", "Paper Comets", "Signal Lost").map {
-            meta(it, badge = listOf("A village with secrets, gently told", "Rain, tea and a missing vicar", "Small-town puzzles, no gore")[it.length % 3]) }
+        val q = "tense black and white thrillers from the 40s and 50s"
+        val why = mapOf("Detour" to "A hitchhike that goes very wrong", "D.O.A." to "A man solving his own murder", "The Hitch-Hiker" to "Two friends, one killer, no way out",
+            "Carnival of Souls" to "Eerie, dreamlike and unsettling", "Night of the Living Dead" to "Trapped in a farmhouse until dawn", "House on Haunted Hill" to "One night, five guests, a fortune",
+            "Plan 9 from Outer Space" to "So bad it's a classic")
+        val answer = why.map { (t, w) -> meta(t, badge = w) }
         val state = SearchCanvasState(profileId = "main", query = q, rows = listOf(CatalogRow("Cinemeta", "Movies", posters.take(6))),
             ai = SearchAi("Google Gemini", q, answer, false, null))
         compose.setContent { Frame { SearchCanvas(state, SearchCanvasActions({}, {}, {}, {}, {}, {}, {}, {}, {})) } }
@@ -259,13 +302,13 @@ class ShowcaseShotsTest {
     @Test fun spark() {
         fun row(title: String, sub: String?, names: List<String>, why: (String) -> String) = title to Pair(sub, names.map { meta(it, badge = why(it)) })
         val rows = listOf(
-            row("Top picks for you", "From what you've been watching", listOf("Orbitals", "Signal Lost", "The Long Meridian", "Velvet Static", "Kestrel Run", "Copper Sky", "Paper Comets")) { "Because you watched Northern Drift · ★ 8.1" },
-            row("Mind-bending sci-fi", null, listOf("Midnight Cartographers", "Lanterns of Vey", "Northern Drift", "The Glass Orchard", "Hollow Tide", "Cold Harbor", "Salt and Ember")) { "You like sci-fi · ★ 7.6" },
+            row("Top picks for you", "From what you've been watching", listOf("The Cabinet of Dr. Caligari", "Nosferatu", "A Trip to the Moon", "The Lost World", "The Thief of Bagdad", "Sunrise", "The Phantom of the Opera")) { "Because you watched Metropolis · ★ 8.0" },
+            row("Silent comedy greats", null, listOf("The General", "Sherlock Jr.", "Safety Last!", "The Kid", "The Gold Rush", "Steamboat Bill, Jr.", "Big Buck Bunny")) { "You like comedy · ★ 8.1" },
         )
         compose.setContent { Frame {
             Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Spark", fontSize = 26.sp)
-                Text("Spark has noticed you like Sci-fi · Drama · Thriller · 2020s · Korean · picked Tue 24 Nov, 8:12 PM", color = Mute, fontSize = 13.sp)
+                Text("Spark has noticed you like Silent film · Comedy · Horror · 1920s · Film noir · picked Tue 24 Nov, 8:12 PM", color = Mute, fontSize = 13.sp)
                 rows.forEach { (title, v) -> ModernSection(title, v.first) { MediaRow(v.second, false, { false }) {} } }
             }
         } }
@@ -334,6 +377,17 @@ class ShowcaseShotsTest {
 
 /** Artwork for the showcase: posters, backdrops, logos, people, channel logos, app banners and stills, drawn from a title. */
 private object Art {
+    /**
+     * Free film art (public domain or Creative Commons) when CI provides it: SHOWCASE_ART names a folder of
+     * <kind>/<slug>.jpg files from the private screenshots repo. Anything missing is drawn instead.
+     */
+    private val folder = System.getenv("SHOWCASE_ART")?.let(::java.io.File)?.takeIf { it.isDirectory }
+    fun slug(title: String) = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+    fun real(kind: String, title: String): Bitmap? {
+        val dir = folder ?: return null
+        val file = listOf("jpg", "png").map { java.io.File(dir, "$kind/${slug(title)}.$it") }.firstOrNull { it.isFile } ?: return null
+        return android.graphics.BitmapFactory.decodeFile(file.path)
+    }
     private fun hue(s: String) = ((s.hashCode() and 0x7fffffff) % 360).toFloat()
     private fun hsv(h: Float, s: Float, v: Float) = android.graphics.Color.HSVToColor(floatArrayOf(((h % 360) + 360) % 360, s, v))
 

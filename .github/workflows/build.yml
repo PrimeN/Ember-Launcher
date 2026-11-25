@@ -104,6 +104,21 @@ jobs:
       - name: Release automation tests
         run: python3 -m unittest discover -s .github/scripts/tests -p 'test_*.py'
 
+      # Free film art for the showcase pictures, kept in the private screenshots repo; without it the
+      # showcase draws its own artwork.
+      - name: Showcase art
+        if: github.event_name == 'push'
+        continue-on-error: true
+        shell: bash
+        env:
+          SHOTS_TOKEN: ${{ secrets.SCREENSHOTS_TOKEN }}
+        run: |
+          if [ -z "$SHOTS_TOKEN" ]; then exit 0; fi
+          store="$RUNNER_TEMP/showcase-store"
+          git clone --quiet --depth 1 --filter=blob:none --sparse "https://x-access-token:${SHOTS_TOKEN}@github.com/PrimeN/Ember-Screenshots.git" "$store"
+          git -C "$store" sparse-checkout set art/showcase
+          if [ -d "$store/art/showcase" ]; then echo "SHOWCASE_ART=$store/art/showcase" >> "$GITHUB_ENV"; fi
+
       # Compiles the app and runs every JVM unit test (app/src/test). A failing test stops the run
       # before the APK is built; each failure is listed on the run's summary page.
       - name: Unit tests
