@@ -62,10 +62,11 @@ object Legal {
                         "of titles you open, only for the services you switch on or give a key. Explore also sends your discovery filters and person/company searches to TMDB. Selecting an Oscar filter sends candidate movie IDs to Wikidata; no tracker account or watch history is sent.",
                 ),
                 Item(
-                    "Optional AI-assisted discovery",
-                    "Only when you enable AI-assisted discovery and request a suggestion, Mistral receives your typed description, country, current date and public filter schema. " +
-                        "$APP does not send your profile or watch history, and does not save the prompt or reply. Suggested names are resolved through TMDB. " +
-                        "You review ordinary filters before applying them. Mistral's own data policies and plan charges apply; manual discovery remains available without it.",
+                    "Optional AI (AI-assisted discovery and Ask Spark)",
+                    "Only when you choose an AI service, add its key and make a request, that service (Google Gemini, Groq, OpenRouter, Mistral, Cerebras, OpenAI, Anthropic Claude, or your own server) receives what you typed. " +
+                        "AI-assisted discovery also sends your country, the current date and the public filter schema. Ask Spark also sends the short taste summary Spark shows you (for example \"Drama · Sci-fi · 2010s\"), never your watch history or account details. " +
+                        "$APP does not save prompts or replies, except an answer you save as a row. Suggested titles and names are checked against TMDB, and only real titles are shown. " +
+                        "Each service's own data policies and charges apply; some free tiers may use requests to improve their products. Everything else in $APP works without AI.",
                 ),
                 Item(
                     "Parents guide (imdbapi.dev)",
@@ -251,7 +252,15 @@ object Legal {
         ),
         Group(
             "AI-assisted discovery",
-            listOf(Item("Mistral AI", "Optional descriptions converted to reviewable Discover filters. Off by default; your provider's terms and charges apply. Not affiliated with or endorsed by Mistral AI.", "https://mistral.ai")),
+            listOf(
+                Item("Google Gemini", "Optional AI service. Not affiliated with or endorsed by Google.", "https://ai.google.dev"),
+                Item("Groq", "Optional AI service. Not affiliated with or endorsed by Groq.", "https://groq.com"),
+                Item("OpenRouter", "Optional AI service. Not affiliated with or endorsed by OpenRouter.", "https://openrouter.ai"),
+                Item("Mistral AI", "Optional AI service. Not affiliated with or endorsed by Mistral AI.", "https://mistral.ai"),
+                Item("Cerebras", "Optional AI service. Not affiliated with or endorsed by Cerebras.", "https://cerebras.ai"),
+                Item("OpenAI", "Optional AI service. Not affiliated with or endorsed by OpenAI.", "https://openai.com"),
+                Item("Anthropic (Claude)", "Optional AI service. Not affiliated with or endorsed by Anthropic.", "https://anthropic.com"),
+            ),
         ),
         Group(
             "Subtitles",

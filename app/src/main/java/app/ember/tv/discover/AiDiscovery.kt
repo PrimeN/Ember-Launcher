@@ -26,35 +26,33 @@ internal data class AiDiscoveryDraft(
 
 /** Stateless, explicit requests only. Prompts, completions and keys are never saved or logged. */
 class AiDiscovery(
-    private val key: () -> String = { ApiKeys.get("MISTRAL_API_KEY") },
+    /** #438: the chosen AI service (Mistral when none is chosen yet). */
+    private val provider: () -> app.ember.tv.data.AiProvider = { app.ember.tv.data.AiSettings.provider },
+    private val key: () -> String = { app.ember.tv.data.AiSettings.key() },
     private val post: suspend (String, JsonObject, Map<String, String>) -> JsonElement = { url, body, headers -> Http.privatePost(url, body, headers) },
     private val today: () -> LocalDate = LocalDate::now,
 ) {
-    val available get() = key().isNotBlank()
+    val available get() = app.ember.tv.data.AiSettings.ready(provider())
 
     suspend fun suggest(prompt: String, region: String, repository: ExploreRepository): AiDiscoverySuggestion =
         suggest(prompt, region, repository.configured, repository::search, repository::providers)
 
     internal suspend fun suggest(prompt: String, region: String, tmdbReady: Boolean,
         search: suspend (String, Boolean) -> List<ExploreRef>, providers: suspend (String) -> List<ExploreRef>): AiDiscoverySuggestion {
-        val credential = key().takeIf { it.isNotBlank() } ?: error("Add a Mistral API key to use AI-assisted discovery.")
+        val service = provider()
+        val credential = key().takeIf { it.isNotBlank() || service == app.ember.tv.data.AiProvider.LOCAL }
+            ?: error("Choose an AI service and add its key in Discover settings.")
         check(tmdbReady) { "A TMDB API key is needed to use Discover filters." }
         val text = prompt.trim()
         require(text.length in 3..1000) { "Describe what to watch in 3–1,000 characters." }
         require(region.matches(Regex("[a-zA-Z]{2}"))) { "Use a two-letter country code." }
         return withTimeout(25_000) {
-            val body = buildJsonObject {
-                put("model", "mistral-small-latest"); put("temperature", 0); put("max_tokens", 900)
-                put("response_format", buildJsonObject { put("type", "json_object") })
-                put("messages", buildJsonArray {
-                    add(buildJsonObject { put("role", "system"); put("content", instructions(today(), region)) })
-                    add(buildJsonObject { put("role", "user"); put("content", text) })
-                })
-            }
-            val response = post("https://api.mistral.ai/v1/chat/completions", body,
-                mapOf("Authorization" to "Bearer $credential", "Cache-Control" to "no-store"))
+            val r = AiChat.request(service, runCatching { app.ember.tv.data.AiSettings.base(service) }.getOrDefault(service.base).ifBlank { service.base },
+                credential, runCatching { app.ember.tv.data.AiSettings.model(service) }.getOrDefault(service.defaultModel),
+                instructions(today(), region), text, json = true, maxTokens = 900)
+            val response = AiChat.normalize(service, post(r.url, r.body, r.headers))
             currentCoroutineContext().ensureActive()
-            check(key() == credential) { "Mistral key changed. Try again." }
+            check(key() == credential) { "The AI key changed. Try again." }
             val draft = parse(response, today())
             val warnings = mutableListOf<String>()
             if (draft.unsupported.isNotBlank()) warnings += "Not represented by these filters: ${draft.unsupported}"
@@ -76,7 +74,7 @@ class AiDiscovery(
                 providers = resolve(draft.providers, "Service", source = availableProviders),
             )
             currentCoroutineContext().ensureActive()
-            check(key() == credential) { "Mistral key changed. Try again." }
+            check(key() == credential) { "The AI key changed. Try again." }
             query.error(today())?.let { error(it) }
             AiDiscoverySuggestion(query, warnings)
         }
@@ -98,7 +96,7 @@ class AiDiscovery(
         internal fun parse(response: JsonElement, today: LocalDate): AiDiscoveryDraft {
             val choice = response.arr("choices")?.singleOrNull() ?: error("No AI filter suggestion was returned.")
             check(choice.str("finish_reason") == "stop") { "The AI suggestion was incomplete. Try a shorter description." }
-            val content = choice.obj("message").str("content")?.trim()?.takeIf { it.length in 2..12_000 }
+            val content = choice.obj("message").str("content")?.trim()?.takeIf { it.length in 2..12_000 }?.let(AiChat::jsonText)
                 ?: error("No AI filter suggestion was returned.")
             val draft = json.decodeFromString<AiDiscoveryDraft>(content)
             require(draft.unsupported.length <= 500 && !draft.unsupported.any { it.isISOControl() })

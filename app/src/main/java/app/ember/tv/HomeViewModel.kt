@@ -780,13 +780,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             "continue" -> inProgressItems; "recent" -> recentItems; "watchlist" -> combinedWatchlist
             // #437: one of Spark's rows.
             in HomeWidgets.sparkLists.map { it.first } -> spark.rowFor(list!!)?.items.orEmpty()
-            // A tracker row (Up next, recommendations, your tracker lists…) by its Home key.
-            else -> smartRows.firstOrNull { it.catalogKey == list }?.items.orEmpty()
+            else -> if (HomeWidgets.isSparkList(list)) spark.rowFor(list!!)?.items.orEmpty() else smartRows.firstOrNull { it.catalogKey == list }?.items.orEmpty()
+
         }.take(w.limit)
     } else widgets.items[w.id].orEmpty()
     /** Your lists a widget can show: the three built-in ones, then whatever your trackers offer right now. */
     internal fun widgetLists(): List<Pair<String, String>> = HomeWidgets.lists +
-        (if (personalOn && app.ember.tv.tracker.Tmdb.available) HomeWidgets.sparkLists else emptyList()) + if (!personalOn) emptyList() else
+        (if (personalOn && app.ember.tv.tracker.Tmdb.available) HomeWidgets.sparkLists + spark.askLists() else emptyList()) + if (!personalOn) emptyList() else
         smartRows.mapNotNull { row -> row.catalogKey?.takeIf(HomeWidgets::isTrackerList)?.let { it to listOf(row.displayTitle, row.addonName).filter(String::isNotBlank).joinToString(" · ") } }.distinctBy { it.first }
     /** Trakt's public lists for the widget editors: "popular", "trending", or a search. */
     internal suspend fun traktLists(tab: String, query: String) = app.ember.tv.data.Collections.traktLists(tab, query)

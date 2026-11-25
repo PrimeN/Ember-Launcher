@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +36,13 @@ internal fun SparkScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                 },
                 color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2,
             )
+        }
+        // #438: Ask Spark, with your own AI service.
+        if (app.ember.tv.tracker.Tmdb.available) item(key = "spark-ask") { SparkAskPanel(vm, onOpen) }
+        items(spark.asks, key = { "ask-" + it.id }) { a ->
+            ModernSection(a.row.title, "Saved · asked again weekly") {
+                MediaRow(a.row.items, wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen)
+            }
         }
         // #436: what Spark learns from, and bringing in your trackers' whole history.
         if (app.ember.tv.tracker.Tmdb.available) item(key = "spark-history") { SparkHistoryPanel(vm) }
@@ -84,5 +93,40 @@ internal fun SparkHistoryPanel(vm: HomeViewModel) {
             if (got != null) Chip("Forget it") { spark.forgetImported() }
         }
         spark.importNote?.let { Text(it, color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2) }
+    }
+}
+
+@Composable
+private fun SparkAskPanel(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
+    val spark = vm.spark
+    @Suppress("UNUSED_VARIABLE") val rev = vm.keysRev + app.ember.tv.data.AiSettings.revision
+    val ready = app.ember.tv.data.AiSettings.ready()
+    var question by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!ready) {
+            Text("Ask Spark for anything, like \u201Cfilms like Inception, but without the dreaming\u201D. Choose an AI service first; several are free.",
+                color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2)
+            Chip("Set up AI") { vm.openSettingsPage("DISCOVER") }
+            return@Column
+        }
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            TvTextField(question, { question = it.take(300) }, Modifier.weight(1f), placeholder = "Ask Spark: films like Inception, but without the dreaming",
+                onSubmit = { spark.ask(question) })
+            Chip(if (spark.asking) "Asking…" else "Ask") { spark.ask(question) }
+        }
+        // You see what gets sent before anything goes.
+        Text("Sends your question" + (spark.summary?.let { " and \u201C$it\u201D" } ?: "") + " to ${app.ember.tv.data.AiSettings.provider.label}. Titles are checked on TMDB; only real ones you haven't seen show.",
+            color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2)
+        spark.askError?.let { Text(it, color = Mute, fontSize = TvTokens.Type.Caption.sp) }
+        spark.answer?.takeIf { it.items.isNotEmpty() }?.let { row ->
+            ModernSection(row.title, row.subtitle) { MediaRow(row.items, wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen) }
+            ButtonRow(spacing = 10.dp) {
+                Chip("Save as a row") { spark.saveAnswer() }
+                Chip("Clear") { spark.clearAnswer() }
+            }
+        }
+        if (spark.asks.isNotEmpty()) ButtonRow(spacing = 10.dp) {
+            spark.asks.forEach { a -> Chip("Remove \u201C${a.question.take(24)}\u201D") { spark.removeAsk(a.id) } }
+        }
     }
 }

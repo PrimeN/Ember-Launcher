@@ -90,7 +90,94 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         val rows: List<SparkRow> = emptyList(),
         val summary: String? = null,
         val builtAt: Long = 0,
+        val asks: List<SavedAsk> = emptyList(),
     )
+
+    /** #438: an Ask Spark answer kept as a row (and a Home widget); asked again about once a week. */
+    @Serializable
+    data class SavedAsk(val id: String, val question: String, val row: SparkRow, val at: Long)
+
+    // ---- Ask Spark (#438) ----
+    var answer by mutableStateOf<SparkRow?>(null); private set
+    var asking by mutableStateOf(false); private set
+    var askError by mutableStateOf<String?>(null); private set
+    var asks by mutableStateOf<List<SavedAsk>>(emptyList()); private set
+    private var lastQuestion: String? = null
+    private var askJob: Job? = null
+
+    /** Asks your AI service; the titles it names are checked on TMDB, and those you've seen are left out. */
+    fun ask(question: String) {
+        val q = question.trim()
+        if (q.length !in 3..300) { askError = "Ask in 3 to 300 characters."; return }
+        if (!app.ember.tv.data.AiSettings.ready()) { askError = "Choose an AI service in Discover settings first."; return }
+        askJob?.cancel()
+        asking = true; askError = null; answer = null; lastQuestion = q
+        val profile = profileId()
+        askJob = scope.launch {
+            val result = runCatching { withContext(Dispatchers.IO) { answerFor(q) } }
+            if (profileId() != profile) return@launch
+            result.onSuccess { row -> answer = row; if (row.items.isEmpty()) askError = "Spark found nothing new for that. Try asking another way." }
+                .onFailure { if (it !is kotlinx.coroutines.CancellationException) askError = it.message?.takeIf { m -> m.length < 160 } ?: "The AI service didn't answer. Try again." }
+            asking = false
+        }
+    }
+
+    fun clearAnswer() { askJob?.cancel(); asking = false; answer = null; askError = null }
+
+    /** Keeps the current answer as a row you can also put on Home (Create widget › Your lists). */
+    fun saveAnswer() {
+        val row = answer ?: return
+        val q = lastQuestion ?: return
+        val id = Integer.toHexString(q.lowercase().hashCode())
+        val next = (asks.filterNot { it.id == id } + SavedAsk(id, q, row.copy(id = "ask:$id"), System.currentTimeMillis())).takeLast(MAX_ASKS)
+        persistAsks(next)
+        answer = null
+    }
+
+    fun removeAsk(id: String) = persistAsks(asks.filterNot { it.id == id })
+
+    private fun persistAsks(next: List<SavedAsk>) {
+        asks = next
+        saved = saved.copy(asks = next)
+        val profile = profileId(); val copy = saved
+        scope.launch(Dispatchers.IO) { runCatching { file(profile).writeText(json.encodeToString(Saved.serializer(), copy)) } }
+    }
+
+    /** Saved answers older than a week are asked again, one per visit, quietly. */
+    private fun refreshAsksIfDue() {
+        if (!app.ember.tv.data.AiSettings.ready() || askJob?.isActive == true) return
+        val due = asks.firstOrNull { System.currentTimeMillis() - it.at > 7 * DAY_MS } ?: return
+        val profile = profileId()
+        askJob = scope.launch {
+            val row = runCatching { withContext(Dispatchers.IO) { answerFor(due.question) } }.getOrNull()
+            if (profileId() != profile) return@launch
+            persistAsks(asks.map { if (it.id == due.id) it.copy(row = (row?.takeIf { r -> r.items.isNotEmpty() } ?: it.row).copy(id = "ask:${it.id}"), at = System.currentTimeMillis()) else it })
+        }
+    }
+
+    private suspend fun answerFor(question: String): SparkRow = coroutineScope {
+        val content = app.ember.tv.discover.AiChat.ask(app.ember.tv.spark.SparkAsk.system(summary, java.time.LocalDate.now()), question)
+        val picks = app.ember.tv.spark.SparkAsk.parse(content)
+        val key = ApiKeys.get("TMDB_API_KEY")
+        val seen = saved.facts.keys + saved.imdb.values + imported?.titles.orEmpty().mapNotNull { h -> h.tmdb?.let { (if (h.movie) "movie:" else "tv:") + it } }
+        val found = picks.map { p -> async {
+            runCatching {
+                val tv = p.type == "tv"
+                val url = "https://api.themoviedb.org/3/search/${if (tv) "tv" else "movie"}?api_key=$key&query=${java.net.URLEncoder.encode(p.title, "UTF-8")}"
+                Http.metadata(url).arr("results").list().firstNotNullOfOrNull { r ->
+                    val year = (r.str("release_date") ?: r.str("first_air_date"))?.take(4)?.toIntOrNull()
+                    if (!app.ember.tv.spark.SparkAsk.matches(p, r.str("title") ?: r.str("name") ?: "", r.str("original_title") ?: r.str("original_name"), year)) null
+                    else ExploreRepository.parseTitle(r, if (tv) ExploreKind.TV else ExploreKind.MOVIE)?.takeUnless { it.adult }
+                        ?.let { t -> ((if (tv) "tv:" else "movie:") + t.tmdb) to t.meta.copy(badge = p.why.ifBlank { null }) }
+                }
+            }.getOrNull()
+        } }.awaitAll().filterNotNull()
+        val items = found.filter { it.first !in seen }.distinctBy { it.first }.map { it.second }
+        SparkRow("ask", "\u201C$question\u201D", "Asked ${app.ember.tv.data.AiSettings.provider.label}", items)
+    }
+
+    /** Questions saved as rows, for the Home widget lists. */
+    fun askLists(): List<Pair<String, String>> = asks.map { "spark:ask:${it.id}" to "Spark · ${it.question.take(60)}" }
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
     private var saved = Saved()
@@ -155,10 +242,12 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             saved = runCatching { json.decodeFromString(Saved.serializer(), file(profile).readText()) }.getOrDefault(Saved())
             rows = saved.rows; summary = saved.summary; builtAt = saved.builtAt; error = null; noHistory = false
             imported = runCatching { json.decodeFromString(Imported.serializer(), importFile(profile).readText()) }.getOrNull()
+            asks = saved.asks; answer = null; askError = null
             importNote = null
         }
         if (System.currentTimeMillis() - builtAt > STALE_MS || rows.isEmpty()) build()
         refreshHistoryIfDue()
+        refreshAsksIfDue()
     }
 
     fun refresh() = build()
@@ -170,7 +259,7 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         "spark:because" -> rows.firstOrNull { it.id.startsWith("because:") }
         "spark:gems" -> rows.firstOrNull { it.id == "gems" }
         "spark:language" -> rows.firstOrNull { it.id.startsWith("lang:") }
-        else -> null
+        else -> asks.firstOrNull { slot == "spark:ask:${it.id}" }?.row
     }
 
     private fun build(force: Boolean = false) {
@@ -182,7 +271,8 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             val history = imported
             val result = runCatching { withContext(Dispatchers.IO) { make(saved, history) } }
             if (profileId() != profile) { loading = false; return@launch }
-            result.onSuccess { next ->
+            result.onSuccess { built ->
+                val next = built.copy(asks = asks)
                 saved = next
                 rows = next.rows; summary = next.summary; builtAt = next.builtAt
                 noHistory = next.summary == null
@@ -312,6 +402,7 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         const val MAX_SEEDS = 40
         /** Titles whose facts are looked up: those that say most about you. */
         const val MAX_FACTS = 300
+        const val MAX_ASKS = 5
         val MOVIE_GENRES = setOf(28, 12, 16, 35, 80, 99, 18, 10751, 14, 36, 27, 10402, 9648, 10749, 878, 53, 10752, 37)
         val TV_GENRES = setOf(16, 35, 80, 99, 18, 10751, 9648, 37, 10759, 10762, 10765, 10768)
     }

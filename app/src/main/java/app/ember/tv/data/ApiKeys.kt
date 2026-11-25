@@ -36,11 +36,54 @@ object ApiKeys {
             "rapidapi.com/movie-of-the-night/api/streaming-availability: subscribe to a plan and copy X-RapidAPI-Key.",
             listOf(Field("STREAMING_AVAILABILITY_API_KEY", "RapidAPI key")),
         ),
+        // #438: AI services. Choose which one Ember uses in Discover settings › AI.
         Service(
             "Mistral AI",
-            "Optional AI-assisted Discover: turns your description into filters you review. Disabled by default; manual discovery works without it.",
-            "console.mistral.ai > API keys. Your plan may charge for requests. Enable AI-assisted discovery in Discover settings.",
+            "Optional AI: AI-assisted discovery and Ask Spark. Choose the AI service in Discover settings.",
+            "console.mistral.ai > API keys. Free Experiment plan, or your plan may charge for requests.",
             listOf(Field("MISTRAL_API_KEY", "API key")),
+        ),
+        Service(
+            "Google Gemini",
+            "Optional AI: AI-assisted discovery and Ask Spark. Free tier available. Choose the AI service in Discover settings.",
+            "aistudio.google.com › Get API key. No card needed for the free tier.",
+            listOf(Field("GEMINI_API_KEY", "API key")),
+        ),
+        Service(
+            "Groq",
+            "Optional AI: AI-assisted discovery and Ask Spark. Free tier available. Choose the AI service in Discover settings.",
+            "console.groq.com › API Keys. No card needed for the free tier.",
+            listOf(Field("GROQ_API_KEY", "API key")),
+        ),
+        Service(
+            "OpenRouter",
+            "Optional AI: one key for hundreds of models, many of them free. Choose the AI service in Discover settings.",
+            "openrouter.ai › Keys. Free models end in :free.",
+            listOf(Field("OPENROUTER_API_KEY", "API key")),
+        ),
+        Service(
+            "Cerebras",
+            "Optional AI: AI-assisted discovery and Ask Spark. Free tier available. Choose the AI service in Discover settings.",
+            "cloud.cerebras.ai › API Keys. No card needed for the free tier.",
+            listOf(Field("CEREBRAS_API_KEY", "API key")),
+        ),
+        Service(
+            "OpenAI",
+            "Optional AI: AI-assisted discovery and Ask Spark. Choose the AI service in Discover settings.",
+            "platform.openai.com › API keys. Requests are charged to your account.",
+            listOf(Field("OPENAI_API_KEY", "API key")),
+        ),
+        Service(
+            "Claude (Anthropic)",
+            "Optional AI: AI-assisted discovery and Ask Spark. Choose the AI service in Discover settings.",
+            "console.anthropic.com › API keys. Requests are charged to your account.",
+            listOf(Field("ANTHROPIC_API_KEY", "API key")),
+        ),
+        Service(
+            "Your own AI server",
+            "Optional: a key for your own OpenAI-style server (Ollama, LM Studio), only if it asks for one. Set its address in Discover settings.",
+            "Most home servers need no key.",
+            listOf(Field("LOCAL_AI_KEY", "API key")),
         ),
         Service(
             "TMDB",
@@ -150,7 +193,14 @@ object ApiKeys {
     /** What a free key allows, in a line, shown in the service's dialog (#214). */
     val LIMITS = mapOf(
         "Streaming Availability" to "Set by your RapidAPI plan; the free plan has a small allowance.",
-        "Mistral AI" to "Set by your Mistral plan; requests may be charged.",
+        "Mistral AI" to "Free Experiment plan with limits; paid plans charge per request.",
+        "Google Gemini" to "Free tier with daily limits; Google may use free-tier requests to improve its products.",
+        "Groq" to "Free tier: about 1,000 requests a day on larger models.",
+        "OpenRouter" to "Free models: about 50 requests a day; paid models charge per request.",
+        "Cerebras" to "Free tier: about a million tokens a day.",
+        "OpenAI" to "Charged per request to your account.",
+        "Claude (Anthropic)" to "Charged per request to your account.",
+        "Your own AI server" to "Free; runs on your own computer.",
         "TMDB" to "Free for personal use, with generous rate limits.",
         "Fanart.tv" to "Free personal key.",
         "Trakt" to "Free; Trakt limits how often an app can call it.",

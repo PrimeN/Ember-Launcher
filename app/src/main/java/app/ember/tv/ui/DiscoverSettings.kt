@@ -39,12 +39,13 @@ internal fun DiscoverSettings(vm: HomeViewModel) {
             vm.spark.updateKeepEverything(!vm.spark.keepEverything)
         }
         Choice(listOf("off" to "Only when I ask", "daily" to "Daily", "weekly" to "Weekly"), vm.spark.autoRefresh, "Bring my history in again") { vm.spark.updateAutoRefresh(it) }
-        Text("Spark's rows can also be Home rows: Create widget › Your lists › Spark.", color = Mute, fontSize = 13.sp)
+        Text("Spark's rows, and answers you save from Ask Spark, can also be Home rows: Create widget › Your lists › Spark. Ask Spark uses the AI service below.", color = Mute, fontSize = 13.sp)
     }
-    Section(stringResource(R.string.st_ai_assisted_discovery), stringResource(R.string.st_optional_describe_what_to_watch_then), id = "ai-discovery") {
+    // #438: one AI service for AI-assisted discovery and Ask Spark.
+    Section("AI", "Optional. Pick a service (several are free), add its key and choose a model.", id = "ai-discovery") {
         SettingToggle(stringResource(R.string.st_ai_assisted_discovery), stringResource(R.string.st_off_by_default_manual_filters_and), vm.look.aiDiscoveryEnabled) {
             vm.look.updateAiDiscoveryEnabled(!vm.look.aiDiscoveryEnabled)
         }
-        Chip(stringResource(R.string.settings_keys)) { vm.openSettingsPage("KEYS") }
+        AiServiceSettings(vm)
     }
 }

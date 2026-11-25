@@ -52,7 +52,7 @@ object HomeWidgets {
         "spark:gems" to "Spark · Hidden gems for you",
         "spark:language" to "Spark · More in your other language",
     )
-    fun isSparkList(id: String?) = sparkLists.any { it.first == id }
+    fun isSparkList(id: String?) = id != null && (sparkLists.any { it.first == id } || (id.startsWith("spark:ask:") && id.length in 11..40))
 
     /** Things on this TV rather than titles: [CollectionSource.catalogId] is one of [deviceSources]. */
     const val DEVICE = "device"

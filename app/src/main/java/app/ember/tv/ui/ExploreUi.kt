@@ -52,7 +52,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
     var info by remember(vm.profiles.profileId) { mutableStateOf(false) }
     var recovery by remember(vm.profiles.profileId) {mutableStateOf(false)}
     val aiConfigured = vm.look.aiDiscoveryEnabled && vm.exploreRepository.configured &&
-        remember(vm.keysRev) { app.ember.tv.data.ApiKeys.get("MISTRAL_API_KEY").isNotBlank() }
+        remember(vm.keysRev, app.ember.tv.data.AiSettings.revision) { app.ember.tv.data.AiSettings.ready() }
     var aiOpen by remember(vm.profiles.profileId, vm.keysRev, aiConfigured, vm.watch.watchRegion) { mutableStateOf(false) }
     var aiDraft by remember(vm.profiles.profileId, vm.keysRev, aiConfigured, vm.watch.watchRegion) { mutableStateOf<ExploreQuery?>(null) }
     val aiReview = aiDraft != null

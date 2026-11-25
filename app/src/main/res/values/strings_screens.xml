@@ -77,7 +77,7 @@
     <string name="tx_matching_channels" formatted="true">%1$s matching channels</string>
     <string name="tx_mdblist_list">MDBList list</string>
     <string name="tx_min_left" formatted="true">%1$s min left</string>
-    <string name="tx_mistral_suggests_filters_you_review_before">Mistral suggests filters; you review before applying. Only this description is sent. Your provider may charge for each request.</string>
+    <string name="tx_mistral_suggests_filters_you_review_before">Your AI service suggests filters; you review them before applying. Only this description is sent. Some services charge for each request.</string>
     <string name="tx_muted_videos_and_gifs_start_after">Muted videos and GIFs start after focus settles and stop when you leave. Off or reduced motion keeps static covers.</string>
     <string name="tx_name">Name</string>
     <string name="tx_network_folders">Network folders</string>
