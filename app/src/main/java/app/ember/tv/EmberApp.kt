@@ -10,6 +10,9 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         super.onCreate()
         // First, so a failure in anything below is recorded too.
         app.ember.tv.data.CrashLog.install(this)
+        // #442: the recovery page runs in its own process and needs none of what follows.
+        if (getProcessName().endsWith(":recovery")) return
+        app.ember.tv.data.StartupGuard.install(this)
         // #242: the phone remote's arrows go to whichever Ember screen is in front.
         app.ember.tv.remote.RemoteBridge.install(this)
         // Why the previous run ended when no exception was thrown: not responding, native crash,

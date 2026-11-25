@@ -110,8 +110,20 @@ class MainActivity : ComponentActivity() {
     private val vm: HomeViewModel by viewModels()
     private var tab by mutableStateOf(NavTabs.HOME)
 
+    /** #442: this start went to the recovery page instead; nothing of Home was set up. */
+    private var recovering = false
+    private val settled = Runnable { app.ember.tv.data.StartupGuard.healthy(this) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // #442: after three failed starts in a row, the recovery page opens instead of Home.
+        if (app.ember.tv.data.StartupGuard.needsRecovery(this)) {
+            recovering = true
+            runCatching { startActivity(app.ember.tv.data.StartupGuard.recoveryIntent(this)) }
+            finish()
+            return
+        }
+        app.ember.tv.data.StartupGuard.begin(this)
         app.ember.tv.ui.StartupHeroFocus.begin()
         // Remote sounds for every screen in this window (the activity's own dispatchKeyEvent is a
         // restricted androidx API); menus in their own windows are handled by TvDialog.
@@ -171,11 +183,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        window?.decorView?.removeCallbacks(settled)
         if (LauncherNotice.sink != null) LauncherNotice.sink = null
         super.onPause()
     }
 
     override fun onDestroy() {
+        if (recovering) { super.onDestroy(); return }
         if (app.ember.tv.remote.RemoteBridge.screen === remoteScreen) app.ember.tv.remote.RemoteBridge.screen = null
         if (isFinishing) app.ember.tv.remote.PhoneRemote.release(vm)
         super.onDestroy()
@@ -183,6 +197,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // #442: Home that stays up a few seconds has started properly.
+        window.decorView.postDelayed(settled, app.ember.tv.data.StartupGuard.SETTLE_MS)
         app.ember.tv.remote.RemoteBridge.screen = remoteScreen
         // #331: messages from TV tools show as Ember's notice while Ember is in front.
         LauncherNotice.sink = vm::showNotice

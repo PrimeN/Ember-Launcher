@@ -207,6 +207,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- #442: opens by itself after three failed starts; its own process, so a broken Home can't break it. -->
+        <activity
+            android:name=".system.RecoveryActivity"
+            android:exported="false"
+            android:process=":recovery"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:theme="@style/Theme.Ember.Player" />
         <activity android:name=".device.CalibrationActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" android:theme="@style/Theme.Ember.Player" />
 
         <activity android:name=".player.MediaFilesActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
