@@ -290,7 +290,7 @@ class ShowcaseShotsTest {
     @Test fun search() {
         val q = "tense black and white thrillers from the 40s and 50s"
         val why = mapOf("Detour" to "A hitchhike that goes very wrong", "D.O.A." to "A man solving his own murder", "The Hitch-Hiker" to "Two friends, one killer, no way out",
-            "Carnival of Souls" to "Eerie, dreamlike and unsettling", "Night of the Living Dead" to "Trapped in a farmhouse until dawn", "House on Haunted Hill" to "One night, five guests, a fortune",
+            "Carnival of Souls" to "Eerie, dreamlike and unsettling", "House on Haunted Hill" to "One night, five guests, a fortune",
             "Plan 9 from Outer Space" to "So bad it's a classic")
         val answer = why.map { (t, w) -> meta(t, badge = w) }
         val state = SearchCanvasState(profileId = "main", query = q, rows = listOf(CatalogRow("Cinemeta", "Movies", posters.take(6))),
