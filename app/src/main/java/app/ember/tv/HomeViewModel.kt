@@ -433,18 +433,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 .collectLatest { (items, on) -> if (on) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { EpisodesLeft.load(items) } }
         }
         // #431: first start: player defaults from this box and TV.
-        if (!prefs.deviceTuned) viewModelScope.launch {
+        // #441: every job here is dispatched, not immediate: profiles, widgets and the lists are set up further down.
+        if (!prefs.deviceTuned) viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             prefs.deviceTuned = true
             if (freshInstall) tuneForThisTv()
         }
         // #437: Spark rows used as Home widgets load (and refresh) without opening Discover.
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             androidx.compose.runtime.snapshotFlow {
                 Triple(profiles.profileId, personalOn, widgets.list.any { it.source.provider == HomeWidgets.LIST && HomeWidgets.isSparkList(it.source.catalogId) })
             }.collectLatest { (_, personal, used) -> if (used && personal && Tmdb.available) spark.open() }
         }
         // #429: the front Continue watching title's sources, once Home has settled.
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             androidx.compose.runtime.snapshotFlow { inProgressItems.firstOrNull() }
                 .collectLatest { first -> if (first != null) { delay(2_000); warmSources(first) } }
         }
