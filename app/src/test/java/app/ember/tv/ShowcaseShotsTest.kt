@@ -381,7 +381,7 @@ private object Art {
      * Free film art (public domain or Creative Commons) when CI provides it: SHOWCASE_ART names a folder of
      * <kind>/<slug>.jpg files from the private screenshots repo. Anything missing is drawn instead.
      */
-    private val folder = System.getenv("SHOWCASE_ART")?.let(::java.io.File)?.takeIf { it.isDirectory }
+    private val folder: java.io.File? = System.getenv("SHOWCASE_ART")?.let { java.io.File(it) }?.takeIf { it.isDirectory }
     fun slug(title: String) = title.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
     fun real(kind: String, title: String): Bitmap? {
         val dir = folder ?: return null
