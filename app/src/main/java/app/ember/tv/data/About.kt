@@ -14,6 +14,16 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "1.4.0", "Meet Spark",
+            listOf(
+                "Spark in Discover: picks from what each profile watches, in named rows like Mind-bending sci-fi and Because you watched, each with its reason.",
+                "Bring in your whole Trakt, Simkl or WeTrakr history and ratings so Spark knows you from day one; keep Trakt's full details and refresh it daily or weekly.",
+                "Spark's rows can be Home widgets, and follow your taste as it changes.",
+                "One AI setting for Google Gemini, Groq, OpenRouter, Mistral, Cerebras, OpenAI, Claude or your own server, with free tiers and a model picker.",
+                "Ask Spark in plain words, on its page or straight from Search; only real titles you haven't seen come back, and answers can be saved as rows.",
+            ),
+        ),
+        Release(
             "1.3.0", "Set up for your TV",
             listOf(
                 "On first start Ember sets the buffer and frame-rate matching for your box and screen, and \"Set up for this TV\" in Player settings does it again any time.",
