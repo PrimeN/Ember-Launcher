@@ -58,4 +58,13 @@ class AiServicesTest {
         assertTrue(runCatching { SparkAsk.parse("not json") }.isFailure)
         assertTrue(app.ember.tv.data.HomeWidgets.isSparkList("spark:ask:1a2b3c"))
     }
+
+    @Test fun searchAsksOnlyForDescriptions() {
+        assertFalse(SparkAsk.describes("Dune", 0))
+        assertFalse(SparkAsk.describes("The Office", 0))
+        assertFalse(SparkAsk.describes("lord of the rings", 12))
+        assertTrue(SparkAsk.describes("cosy mystery in an english village", 30))
+        assertTrue(SparkAsk.describes("funny space adventure", 1))
+        assertFalse(SparkAsk.describes("2001 a space", 10))
+    }
 }

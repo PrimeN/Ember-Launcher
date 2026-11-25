@@ -29,6 +29,8 @@ internal object SettingsOptionSeed {
         E(SettingsTab.DISCOVER, "spark", "Spark", "Weekly"),
         E(SettingsTab.DISCOVER, "ai-discovery", "AI", "AI"),
         E(SettingsTab.DISCOVER, "ai-discovery", "AI", "AI-assisted discovery"),
+        E(SettingsTab.DISCOVER, "ai-discovery", "AI", "Ask Spark from Search"),
+        E(SettingsTab.DISCOVER, "ai-discovery", "AI", "Ask automatically"),
         E(SettingsTab.DISCOVER, "ai-discovery", "AI", "AI service"),
         E(SettingsTab.DISCOVER, "ai-discovery", "AI", "Model"),
         E(SettingsTab.DISCOVER, "reset-page", "Reset this page", "Reset this page"),

@@ -33,6 +33,15 @@ object SparkAsk {
             .distinctBy { norm(it.title) + it.year }.take(MAX).toList()
     }
 
+    /**
+     * #439: a search that reads like a description rather than a title: five words or more, or
+     * three or more with few title matches. Titles like "Dune" or "The Office" never ask.
+     */
+    fun describes(query: String, titleMatches: Int): Boolean {
+        val words = query.trim().split(Regex("\\s+")).count { it.any(Char::isLetter) }
+        return words >= 5 || (words >= 3 && titleMatches < 3)
+    }
+
     fun norm(s: String): String = Normalizer.normalize(s, Normalizer.Form.NFKD).lowercase(Locale.ROOT)
         .replace("&", "and").filter { it.isLetterOrDigit() }
 

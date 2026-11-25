@@ -236,6 +236,14 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
 
     /** Shows what was built before, and builds again when it is a day old. */
     fun open() {
+        load()
+        if (System.currentTimeMillis() - builtAt > STALE_MS || rows.isEmpty()) build()
+        refreshHistoryIfDue()
+        refreshAsksIfDue()
+    }
+
+    /** This profile's saved Spark data, read once per profile. */
+    private fun load() {
         val profile = profileId()
         if (loadedFor != profile) {
             loadedFor = profile
@@ -244,10 +252,46 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             imported = runCatching { json.decodeFromString(Imported.serializer(), importFile(profile).readText()) }.getOrNull()
             asks = saved.asks; answer = null; askError = null
             importNote = null
+            searchAnswer = null
         }
-        if (System.currentTimeMillis() - builtAt > STALE_MS || rows.isEmpty()) build()
-        refreshHistoryIfDue()
-        refreshAsksIfDue()
+    }
+
+    // ---- Ask Spark from Search (#439) ----
+    /** The answer for [searchQuestion]; separate from the Spark page's own question. */
+    var searchQuestion by mutableStateOf<String?>(null); private set
+    var searchAnswer by mutableStateOf<SparkRow?>(null); private set
+    var searchAsking by mutableStateOf(false); private set
+    var searchError by mutableStateOf<String?>(null); private set
+    /** #439: Search may offer Ask Spark for descriptions; "Ask automatically" asks without the press. */
+    var searchOn by mutableStateOf(prefs.sparkSearch); private set
+    fun updateSearchOn(on: Boolean) { searchOn = on; prefs.sparkSearch = on }
+    var searchAuto by mutableStateOf(prefs.sparkSearchAuto); private set
+    fun updateSearchAuto(on: Boolean) { searchAuto = on; prefs.sparkSearchAuto = on }
+    private var searchJob: Job? = null
+
+    fun askForSearch(query: String) {
+        val q = query.trim()
+        if (q.length !in 3..300 || !app.ember.tv.data.AiSettings.ready()) return
+        if (q == searchQuestion && (searchAsking || searchAnswer != null)) return
+        load()
+        searchJob?.cancel()
+        searchQuestion = q; searchAnswer = null; searchError = null; searchAsking = true
+        val profile = profileId()
+        searchJob = scope.launch {
+            val result = runCatching { withContext(Dispatchers.IO) { answerFor(q) } }
+            if (profileId() != profile || searchQuestion != q) return@launch
+            result.onSuccess { searchAnswer = it; if (it.items.isEmpty()) searchError = "Spark found nothing new for that." }
+                .onFailure { if (it !is kotlinx.coroutines.CancellationException) searchError = it.message?.takeIf { m -> m.length < 160 } ?: "The AI service didn't answer." }
+            searchAsking = false
+        }
+    }
+
+    /** Saves the Search answer as a Spark row (and Home widget list), like Ask Spark. */
+    fun saveSearchAnswer() {
+        val row = searchAnswer ?: return
+        val q = searchQuestion ?: return
+        answer = row; lastQuestion = q
+        saveAnswer()
     }
 
     fun refresh() = build()

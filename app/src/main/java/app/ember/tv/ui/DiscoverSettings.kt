@@ -47,5 +47,12 @@ internal fun DiscoverSettings(vm: HomeViewModel) {
             vm.look.updateAiDiscoveryEnabled(!vm.look.aiDiscoveryEnabled)
         }
         AiServiceSettings(vm)
+        // #439
+        SettingToggle("Ask Spark from Search", "When what you type in Search reads like a description, an Ask Spark row is offered above the results.", vm.spark.searchOn) {
+            vm.spark.updateSearchOn(!vm.spark.searchOn)
+        }
+        if (vm.spark.searchOn) SettingToggle("Ask automatically", "Asks as soon as you stop typing a description, instead of waiting for you to press. Uses more of a free tier.", vm.spark.searchAuto) {
+            vm.spark.updateSearchAuto(!vm.spark.searchAuto)
+        }
     }
 }

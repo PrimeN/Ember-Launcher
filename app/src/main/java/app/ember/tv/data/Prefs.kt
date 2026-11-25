@@ -431,6 +431,12 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.STREAM_DESC_TEMPLATE)
         set(v) = sp.edit { if (v == null) remove(PreferenceKeys.STREAM_DESC_TEMPLATE.name) else putString(PreferenceKeys.STREAM_DESC_TEMPLATE.name, v) }
 
+    var sparkSearch: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.SPARK_SEARCH) }.getOrDefault(true)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.SPARK_SEARCH.name, v) }
+    var sparkSearchAuto: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.SPARK_SEARCH_AUTO) }.getOrDefault(false)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.SPARK_SEARCH_AUTO.name, v) }
     var sparkKeepEverything: Boolean
         get() = runCatching { sp.read(PreferenceKeys.SPARK_KEEP_EVERYTHING) }.getOrDefault(false)
         set(v) = sp.edit { putBoolean(PreferenceKeys.SPARK_KEEP_EVERYTHING.name, v) }

@@ -44,6 +44,14 @@ fun SearchScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onLaunch: (AppEntry)
             startVoice()
         }
     }
+    // #439 "Ask automatically": a description asks Spark once typing pauses.
+    val autoQuery = vm.search.searchQuery.trim()
+    LaunchedEffect(autoQuery, vm.spark.searchAuto) {
+        if (!vm.spark.searchAuto || aiRow(vm) == null || autoQuery.length < 3) return@LaunchedEffect
+        kotlinx.coroutines.delay(1_500)
+        val matches = vm.search.searchRows.sumOf { it.items.size }
+        if (app.ember.tv.spark.SparkAsk.describes(autoQuery, matches)) vm.spark.askForSearch(autoQuery)
+    }
     SearchCanvas(
         state = SearchCanvasState(
             profileId = vm.profiles.profileId, query = vm.search.searchQuery,
@@ -52,6 +60,7 @@ fun SearchScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onLaunch: (AppEntry)
             shortcuts = localShortcuts, searching = vm.search.searching,
             note = vm.search.searchNote, unavailable = vm.search.sourceUnavailable,
             recent = vm.recentSearches,
+            ai = aiRow(vm),
         ),
         actions = SearchCanvasActions(
             query = vm.search::setQuery, submit = vm::submitSearch, voice = startVoice,
@@ -59,7 +68,15 @@ fun SearchScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit, onLaunch: (AppEntry)
             appOptions = onAppOptions, sources = vm::openSourceSettings,
             retry = { vm.search.setQuery(vm.search.searchQuery, immediate = true) },
             isSaved = vm::isSaved,
+            askAi = { vm.spark.askForSearch(it) }, saveAi = { vm.spark.saveSearchAnswer() },
         ),
         autoFocus = autoFocus, navigationUp = navigationUp,
     )
+}
+
+/** #439: Ask Spark in Search, when it's on, an AI service is ready, a TMDB key is set and the profile is personal. */
+private fun aiRow(vm: HomeViewModel): SearchAi? {
+    val spark = vm.spark
+    if (!spark.searchOn || !vm.profiles.personalOn || !app.ember.tv.tracker.Tmdb.available || !app.ember.tv.data.AiSettings.ready()) return null
+    return SearchAi(app.ember.tv.data.AiSettings.provider.label, spark.searchQuestion, spark.searchAnswer?.items.orEmpty(), spark.searchAsking, spark.searchError)
 }

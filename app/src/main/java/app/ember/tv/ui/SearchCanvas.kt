@@ -47,13 +47,19 @@ internal data class SearchCanvasState(
     val saved: List<Meta> = emptyList(), val apps: List<AppEntry> = emptyList(),
     val shortcuts: List<SearchShortcut> = emptyList(), val searching: Boolean = false,
     val note: String? = null, val unavailable: Boolean = false, val recent: List<String> = emptyList(),
+    /** #439: Ask Spark for descriptions; null when no AI service is set up (or it's turned off). */
+    val ai: SearchAi? = null,
 )
+
+/** #439: the Ask Spark row in Search: its answer for [question], or the button to ask. */
+internal data class SearchAi(val provider: String, val question: String?, val items: List<Meta>, val asking: Boolean, val error: String?)
 
 internal class SearchCanvasActions(
     val query: (String) -> Unit, val submit: (String) -> Unit, val voice: () -> Unit,
     val clearRecent: () -> Unit, val open: (Meta) -> Unit, val launch: (AppEntry) -> Unit,
     val appOptions: (AppEntry) -> Unit, val sources: () -> Unit, val retry: () -> Unit,
     val isSaved: (Meta) -> Boolean = { false },
+    val askAi: (String) -> Unit = {}, val saveAi: () -> Unit = {},
 )
 
 /** A single virtualized canvas: source labels live with results rather than taking whole rows. */
@@ -163,6 +169,25 @@ internal fun SearchCanvas(state: SearchCanvasState, actions: SearchCanvasActions
                                         }
                                     }
                                 }
+                                // #439: a description gets an Ask Spark row above the title matches.
+                                val ai = state.ai
+                                if (ai != null && typed && filter == SearchFilter.ALL && app.ember.tv.spark.SparkAsk.describes(state.query, results.size))
+                                    item(key = "ask-spark", span = { GridItemSpan(maxLineSpan) }) {
+                                        val q = state.query.trim()
+                                        val answered = ai.question == q
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            if (answered && ai.items.isNotEmpty()) {
+                                                ModernSection("Spark: \u201C$q\u201D", "Checked on TMDB · from ${ai.provider}") {
+                                                    MediaRow(ai.items, wide = false, isSaved = actions.isSaved, onOpen = actions.open)
+                                                }
+                                                ButtonRow { Chip("Save as a Spark row", maxLines = 1, onClick = actions.saveAi) }
+                                            } else Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Chip(if (answered && ai.asking) "Spark is asking ${ai.provider}…" else "Ask Spark: \u201C${q.take(50)}\u201D", maxLines = 1) { actions.askAi(q) }
+                                                Text((if (answered) ai.error else null) ?: "Sends what you typed to ${ai.provider}; only real titles come back.",
+                                                    color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 1)
+                                            }
+                                        }
+                                    }
                                 gridItems(results, key = { it.key }, contentType = { "media" }) { result ->
                                     SearchMediaCard(result, result.saved || actions.isSaved(result.meta), actions.open)
                                 }
