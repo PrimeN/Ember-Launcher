@@ -310,7 +310,7 @@ object RecoveryLinks {
 
     /** Compares dotted versions like 1.4.1 and 1.10.0: negative when [a] is older than [b]. Unknown versions compare equal. */
     fun compare(a: String, b: String): Int {
-        fun parts(v: String) = v.trimStart('v', 'V').substringBefore('-').split('.').map { it.toIntOrNull() ?: return null }
+        fun parts(v: String): List<Int>? = v.trimStart('v', 'V').substringBefore('-').split('.').map { it.toIntOrNull() }.takeIf { null !in it }?.filterNotNull()
         val x = parts(a) ?: return 0; val y = parts(b) ?: return 0
         if (x.isEmpty() || y.isEmpty()) return 0
         for (i in 0 until maxOf(x.size, y.size)) {
