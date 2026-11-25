@@ -1,6 +1,7 @@
 package app.ember.tv
 
 import android.app.Application
+import app.ember.tv.data.CatalogRow
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -279,6 +280,50 @@ class ShowcaseShotsTest {
             Column(Modifier.fillMaxSize()) { AppLibraryCanvas(apps, emptySet(), "main", onLaunch = {}, onOptions = {}, onRefresh = {}, modifier = Modifier.weight(1f)) }
         } }
         save("apps", settle = 2_500)
+    }
+
+    /** #445: Ember Light's Home, from a real Home model given invented apps and titles. */
+    @Test fun lightHome() {
+        val vm = HomeViewModel(context)
+        val names = listOf("Cinemora", "Lumen TV", "Reelhouse", "Wavelet Music", "Fieldhouse Sports", "Arcadia Games", "Northline News", "Puddle Kids")
+        fun fill() {
+            vm.apps = names.mapIndexed { i, n -> AppEntry("app.showcase.$i", n, Intent(), BitmapDrawable(context.resources, Art.draw("banner", n))) }
+            vm.continueItems = shows.take(3).mapIndexed { i, t -> meta(t, type = "series", badge = "S${i + 1} · E${i + 3}", progress = .3f + i * .2f) }
+            vm.catalogs.rows = listOf(CatalogRow("Cinemeta", "Popular", posters.take(8)))
+        }
+        fill()
+        compose.setContent {
+            CompositionLocalProvider(app.ember.tv.ui.LocalInternetStatus provides true) {
+                Frame(launcher = InterfaceStyles.LIGHT) {
+                    app.ember.tv.ui.LightHome(vm, androidx.compose.foundation.lazy.rememberLazyListState(), listOf(NavTabs.HOME, NavTabs.SEARCH, NavTabs.LIVE, NavTabs.APPS),
+                        onTab = {}, onOpenTitle = {}, onLaunch = {}, onAppOptions = {})
+                }
+            }
+        }
+        compose.waitForIdle(); fill()
+        save("light-home", settle = 2_500)
+    }
+
+    /** #445: the recovery page Ember opens after three failed starts. */
+    @Test fun recovery() {
+        val activity = org.robolectric.Robolectric.buildActivity(app.ember.tv.system.RecoveryActivity::class.java).setup().get()
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        val root = activity.window.decorView
+        val w = 1920; val h = 1080
+        fun draw(view: android.view.View, height: Int, name: String) {
+            view.measure(android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY),
+                if (height > 0) android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY)
+                else android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED))
+            view.layout(0, 0, w, view.measuredHeight)
+            val bmp = Bitmap.createBitmap(w, view.measuredHeight, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bmp)
+            canvas.drawColor(0xFF120D0B.toInt())
+            view.draw(canvas)
+            write(name, bmp)
+        }
+        draw(root, h, "recovery")
+        val scroll = (activity.findViewById<android.view.ViewGroup>(android.R.id.content)).getChildAt(0) as android.view.ViewGroup
+        draw(scroll.getChildAt(0), 0, "recovery-full")
     }
 }
 
