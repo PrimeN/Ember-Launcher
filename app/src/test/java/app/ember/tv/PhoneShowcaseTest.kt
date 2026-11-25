@@ -21,8 +21,9 @@ import java.net.Socket
 import java.net.URI
 
 /**
- * #444: the phone pages as a showcase shows them, with invented settings. Writes each page's HTML to
- * build/test-results/phone-showcase for pictures taken elsewhere; checks only that each page drew.
+ * #444: the phone pages as a showcase shows them, with invented settings. Each page's HTML is packed
+ * into a grey PNG (4-byte length, then one byte a pixel) beside the UI screenshots, which go to the
+ * private screenshots store, so pictures of it can be taken elsewhere. Checks only that each page drew.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -71,8 +72,17 @@ class PhoneShowcaseTest {
             ApiKeys.set("TMDB_API_KEY", "showcase-key-0000")
             ApiKeys.set("TRAKT_CLIENT_ID", "showcase-id-0000")
         }
-        val out = File("build/test-results/phone-showcase").apply { mkdirs() }
-        File(out, "remote.html").writeText(RemotePage.app("Living room TV", "#FF7A2F"))
+        val out = File("build/reports/ui").apply { mkdirs() }
+        fun save(name: String, html: String) {
+            val bytes = html.toByteArray()
+            val all = java.nio.ByteBuffer.allocate(bytes.size + 4).putInt(bytes.size).put(bytes).array()
+            val w = 1024; val h = (all.size + w - 1) / w
+            val img = java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_BYTE_GRAY)
+            val raster = (img.raster.dataBuffer as java.awt.image.DataBufferByte).data
+            System.arraycopy(all, 0, raster, 0, all.size)
+            javax.imageio.ImageIO.write(img, "png", File(out, "phonepage-$name.png"))
+        }
+        save("remote", RemotePage.app("Living room TV", "#FF7A2F"))
         val setup = PhoneSetup({ Handler() }, address = { "127.0.0.1" }, port = 0, nowMillis = { System.nanoTime() / 1_000_000 })
         try {
             val uri = URI(setup.start()!!)
@@ -87,7 +97,7 @@ class PhoneShowcaseTest {
             ).forEach { (name, target) ->
                 val html = get(uri, target)
                 assertTrue(name, html.contains("<nav>"))
-                File(out, "$name.html").writeText(html)
+                save(name, html)
             }
         } finally { setup.stop() }
     }
