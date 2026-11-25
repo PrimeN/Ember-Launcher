@@ -82,7 +82,7 @@ object AiSettings {
     fun choose(p: AiProvider) { providerId = p.id; sp?.edit { putString("provider", p.id) }; revision++ }
     fun model(p: AiProvider = provider): String = sp?.getString("model.${p.id}", null)?.takeIf { it.isNotBlank() } ?: p.defaultModel
     fun setModel(p: AiProvider, model: String) { sp?.edit { putString("model.${p.id}", model.trim()) }; revision++ }
-    fun setLocalUrl(url: String) { localUrl = url.trim(); sp?.edit { putString("localUrl", localUrl) }; revision++ }
+    fun saveLocalUrl(url: String) { localUrl = url.trim(); sp?.edit { putString("localUrl", localUrl) }; revision++ }
 
     fun key(p: AiProvider = provider): String = ApiKeys.get(p.keyId)
     /** Where requests go: the service's address, or your own server's. */

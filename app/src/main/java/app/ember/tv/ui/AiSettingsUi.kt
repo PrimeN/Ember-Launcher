@@ -39,8 +39,8 @@ internal fun AiServiceSettings(vm: HomeViewModel) {
         Text((p.free?.let { "$it " } ?: "") + p.keyHelp, color = Mute, fontSize = 13.sp, modifier = Modifier.width(760.dp))
         if (p == AiProvider.LOCAL) {
             var url by remember { mutableStateOf(AiSettings.localUrl) }
-            TvTextField(url, { url = it.take(200) }, placeholder = "http://192.168.1.20:11434/v1", onSubmit = { AiSettings.setLocalUrl(url) })
-            Chip("Save address") { AiSettings.setLocalUrl(url) }
+            TvTextField(url, { url = it.take(200) }, placeholder = "http://192.168.1.20:11434/v1", onSubmit = { AiSettings.saveLocalUrl(url) })
+            Chip("Save address") { AiSettings.saveLocalUrl(url) }
         }
         ApiKeys.SERVICES.flatMap { it.fields }.firstOrNull { it.id == p.keyId }?.let { KeyField(vm, it) }
         SettingValueRow("Model", AiSettings.model(p).ifBlank { "Choose one" },
