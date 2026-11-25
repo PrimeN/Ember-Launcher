@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.LocalContentColor
@@ -372,6 +374,48 @@ class ShowcaseShotsTest {
         draw(root, h, "recovery")
         val scroll = (activity.findViewById<android.view.ViewGroup>(android.R.id.content)).getChildAt(0) as android.view.ViewGroup
         draw(scroll.getChildAt(0), 0, "recovery-full")
+    }
+
+    /** #447: Settings > Trackers with brand rows, Trakt focused, and the Sources choice. */
+    @Test fun trackersPage() {
+        val accounts = listOf(
+            ServiceCardInfo("trakt", "Trakt", TrackerAbout.of("trakt"), "Connected as arash · synced 4 min ago", ServiceState.READY, ServiceBrands.of("trakt")),
+            ServiceCardInfo("simkl", "Simkl", TrackerAbout.of("simkl"), "Not connected", ServiceState.OFF, ServiceBrands.of("simkl")),
+            ServiceCardInfo("anilist", "AniList", TrackerAbout.of("anilist"), "Connected as @arash", ServiceState.READY, ServiceBrands.of("anilist")),
+            ServiceCardInfo("mal", "MyAnimeList", TrackerAbout.of("mal"), "Not responding · check", ServiceState.PROBLEM, ServiceBrands.of("mal")),
+            ServiceCardInfo("wetrakr", "WeTrakr", TrackerAbout.of("wetrakr"), "Needs an API key", ServiceState.ATTENTION, ServiceBrands.of("wetrakr")),
+        )
+        val sources = listOf(
+            ServiceCardInfo("s1", "Continue watching", "Which progress powers resume and Continue watching", "All connected", ServiceState.READY),
+            ServiceCardInfo("s2", "Watchlist", "Which watchlist Home and your Library show", "Trakt", ServiceState.READY, ServiceBrands.of("trakt")?.copy(logo = null)),
+        )
+        compose.setContent { Frame {
+            Column(Modifier.fillMaxSize().padding(horizontal = 0.dp, vertical = 18.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ServiceCardGroup("Accounts", "Connect and manage tracking services", accounts) {}
+                ServiceCardGroup("Sources", "Choose where Alex's lists come from. What you watch is still reported to every connected tracker.", sources) {}
+            }
+        } }
+        compose.onAllNodesWithTag("service_card")[0].requestFocus()
+        save("trackers", settle = 600)
+    }
+
+    /** #447: media servers and API keys as brand rows. */
+    @Test fun serversAndKeysPage() {
+        val servers = MediaServerTiles.cards(plex = true, plexSignedOut = false, plexUser = "Arash",
+            listOf(MediaServerTiles.Server("j", "Living room", "jellyfin", "arash", signedOut = false, failing = false),
+                MediaServerTiles.Server("e", "Cottage", "emby", "", signedOut = true, failing = false)))
+        val keys = listOf("TMDB", "MDBList", "Google Gemini", "Claude (Anthropic)", "OpenSubtitles.com").mapNotNull { n -> app.ember.tv.data.ApiKeys.SERVICES.firstOrNull { it.name == n } }
+            .mapIndexed { i, s -> keyCard(s).copy(status = if (i < 3) "Key set" else "No key", state = if (i < 3) ServiceState.READY else ServiceState.OFF) }
+        compose.setContent { Frame {
+            Column(Modifier.fillMaxSize().padding(vertical = 18.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ServiceCardGroup("Servers", "Your Plex account, and Jellyfin or Emby servers", servers) {}
+                ServiceCardGroup("Optional keys", "Extra artwork, ratings, subtitles, AI and more", keys) {}
+            }
+        } }
+        compose.onAllNodesWithTag("service_card")[0].requestFocus()
+        save("servers-keys", settle = 600)
     }
 }
 
