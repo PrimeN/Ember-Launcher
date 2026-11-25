@@ -14,6 +14,15 @@ object About {
     /** Newest first. */
     val CHANGELOG = listOf(
         Release(
+            "1.4.1", "Squished bugs, plus a safety net",
+            listOf(
+                "Squished a batch of bugs for a smoother, steadier start.",
+                "New recovery page: if Ember can't start three times in a row, it opens a simple page instead.",
+                "From recovery: update to the latest Ember, pick a specific release, or install any app from a link.",
+                "Recovery can also turn Google TV's Home back on, switch on debugging (ADB), and open TV settings, All apps and Developer options.",
+            ),
+        ),
+        Release(
             "1.4.0", "Meet Spark",
             listOf(
                 "Spark in Discover: picks from what each profile watches, in named rows like Mind-bending sci-fi and Because you watched, each with its reason.",
