@@ -10,6 +10,28 @@ object PersonalListSources {
         "plex" to "Plex", "jellyfin" to "Jellyfin", "emby" to "Emby", "other" to "Other trackers")
     fun key(profile: String, list: String, source: String) = "${profile.length}:$profile:$list:$source"
     fun enabled(off: Set<String>, profile: String, list: String, source: String) = key(profile, list, source) !in off
+    /** #447: the tracker sources the Trackers page's Sources choice covers; Ember's own progress and media servers stay as they are. */
+    val trackerSources = listOf("trakt", "simkl", "wetrakr", "anilist", "mal", "other")
+    const val ALL = "all"
+    const val MIXED = "mixed"
+
+    /** Which trackers feed [list]: [ALL], one tracker's id, or [MIXED] for any other set chosen in the widget editor. */
+    fun trackerChoice(off: Set<String>, profile: String, list: String): String {
+        val on = trackerSources.filter { enabled(off, profile, list, it) }
+        return when {
+            on.size == trackerSources.size -> ALL
+            on.size == 1 && on[0] != "other" -> on[0]
+            else -> MIXED
+        }
+    }
+
+    /** [off] with [list] fed by every tracker ([ALL]) or by [choice] alone; other lists, profiles and sources keep their setting. */
+    fun withTrackerChoice(off: Set<String>, profile: String, list: String, choice: String): Set<String> =
+        trackerSources.fold(off) { acc, source ->
+            val key = key(profile, list, source)
+            if (choice == ALL || source == choice) acc - key else acc + key
+        }
+
     fun source(meta: Meta, fallback: String): String {
         ServerRef.of(meta)?.let { return it.provider }
         if (meta.id.startsWith("plexwatchlist:")) return "plex"

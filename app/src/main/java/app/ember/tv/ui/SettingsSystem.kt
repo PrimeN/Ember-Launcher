@@ -366,6 +366,19 @@ internal object MediaServerTiles {
             tag = (if (s.kind == "emby") "Emby" else "Jellyfin") + if (s.signedOut) " · signed out" else "", line = s.user.takeIf { it.isNotBlank() })) }
         add(ServiceTileInfo(ADD, "Add a server", ServiceMark.ADD, tag = "Jellyfin or Emby"))
     }
+    /** #447: the same servers as brand rows. */
+    fun cards(plex: Boolean, plexSignedOut: Boolean, plexUser: String?, servers: List<Server>): List<ServiceCardInfo> = buildList {
+        add(ServiceCardInfo(PLEX, "Plex", "One sign-in for every server on your Plex account",
+            status = when { !plex -> "Not connected"; plexSignedOut -> "Signed out · sign in again"; else -> "Connected as ${plexUser ?: "account owner"}" },
+            state = when { !plex -> ServiceState.OFF; plexSignedOut -> ServiceState.PROBLEM; else -> ServiceState.READY }, brand = ServiceBrands.of("plex")))
+        servers.forEach { s ->
+            val kind = if (s.kind == "emby") "Emby" else "Jellyfin"
+            add(ServiceCardInfo(s.key, s.name, "$kind server",
+                status = when { s.signedOut -> "Signed out · sign in again"; s.failing -> "Not responding · check"; s.user.isNotBlank() -> "Connected as ${s.user}"; else -> "Connected" },
+                state = if (s.signedOut || s.failing) ServiceState.PROBLEM else ServiceState.READY, brand = ServiceBrands.of(s.kind)))
+        }
+        add(ServiceCardInfo(ADD, "Add a server", "Jellyfin or Emby, by address and sign-in", "", ServiceState.ADD))
+    }
 }
 
 @Composable
@@ -384,8 +397,9 @@ internal fun MediaServersSection(vm: HomeViewModel) {
     Section(stringResource(R.string.ui_media_servers), stringResource(R.string.ui_continue_and_recently_added_rows_from)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             vm.serverMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp) }
-            ServiceGrid(MediaServerTiles.of(vm.plexConnected, "plex" in signedOut, vm.plexUserName,
-                vm.serverAccounts.map { MediaServerTiles.Server(it.key, it.name, it.kind, it.userName, it.key in signedOut, health[it.key]?.failed == true) })) { open = it.id }
+            val servers = vm.serverAccounts.map { MediaServerTiles.Server(it.key, it.name, it.kind, it.userName, it.key in signedOut, health[it.key]?.failed == true) }
+            ServiceCardGroup(stringResource(R.string.ui_servers), stringResource(R.string.ui_your_plex_account_and_jellyfin_or_emby),
+                MediaServerTiles.cards(vm.plexConnected, "plex" in signedOut, vm.plexUserName, servers)) { open = it.id }
         }
     }
     when (val id = open) {
@@ -594,7 +608,8 @@ internal fun TrackersGrid(vm: HomeViewModel, openKeys: () -> Unit) {
     val rev = vm.trackerRev
     val health = vm.trackerHealth.associateBy { it.id }
     var open by remember { mutableStateOf<String?>(null) }
-    ServiceGrid(vm.hub.trackers.map { t -> trackerTile(t, health[t.id]?.failed == true, t.id in vm.trackersOff) }) { open = it.id }
+    ServiceCardGroup(stringResource(R.string.ui_accounts), stringResource(R.string.ui_connect_and_manage_tracking_services),
+        vm.hub.trackers.map { t -> trackerCard(t, health[t.id]?.failed == true, t.id in vm.trackersOff) }) { open = it.id }
     vm.hub.trackers.firstOrNull { it.id == open }?.let { t ->
         MediaDialog(t.name, { open = null }, resizeForKeyboard = true, wide = true) {
             TrackerRow(vm, t) { open = null; openKeys() }
@@ -610,6 +625,82 @@ internal fun trackerTile(t: Tracker, failing: Boolean, hidden: Boolean): Service
         when { connected && failing -> ServiceMark.PROBLEM; connected -> ServiceMark.OK; else -> ServiceMark.OFF },
         tag = when { !t.configured -> "Needs a key"; connected && hidden -> "Hidden on Home"; connected -> "Connected"; else -> "Not connected" },
         line = if (connected) t.accountLabel() else null)
+}
+
+/**
+ * #447: which tracker powers Continue watching, the watchlist and Recently watched, for this profile:
+ * all connected ones (the default) or one. It sets the same switches as a widget's Include from;
+ * Ember's own progress and media servers are left as they are, and watching is still reported to
+ * every tracker that reports it.
+ */
+@Composable
+internal fun TrackerSourcesCard(vm: HomeViewModel) {
+    @Suppress("UNUSED_VARIABLE")
+    val rev = vm.trackerRev
+    val profile = vm.profiles.profileId
+    val connected = vm.hub.trackers.filter { it.configured && it.isConnected() }
+    var picking by remember { mutableStateOf<Pair<String, String>?>(null) }
+    fun name(choice: String) = when (choice) {
+        app.ember.tv.data.PersonalListSources.ALL -> if (connected.size == 1) connected[0].name else "All connected"
+        app.ember.tv.data.PersonalListSources.MIXED -> "Your own mix"
+        else -> vm.hub.trackers.firstOrNull { it.id == choice }?.name ?: choice
+    }
+    val rows = listOf(
+        Triple("continue", "Continue watching", "Which progress powers resume and Continue watching"),
+        Triple("watchlist", "Watchlist", "Which watchlist Home and your Library show"),
+        Triple("recent", "Recently watched", "Which history fills Recently watched"),
+    )
+    Column(Modifier.width(960.dp).background(Panel, RoundedCornerShape(TvTokens.Shape.Panel.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Sources", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text("Choose where ${vm.profile.name}'s lists come from. What you watch is still reported to every connected tracker.", fontSize = 13.sp, color = Mute)
+        }
+        rows.forEach { (list, title, about) ->
+            val choice = vm.sections.trackerChoice(profile, list)
+            val brand = ServiceBrands.of(choice)
+            ServiceCard(ServiceCardInfo("source:$list", title, about, name(choice),
+                if (choice == app.ember.tv.data.PersonalListSources.MIXED) ServiceState.ATTENTION else ServiceState.READY,
+                brand = brand?.copy(logo = null))) { picking = list to title }
+        }
+        Text("Media servers and Ember's own progress always count. For finer control, edit the list's widget on Home.", fontSize = 12.sp, color = Mute,
+            modifier = Modifier.padding(horizontal = 6.dp))
+    }
+    picking?.let { (list, title) ->
+        val now = vm.sections.trackerChoice(profile, list)
+        val options = buildList {
+            add(MenuOption("All connected trackers", now == app.ember.tv.data.PersonalListSources.ALL) { vm.sections.setTrackerChoice(profile, list, app.ember.tv.data.PersonalListSources.ALL) })
+            (connected + vm.hub.trackers.filter { it.id == now }).distinctBy { it.id }.forEach { t ->
+                add(MenuOption("Only ${t.name}", now == t.id) { vm.sections.setTrackerChoice(profile, list, t.id) })
+            }
+        }
+        OptionMenu(title, options) { picking = null }
+    }
+}
+
+/** #447: a tracker as a brand row: what it syncs, and connected as whom, signed out or needing a key. */
+internal fun trackerCard(t: Tracker, failing: Boolean, hidden: Boolean): ServiceCardInfo {
+    val connected = t.configured && t.isConnected()
+    val who = t.accountLabel()?.substringBefore(" · ")?.takeIf { it.isNotBlank() }
+    return ServiceCardInfo(t.id, t.name, TrackerAbout.of(t.id),
+        status = when {
+            !t.configured -> "Needs an API key"
+            connected && failing -> "Not responding · check"
+            connected -> listOfNotNull(who?.let { "Connected as $it" } ?: "Connected", if (hidden) "hidden on Home" else null).joinToString(" · ")
+            else -> "Not connected"
+        },
+        state = when { !t.configured -> ServiceState.ATTENTION; connected && failing -> ServiceState.PROBLEM; connected -> ServiceState.READY; else -> ServiceState.OFF },
+        brand = ServiceBrands.of(t.id), dim = connected && hidden)
+}
+
+internal object TrackerAbout {
+    fun of(id: String): String = when (id) {
+        "trakt" -> "Watchlist, progress, history, scrobbles and your lists"
+        "simkl" -> "Lists, watched history, progress and scrobbles"
+        "wetrakr" -> "Progress, watchlist and scrobbles"
+        "anilist", "mal" -> "Anime progress and lists"
+        else -> "Watch history and progress"
+    }
 }
 
 @Composable

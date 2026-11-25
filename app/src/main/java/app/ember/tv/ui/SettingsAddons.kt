@@ -159,31 +159,21 @@ internal fun AddonRow(vm: HomeViewModel, url: String) {
     var configuring by remember(url) { mutableStateOf<String?>(null) }
     val does = info?.let { a -> AddonSummary.does(a.provides, a.epgProvider) } ?: if (on) "Manifest not loaded" else "Off"
     val has = info?.let { a -> AddonSummary.has(a.catalogs.size, a.types) }.orEmpty()
-    val warning = info?.configurationRequired == true || info?.adult == true
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Focusable(onClick = { menu = true }, modifier = Modifier.weight(1f).testTag("addon_card"),
-            radius = TvTokens.Shape.Card, container = PanelHi, focusedScale = TvTokens.Focus.Inline) {
-            val ink = androidx.tv.material3.LocalContentColor.current
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Box(Modifier.alpha(if (on) 1f else .45f)) { AddonLogo(info?.logo ?: info?.background, label) }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false))
-                        if (!on) Text("Off", fontSize = TvTokens.Type.Caption.sp, maxLines = 1,
-                            modifier = Modifier.background(ink.copy(alpha = .16f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp))
-                        else if (warning) Text(if (info?.configurationRequired == true) "Needs setting up" else "Adult", fontSize = TvTokens.Type.Caption.sp, maxLines = 1,
-                            color = Color(0xFFFFB4AB))
-                        // #430: how its recent source lookups went.
-                        if (on) app.ember.tv.data.AddonHealth.of(url)?.let { h -> AddonHealthChip(h) }
-                    }
-                    if (has.isNotBlank()) Text(has, fontSize = 13.sp, color = ink.copy(alpha = .78f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(does, fontSize = TvTokens.Type.Caption.sp, color = ink.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                androidx.tv.material3.Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = ink.copy(alpha = .7f), modifier = Modifier.size(20.dp))
-            }
+        // #447: the same row as the other service pages: logo, what it has and does, and how it stands.
+        val health = if (on) app.ember.tv.data.AddonHealth.of(url) else null
+        val (status, state) = when {
+            !on -> "Off" to ServiceState.OFF
+            info?.configurationRequired == true -> "Needs setting up" to ServiceState.ATTENTION
+            health == app.ember.tv.data.AddonHealth.Level.DOWN -> "Down" to ServiceState.PROBLEM
+            health == app.ember.tv.data.AddonHealth.Level.SLOW -> "Slow" to ServiceState.ATTENTION
+            info?.adult == true -> "On · adult" to ServiceState.READY
+            health == app.ember.tv.data.AddonHealth.Level.OK -> "Working" to ServiceState.READY
+            else -> "On" to ServiceState.READY
         }
+        ServiceCard(ServiceCardInfo(url, label, listOf(has, does).filter { it.isNotBlank() }.joinToString(" · "), status, state,
+            brand = ServiceBrands.of(label), image = info?.logo ?: info?.background, dim = !on),
+            modifier = Modifier.weight(1f).testTag("addon_card")) { menu = true }
         ToolbarIcon("About $label", Icons.Outlined.Info) { details = true }
     }
     if (menu) OptionMenu(label, buildList {
@@ -614,23 +604,6 @@ internal fun TemplateSection(
 }
 
 // ---------------------------------------------------------------- Where to watch
-/** The addon's logo from its manifest, or its initial when it has none or it does not load. */
-@Composable
-private fun AddonLogo(logo: String?, name: String) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    var failed by remember(logo) { mutableStateOf(logo == null) }
-    Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(WashHi), contentAlignment = Alignment.Center) {
-        if (failed) Text(name.trim().take(1).uppercase(), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Fg)
-        else coil.compose.AsyncImage(
-            model = remember(logo) {
-                coil.request.ImageRequest.Builder(context).data(logo).size(168)
-                    .decoderFactory(coil.decode.SvgDecoder.Factory()).build()
-            },
-            contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-            onError = { failed = true }, modifier = Modifier.fillMaxSize().padding(6.dp),
-        )
-    }
-}
 /** Why a catalog can't be switched on for [place] (#102). */
 internal fun catalogLockReason(c: app.ember.tv.data.CatalogDef, place: String): String = when {
     c.searchOnly -> "${c.label} only answers searches, so it can't be on $place. Search uses it."

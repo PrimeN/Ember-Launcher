@@ -62,6 +62,13 @@ class HomeSectionsState(
     var listSourcesOff by mutableStateOf(prefs.personalListSourcesOff); private set
     fun sourceEnabled(profile: String, list: String, source: String) =
         app.ember.tv.data.PersonalListSources.enabled(listSourcesOff, profile, list, source)
+    /** #447: [ALL][app.ember.tv.data.PersonalListSources.ALL], one tracker id, or mixed. */
+    fun trackerChoice(profile: String, list: String) = app.ember.tv.data.PersonalListSources.trackerChoice(listSourcesOff, profile, list)
+    fun setTrackerChoice(profile: String, list: String, choice: String) {
+        listSourcesOff = app.ember.tv.data.PersonalListSources.withTrackerChoice(listSourcesOff, profile, list, choice)
+        prefs.personalListSourcesOff = listSourcesOff
+        onChanged()
+    }
     fun toggleSource(profile: String, list: String, source: String) {
         val key = app.ember.tv.data.PersonalListSources.key(profile, list, source)
         listSourcesOff = if (key in listSourcesOff) listSourcesOff - key else listSourcesOff + key

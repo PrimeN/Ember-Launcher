@@ -424,4 +424,8 @@
     <string name="settings_summary_updates">Update checks, beta channel and installation.</string>
     <string name="settings_summary_cache">Cache durations, storage usage and clearing cached data</string>
     <string name="settings_cache_management">Cache management</string>
+    <string name="ui_accounts">Accounts</string>
+    <string name="ui_connect_and_manage_tracking_services">Connect and manage tracking services</string>
+    <string name="ui_servers">Servers</string>
+    <string name="ui_your_plex_account_and_jellyfin_or_emby">Your Plex account, and Jellyfin or Emby servers</string>
 </resources>

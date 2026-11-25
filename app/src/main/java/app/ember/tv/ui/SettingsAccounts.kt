@@ -120,9 +120,22 @@ internal fun ApiKeysGrid(vm: HomeViewModel) {
     val rev = vm.keysRev // read so the tiles redraw after a save
     var open by remember { mutableStateOf<ApiKeys.Service?>(null) }
     val services = ApiKeys.SERVICES.sortedWith(compareBy({ !ApiKeys.required(it) }, { it.name.lowercase() }))
-    ServiceGrid(services.map { s -> ServiceTileInfo(s.name, s.name, keyMark(ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s))),
-        if (ApiKeys.required(s)) "Required" else "Optional", tagStrong = ApiKeys.required(s)) }) { t -> open = services.firstOrNull { it.name == t.id } }
+    // #447: brand rows, the keys Ember needs first, then the optional ones.
+    val (required, optional) = services.partition { ApiKeys.required(it) }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (required.isNotEmpty()) ServiceCardGroup("Needed", "Ember needs these for posters, details and sign-in", required.map(::keyCard)) { c -> open = services.firstOrNull { it.name == c.id } }
+        ServiceCardGroup("Optional", "Extra artwork, ratings, subtitles, AI and more", optional.map(::keyCard)) { c -> open = services.firstOrNull { it.name == c.id } }
+    }
     open?.let { s -> ApiKeyDialog(vm, s) { open = null } }
+}
+
+/** #447: an API key service as a brand row: what it's for and whether its key is set. */
+internal fun keyCard(s: ApiKeys.Service): ServiceCardInfo {
+    val status = ApiKeys.status(ApiKeys.ready(s), ApiKeys.required(s))
+    return ServiceCardInfo(s.name, s.name, s.usedFor.removePrefix("Optional AI: ").removePrefix("Optional: ").removePrefix("Optional ").substringBefore(". ").replaceFirstChar { it.uppercase() },
+        status = when (status) { ApiKeys.Status.SET -> "Key set"; ApiKeys.Status.MISSING_REQUIRED -> "Needs a key"; ApiKeys.Status.MISSING_OPTIONAL -> "No key" },
+        state = when (status) { ApiKeys.Status.SET -> ServiceState.READY; ApiKeys.Status.MISSING_REQUIRED -> ServiceState.ATTENTION; ApiKeys.Status.MISSING_OPTIONAL -> ServiceState.OFF },
+        brand = ServiceBrands.of(s.name))
 }
 
 private fun keyMark(status: ApiKeys.Status) = when (status) {
