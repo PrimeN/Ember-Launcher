@@ -93,7 +93,8 @@ class ShowcaseShotsTest {
     private val posters get() = films.map { (t, y) -> meta(t, y) }
     private val shows = listOf("The Lighthouse Keepers", "Brightwater", "Station Nine", "Hearthside", "The Overnight", "Iron Valley")
 
-    private fun save(name: String) {
+    private fun save(name: String, settle: Long = 0) {
+        if (settle > 0) { Thread.sleep(settle); compose.mainClock.advanceTimeBy(1_000); compose.waitForIdle(); Thread.sleep(settle) }
         // Artwork is drawn off the main thread: wait until two captures agree.
         var last: Bitmap? = null
         repeat(14) {
@@ -158,6 +159,7 @@ class ShowcaseShotsTest {
             parentsGuide = listOf(app.ember.tv.tracker.ParentsGuide.Entry("Violence", "Moderate"), app.ember.tv.tracker.ParentsGuide.Entry("Profanity", "Mild")),
             ratings = mapOf("imdb" to "8.1", "tmdb" to "7.9", "rt" to "94%"))
         compose.setContent { Frame { MediaPageLayoutScope(MediaPageLayouts.EMBER_X) {
+            ModernBackdrop(title, dim = .35f)
             DetailsScreen(d = d, listState = rememberLazyListState(), saved = true, isContinue = false, onToggleSaved = {}, onRemoveContinue = {},
                 onSeason = {}, onEpisode = {}, onMoreEpisodes = {}, onPlay = {}, onPlayWith = {}, playButton = true, best = streams.first(),
                 playbackLabel = "Play", onPlayBest = {})
@@ -172,6 +174,7 @@ class ShowcaseShotsTest {
         val d = DetailsUi(title, episodes = episodes, season = 2, episode = episodes[2], streams = listOf(
             StreamOption("Comet", "4K", "S02E03 2160p DV DDP 5.1", "https://example.invalid/e", null, null, "4K", "DV", "HEVC", "DD+ 5.1", "WEB-DL", "", 6.2, null, true, true)))
         compose.setContent { Frame { MediaPageLayoutScope(MediaPageLayouts.MODERN) {
+            ModernBackdrop(title, dim = .35f)
             DetailsScreen(d = d, listState = rememberLazyListState(), saved = false, isContinue = true, onToggleSaved = {}, onRemoveContinue = {},
                 onSeason = {}, onEpisode = {}, onMoreEpisodes = {}, onPlay = {}, onPlayWith = {}, playButton = true, best = d.streams.first(), playbackLabel = "Resume 21:40")
         } } }
@@ -275,7 +278,7 @@ class ShowcaseShotsTest {
         compose.setContent { Frame {
             Column(Modifier.fillMaxSize()) { AppLibraryCanvas(apps, emptySet(), "main", onLaunch = {}, onOptions = {}, onRefresh = {}, modifier = Modifier.weight(1f)) }
         } }
-        save("apps")
+        save("apps", settle = 2_500)
     }
 }
 
