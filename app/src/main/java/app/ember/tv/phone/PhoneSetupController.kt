@@ -146,6 +146,29 @@ internal class PhoneSetupController(private val vm: HomeViewModel) {
                 (if (err == null) "Added addon: $url" else "Not added ($url): $err").also { phoneNote(it) }
             }
 
+            override fun addons(): List<PhoneAddon> = onPhoneMain {
+                ensureAddons()
+                addons.mapIndexed { i, url -> PhoneAddon(AddonAccess.key(url), addonLabel(url), !addonAvailable(url), i == 0, i == addons.lastIndex) }
+            }
+
+            // #458: the phone names an addon by its opaque ref; the link never leaves the TV.
+            override fun changeAddon(ref: String, change: String, name: String): String = onPhoneMain {
+                ensureAddons()
+                val url = addons.firstOrNull { AddonAccess.key(it) == ref } ?: return@onPhoneMain "That addon was removed. Reload the phone page."
+                val label = addonLabel(url)
+                when (change) {
+                    "rename" -> { renameAddon(url, name); if (name.isBlank()) "$label uses its own name again." else "Renamed to ${name.trim()}." }
+                    "on", "off" -> { pauseAddon(url, change == "off"); if (change == "off") "Paused $label." else "Resumed $label." }
+                    "up", "down" -> {
+                        val step = if (change == "up") -1 else 1
+                        if (app.ember.tv.AddonOrder.moved(addons, url, step) == null) "$label is already ${if (step < 0) "first" else "last"}."
+                        else { moveAddon(url, step); "Moved $label ${change}." }
+                    }
+                    "remove" -> { removeAddon(url); if (url in addons) (notice ?: "$label was kept.") else "Removed $label." }
+                    else -> "Unknown addon change."
+                }.also { phoneNote(it) }
+            }
+
             override fun saveKey(id: String, value: String): String = onPhoneMain {
                 val error=saveApiKeyAndWait(id,value)
                 (error ?: "Saved $id").also {phoneNote(it)}

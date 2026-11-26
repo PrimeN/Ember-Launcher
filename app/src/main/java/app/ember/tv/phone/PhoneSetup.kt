@@ -30,6 +30,10 @@ class PhoneSetup(
     /** What the TV does with what the phone sends. Called on the server thread; each returns a message for the phone. */
     interface Handler {
         fun addAddon(url: String): String
+        /** #458: the installed addons, in order; null when unavailable. */
+        fun addons(): List<PhoneAddon>? = null
+        /** #458: rename, pause, resume, move or remove one addon; [change] is rename, on, off, up, down or remove. */
+        fun changeAddon(ref: String, change: String, name: String): String = "Addon editing is unavailable."
         fun saveKey(id: String, value: String): String
         fun addIptv(kind: String, name: String, url: String, username: String, password: String, epg: String): String
         /** Shown on the TV, e.g. "Added addon …". */
@@ -208,6 +212,7 @@ class PhoneSetup(
             method == "POST" && path == "/save" -> handle(form, handler, access).let { message -> when (form["action"]) {
                 "keys" -> shell(Tab.ACCOUNTS, message)
                 "iptv" -> shell(Tab.ADDONS, message, "iptv")
+                "addon-change" -> shell(Tab.ADDONS, message, "installed")
                 else -> shell(Tab.ADDONS, message, "add")
             } }
             method == "POST" && path == "/setting" -> {
@@ -327,6 +332,7 @@ class PhoneSetup(
         "addon" -> f["url"].orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
             .ifEmpty { return "Paste an addon link first." }
             .joinToString(" ") { access.requireActive(); handler.addAddon(it) }
+        "addon-change" -> { access.requireActive(); handler.changeAddon(f["addon"].orEmpty(), f["change"].orEmpty(), f["name"].orEmpty().take(60)) }
         "keys" -> {
             val saved = ApiKeys.ALL_IDS.mapNotNull { id ->
                 f[id]?.trim()?.takeIf { it.isNotEmpty() }?.let { v -> access.requireActive(); handler.saveKey(id, v); id }
@@ -499,6 +505,30 @@ class PhoneSetup(
     }
 
     /** One entry of a section's menu: a sub-page id (or a full link starting with "/"), its title and a line about it. */
+    /** #458: each installed addon as a card: rename, pause or resume, move, remove. */
+    internal fun installedAddons(auth: String, addons: List<PhoneAddon>?): String = buildString {
+        append("<h2>Your addons</h2>")
+        if (addons == null) { append("<p class=m>Addons can't be changed from the phone right now.</p>"); return@buildString }
+        if (addons.isEmpty()) { append("<p class=m>No addons yet. Add one from Add addons.</p>"); return@buildString }
+        append("<p class=m>In the order Ember asks them. Changes apply on the TV right away.</p>")
+        fun button(a: PhoneAddon, change: String, label: String, confirm: String? = null) =
+            "<form class=inl method=post action=\"/save$auth\"${confirm?.let { " onsubmit=\"return confirm('${esc(it).replace("'", "\\'")}')\"" }.orEmpty()}>" +
+                "<input type=hidden name=action value=addon-change><input type=hidden name=addon value=\"${esc(a.ref)}\">" +
+                "<input type=hidden name=change value=$change><button${if (change == "remove") " class=danger" else ""}>$label</button></form>"
+        addons.forEachIndexed { i, a ->
+            append("<details class=\"card g\"><summary><span>${i + 1}. ${esc(a.label)}</span><small>${if (a.paused) "Paused" else "On"}</small></summary><div class=in>")
+            append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=addon-change><input type=hidden name=addon value=\"${esc(a.ref)}\">")
+            append("<input type=hidden name=change value=rename><label>Name<input name=name maxlength=60 value=\"${esc(a.label)}\"></label>")
+            append("<p class=m>Leave it empty to use the addon's own name.</p><button>Rename</button></form>")
+            append("<div class=row>")
+            append(button(a, if (a.paused) "on" else "off", if (a.paused) "Resume" else "Pause"))
+            if (!a.first) append(button(a, "up", "Move up"))
+            if (!a.last) append(button(a, "down", "Move down"))
+            append(button(a, "remove", "Remove", "Remove ${a.label}? Its catalogs leave Home, Discover and your collections."))
+            append("</div></div></details>")
+        }
+    }
+
     private data class MenuItem(val target: String, val title: String, val summary: String)
 
     private fun StringBuilder.menu(auth: String, tab: Tab, items: List<MenuItem>) {
@@ -625,6 +655,10 @@ class PhoneSetup(
                 append("<h2>Add addons</h2><p class=m>Stremio-compatible manifest links ending in manifest.json, one per line.</p>")
                 append("<textarea name=url rows=3 placeholder=\"https://…/manifest.json\"></textarea><button>Add</button></form>")
             }
+            "installed" -> {
+                back(auth, Tab.ADDONS)
+                append(installedAddons(auth, runCatching { handler.addons() }.getOrNull()))
+            }
             "iptv" -> {
                 back(auth, Tab.ADDONS)
                 append("<form method=post action=\"/save$auth\"><input type=hidden name=action value=iptv>")
@@ -655,6 +689,7 @@ class PhoneSetup(
                 append(BadgePhone.render(runCatching { handler.badges() }.getOrNull(), auth))
             }
             else -> menu(auth, Tab.ADDONS, listOf(
+                MenuItem("installed", "Your addons", runCatching { handler.addons() }.getOrNull()?.let { if (it.isEmpty()) "None added yet." else "Rename, pause, reorder or remove · " + count(it.size, "addon") } ?: "Rename, pause, reorder or remove."),
                 MenuItem("add", "Add addons", "Paste Stremio-compatible manifest links."),
                 MenuItem("catalogs", "Catalogs", if (catalogs.isEmpty()) "Where each catalog shows." else "Where each catalog shows · " + count(catalogs.map { it.note.orEmpty() }.distinct().size, "addon")),
                 MenuItem("/content$auth&amp;part=tools", "Sources and addon tools", "Add catalogs to folders, edit filters, export, pause addons."),
@@ -865,6 +900,7 @@ button:active,.btn:active{opacity:.8}
 input,select,textarea{box-sizing:border-box;width:100%;margin:4px 0;padding:12px;border-radius:10px;border:1px solid #3a3b40;background:var(--bg);color:var(--fg);font-size:16px}
 button,.btn{display:block;box-sizing:border-box;text-align:center;text-decoration:none;margin-top:10px;width:100%;padding:13px;border:0;border-radius:999px;background:#f1f3f4;color:#1f1f1f;font-size:16px;font-weight:600}
 button.danger{background:#5c1f1f;color:#ffd9d6}
+form.inl{flex:1 1 120px;margin:0}form.inl button{margin-top:0}
 .ok{background:#1e3a2a;color:#b9f0cf;padding:12px;border-radius:10px}
 .tick{display:flex;gap:10px;align-items:center;margin:8px 0}.tick input{width:auto}
 form.flat{background:none;border:0;padding:0;margin:10px 0}

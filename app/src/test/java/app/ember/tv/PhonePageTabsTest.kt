@@ -46,6 +46,10 @@ class PhonePageTabsTest {
             return PhoneSettingResult(true, "Saved", settings().first { it.id == id })
         }
         override fun crashLog() = entries
+        val addonChanges = mutableListOf<Triple<String, String, String>>()
+        override fun addons() = listOf(app.ember.tv.phone.PhoneAddon("ref-a", "Torrentio <b>", false, true, false),
+            app.ember.tv.phone.PhoneAddon("ref-b", "AIOMetadata", true, false, true))
+        override fun changeAddon(ref: String, change: String, name: String): String { access.requireActive(); addonChanges += Triple(ref, change, name); return "Done: $change" }
         override fun clearCrashLog(): String { cleared++; entries = emptyList(); return "Crash log cleared." }
     }
 
@@ -118,6 +122,25 @@ class PhonePageTabsTest {
             assertTrue(page.contains("<p class=ok role=status>Saved</p>"))
             val catalog = request(uri, "/setting?${uri.rawQuery}", "POST", form("id" to "catalog.abc.home", "value" to "false"))
             assertTrue("a catalog change returns to its page", catalog.contains("aria-current=page>Addons<") && catalog.contains("<h2>Catalogs</h2>"))
+        } finally { setup.stop() }
+    }
+
+    @Test fun installedAddonsCanBeRenamedPausedMovedAndRemovedFromThePhone() {
+        val setup = server()
+        try {
+            val uri = URI(setup.start()!!)
+            assertTrue(request(uri, "/?${uri.rawQuery}&tab=addons").contains("Your addons") )
+            val page = request(uri, "/?${uri.rawQuery}&tab=addons&s=installed")
+            assertTrue(page, page.contains("1. Torrentio &lt;b&gt;") && page.contains("2. AIOMetadata") && !page.contains("<b>\""))
+            assertTrue(page.contains("value=\"ref-a\"") && page.contains(">Resume<") && page.contains(">Pause<") && page.contains(">Remove<"))
+            assertFalse("the first can't move up", Regex("ref-a\"><input type=hidden name=change value=up>").containsMatchIn(page))
+            assertFalse("no links on the page", page.contains("manifest.json"))
+            val renamed = request(uri, "/save?${uri.rawQuery}", "POST", form("action" to "addon-change", "addon" to "ref-b", "change" to "rename", "name" to "Metadata"))
+            assertTrue(renamed, renamed.contains("Done: rename"))
+            request(uri, "/save?${uri.rawQuery}", "POST", form("action" to "addon-change", "addon" to "ref-a", "change" to "remove"))
+            assertEquals(listOf(Triple("ref-b", "rename", "Metadata"), Triple("ref-a", "remove", "")), handler!!.addonChanges)
+            assertTrue(request(uri, "/save?k=wrong", "POST", form("action" to "addon-change", "addon" to "ref-a", "change" to "remove")).startsWith("HTTP/1.1 403"))
+            assertEquals(2, handler!!.addonChanges.size)
         } finally { setup.stop() }
     }
 

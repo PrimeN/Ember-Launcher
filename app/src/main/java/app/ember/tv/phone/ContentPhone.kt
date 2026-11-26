@@ -28,6 +28,9 @@ data class PhoneContent(
  */
 data class PhoneHomeEntry(val id: String, val title: String, val kind: String, val note: String, val style: String, val widget: String? = null)
 /** One result of a search made from the widget editor: a person, studio, service or Trakt list. */
+/** #458: an installed addon on the phone page: an opaque ref and its name, never its link. */
+data class PhoneAddon(val ref: String, val label: String, val paused: Boolean, val first: Boolean, val last: Boolean)
+
 data class PhoneLookup(val id: String, val name: String, val note: String = "")
 /** [style] and [shape] are HomeWidgets values; [source] and [status] are labels. */
 data class PhoneWidget(val id: String, val title: String, val style: String, val shape: String, val limit: Int, val source: String, val status: String,
