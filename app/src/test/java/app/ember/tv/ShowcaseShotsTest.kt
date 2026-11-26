@@ -25,6 +25,11 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onAllNodes
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.LocalContentColor
@@ -420,6 +425,35 @@ class ShowcaseShotsTest {
         } }
         compose.onAllNodesWithTag("service_card")[0].requestFocus()
         save("servers-keys", settle = 600)
+    }
+
+    /** #468: the collection editor and its folder editor, in the widget editor's style. */
+    @Test fun collectionEditor() {
+        val vm = HomeViewModel(context)
+        val source = { id: String -> app.ember.tv.data.CollectionSource(addonId = "aio-metadata", type = "movie", catalogId = id) }
+        val collection = app.ember.tv.data.MediaCollection("showcase", "Streaming services", folders = listOf(
+            app.ember.tv.data.CollectionFolder("f1", "Classics", tileShape = "LANDSCAPE", sources = listOf(source("a"), source("b"))),
+            app.ember.tv.data.CollectionFolder("f2", "Noir", coverEmoji = "🎞", sources = listOf(source("c"))),
+            app.ember.tv.data.CollectionFolder("f3", "Silent era", tileShape = "POSTER", sources = listOf(source("d"), source("e"), source("f"))),
+            app.ember.tv.data.CollectionFolder("f4", "My watchlist", tileShape = "LANDSCAPE",
+                sources = listOf(app.ember.tv.data.LibraryLists.source(app.ember.tv.data.LibraryLists.all.first()))),
+        ), showAllTab = true)
+        compose.setContent { Frame { app.ember.tv.ui.CollectionEditor(vm, collection) {} } }
+        dialog("collection-editor")
+        compose.onNodeWithTag("collection_folder_f1").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.waitForIdle()
+        compose.onNodeWithText("Edit folder").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.waitForIdle()
+        dialog("folder-editor")
+        compose.onNodeWithTag("folder_step_sources").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.waitForIdle()
+        dialog("folder-sources")
+    }
+
+    /** A dialog is its own window: the newest root. */
+    private fun dialog(name: String) {
+        repeat(3) { compose.mainClock.advanceTimeBy(400); compose.waitForIdle(); Thread.sleep(150) }
+        write(name, compose.onAllNodes(isRoot()).onLast().captureToImage().asAndroidBitmap())
     }
 }
 
