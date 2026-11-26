@@ -120,7 +120,7 @@ class MoveModeTest {
                 } }
             }
         }
-        compose.onNodeWithTag("row_Alpha").onChildren().filterToOne(hasContentDescription("Move")).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodes(hasClickAction() and hasAnyAncestor(hasTestTag("row_Alpha")), useUnmergedTree = true)[0].performSemanticsAction(SemanticsActions.OnClick)
         compose.waitForIdle()
         assertNotNull(MoveSession.active)
         key(Key.DirectionDown); key(Key.DirectionDown)
