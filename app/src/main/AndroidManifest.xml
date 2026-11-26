@@ -215,6 +215,20 @@
             android:excludeFromRecents="true"
             android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:theme="@style/Theme.Ember.Player" />
+        <!-- #448: "Ember Recovery" in the TV's app list (Settings > Apps), for when Home itself won't help. -->
+        <activity-alias
+            android:name=".RecoveryEntry"
+            android:exported="true"
+            android:label="@string/recovery_entry"
+            android:targetActivity=".system.RecoveryActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:banner="@drawable/banner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <activity android:name=".device.CalibrationActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" android:theme="@style/Theme.Ember.Player" />
 
         <activity android:name=".player.MediaFilesActivity" android:exported="false" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />

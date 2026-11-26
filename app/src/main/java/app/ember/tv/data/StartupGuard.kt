@@ -15,6 +15,10 @@ object StartupGuard {
     const val WINDOW_MS = 15 * 60_000L
     /** How long Home must stay up before its start counts as good. */
     const val SETTLE_MS = 5_000L
+    /** #448: how long Home may stay black before the recovery page opens by itself. */
+    const val BLACK_MS = 30_000L
+    /** #448: how often a black Home is looked at again. */
+    const val RECHECK_MS = 3_000L
 
     data class State(val failures: Int = 0, val lastAt: Long = 0)
 
@@ -26,6 +30,10 @@ object StartupGuard {
     fun shouldRecover(state: State, now: Long): Boolean = state.failures >= LIMIT && now - state.lastAt <= WINDOW_MS
 
     @Volatile private var countedThisProcess = false
+    /** #448: Home began and hasn't shown itself working yet; only then does a crash count or open recovery. */
+    @Volatile var homeStarting = false; private set
+    /** #448: Ember's Application is still being created; a crash here breaks every start, Home's included. */
+    @Volatile var appCreating = false
 
     private fun file(c: Context) = File(c.filesDir, "startup_guard")
     private fun crashFile(c: Context) = File(c.filesDir, "startup_last_crash")
@@ -42,11 +50,25 @@ object StartupGuard {
     /** Home is starting: counted as failed until [healthy] says otherwise. */
     fun begin(c: Context, now: Long = System.currentTimeMillis()) {
         countedThisProcess = true
+        homeStarting = true
         write(c, starting(read(c), now))
     }
 
-    /** Home stayed up: the count starts again. */
-    fun healthy(c: Context) { runCatching { file(c).delete() } }
+    /** Home showed itself working (it drew something, or opened an app or a video): the count starts again. */
+    fun healthy(c: Context) { homeStarting = false; runCatching { file(c).delete() } }
+
+    /**
+     * #448: true when a small copy of the screen is (nearly) all black: every pixel darker than
+     * [threshold] of 255. Ember's Home always draws text, the clock or artwork, even in its darkest theme.
+     */
+    fun looksBlack(pixels: IntArray, threshold: Int = 18): Boolean = pixels.isNotEmpty() && pixels.all { p ->
+        maxOf((p shr 16) and 0xFF, (p shr 8) and 0xFF, p and 0xFF) < threshold
+    }
+
+    /** #448: the remote sequence that opens the recovery page from anywhere in Ember: Up Up Down Down Left Right Left Right. */
+    val SECRET = listOf(19, 19, 20, 20, 21, 22, 21, 22)
+    /** True when the last keys pressed end with [SECRET]. */
+    fun secretEntered(recent: List<Int>): Boolean = recent.size >= SECRET.size && recent.takeLast(SECRET.size) == SECRET
 
     /** A line about the last crash, for the recovery page. */
     fun lastCrash(c: Context): String? = runCatching { crashFile(c).readText().takeIf { it.isNotBlank() } }.getOrNull()
@@ -65,8 +87,11 @@ object StartupGuard {
                 val where = error.stackTrace.firstOrNull { it.className.startsWith("app.ember") } ?: error.stackTrace.firstOrNull()
                 crashFile(app).writeText("${error.javaClass.simpleName}: ${CrashLog.redact(error.message.orEmpty()).take(160)}" +
                     (where?.let { " (${it.fileName}:${it.lineNumber})" } ?: ""))
-                if (!countedThisProcess) { countedThisProcess = true; write(app, starting(read(app), System.currentTimeMillis())) }
-                if (needsRecovery(app)) app.startActivity(recoveryIntent(app))
+                // #448: only a crash while Home is starting (or while Ember itself is being created)
+                // counts; a crash behind another app, from a link or background work, doesn't, and
+                // never opens the recovery page over what you're watching.
+                if (appCreating && !countedThisProcess) { countedThisProcess = true; homeStarting = true; write(app, starting(read(app), System.currentTimeMillis())) }
+                if (homeStarting && needsRecovery(app)) app.startActivity(recoveryIntent(app))
             }
             previous?.uncaughtException(thread, error)
         }

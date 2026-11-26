@@ -68,4 +68,19 @@ class RecoveryTest {
         assertEquals(0, RecoveryLinks.compare("1.4.1", "1.4.1-beta"))
         assertEquals(0, RecoveryLinks.compare("1.4.1", ""))
     }
+
+    @Test fun aBlackScreenIsToldFromADarkHome() {
+        val black = IntArray(64 * 36) { 0xFF050505.toInt() }
+        assertTrue(StartupGuard.looksBlack(black))
+        val dark = black.copyOf().also { it[100] = 0xFFE8E0D8.toInt() } // one bit of text
+        assertFalse(StartupGuard.looksBlack(dark))
+        assertFalse(StartupGuard.looksBlack(IntArray(0)))
+    }
+
+    @Test fun theRemoteSequenceOpensRecovery() {
+        val s = StartupGuard.SECRET
+        assertTrue(StartupGuard.secretEntered(listOf(23, 4) + s))
+        assertFalse(StartupGuard.secretEntered(s.dropLast(1)))
+        assertFalse(StartupGuard.secretEntered(s.reversed()))
+    }
 }

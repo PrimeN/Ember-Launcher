@@ -79,8 +79,12 @@ class RecoveryActivity : Activity() {
             setPadding(dp(56), dp(36), dp(56), dp(36))
         }
         column.addView(text("Ember recovery", 30f, bold = true))
-        column.addView(text("Ember didn't start properly ${StartupGuard.LIMIT} times in a row, so it opened this page instead of a black screen. " +
+        column.addView(text((if (StartupGuard.needsRecovery(this)) "Ember didn't start properly ${StartupGuard.LIMIT} times in a row, so it opened this page instead of a black screen. "
+            else "Something stopped Ember's Home from working, or you opened this page yourself. ") +
             "From here you can get the TV working again or install a fixed Ember.", 16f, 0xFFD6CBC3.toInt()))
+        // #448: how to come back here by hand.
+        column.addView(text("To open this page any time: press Up Up Down Down Left Right Left Right on the remote while Ember is in front, " +
+            "or choose Ember Recovery in the TV's app list (Settings > Apps).", 13f, 0xFF9E928A.toInt()))
         StartupGuard.lastCrash(this)?.let { column.addView(text("Last error: $it", 13f, 0xFF9E928A.toInt())) }
         status = text("", 15f, 0xFFFFB37A.toInt()); column.addView(status)
 

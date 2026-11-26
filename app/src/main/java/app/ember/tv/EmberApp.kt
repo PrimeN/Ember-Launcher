@@ -12,9 +12,12 @@ class EmberApp : Application(), coil.ImageLoaderFactory {
         app.ember.tv.data.CrashLog.install(this)
         // #442: the recovery page runs in its own process and needs none of what follows.
         if (getProcessName().endsWith(":recovery")) return
+        app.ember.tv.data.StartupGuard.appCreating = true
         app.ember.tv.data.StartupGuard.install(this)
         // #242: the phone remote's arrows go to whichever Ember screen is in front.
         app.ember.tv.remote.RemoteBridge.install(this)
+        // #448: once this onCreate has finished, later crashes count only while Home is starting.
+        android.os.Handler(android.os.Looper.getMainLooper()).postAtFrontOfQueue { app.ember.tv.data.StartupGuard.appCreating = false }
         // Why the previous run ended when no exception was thrown: not responding, native crash,
         // low memory (#27). Read on the crash log's own thread.
         app.ember.tv.data.ExitHistory.record(this)

@@ -428,4 +428,5 @@
     <string name="ui_connect_and_manage_tracking_services">Connect and manage tracking services</string>
     <string name="ui_servers">Servers</string>
     <string name="ui_your_plex_account_and_jellyfin_or_emby">Your Plex account, and Jellyfin or Emby servers</string>
+    <string name="recovery_entry">Ember Recovery</string>
 </resources>

@@ -112,7 +112,47 @@ class MainActivity : ComponentActivity() {
 
     /** #442: this start went to the recovery page instead; nothing of Home was set up. */
     private var recovering = false
-    private val settled = Runnable { app.ember.tv.data.StartupGuard.healthy(this) }
+    /** #448: Home counts as started once it has drawn something; a Home still black after 30 s opens recovery. */
+    private var blackSince = 0L
+    private val settled = object : Runnable {
+        override fun run() {
+            if (!app.ember.tv.data.StartupGuard.homeStarting || isFinishing) return
+            screenIsBlack { black ->
+                val now = android.os.SystemClock.elapsedRealtime()
+                when {
+                    black == false -> app.ember.tv.data.StartupGuard.healthy(this@MainActivity)
+                    black == true && blackSince == 0L -> { blackSince = now; window.decorView.postDelayed(this, app.ember.tv.data.StartupGuard.RECHECK_MS) }
+                    black == true && now - blackSince >= app.ember.tv.data.StartupGuard.BLACK_MS -> openRecovery()
+                    black == true -> window.decorView.postDelayed(this, app.ember.tv.data.StartupGuard.RECHECK_MS)
+                    // The screen couldn't be read (an older TV, a secure surface): fall back to time on screen.
+                    else -> app.ember.tv.data.StartupGuard.healthy(this@MainActivity)
+                }
+            }
+        }
+    }
+
+    /** A 64×36 copy of this window, checked for an all-black screen; null when it can't be read. */
+    private fun screenIsBlack(result: (Boolean?) -> Unit) {
+        val view = window?.decorView
+        if (view == null || view.width == 0 || view.height == 0) { result(null); return }
+        val bitmap = runCatching { android.graphics.Bitmap.createBitmap(64, 36, android.graphics.Bitmap.Config.ARGB_8888) }.getOrNull() ?: run { result(null); return }
+        runCatching {
+            android.view.PixelCopy.request(window, bitmap, { code ->
+                if (code != android.view.PixelCopy.SUCCESS) { result(null); return@request }
+                val pixels = IntArray(64 * 36).also { bitmap.getPixels(it, 0, 64, 0, 0, 64, 36) }
+                result(app.ember.tv.data.StartupGuard.looksBlack(pixels))
+            }, android.os.Handler(android.os.Looper.getMainLooper()))
+        }.onFailure { result(null) }
+    }
+
+    /** #448: the recovery page, opened by the remote sequence or by a Home that stayed black. */
+    private fun openRecovery() {
+        runCatching { startActivity(app.ember.tv.data.StartupGuard.recoveryIntent(this)) }
+    }
+    private val recentKeys = ArrayDeque<Int>()
+
+    /** #448: opening an app or a video from Home shows Home works, however soon it happens. */
+    private fun startedWell() { if (app.ember.tv.data.StartupGuard.homeStarting) app.ember.tv.data.StartupGuard.healthy(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -133,6 +173,11 @@ class MainActivity : ComponentActivity() {
                 app.ember.tv.ui.RemoteSounds.onKey(this@MainActivity, event)
                 // A key pressed while Home loads keeps your own focus (#100).
                 if (event.action == KeyEvent.ACTION_DOWN) app.ember.tv.ui.StartupHeroFocus.keyPressed()
+                // #448: Up Up Down Down Left Right Left Right opens the recovery page, even when Home draws nothing.
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    recentKeys.addLast(event.keyCode); while (recentKeys.size > app.ember.tv.data.StartupGuard.SECRET.size) recentKeys.removeFirst()
+                    if (app.ember.tv.data.StartupGuard.secretEntered(recentKeys.toList())) { recentKeys.clear(); openRecovery() }
+                }
                 if(event.action==KeyEvent.ACTION_DOWN)when(event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_UP,KeyEvent.KEYCODE_DPAD_DOWN,KeyEvent.KEYCODE_DPAD_LEFT,KeyEvent.KEYCODE_DPAD_RIGHT->vm.startupPresentation.revealForInput()
                 }
@@ -198,6 +243,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // #442: Home that stays up a few seconds has started properly.
+        blackSince = 0L
         window.decorView.postDelayed(settled, app.ember.tv.data.StartupGuard.SETTLE_MS)
         app.ember.tv.remote.RemoteBridge.screen = remoteScreen
         // #331: messages from TV tools show as Ember's notice while Ember is in front.
@@ -314,6 +360,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchApp(app: AppEntry) {
+        startedWell()
         if (!vm.appAccess.canLaunch(app.pkg)) return
         val owner=vm.profiles.profileId
         val open={if(owner==vm.profiles.profileId && vm.appAccess.canLaunch(app.pkg))launchInstalledApp({startActivity(app.intent);vm.recordAppLaunch(app.pkg)}) {
@@ -333,6 +380,7 @@ class MainActivity : ComponentActivity() {
 
     /** Plays with the default player chosen in Settings. Torrent sources always go to a torrent app. */
     private fun play(req: PlayRequest) {
+        startedWell()
         if(!playbackAllowed(req))return
         if (!req.stream.isDirect) {
             openTorrent(req)
@@ -347,6 +395,7 @@ class MainActivity : ComponentActivity() {
 
     /** Plays with a player picked in the chooser: "builtin" or an app's package name. */
     private fun playWith(req: PlayRequest, target: String) {
+        startedWell()
         if(!playbackAllowed(req))return
         if (target == Prefs.PLAYER_BUILTIN) playBuiltIn(req) else playExternal(req, target)
     }
@@ -442,6 +491,7 @@ class MainActivity : ComponentActivity() {
      */
     /** Plays a live channel in the built-in player; channel up and down move through [list]. */
     private fun playChannel(list: List<app.ember.tv.iptv.Channel>, index: Int) {
+        startedWell()
         if(!vm.liveAllowed || index !in list.indices)return
         val profile = vm.profiles.profileId
         val session = app.ember.tv.iptv.LiveSession(list, list[index].key,
@@ -461,6 +511,7 @@ class MainActivity : ComponentActivity() {
      * plays them in its own player; if that fails (YouTube changes often), the YouTube app opens instead.
      */
     private fun playTrailer(videoId: String) {
+        startedWell()
         val content=vm.details?.meta ?: return
         if(!vm.contentAllowed(content))return
         val owner=vm.profiles.profileId
@@ -505,6 +556,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openOffer(o:Offer) {
+        startedWell()
         if(vm.details?.meta?.let(vm::contentAllowed)!=true)return
         val installed=vm.watch.offerPackages(o).first
         if(installed!=null) {
