@@ -242,6 +242,8 @@ object Updater {
      * [progress] runs from 0 to 1 as the file is handed over and installed.
      */
     fun install(context: Context, apk: File, progress: (Float) -> Unit = {}): Boolean {
+        // #465: Ember reopens on Home after Android replaces it.
+        app.ember.tv.home.StartupEvents.updateStarted(context)
         val sessionStarted = runCatching { installWithSession(context.applicationContext, apk, progress) }.isSuccess
         if (!sessionStarted) installWithIntent(context, apk)
         return sessionStarted

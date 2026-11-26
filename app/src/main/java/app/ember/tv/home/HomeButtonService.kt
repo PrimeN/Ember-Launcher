@@ -23,6 +23,11 @@ class HomeButtonService : AccessibilityService() {
 
     private var stopWake:(()->Unit)?=null
     fun openForStartup() {openEmber()}
+    /** #465: Home after Ember updated itself, once. */
+    fun openAfterUpdate() {
+        StartupEvents.pending(this)?.takeIf {it.first=="update"}?.let {StartupEvents.consume(this,it)}
+        openEmber()
+    }
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance=this
@@ -31,6 +36,8 @@ class HomeButtonService : AccessibilityService() {
         applyConfig()
         callbacks.attempt(HomeServiceIssue.STARTUP) {
             if(prefs.homeOverride && prefs.homeAtBoot && SystemClock.elapsedRealtime()<3*60_000L && !DefaultHome.emberIsDefault(this))openEmber()
+            // #465: the service comes back after Ember updated itself, maybe after the broadcast did.
+            else if(StartupEvents.pendingUpdate(this))openAfterUpdate()
         }
     }
 

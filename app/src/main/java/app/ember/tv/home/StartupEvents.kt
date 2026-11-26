@@ -26,6 +26,23 @@ object StartupEvents {
         val reason=p.getString("reason",null) ?: return null;val at=p.getLong("at",-1)
         return if(SystemClock.elapsedRealtime()-at in 0..180_000)reason to at else null
     }
+    /**
+     * #465: an update Ember started. When Android replaces Ember it closes it, leaving whatever was
+     * under it (often Android's own Settings); Ember reopens on Home once the new copy is in.
+     */
+    fun updateStarted(context:Context) {
+        context.getSharedPreferences("home_runtime",Context.MODE_PRIVATE).edit(commit=true) {putLong("update_at",System.currentTimeMillis())}
+    }
+    /** True once, right after an update Ember started in the last half hour was installed. */
+    fun takeUpdate(context:Context):Boolean {
+        val p=context.getSharedPreferences("home_runtime",Context.MODE_PRIVATE)
+        val at=p.getLong("update_at",0L).takeIf {it>0} ?: return false
+        p.edit(commit=true) {remove("update_at")}
+        return System.currentTimeMillis()-at in 0..UPDATE_WINDOW_MS
+    }
+    const val UPDATE_WINDOW_MS=30*60_000L
+    /** Whether the service should open Home: Ember was just updated by itself. */
+    fun pendingUpdate(context:Context):Boolean=pending(context)?.first=="update"
     fun consume(context:Context,event:Pair<String,Long>) {
         val p=context.getSharedPreferences("home_runtime",Context.MODE_PRIVATE)
         if(p.getString("reason",null)==event.first && p.getLong("at",-1)==event.second)p.edit {remove("reason");remove("at")}
@@ -47,8 +64,20 @@ object StartupEvents {
     }
 }
 class LauncherBootReceiver:BroadcastReceiver() {
-    override fun onReceive(context:Context,intent:Intent){if(intent.action==Intent.ACTION_BOOT_COMPLETED){
-        StartupEvents.mark(context,"boot")
-        if(LauncherExtrasState(Prefs(context)).options.atBoot)HomeButtonService.instance?.openForStartup()
+    override fun onReceive(context:Context,intent:Intent){when(intent.action){
+        Intent.ACTION_BOOT_COMPLETED->{
+            StartupEvents.mark(context,"boot")
+            if(LauncherExtrasState(Prefs(context)).options.atBoot)HomeButtonService.instance?.openForStartup()
+        }
+        // #465: the new Ember is in; open Home again, as before the update.
+        Intent.ACTION_MY_PACKAGE_REPLACED->if(StartupEvents.takeUpdate(context)) {
+            StartupEvents.mark(context,"update")
+            val service=HomeButtonService.instance
+            if(service!=null)service.openAfterUpdate()
+            else runCatching {
+                context.startActivity(Intent(context,app.ember.tv.MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
+            }
+        }
     }}
 }

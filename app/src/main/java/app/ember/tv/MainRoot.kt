@@ -146,6 +146,8 @@ internal fun Root(
         val config=vm.launcherExtras.options
         if(config.destination=="app" && vm.apps.isEmpty())return@LaunchedEffect
         app.ember.tv.home.StartupEvents.consume(performanceContext,event)
+        // #465: back on Home after Ember updated itself.
+        if(event.first=="update"){vm.showNotice("Ember updated to ${app.ember.tv.BuildConfig.VERSION_NAME}.");return@LaunchedEffect}
         if(!config.startup(event.first,vm.profiles.profile.kids))return@LaunchedEffect
         val owner=vm.profiles.profileId
         when(config.destination) {
