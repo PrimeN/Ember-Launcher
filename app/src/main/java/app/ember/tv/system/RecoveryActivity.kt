@@ -41,6 +41,8 @@ class RecoveryActivity : Activity() {
     private lateinit var link: EditText
     private lateinit var releaseList: LinearLayout
     private val installed by lazy { runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty() }
+    /** #450: the installed build number, which Android compares when installing. */
+    private val installedCode by lazy { runCatching { packageManager.getPackageInfo(packageName, 0).longVersionCode }.getOrNull() }
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
@@ -190,7 +192,7 @@ class RecoveryActivity : Activity() {
             if (list.isEmpty()) { say("No releases with an app were found."); return@launch }
             say("Choose a release to install.")
             list.forEachIndexed { i, r ->
-                val age = RecoveryLinks.compare(r.version, installed)
+                val age = RecoveryLinks.age(r, installed, installedCode)
                 val note = buildList {
                     if (i == 0) add("Latest")
                     if (age == 0) add("Installed now")
@@ -297,7 +299,20 @@ object RecoveryLinks {
         }
     }
 
-    data class ReleaseItem(val tag: String, val title: String, val version: String, val date: String, val apk: String)
+    data class ReleaseItem(val tag: String, val title: String, val version: String, val date: String, val apk: String,
+        /** #450: the build number in the APK's name (ember-tv-1.4.1-217744169.apk), when it has one. */
+        val code: Long? = buildCode(apk))
+
+    /** #450: the build number from an Ember APK's file name. */
+    fun buildCode(apk: String): Long? = Regex("""ember-tv-[^/]*?-(\d{6,})(?:-[a-z]+)?\.apk$""").find(apk.substringBefore('?'))?.groupValues?.get(1)?.toLongOrNull()
+
+    /**
+     * #450: how a release compares with the installed Ember: by build number when both are known (what
+     * Android itself compares, so a newer test build shows the same version's release as older),
+     * otherwise by version name.
+     */
+    fun age(r: ReleaseItem, installedName: String, installedCode: Long?): Int =
+        if (r.code != null && installedCode != null) r.code.compareTo(installedCode) else compare(r.version, installedName)
 
     /** #443: Ember's releases (the GitHub API's list, newest first) that carry an APK; drafts are skipped. */
     fun releases(json: String): List<ReleaseItem> {

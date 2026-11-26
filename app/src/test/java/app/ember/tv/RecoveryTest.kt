@@ -83,4 +83,16 @@ class RecoveryTest {
         assertFalse(StartupGuard.secretEntered(s.dropLast(1)))
         assertFalse(StartupGuard.secretEntered(s.reversed()))
     }
+
+    @Test fun releasesCompareByBuildNumberWhenKnown() {
+        assertEquals(217744169L, app.ember.tv.system.RecoveryLinks.buildCode("https://github.com/x/y/releases/download/v1.4.1/ember-tv-1.4.1-217744169.apk"))
+        assertEquals(217744169L, app.ember.tv.system.RecoveryLinks.buildCode("https://x/ember-tv-1.4.1-217744169-release.apk?raw=1"))
+        assertEquals(null, app.ember.tv.system.RecoveryLinks.buildCode("https://x/other.apk"))
+        val release = app.ember.tv.system.RecoveryLinks.ReleaseItem("v1.4.1", "", "1.4.1", "", "https://x/ember-tv-1.4.1-217744169.apk")
+        // A newer 1.4.1 test build: the 1.4.1 release is older, as Android sees it.
+        assertTrue(app.ember.tv.system.RecoveryLinks.age(release, "1.4.1", 217799277L) < 0)
+        assertEquals(0, app.ember.tv.system.RecoveryLinks.age(release, "1.4.1", 217744169L))
+        // Without build numbers, the version names decide.
+        assertTrue(app.ember.tv.system.RecoveryLinks.age(release, "1.4.0", null) > 0)
+    }
 }
