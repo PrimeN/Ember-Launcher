@@ -56,4 +56,16 @@ class ServiceCardsTest {
         assertEquals(ServiceState.ADD, cards.last().state)
         assertNotNull(cards[1].brand)
     }
+
+    /** #451: a title on Trakt's and Simkl's watchlists still shows under "Only Trakt" whichever copy was kept. */
+    @Test fun aTitleOnTwoTrackersKeepsBoth() {
+        assertEquals("Simkl + Trakt", app.ember.tv.tracker.TrackedSources.join("Simkl", "Trakt"))
+        assertEquals("Simkl + Trakt", app.ember.tv.tracker.TrackedSources.join("Simkl + Trakt", "Trakt"))
+        val meta = app.ember.tv.data.Meta(id = "tt1", type = "movie", name = "Charade", progressSource = "Simkl + Trakt")
+        assertEquals(listOf("simkl", "trakt"), PersonalListSources.sources(meta, "other"))
+        val off = PersonalListSources.withTrackerChoice(emptySet(), "main", "watchlist", "trakt")
+        assertTrue(PersonalListSources.sources(meta, "other").any { PersonalListSources.enabled(off, "main", "watchlist", it) })
+        val single = meta.copy(progressSource = "Trakt")
+        assertEquals(listOf("trakt"), PersonalListSources.sources(single, "other"))
+    }
 }

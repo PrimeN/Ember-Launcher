@@ -569,8 +569,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         LocalLibrary.version
         TitleIndex((watchlist + trackerWatchlist + serverWatchlistItems).filterNot { LocalLibrary.isListHidden("watchlist", it) })
     }
-    internal fun personalListIncludes(list: String, meta: Meta, fallback: String) = sections.sourceEnabled(
-        profiles.profileId, list, app.ember.tv.data.PersonalListSources.source(meta, fallback))
+    internal fun personalListIncludes(list: String, meta: Meta, fallback: String) =
+        app.ember.tv.data.PersonalListSources.sources(meta, fallback).any { sections.sourceEnabled(profiles.profileId, list, it) }
 
     internal fun List<String>.syncedSuffix(meta: Meta): String {
         val pending = LocalLibrary.pending.firstOrNull { it.meta.sameTitle(meta) }?.targets.orEmpty()

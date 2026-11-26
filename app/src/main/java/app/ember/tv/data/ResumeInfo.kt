@@ -5,7 +5,7 @@ fun Meta.resumeLabel(): String? {
     val p = progress?.takeIf { it.isFinite() && it in 0f..1f } ?: return null
     val episodeLabel = if (season != null && episode != null) "S$season E$episode" else null
     val remaining = runtimeMinutes?.let { kotlin.math.ceil(it * (1.0 - p)).toInt().coerceAtLeast(0) }
-    val source = serverName?.takeIf { it.isNotBlank() } ?: progressSource?.takeIf { it.isNotBlank() } ?: when {
+    val source = serverName?.takeIf { it.isNotBlank() } ?: progressSource?.substringBefore(" + ")?.takeIf { it.isNotBlank() } ?: when {
         id.startsWith("trakt:") -> "Trakt"
         id.startsWith("simkl:") -> "Simkl"
         id.startsWith("anilist:") -> "AniList"

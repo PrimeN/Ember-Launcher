@@ -74,8 +74,8 @@ class TrackerHub internal constructor(val trackers: List<Tracker>) {
             val old = merged[item.dedupeKey]
             merged[item.dedupeKey] = when {
                 old == null -> item
-                (item.progress ?: 0f) > (old.progress ?: 0f) -> item.copy(poster = item.poster ?: old.poster)
-                else -> old.copy(poster = old.poster ?: item.poster)
+                (item.progress ?: 0f) > (old.progress ?: 0f) -> item.copy(poster = item.poster ?: old.poster, source = TrackedSources.join(item.source, old.source))
+                else -> old.copy(poster = old.poster ?: item.poster, source = TrackedSources.join(old.source, item.source))
             }
         }
         enrichAll(merged.values.toList())
@@ -243,4 +243,15 @@ fun TrackerHub.Outcome.describe(): String = buildString {
     if (sent.isNotEmpty()) append(" Sent to ${sent.joinToString(" and ")}.")
     if (failed.isNotEmpty()) append(" Could not reach ${failed.joinToString(" and ")}.")
     refused.forEach { append(" ").append(it) }
+}
+
+/**
+ * #451: a title on several trackers' lists keeps every tracker it came from ("Trakt + Simkl", the
+ * one whose copy was kept first), so choosing one tracker as a list's source still finds it.
+ */
+internal object TrackedSources {
+    const val SEP = " + "
+    fun join(first: String, second: String): String =
+        (first.split(SEP) + second.split(SEP)).map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString(SEP)
+    fun split(source: String?): List<String> = source.orEmpty().split(SEP).map { it.trim() }.filter { it.isNotEmpty() }
 }

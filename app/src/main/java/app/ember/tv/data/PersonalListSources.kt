@@ -43,4 +43,11 @@ object PersonalListSources {
             else -> fallback
         }
     }
+    /** #451: every source a merged title came from ("Trakt + Simkl"); one is enough for it to show. */
+    fun sources(meta: Meta, fallback: String): List<String> {
+        val parts = app.ember.tv.tracker.TrackedSources.split(meta.progressSource)
+        if (parts.size < 2) return listOf(source(meta, fallback))
+        return parts.map { source(meta.copy(progressSource = it), fallback) }.distinct()
+    }
+
 }
