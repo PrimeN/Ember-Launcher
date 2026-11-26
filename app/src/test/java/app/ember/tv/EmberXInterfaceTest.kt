@@ -94,7 +94,7 @@ class EmberXInterfaceTest {
     }
     @Test fun settingsSearchFindsTheInterfaceAtItsActualSection() {
         val hit=SettingDefinitions.matching("Ember X").single {it.id=="media-page-layout"}
-        assertEquals(SettingsTab.APPEARANCE,hit.tab);assertEquals("media-page-layout",hit.id)
+        assertEquals(SettingsTab.POSTERS,hit.tab);assertEquals("media-page-layout",hit.id)
         assertEquals(InterfaceStyles.EMBER_X,hit.options.single {it.second=="Ember X"}.first)
         assertEquals("accent_colour",SettingDefinitions.matching("Android TV").single().id)
         assertEquals(listOf("Ember","Ember Light"),SettingDefinitions.interfaceStyle.options.map {it.second})

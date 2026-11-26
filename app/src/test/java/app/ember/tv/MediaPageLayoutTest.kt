@@ -56,9 +56,10 @@ class MediaPageLayoutTest {
         assertEquals(MediaPageLayouts.MODERN,MediaPageLayouts.normalize("immersive_glass"))
     }
     @Test fun settingIsAvailableAndSearchableForEveryInterface() {
-        for((launcher,_) in InterfaceStyles.options) assertTrue("media-page-layout" in lookKeys(SettingsTab.APPEARANCE,launcher))
+        // #463: on Posters & cards.
+        for((launcher,_) in InterfaceStyles.options) assertTrue("media-page-layout" in lookKeys(SettingsTab.POSTERS,launcher))
         val setting=SettingDefinitions.matching("Media page layout").single()
-        assertEquals(SettingsTab.APPEARANCE,setting.tab)
+        assertEquals(SettingsTab.POSTERS,setting.tab)
         assertEquals(listOf("Ember","Ember X"),setting.options.map {it.second})
         // #148: "Modern" is now called Ember; the old name still finds it, and the saved value is unchanged.
         assertEquals(MediaPageLayouts.MODERN,setting.options.first().first)

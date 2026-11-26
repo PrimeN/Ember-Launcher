@@ -33,8 +33,8 @@ class TileLabelsTest {
         assertEquals(setOf(TileLabels.MEDIA), prefs.tileLabelsOff)
     }
 
-    @Test fun settingIsOnAppearanceForEveryInterfaceAndSearchable() {
-        for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertTrue(style, "tile-labels" in lookKeys(SettingsTab.APPEARANCE, style))
+    @Test fun settingIsOnPostersAndCardsForEveryInterfaceAndSearchable() {
+        for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertTrue(style, "tile-labels" in lookKeys(SettingsTab.POSTERS, style))
         assertEquals("tile-labels", SettingDefinitions.matching("labels under tiles").single().id)
     }
 
@@ -43,9 +43,9 @@ class TileLabelsTest {
         for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertFalse(style, "settings_style" in lookKeys(SettingsTab.APPEARANCE, style))
     }
 
-    @Test fun addonNamesOnRowsIsOnAppearanceAndSearchable() {
-        // #151: beside Labels under tiles, not at the bottom of Home layout.
-        for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertTrue(style, "row-addon-labels" in lookKeys(SettingsTab.APPEARANCE, style))
+    @Test fun addonNamesOnRowsIsOnPostersAndCardsAndSearchable() {
+        // #151: beside Labels under tiles, not at the bottom of Home layout (#463: on Posters & cards).
+        for (style in listOf(InterfaceStyles.MODERN, "light", InterfaceStyles.EMBER_X)) assertTrue(style, "row-addon-labels" in lookKeys(SettingsTab.POSTERS, style))
         for (query in listOf("addon names", "hide addon name", "Addon names on rows")) assertTrue(query, SettingDefinitions.matching(query).any { it.id == "row-addon-labels" })
     }
 }

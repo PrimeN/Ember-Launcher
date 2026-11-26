@@ -212,10 +212,11 @@ class WatchedPresentationTest {
         }
     }
     @Test fun settingsDestinationsAndSearchFollowTheNewSections() {
-        for(tab in listOf(SettingsTab.UPDATES,SettingsTab.DEBUG)) {
-            assertEquals(SettingsCategory.SYSTEM,SettingsCategory.of(tab))
-            assertEquals(tab,SettingsLocation.jump(tab.name)?.page)
-        }
+        assertEquals(SettingsCategory.SYSTEM,SettingsCategory.of(SettingsTab.DEBUG))
+        assertEquals(SettingsTab.DEBUG,SettingsLocation.jump("DEBUG")?.page)
+        // #463: updates sit with About.
+        assertEquals(SettingsCategory.ABOUT,SettingsCategory.of(SettingsTab.UPDATES))
+        assertEquals(SettingsTab.ABOUT,SettingsLocation.jump("UPDATES")?.page)
         assertEquals(SettingsCategory.PLAYBACK,SettingsCategory.of(SettingsTab.WATCH_STATUS))
         assertTrue(SettingDefinitions.matching("crash log").any {it.tab==SettingsTab.DEBUG && it.id=="crash-log"})
         assertTrue(SettingDefinitions.matching("updates").any {it.tab==SettingsTab.UPDATES})

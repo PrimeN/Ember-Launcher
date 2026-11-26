@@ -10,7 +10,10 @@ class SettingsNavigationTest {
         val pages=SettingsCategory.entries.flatMap {it.pages}+SettingsTab.SEARCH
         // #164: pages that joined another are reached through the page that holds them.
         assertEquals(SettingsTab.entries.filterNot {it.merged}.toSet(),pages.toSet())
-        assertEquals(setOf(SettingsTab.HOME_ROWS,SettingsTab.SCREENSAVER,SettingsTab.WEATHER,SettingsTab.CATALOGS,SettingsTab.METADATA,SettingsTab.REMOTE,SettingsTab.CACHE,SettingsTab.TOP_MENU),SettingsTab.entries.filter {it.merged}.toSet())
+        // #463: pages that belong together share one.
+        assertEquals(setOf(SettingsTab.HOME_ROWS,SettingsTab.HOME_TOOLS,SettingsTab.SCREENSAVER,SettingsTab.WEATHER,SettingsTab.TOP_MENU,SettingsTab.PERFORMANCE,
+            SettingsTab.WATCH_STATUS,SettingsTab.STREMIO,SettingsTab.CATALOGS,SettingsTab.STREAMING,SettingsTab.REMOTE,SettingsTab.SYSTEM_ACCESS,SettingsTab.CACHE,SettingsTab.UPDATES),
+            SettingsTab.entries.filter {it.merged}.toSet())
         SettingsTab.entries.filter {it.merged}.forEach {page->assertFalse(page.host.merged);assertEquals(page.group,page.host.group)}
         assertEquals(pages.size,pages.distinct().size)
         assertEquals(8,SettingsCategory.entries.size)
