@@ -39,6 +39,8 @@ internal fun MoveButton(name: String, index: Int, lastIndex: Int, horizontal: Bo
         LaunchedEffect(index) { withFrameNanos { }; runCatching { focus.requestFocus() } }
         BackHandler { onMove(MoveSession.start - latest); MoveSession.end() }
     }
+    // #464: leaving the page mid-move puts the row down where it is.
+    if (active) MovePresence.Track(id) { if (MoveSession.active == id) MoveSession.end() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     ToolbarIcon(if (active) "Moving ${name.ifBlank { "item" }}, place ${index + 1} of ${lastIndex + 1}. Arrows move, OK places, Back cancels" else "Move",
         Icons.Outlined.OpenWith, selected = active,
@@ -150,6 +152,8 @@ internal fun Modifier.appMove(pkg: String): Modifier = composed {
     if (session == null || session.pkg != pkg || scope == null) return@composed this
     SideEffect { session.attach(scope) }
     val draft = session.draft ?: return@composed this
+    // #464: leaving Home or the Apps page mid-move keeps the new place.
+    MovePresence.Track("app:$pkg") { if (AppMove.session === session) session.place() }
     val focus = remember { FocusRequester() }
     val index = draft.index
     LaunchedEffect(index) { withFrameNanos { }; runCatching { focus.requestFocus() } }
@@ -176,4 +180,39 @@ internal fun Modifier.appMove(pkg: String): Modifier = composed {
                 else -> false
             }
         }
+}
+
+/**
+ * #464: where the app being moved now sits in [pkgs], so a lazy row or grid can scroll it into view
+ * before it is drawn; an item off screen isn't composed and couldn't take focus.
+ */
+@Composable
+internal fun appMovingIndex(pkgs: List<String>): Int? {
+    val session = AppMove.session ?: return null
+    session.draft ?: return null
+    return pkgs.indexOf(session.pkg).takeIf { it >= 0 }
+}
+
+/**
+ * #464: whether the thing being moved is still on screen. A moved row is drawn again at its new
+ * place in the same frame, so a move ends only when nothing showed it for a whole frame.
+ */
+internal object MovePresence {
+    private val shown = mutableMapOf<String, Int>()
+    private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+
+    @Composable
+    fun Track(id: String, gone: () -> Unit) {
+        val latest by rememberUpdatedState(gone)
+        DisposableEffect(id) {
+            shown[id] = (shown[id] ?: 0) + 1
+            onDispose {
+                val left = (shown[id] ?: 1) - 1
+                if (left > 0) shown[id] = left else {
+                    shown.remove(id)
+                    main.postDelayed({ if ((shown[id] ?: 0) == 0) latest() }, 120)
+                }
+            }
+        }
+    }
 }

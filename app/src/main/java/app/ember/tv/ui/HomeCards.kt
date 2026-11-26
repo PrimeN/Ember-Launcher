@@ -370,7 +370,11 @@ fun AppsGrid(
         CompositionLocalProvider(LocalAppMoveScope provides moveScope) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             apps.chunked(perRow.coerceAtLeast(1)).forEach { line ->
+                val row = androidx.compose.foundation.lazy.rememberLazyListState()
+                val moving = appMovingIndex(line.map { it.pkg })
+                LaunchedEffect(moving) { moving?.let { i -> if (row.layoutInfo.visibleItemsInfo.none { it.index == i }) row.scrollToItem(i) } }
                 androidx.compose.foundation.lazy.LazyRow(
+                    state = row,
                     horizontalArrangement = Arrangement.spacedBy(gap),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
                 ) {

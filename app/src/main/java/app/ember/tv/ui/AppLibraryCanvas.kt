@@ -76,8 +76,11 @@ internal fun AppLibraryCanvas(permitted: List<AppEntry>, hidden: Set<String>, pr
                             // #456: apps move in place only in your own order; sorted or searched, Move opens the mover.
                             val moveScope = remember(apps, columns, sort, query) {
                                 if (sort == AppLibrarySort.CUSTOM && query.isBlank()) AppMoveScope(apps.map { it.pkg }, columns) else null }
+                            val grid = rememberLazyGridState()
+                            val moving = appMovingIndex(apps.map { it.pkg })
+                            LaunchedEffect(moving) { moving?.let { i -> if (grid.layoutInfo.visibleItemsInfo.none { it.index == i }) grid.scrollToItem(i) } }
                             CompositionLocalProvider(LocalAppMoveScope provides moveScope) {
-                            LazyVerticalGrid(GridCells.Fixed(columns), modifier = Modifier.fillMaxSize().testTag("app_library_grid")
+                            LazyVerticalGrid(GridCells.Fixed(columns), state = grid, modifier = Modifier.fillMaxSize().testTag("app_library_grid")
                                 .focusKeeperList(keeper),
                                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
