@@ -446,7 +446,7 @@ class ShowcaseShotsTest {
         val source = { id: String -> app.ember.tv.data.CollectionSource(addonId = "aio-metadata", type = "movie", catalogId = id) }
         val folder = app.ember.tv.data.CollectionFolder("f1", "Classics", tileShape = "LANDSCAPE", coverEmoji = "🎞",
             sources = listOf(source("a"), app.ember.tv.data.LibraryLists.source(app.ember.tv.data.LibraryLists.all.first()),
-                app.ember.tv.data.CollectionSource(provider = "trakt", traktListId = "1", title = "Film noir essentials")))
+                app.ember.tv.data.CollectionSource(provider = "trakt", traktListId = 1L, title = "Film noir essentials")))
         compose.setContent { Frame { app.ember.tv.ui.CollectionFolderEditor(vm, folder, onSave = {}) {} } }
         dialog("folder-editor")
         compose.onNodeWithTag("folder_step_sources").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
