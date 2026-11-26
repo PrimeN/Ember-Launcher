@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.ember.tv.data.AddonClient
+import app.ember.tv.data.AddonCollections
+import app.ember.tv.tracker.str
 import app.ember.tv.data.CatalogDef
 import app.ember.tv.data.Collections
 import app.ember.tv.data.Meta
@@ -145,8 +147,53 @@ class CollectionsState(
     /** A collection with only its folders that are on. */
     private fun shown(c: MediaCollection) = c.copy(folders = c.folders.filter { folderOn(c, it) && it.allSources.any(sourceAllowed) })
 
-    val onHome: List<MediaCollection> get() = list.filter { it.id !in hidden }.map(::shown).filter { it.folders.isNotEmpty() }
-    val onDiscover: List<MediaCollection> get() = list.filter { it.id in inDiscover }.map(::shown).filter { it.folders.isNotEmpty() }
+    /**
+     * #459: collections your addons serve themselves (AIOMetadata's builder collections). They follow
+     * the addon; a collection of your own with the same id (an imported copy, or one you edited) wins.
+     */
+    var linked by mutableStateOf(AddonCollections.load(context)); private set
+    /** Your collections, then the addons' collections you have no copy of. */
+    val all: List<MediaCollection> get() = list.let { own -> own + linked.filter { l -> own.none { it.id == l.id } } }
+    fun isLinked(id: String): Boolean = list.none { it.id == id } && linked.any { it.id == id }
+    /** The addon collection itself, as your own: what editing, moving or deleting a folder starts from. */
+    private fun owned(current: List<MediaCollection>, id: String): List<MediaCollection> =
+        if (current.any { it.id == id }) current else current + linked.filter { it.id == id }
+
+    /** How one collection catalog is read; tests replace it. */
+    internal var fetchLinked: suspend (CatalogDef) -> MediaCollection? = { def ->
+        AddonCollections.collection(def, client.entries(def)) { entry ->
+            client.meta(def.addon, entry.str("type") ?: def.type, entry.str("id") ?: return@collection null).first
+        }
+    }
+
+    /**
+     * Reads every collection catalog again. A catalog that fails keeps what it sent last; a new one
+     * starts hidden on Home, as AIOMetadata marks them, until you show it.
+     */
+    suspend fun syncLinked(defs: List<CatalogDef>) {
+        val previous = linked.associateBy { it.id }
+        val next = coroutineScope {
+            defs.filter { it.isCollection }.distinctBy { AddonCollections.collectionId(it) }.map { def -> async {
+                val id = AddonCollections.collectionId(def)
+                runCatching { fetchLinked(def) }.getOrElse { if (it is CancellationException) throw it; null }?.takeIf { it.folders.isNotEmpty() } ?: previous[id]
+            } }.awaitAll().filterNotNull()
+        }
+        val seen = prefs.linkedCollectionsSeen
+        val fresh = next.map { it.id }.filter { it !in seen && list.none { own -> own.id == it } }
+        if (fresh.isNotEmpty()) {
+            hidden = hidden + fresh; prefs.collectionsOff = hidden
+        }
+        if (next.any { it.id !in seen }) prefs.linkedCollectionsSeen = seen + next.map { it.id }
+        if (next != linked) {
+            linked = next
+            withContext(Dispatchers.IO) { AddonCollections.save(context, next) }
+            revision++
+            onChanged()
+        }
+    }
+
+    val onHome: List<MediaCollection> get() = all.filter { it.id !in hidden }.map(::shown).filter { it.folders.isNotEmpty() }
+    val onDiscover: List<MediaCollection> get() = all.filter { it.id in inDiscover }.map(::shown).filter { it.folders.isNotEmpty() }
 
     fun toggleDiscover(id: String) {
         inDiscover = if (id in inDiscover) inDiscover - id else inDiscover + id
@@ -199,7 +246,8 @@ class CollectionsState(
     }
 
     fun moveFolder(c: MediaCollection, f: CollectionFolder, delta: Int) {
-        scope.launch { update("Folder order saved.") { current ->
+        scope.launch { update("Folder order saved.") { mine ->
+            val current = owned(mine, c.id)
             val collection = current.firstOrNull { it.id == c.id } ?: return@update null
             val i = collection.folders.indexOfFirst { it.id == f.id }; val j = i + delta
             if (i < 0 || j !in collection.folders.indices) return@update null
@@ -228,8 +276,10 @@ class CollectionsState(
     suspend fun saveCollection(value: MediaCollection, original: MediaCollection? = null, delta: Int = 0): String? {
         Collections.inspect(Collections.encode(listOf(value))).error?.let { return it }
         return edits.withLock {
-            val current = list.firstOrNull { it.id == value.id }
+            // #459: saving an addon's collection makes it your own copy, which then stops following the addon.
+            val current = list.firstOrNull { it.id == value.id } ?: linked.firstOrNull { it.id == value.id }?.takeIf { original != null }
             if (current != original) return@withLock "This collection changed while you were editing. Reopen it before saving."
+            val list = owned(list, value.id)
             val next = (if (current == null) list + value else list.map { if (it.id == value.id) value else it }).toMutableList()
             val at = next.indexOfFirst { it.id == value.id }; val to = (at + delta).coerceIn(0, next.lastIndex)
             if (at != to) next.add(to, next.removeAt(at))
@@ -283,6 +333,14 @@ class CollectionsState(
 
     /** Deletes a collection; returns an error for the phone page, or null when done (#157, #158). */
     suspend fun deleteCollection(id: String): String? {
+        // #459: an addon's collection comes back from the addon, so deleting it hides it instead.
+        if (isLinked(id)) {
+            hidden = hidden + id; prefs.collectionsOff = hidden
+            if (id in inDiscover) { inDiscover = inDiscover - id; prefs.collectionsDiscover = inDiscover }
+            message = "This collection comes from an addon, so it is hidden instead. Show it again from Home widgets."
+            onChanged()
+            return null
+        }
         if (list.none { it.id == id }) return "That collection no longer exists."
         return update("Collection deleted.") { current -> current.filterNot { it.id == id } }
     }
@@ -291,8 +349,8 @@ class CollectionsState(
 
     /** Deletes one folder (#157). A collection needs a folder, so deleting its last one deletes the collection. */
     suspend fun deleteFolder(collectionId: String, folderId: String): String? {
-        if (list.none { it.id == collectionId && it.folders.any { f -> f.id == folderId } }) return "That folder no longer exists."
-        return update("Folder deleted.") { current -> app.ember.tv.data.CollectionDrafts.withoutFolder(current, collectionId, folderId) }
+        if (all.none { it.id == collectionId && it.folders.any { f -> f.id == folderId } }) return "That folder no longer exists."
+        return update("Folder deleted.") { current -> app.ember.tv.data.CollectionDrafts.withoutFolder(owned(current, collectionId), collectionId, folderId) }
     }
 
     fun removeAll() {

@@ -47,7 +47,7 @@ internal fun CollectionManager(vm: HomeViewModel) {
     var restore by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope(); val cs = vm.collections
     val focus = remember { FocusRequester() }; val createFocus = remember { FocusRequester() }
-    val matches = cs.list.filter { (it.title + it.folders.joinToString { f -> f.title }).contains(query, true) }
+    val matches = cs.all.filter { (it.title + it.folders.joinToString { f -> f.title }).contains(query, true) }
     LaunchedEffect(cs.list.map { it.id }, restore) {
         if (restore != null && cs.list.none { it.id == restore }) {
             restore = matches.firstOrNull()?.id
@@ -214,8 +214,8 @@ internal fun ContentOrganizer(vm: HomeViewModel, close: () -> Unit) {
                         if (expanded == c.key) ButtonRow(spacing = 6.dp) {
                             CatalogRenameButton(vm, c.key, c.originalLabel)
                             // Locked where the catalog can't go, saying why (#102).
-                            SwitchChip("Home", vm.isOnHome(c), locked = !c.homeable) { if (c.homeable) vm.toggleCatalogHome(c) else vm.showNotice(catalogLockReason(c, "Home")) }
-                            SwitchChip("Discover", vm.isInDiscover(c), locked = !c.browsable) { if (c.browsable) vm.toggleCatalogDiscover(c) else vm.showNotice(catalogLockReason(c, "Discover")) }
+                            SwitchChip("Home", vm.catalogOnHome(c), locked = !vm.catalogCanHome(c)) { if (vm.catalogCanHome(c)) vm.toggleCatalogHomePlace(c) else vm.showNotice(catalogLockReason(c, "Home")) }
+                            SwitchChip("Discover", vm.catalogInDiscover(c), locked = !vm.catalogCanDiscover(c)) { if (vm.catalogCanDiscover(c)) vm.toggleCatalogDiscoverPlace(c) else vm.showNotice(catalogLockReason(c, "Discover")) }
                             SwitchChip("Live", vm.isOnLive(c), locked = !c.homeable) { if (c.homeable) vm.toggleCatalogLive(c) else vm.showNotice(catalogLockReason(c, "Live TV")) }
                             MoveButton(c.label, vm.allCatalogs.indexOfFirst { it.key == c.key }, vm.allCatalogs.lastIndex) { step -> vm.moveCatalog(c, step) }
                             Chip("Add to collection") { if (c.extras.isEmpty()) collect = CollectionDrafts.catalog(c) else filters = c }

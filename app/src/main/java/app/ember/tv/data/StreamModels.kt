@@ -252,14 +252,16 @@ data class CatalogDef(
     val key: String get() = CatalogIdentity.key(addon.url, type, id)
 
     /** Can be a Home row: needs no search term, genre or other input. */
-    val homeable: Boolean get() = !searchOnly && extraError(defaultExtras) == null && (!genreRequired || !defaultExtras["genre"].isNullOrBlank()) && (!otherRequired || extras.isNotEmpty())
+    /** #459: a catalog of collections (AIOMetadata's builder collections): folders, not titles. */
+    val isCollection: Boolean get() = type.equals(AddonCollections.TYPE, ignoreCase = true)
+    val homeable: Boolean get() = !isCollection && !searchOnly && extraError(defaultExtras) == null && (!genreRequired || !defaultExtras["genre"].isNullOrBlank()) && (!otherRequired || extras.isNotEmpty())
     /**
      * Can feed the hero or Light's carousel (#101): loads without typing anything, using its
      * defaults and the first option of a required extra (as Discover and collections do), whether
      * or not it is on Home or in Discover.
      */
-    val featurable: Boolean get() = !searchOnly && (!otherRequired || extras.isNotEmpty()) && extraError(requestExtras) == null
-    val browsable: Boolean get() = !searchOnly && (!otherRequired || extras.isNotEmpty()) && (!genreRequired || genres.isNotEmpty() || extras.any { it.name == "genre" })
+    val featurable: Boolean get() = !isCollection && !searchOnly && (!otherRequired || extras.isNotEmpty()) && extraError(requestExtras) == null
+    val browsable: Boolean get() = !isCollection && !searchOnly && (!otherRequired || extras.isNotEmpty()) && (!genreRequired || genres.isNotEmpty() || extras.any { it.name == "genre" })
 }
 
 /** One episode from an addon's meta "videos" list. [id] is what stream addons expect, e.g. tt0944947:1:1. */

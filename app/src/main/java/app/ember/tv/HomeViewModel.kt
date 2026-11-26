@@ -1,5 +1,7 @@
 package app.ember.tv
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+
 import app.ember.tv.state.SparkState
 import app.ember.tv.data.EpisodesLeft
 import app.ember.tv.data.counted
@@ -427,6 +429,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     rows.mapNotNull { it.catalogKey }.toSet())
             }.collectLatest { (sources, revision, home) -> loadFeaturedRows(sources, catalogs.allCatalogs, home, revision) }
         }
+        // #459: collections your addons serve follow them: read again whenever the catalogs change.
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+            androidx.compose.runtime.snapshotFlow {
+                catalogs.allCatalogs.filter { it.isCollection && addonAvailable(it.addon.url) }.map { it.key }
+            }.distinctUntilChanged().collectLatest { keys ->
+                if (keys.isNotEmpty() || collections.linked.isNotEmpty())
+                    collections.syncLinked(catalogs.allCatalogs.filter { it.isCollection && it.key in keys })
+            }
+        }
         // #425: episode counts for the shows you're part-way through.
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
             androidx.compose.runtime.snapshotFlow { inProgressItems.filter { it.season != null && it.episode != null } to look.episodesLeft }
@@ -500,6 +511,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun isOnLive(c: CatalogDef) = catalogs.isOnLive(c)
     fun isOnHome(c: CatalogDef) = catalogs.isOnHome(c)
     fun isInDiscover(c: CatalogDef) = catalogs.isInDiscover(c)
+    // #459: a collection catalog's Home and Discover switches are its collection's.
+    fun collectionCatalogOnHome(c: CatalogDef) = collectionShown(HomeSectionsState.collectionSection(app.ember.tv.data.AddonCollections.collectionId(c)))
+    fun toggleCollectionCatalogHome(c: CatalogDef) = toggleCollectionOnHome(HomeSectionsState.collectionSection(app.ember.tv.data.AddonCollections.collectionId(c)))
+    fun collectionCatalogInDiscover(c: CatalogDef) = app.ember.tv.data.AddonCollections.collectionId(c) in collections.inDiscover
+    fun toggleCollectionCatalogDiscover(c: CatalogDef) = collections.toggleDiscover(app.ember.tv.data.AddonCollections.collectionId(c))
+    /** Where a catalog shows, its collection's places for a collection catalog. */
+    fun catalogOnHome(c: CatalogDef) = if (c.isCollection) collectionCatalogOnHome(c) else isOnHome(c)
+    fun catalogInDiscover(c: CatalogDef) = if (c.isCollection) collectionCatalogInDiscover(c) else isInDiscover(c)
+    fun catalogCanHome(c: CatalogDef) = c.isCollection || c.homeable
+    fun catalogCanDiscover(c: CatalogDef) = c.isCollection || c.browsable
+    fun toggleCatalogHomePlace(c: CatalogDef) = if (c.isCollection) toggleCollectionCatalogHome(c) else toggleCatalogHome(c)
+    fun toggleCatalogDiscoverPlace(c: CatalogDef) = if (c.isCollection) toggleCollectionCatalogDiscover(c) else toggleCatalogDiscover(c)
     fun toggleCatalogLive(c: CatalogDef) = catalogs.toggleCatalogLive(c)
     fun toggleCatalogHome(c: CatalogDef) = catalogs.toggleCatalogHome(c)
     fun toggleCatalogDiscover(c: CatalogDef) = catalogs.toggleCatalogDiscover(c)
@@ -873,11 +896,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             catalogs.updateCatalogHomes(values.mapKeys { HomeSectionsState.catalogKey(it.key) })
         },
         // #405: each collection is a Home widget, ordered and switched with the others.
-        collectionSections = { if (profile.kids) emptyList() else collections.list.map { c ->
+        collectionSections = { if (profile.kids) emptyList() else collections.all.map { c ->
             HomeSectionsState.SectionInfo(HomeSectionsState.collectionSection(c.id), c.title.ifBlank { "Collection" },
                 "Collection · ${c.folders.size} ${if (c.folders.size == 1) "folder" else "folders"}") to (c.id !in collections.hidden)
         } },
-        pinnedSections = { collections.list.filter { it.pinToTop }.map { HomeSectionsState.collectionSection(it.id) }.toSet() },
+        pinnedSections = { collections.all.filter { it.pinToTop }.map { HomeSectionsState.collectionSection(it.id) }.toSet() },
     )
     /** #405: a collection's switch on Home: shown only when its section is on and it isn't hidden. */
     fun collectionShown(sectionId: String): Boolean =

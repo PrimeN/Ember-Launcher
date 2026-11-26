@@ -297,7 +297,7 @@ internal fun LazyListScope.catalogsPage(vm: HomeViewModel) {
     // #193: grouped by addon, closed until opened, and by type inside; not one flat list of hundreds.
     val list = vm.allCatalogs
     if (list.isEmpty()) return
-    val groups = CatalogBrowse.groups(list, CatalogBrowse.show, CatalogBrowse.type, vm::isOnHome, vm::isOnLive, vm::isInDiscover)
+    val groups = CatalogBrowse.groups(list, CatalogBrowse.show, CatalogBrowse.type, vm::catalogOnHome, vm::isOnLive, vm::catalogInDiscover)
     item(key = "catfilters") { CatalogFilters(vm, list, groups) }
     if (groups.isEmpty()) item(key = "catnone") { Text(stringResource(R.string.tx_no_catalogs_match_these_filters), color = Mute, fontSize = 14.sp) }
     groups.forEach { g ->
@@ -372,7 +372,7 @@ private fun CatalogGroupHeader(vm: HomeViewModel, g: CatalogBrowse.Group, open: 
 private fun CatalogCard(vm: HomeViewModel, i: Int, c: CatalogDef, lastIndex: Int) {
     var menu by remember(c.key) { mutableStateOf(false) }
     var renaming by remember(c.key) { mutableStateOf(false) }
-    val home = vm.isOnHome(c); val live = vm.isOnLive(c); val discover = vm.isInDiscover(c)
+    val home = vm.catalogOnHome(c); val live = vm.isOnLive(c); val discover = vm.catalogInDiscover(c)
     val homeName = stringResource(R.string.ui_home_b9499); val liveName = stringResource(R.string.ui_live_tv_2386e)
     val discoverName = stringResource(R.string.ui_discover); val renameName = stringResource(R.string.ui_rename)
     Focusable(onClick = { menu = true }, modifier = Modifier.fillMaxWidth().padding(start = 16.dp).testTag("catalog_card"),
@@ -388,9 +388,9 @@ private fun CatalogCard(vm: HomeViewModel, i: Int, c: CatalogDef, lastIndex: Int
                 Text(CatalogBrowse.cardLine(c.type, c.label, c.originalLabel), color = ink.copy(alpha = .7f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                CatalogPlace(homeName, home, !c.homeable, ink)
+                CatalogPlace(homeName, home, !vm.catalogCanHome(c), ink)
                 CatalogPlace(liveName, live, !c.homeable, ink)
-                CatalogPlace(discoverName, discover, !c.browsable, ink)
+                CatalogPlace(discoverName, discover, !vm.catalogCanDiscover(c), ink)
             }
             androidx.tv.material3.Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = ink.copy(alpha = .7f), modifier = Modifier.size(20.dp))
         }
@@ -399,9 +399,9 @@ private fun CatalogCard(vm: HomeViewModel, i: Int, c: CatalogDef, lastIndex: Int
         // Places a catalog can't go stay in the menu with a lock and say why (#102).
         fun place(label: String, on: Boolean, allowed: Boolean, where: String, toggle: () -> Unit) =
             add(MenuOption(label, selected = on, icon = if (allowed) null else Icons.Outlined.Lock) { if (allowed) toggle() else vm.showNotice(catalogLockReason(c, where)) })
-        place(homeName, home, c.homeable, "Home") { vm.toggleCatalogHome(c) }
+        place(homeName, home, vm.catalogCanHome(c), "Home") { vm.toggleCatalogHomePlace(c) }
         place(liveName, live, c.homeable, "Live TV") { vm.toggleCatalogLive(c) }
-        place(discoverName, discover, c.browsable, "Discover") { vm.toggleCatalogDiscover(c) }
+        place(discoverName, discover, vm.catalogCanDiscover(c), "Discover") { vm.toggleCatalogDiscoverPlace(c) }
         add(MenuOption(renameName, icon = Icons.Outlined.Edit) { renaming = true })
         moveOptions(i, lastIndex).forEach { (label, step) -> add(MenuOption(label, icon = Icons.Outlined.OpenWith) { vm.moveCatalog(c, step) }) }
     }) { menu = false }
@@ -606,6 +606,7 @@ internal fun TemplateSection(
 // ---------------------------------------------------------------- Where to watch
 /** Why a catalog can't be switched on for [place] (#102). */
 internal fun catalogLockReason(c: app.ember.tv.data.CatalogDef, place: String): String = when {
+    c.isCollection -> "${c.label} is a collection of folders, so it shows on Home and in Discover as a collection, not as a $place row."
     c.searchOnly -> "${c.label} only answers searches, so it can't be on $place. Search uses it."
     place == "Discover" -> "${c.label} needs a choice Ember can't make for it, so it can't be in Discover."
     else -> "${c.label} needs a genre or another choice before it loads, so it can't be a $place row. Use it in Discover, a collection or the hero."

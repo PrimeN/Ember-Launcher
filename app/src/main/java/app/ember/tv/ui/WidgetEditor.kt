@@ -47,7 +47,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     var removingCollection by remember(vm.profiles.profileId) { mutableStateOf<String?>(null) }
     var collectionTools by remember { mutableStateOf(false) }
     fun collectionOf(section: String) = if (app.ember.tv.state.HomeSectionsState.isCollectionSection(section))
-        vm.collections.list.firstOrNull { it.id == app.ember.tv.state.HomeSectionsState.collectionId(section) } else null
+        vm.collections.all.firstOrNull { it.id == app.ember.tv.state.HomeSectionsState.collectionId(section) } else null
     fun shownOnHome(section: String) = if (app.ember.tv.state.HomeSectionsState.isCollectionSection(section)) vm.collectionShown(section) else vm.sections.sectionOn(section)
     fun toggleOnHome(section: String) = if (app.ember.tv.state.HomeSectionsState.isCollectionSection(section)) vm.toggleCollectionOnHome(section) else vm.sections.toggleSection(section)
     // A collection hidden in its own settings counts as off here too.
@@ -156,7 +156,7 @@ internal fun WidgetsSettings(vm: HomeViewModel) {
     if (creatingCollection) CollectionEditor(vm, null) { creatingCollection = false }
     editingCollection?.let { c -> CollectionEditor(vm, c) { editingCollection = null } }
     removingCollection?.let { id ->
-        val c = vm.collections.list.firstOrNull { it.id == id }
+        val c = vm.collections.all.firstOrNull { it.id == id }
         ConfirmDestructive("Delete ${c?.title?.ifBlank { null } ?: "this collection"}?", CollectionDeletion.collectionMessage(c?.folders?.size ?: 0),
             { removingCollection = null }) { vm.collections.remove(id) }
     }

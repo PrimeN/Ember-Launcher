@@ -242,8 +242,8 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
             val key = app.ember.tv.data.AddonAccess.key(c.key)
             val name = c.label
             val from = c.addon.name
-            if (c.homeable) toggle("${CATALOGS_PREFIX}$key.home", CATALOGS, "$name: Home", from, read = { vm.isOnHome(c) }, write = { if (it != vm.isOnHome(c)) vm.toggleCatalogHome(c) })
-            if (c.browsable) toggle("${CATALOGS_PREFIX}$key.discover", CATALOGS, "$name: Discover", from, read = { vm.isInDiscover(c) }, write = { if (it != vm.isInDiscover(c)) vm.toggleCatalogDiscover(c) })
+            if (vm.catalogCanHome(c)) toggle("${CATALOGS_PREFIX}$key.home", CATALOGS, "$name: Home", from, read = { vm.catalogOnHome(c) }, write = { if (it != vm.catalogOnHome(c)) vm.toggleCatalogHomePlace(c) })
+            if (vm.catalogCanDiscover(c)) toggle("${CATALOGS_PREFIX}$key.discover", CATALOGS, "$name: Discover", from, read = { vm.catalogInDiscover(c) }, write = { if (it != vm.catalogInDiscover(c)) vm.toggleCatalogDiscoverPlace(c) })
             toggle("${CATALOGS_PREFIX}$key.live", CATALOGS, "$name: Live TV", from, read = { vm.isOnLive(c) }, write = { if (it != vm.isOnLive(c)) vm.toggleCatalogLive(c) })
         }
         return out

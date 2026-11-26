@@ -119,7 +119,14 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
 
     /** One page of a catalog, optionally filtered by genre or a search term. */
     suspend fun browse(def: CatalogDef, genre: String? = null, skip: Int = 0, search: String? = null,
-        extras: Map<String, String> = emptyMap(), refresh: Boolean = false): List<Meta> {
+        extras: Map<String, String> = emptyMap(), refresh: Boolean = false): List<Meta> =
+        entries(def, genre, skip, search, extras, refresh).map { value ->
+            json.decodeFromJsonElement<Meta>(value).copy(ageRating = addonAgeRating(value))
+        }.also { AddonMetadata.listed(def.addon.url, it) }
+
+    /** #459: a catalog page as the addon sent it, for entries Ember reads more of than a title (collections). */
+    suspend fun entries(def: CatalogDef, genre: String? = null, skip: Int = 0, search: String? = null,
+        extras: Map<String, String> = emptyMap(), refresh: Boolean = false): List<JsonElement> {
         AddonAccess.requireAvailable(def.addon.url)
         val requested = def.requestExtras + extras + listOfNotNull(genre?.takeIf { it.isNotBlank() }?.let { "genre" to it }, search?.let { "search" to it }).toMap()
         // An optional value the catalog does not offer (a collection's genre "None" on a catalog without
@@ -136,9 +143,7 @@ class AddonClient(private val http: OkHttpClient = Net.client(10, 30)) {
         val parts = args.flatMap { (name, value) -> extraValues(value).map { "${enc(name)}=${enc(it)}" } }.toMutableList()
         if (skip > 0 && def.supportsSkip) parts += "skip=$skip"
         val extra = if (parts.isEmpty()) "" else "/" + parts.joinToString("&")
-        return getJson(endpoint(def.addon.base, "catalog/${def.type}/${def.id}$extra.json"), def.addon.url, CacheKind.CATALOGS, refresh).arr("metas").list().map {value->
-            json.decodeFromJsonElement<Meta>(value).copy(ageRating=addonAgeRating(value))
-        }.also { AddonMetadata.listed(def.addon.url, it) }
+        return getJson(endpoint(def.addon.base, "catalog/${def.type}/${def.id}$extra.json"), def.addon.url, CacheKind.CATALOGS, refresh).arr("metas").list()
     }
 
     /** Like JavaScript's encodeURIComponent, which Stremio addons expect. */

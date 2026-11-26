@@ -240,7 +240,7 @@ internal fun HomeViewModel.openHomeShortcut(value:app.ember.tv.data.HomeShortcut
             return NavTabs.LIBRARY
         }
         "collection" -> {
-            val c=collections.list.firstOrNull {it.id==value.ref}
+            val c=collections.all.firstOrNull {it.id==value.ref}
             val f=c?.folders?.firstOrNull {it.id==value.folder}
             if(c!=null && f!=null)collections.openFolder(c,f) else notice="This collection folder is no longer available."
         }
