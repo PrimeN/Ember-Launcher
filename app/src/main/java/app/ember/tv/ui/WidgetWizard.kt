@@ -325,6 +325,7 @@ private fun SourceStep(vm: HomeViewModel, draft: HomeWidget, check: WidgetSteps.
             } }
             if (draft.source.catalogId == HomeWidgets.APPS_CONTINUE) Note("Netflix, YouTube and other apps share what you are watching with Android TV. Ember asks once for permission to read it.")
             if (draft.source.catalogId == HomeWidgets.APPS_RECENT) Note("Apps you open from Ember, most recent first, for this profile.")
+            if (draft.source.catalogId == HomeWidgets.TV_INPUTS) Note("HDMI, AV and the TV's other inputs as tiles; OK switches to one. A dot shows whether something is plugged in. Boxes without inputs show no row, and kids' profiles never see it.")
         }
         WidgetSteps.MDB -> {
             Text(stringResource(R.string.tx_mdblist_list), color = Mute, fontSize = 13.sp)

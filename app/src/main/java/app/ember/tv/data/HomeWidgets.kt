@@ -61,7 +61,9 @@ object HomeWidgets {
     const val DEVICE = "device"
     const val APPS_CONTINUE = "apps-continue"
     const val APPS_RECENT = "apps-recent"
-    val deviceSources = listOf(APPS_CONTINUE to "Continue watching in your apps", APPS_RECENT to "Recently used apps")
+    /** #467: the TV's inputs (HDMI, AV…) as tiles, like Projectivy's input shortcuts. */
+    const val TV_INPUTS = "tv-inputs"
+    val deviceSources = listOf(APPS_CONTINUE to "Continue watching in your apps", APPS_RECENT to "Recently used apps", TV_INPUTS to "TV inputs")
     /** Read on the TV with no request, and standing alone (no more sources). */
     fun isLocal(source: CollectionSource) = source.provider == LIST || source.provider == DEVICE
 

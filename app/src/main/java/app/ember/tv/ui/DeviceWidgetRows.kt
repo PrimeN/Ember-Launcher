@@ -30,6 +30,8 @@ import app.ember.tv.forgetRecentApp
 import app.ember.tv.light.LightMedia
 import app.ember.tv.light.LightMediaProvider
 import app.ember.tv.wantsAppsContinue
+import app.ember.tv.wantsTvInputs
+import androidx.compose.material.icons.outlined.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -125,5 +127,59 @@ private fun AppMediaCard(item: LightMedia, appName: String, onClick: () -> Unit,
         }
         Text(item.title, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(listOf(appName, item.description).filter(String::isNotBlank).joinToString(" · "), fontSize = 12.sp, color = Mute, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** #467: reads the TV's inputs while a widget shows them, again whenever Home comes back. */
+@Composable
+internal fun TvInputsLoader(vm: HomeViewModel) {
+    val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val wanted = vm.wantsTvInputs()
+    LaunchedEffect(wanted, lifecycle) {
+        if (!wanted) { vm.tvInputs = emptyList(); return@LaunchedEffect }
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            vm.tvInputs = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                app.ember.tv.device.DeviceInputs.list(context, includeTuners = true)
+            }
+        }
+    }
+}
+
+/** #467: one tile per input: its icon, name and whether something is plugged in. OK switches to it. */
+@Composable
+internal fun TvInputsRow(vm: HomeViewModel, inputs: List<app.ember.tv.device.DeviceInput>, onFocus: () -> Unit) {
+    val context = LocalContext.current
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(6.dp)) {
+        items(inputs, key = { "input:" + it.id }) { input ->
+            val plugged = input.connected
+            Focusable(
+                onClick = { vm.openSettingsGuarded { app.ember.tv.device.DeviceInputs.open(context, input.id, includeTuners = true) } },
+                modifier = Modifier.width(196.dp).height(110.dp).onFocusChanged { if (it.isFocused || it.hasFocus) onFocus() }
+                    .semantics { contentDescription = input.label + when (plugged) { true -> ", connected"; false -> ", nothing connected"; null -> "" } },
+                container = PanelHi, card = true,
+            ) {
+                Box(Modifier.fillMaxSize().padding(14.dp)) {
+                    androidx.compose.material3.Icon(TvInputLook.icon(input.type), contentDescription = null,
+                        tint = if (plugged == false) Mute else Fg, modifier = Modifier.size(34.dp).align(Alignment.TopStart))
+                    if (plugged != null) Box(Modifier.align(Alignment.TopEnd).size(10.dp)
+                        .background(if (plugged) Color(0xFF34D399) else Mute.copy(alpha = .5f), RoundedCornerShape(50)))
+                    Text(input.label, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 17.sp,
+                        color = if (plugged == false) Mute else Fg, modifier = Modifier.align(Alignment.BottomStart))
+                }
+            }
+        }
+    }
+}
+
+/** #467: an icon for each kind of input. */
+internal object TvInputLook {
+    fun icon(type: Int): androidx.compose.ui.graphics.vector.ImageVector = when (type) {
+        android.media.tv.TvInputInfo.TYPE_HDMI -> androidx.compose.material.icons.Icons.Outlined.SettingsInputHdmi
+        android.media.tv.TvInputInfo.TYPE_TUNER -> androidx.compose.material.icons.Icons.Outlined.LiveTv
+        android.media.tv.TvInputInfo.TYPE_COMPOSITE, android.media.tv.TvInputInfo.TYPE_COMPONENT,
+        android.media.tv.TvInputInfo.TYPE_SVIDEO, android.media.tv.TvInputInfo.TYPE_SCART -> androidx.compose.material.icons.Icons.Outlined.SettingsInputComponent
+        android.media.tv.TvInputInfo.TYPE_VGA, android.media.tv.TvInputInfo.TYPE_DVI, android.media.tv.TvInputInfo.TYPE_DISPLAY_PORT -> androidx.compose.material.icons.Icons.Outlined.Monitor
+        else -> androidx.compose.material.icons.Icons.Outlined.Input
     }
 }

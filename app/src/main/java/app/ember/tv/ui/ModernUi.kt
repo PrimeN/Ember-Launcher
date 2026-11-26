@@ -223,6 +223,7 @@ fun ModernHome(
     // Widgets showing things on this TV: other apps' Continue watching is read only while one is on Home.
     var appsRefresh by remember { mutableIntStateOf(0) }
     AppsContinueLoader(vm, appsRefresh)
+    TvInputsLoader(vm)
     val listingsPermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { appsRefresh++ }
     val heroPosition = HeroLayout.index(blocks.map { it.key })
     val heroVisible by remember(state) { derivedStateOf {
@@ -301,6 +302,9 @@ fun ModernHome(
                     }
                     is HomeViewModel.HomeBlock.AppList -> ModernSection(b.title) {
                         RecentAppsRow(vm, b.apps, onLaunch, onAppOptions) { onAmbient(null) }
+                    }
+                    is HomeViewModel.HomeBlock.Inputs -> ModernSection(b.title) {
+                        TvInputsRow(vm, b.inputs) { onAmbient(null) }
                     }
                     is HomeViewModel.HomeBlock.AppMedia -> ModernSection(b.title) {
                         AppMediaRow(vm, b.items, onLaunch) { onAmbient(null) }

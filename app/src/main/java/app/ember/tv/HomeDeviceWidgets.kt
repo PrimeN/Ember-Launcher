@@ -28,10 +28,17 @@ internal fun HomeViewModel.wantsAppsContinue(): Boolean = !profile.kids && perso
         layout.any { (id, on) -> on && id == HomeWidgets.section(w.id) }
 }
 
+/** #467: true while a visible widget shows the TV's inputs, so Home reads them. Never for kids. */
+internal fun HomeViewModel.wantsTvInputs(): Boolean = !profile.kids && widgets.list.any { w ->
+    w.source.provider == HomeWidgets.DEVICE && w.source.catalogId == HomeWidgets.TV_INPUTS &&
+        layout.any { (id, on) -> on && id == HomeWidgets.section(w.id) }
+}
+
 /** How many items a device widget has right now, for the widget creator. */
 internal fun HomeViewModel.deviceWidgetCount(w: HomeWidget): Int = when (w.source.catalogId) {
     HomeWidgets.APPS_RECENT -> recentAppEntries(w.limit).size
     HomeWidgets.APPS_CONTINUE -> if (personalOn) appsContinue.take(w.limit).size else 0
+    HomeWidgets.TV_INPUTS -> tvInputs.take(w.limit).size
     else -> 0
 }
 
@@ -43,5 +50,7 @@ internal fun HomeViewModel.deviceBlock(id: String, w: HomeWidget): HomeViewModel
         !appsContinueAllowed -> HomeViewModel.HomeBlock.AppMediaPermission(id, w.title)
         else -> appsContinue.take(w.limit).takeIf { it.isNotEmpty() }?.let { HomeViewModel.HomeBlock.AppMedia(id, w.title, it, w) }
     }
+    // A TV with no inputs (a streaming box) shows no row.
+    HomeWidgets.TV_INPUTS -> if (profile.kids) null else tvInputs.take(w.limit).takeIf { it.isNotEmpty() }?.let { HomeViewModel.HomeBlock.Inputs(id, w.title, it, w) }
     else -> null
 }
