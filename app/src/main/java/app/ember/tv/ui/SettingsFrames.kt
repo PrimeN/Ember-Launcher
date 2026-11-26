@@ -185,11 +185,6 @@ internal fun ModernSettings(
                                 fontSize=TvTokens.Type.Pane.sp,fontWeight=FontWeight.SemiBold,color=Fg)
                             Text(location.page?.summary() ?: stringResource(R.string.settings_choose_topic),
                                 fontSize=13.sp,color=Mute,modifier=Modifier.padding(top=4.dp,bottom=12.dp))
-                            // #418: the category's other pages as tabs, so moving between them doesn't need Back.
-                            location.page?.let {current->
-                                val siblings=location.category.pages
-                                if(siblings.size>1 && current in siblings)SettingsPageTabs(siblings,current,onPage)
-                            }
                             LaunchedEffect(location,target,focusContent) {
                                 if(target!=null && !target.fulfilled) {
                                     withFrameNanos { }
@@ -236,25 +231,6 @@ internal fun ModernSettings(
         }
         LaunchedEffect(Unit) {
             if(location.page==null && !focusContent) {withFrameNanos { };runCatching {sideFocus.requestFocus()}}
-        }
-    }
-}
-
-/** #418: tabs for the pages beside this one; the open page is filled. */
-@Composable
-private fun SettingsPageTabs(pages:List<SettingsTab>,current:SettingsTab,onPage:(SettingsTab)->Unit) {
-    val state=androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex=(pages.indexOf(current)-1).coerceAtLeast(0))
-    androidx.compose.foundation.lazy.LazyRow(state=state,modifier=Modifier.fillMaxWidth().padding(bottom=6.dp),
-        horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(horizontal=2.dp,vertical=4.dp)) {
-        items(pages,key={"tab:${it.name}"}) {page->
-            val on=page==current
-            Focusable(onClick={if(!on)onPage(page)},modifier=Modifier.semantics {selected=on},radius=TvTokens.Shape.Pill,
-                container=if(on)androidx.tv.material3.MaterialTheme.colorScheme.primary else Wash,focusedContainer=PillColor,
-                focusedContent=OnPillColor,outline=false,focusedScale=TvTokens.Focus.Control) {
-                Text(page.title(),Modifier.padding(horizontal=16.dp,vertical=7.dp),fontSize=14.sp,maxLines=1,
-                    fontWeight=if(on)FontWeight.SemiBold else FontWeight.Medium,
-                    color=if(on)androidx.tv.material3.MaterialTheme.colorScheme.onPrimary else androidx.tv.material3.LocalContentColor.current)
-            }
         }
     }
 }
