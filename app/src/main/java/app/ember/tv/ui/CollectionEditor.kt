@@ -25,6 +25,11 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, close: () -> Unit) {
@@ -32,55 +37,138 @@ internal fun CollectionEditor(vm: HomeViewModel, original: MediaCollection?, clo
     var draft by remember(owner, original?.id) { mutableStateOf(original ?: CollectionDrafts.collection()) }
     var folder by remember { mutableStateOf<CollectionFolder?>(null) }
     var returnFolder by remember { mutableStateOf<String?>(null) }
+    var folderMenu by remember { mutableStateOf<CollectionFolder?>(null) }
+    var moving by remember { mutableStateOf<CollectionFolder?>(null) }
     val restoreFocus = remember { FocusRequester() }
+    val nameFocus = remember { FocusRequester() }
     var discard by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     fun dismiss() { if (!saving) { if (draft != original && draft != CollectionDrafts.collection().copy(id = draft.id)) discard = true else close() } }
+    fun save() {
+        if (saving) return
+        CollectionEditing.problem(draft)?.let { error = it; return }
+        saving = true; scope.launch {
+            error = if (owner != vm.profiles.profileId) "The profile changed. Reopen the editor." else vm.collections.saveCollection(draft, original)
+            saving = false; if (error == null) close()
+        }
+    }
     if (folder != null) {
         CollectionFolderEditor(vm, folder!!, onSave = { edited ->
             draft = draft.copy(folders = if (draft.folders.any { it.id == edited.id }) draft.folders.map { if (it.id == edited.id) edited else it } else draft.folders + edited)
-            returnFolder = edited.id; folder = null
+            returnFolder = edited.id; folder = null; error = null
         }, close = { returnFolder = folder?.id?.takeIf { id -> draft.folders.any { it.id == id } }; folder = null })
-    } else MediaDialog(if (original == null) "Create collection" else "Edit collection", ::dismiss, resizeForKeyboard = true, initialFocus = restoreFocus.takeIf { returnFolder != null }, wide = true) {
-        Text(stringResource(R.string.tx_create_folders_from_catalogs_and_discover), color = Mute, fontSize = 13.sp)
-        TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Collection name")
-        ButtonRow {
-            Chip(if (saving) "Saving…" else "Save collection") {
-                if (!saving) { saving = true; scope.launch {
-                    error = if (owner != vm.profiles.profileId) "The profile changed. Reopen the editor." else vm.collections.saveCollection(draft, original)
-                    saving = false; if (error == null) close()
-                } }
+    } else MediaDialog(if (original == null) "Create collection" else "Edit collection", ::dismiss, resizeForKeyboard = true, wide = true, scrollBody = false,
+        initialFocus = if (returnFolder != null) restoreFocus else nameFocus) {
+        // #468: laid out like the widget editor: headed parts, picture cards, one footer.
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            EditorHeading("Name", "What the collection is called on Home and in Discover.")
+            TvTextField(draft.title, { draft = draft.copy(title = it.take(100)); error = null }, Modifier.width(560.dp).testTag("collection_name"),
+                placeholder = "for example Streaming services", focusRequester = nameFocus)
+
+            EditorHeading("Folders", if (draft.folders.isEmpty()) "Each folder opens catalogs, lists or searches. Add the first one."
+                else draft.folders.size.counted("folder") + ". OK on a folder to edit, move, duplicate or remove it.")
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                draft.folders.forEach { item ->
+                    FolderCard(vm, item, moving = moving?.id == item.id,
+                        modifier = (if (returnFolder == item.id) Modifier.focusRequester(restoreFocus) else Modifier).testTag("collection_folder_${item.id}")) {
+                        if (moving == null) folderMenu = item
+                    }
+                }
+                ChoiceCard("Add folder", "Catalogs, your lists or searches", false, Modifier.testTag("collection_add_folder"), width = 196.dp,
+                    icon = Icons.Outlined.CreateNewFolder) { folder = CollectionDrafts.folder() }
             }
-            Chip("Add folder") { folder = CollectionDrafts.folder() }
-        }
-        error?.let { Text(it, color = Mute, fontSize = 13.sp) }
-        SwitchChip("Pin above catalogs", draft.pinToTop) { draft = draft.copy(pinToTop = !draft.pinToTop) }
-        SwitchChip("Combined All tab", draft.showAllTab) { draft = draft.copy(showAllTab = !draft.showAllTab) }
-        ButtonRow {
-            listOf("TABBED_GRID" to "Tabs", "ROWS" to "Rows", "FOLLOW_LAYOUT" to "Follow layout").forEach { (id, label) ->
-                Chip(label, draft.viewMode == id) { draft = draft.copy(viewMode = id) }
-            }
-        }
-        TvTextField(draft.backdropImageUrl.orEmpty(), { draft = draft.copy(backdropImageUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Backdrop URL (optional)")
-        if (draft.folders.isEmpty()) Text(stringResource(R.string.tx_add_at_least_one_folder_then), color = Mute)
-        draft.folders.forEachIndexed { index, item ->
-            Column(Modifier.fillMaxWidth().background(PanelHi, RoundedCornerShape(12.dp)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(item.title, fontSize = 16.sp)
-                Text(stringResource(R.string.tx_sources, item.allSources.size, item.shape), color = Mute, fontSize = 12.sp)
-                ButtonRow(spacing = 6.dp) {
-                    Chip("Edit", modifier = if (returnFolder == item.id) Modifier.focusRequester(restoreFocus) else Modifier) { folder = item }
-                    MoveButton(item.title, index, draft.folders.lastIndex) { step -> draft = draft.copy(folders = draft.folders.moved(index, step)) }
-                    Chip("Duplicate") { draft = draft.copy(folders = draft.folders + CollectionDrafts.duplicate(item).copy(title = item.title + " (copy)")) }
-                    Chip("Remove") { draft = draft.copy(folders = draft.folders.filterNot { it.id == item.id }) }
+
+            EditorHeading("Opening a folder", "How its titles show.")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CollectionEditing.layouts.forEach { (id, name, about) ->
+                    ChoiceCard(name, about, draft.viewMode == id, Modifier.testTag("collection_layout_$id"), icon = CollectionEditing.layoutIcon(id)) { draft = draft.copy(viewMode = id) }
                 }
             }
+            EditorSwitch("Combined All tab", "A first tab with every folder's titles together.", draft.showAllTab) { draft = draft.copy(showAllTab = !draft.showAllTab) }
+
+            EditorHeading("On Home")
+            EditorSwitch("Pin above catalogs", "Shows this collection before the catalog rows.", draft.pinToTop) { draft = draft.copy(pinToTop = !draft.pinToTop) }
+            TvTextField(draft.backdropImageUrl.orEmpty(), { draft = draft.copy(backdropImageUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Backdrop picture link (optional)")
         }
+        EditorFooter("Cancel", ::dismiss, error ?: CollectionEditing.problem(draft).takeIf { draft.title.isNotBlank() || draft.folders.isNotEmpty() }) {
+            PrimaryAction(if (saving) "Saving…" else "Save collection", CollectionEditing.problem(draft) == null, Modifier.testTag("collection_save")) { save() }
+        }
+    }
+    folderMenu?.let { item ->
+        val index = draft.folders.indexOfFirst { it.id == item.id }
+        OptionMenu(item.title, listOfNotNull(
+            MenuOption("Edit folder") { folderMenu = null; folder = item },
+            MenuOption("Move") { folderMenu = null; moving = item }.takeIf { draft.folders.size > 1 },
+            MenuOption("Duplicate") { folderMenu = null; draft = draft.copy(folders = draft.folders + CollectionDrafts.duplicate(item).copy(title = item.title + " (copy)")) },
+            MenuOption("Remove") { folderMenu = null; draft = draft.copy(folders = draft.folders.filterNot { it.id == item.id }) },
+        )) { folderMenu = null }
+        if (index < 0) folderMenu = null
+    }
+    moving?.let { item ->
+        val index = draft.folders.indexOfFirst { it.id == item.id }
+        if (index < 0) moving = null
+        else OptionMenu("Move ${item.title}", moveOptions(index, draft.folders.lastIndex, horizontal = true).map { (label, step) ->
+            MenuOption(label) { draft = draft.copy(folders = draft.folders.moved(index, step)); moving = null; returnFolder = item.id }
+        }) { moving = null }
     }
     if (discard) MediaDialog("Discard unsaved changes?", { discard = false }) {
         Chip("Keep editing") { discard = false }
         Chip("Discard changes") { discard = false; close() }
+    }
+}
+
+/** #468: what the collection editor needs to know about a draft. */
+internal object CollectionEditing {
+    data class Layout(val id: String, val name: String, val about: String)
+    val layouts = listOf(
+        Layout("TABBED_GRID", "Tabs", "One tab per source, titles in a grid"),
+        Layout("ROWS", "Rows", "One row per source"),
+        Layout("FOLLOW_LAYOUT", "Follow layout", "As Home's layout setting"),
+    )
+    fun layoutIcon(id: String) = when (id) { "ROWS" -> Icons.Outlined.ViewAgenda; "FOLLOW_LAYOUT" -> Icons.Outlined.AutoAwesomeMosaic; else -> Icons.Outlined.Tab }
+    /** Why the draft can't be saved yet, or null. */
+    fun problem(c: MediaCollection): String? = when {
+        c.title.isBlank() -> "Give the collection a name."
+        c.folders.isEmpty() -> "Add at least one folder."
+        else -> null
+    }
+    /** The kind of source, under its name. */
+    fun sourceAbout(s: CollectionSource): String = when (s.provider.lowercase()) {
+        "tmdb" -> "TMDB"
+        "trakt" -> "Trakt list"
+        "ember" -> "Saved Discover search"
+        LibraryLists.PROVIDER -> "Your list"
+        else -> listOfNotNull("Catalog", s.genre?.takeIf { it.isNotBlank() && it != "None" }).joinToString(" · ")
+    }
+    /** An icon for each kind of source. */
+    fun sourceIcon(s: CollectionSource) = when (s.provider.lowercase()) {
+        "tmdb" -> Icons.Outlined.Movie
+        "trakt" -> Icons.Outlined.PlaylistPlay
+        "ember" -> Icons.Outlined.Tune
+        LibraryLists.PROVIDER -> Icons.Outlined.Bookmarks
+        else -> Icons.Outlined.Widgets
+    }
+}
+
+/** #468: a folder as it will look: its cover in its shape, its name and how many sources it reads. */
+@Composable
+private fun FolderCard(vm: HomeViewModel, item: CollectionFolder, moving: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val (w, h) = FolderSteps.size(item.tileShape)
+    Focusable(onClick = onClick, modifier = modifier.width(196.dp).jiggle(moving), radius = TvTokens.Shape.Card, container = PanelHi,
+        focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Card) {
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.width((w * 1.6f).dp).height((h * 1.6f).dp).clip(RoundedCornerShape(8.dp)).background(Wash), contentAlignment = Alignment.Center) {
+                    if (!item.coverImageUrl.isNullOrBlank()) CollectionImage(item.coverImageUrl!!, item.title, Modifier.fillMaxSize(), animate = false)
+                    else Text(item.coverEmoji ?: item.title.take(1).uppercase(), fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Text(item.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(item.allSources.size.counted("source") + " · " + FolderSteps.shapes.firstOrNull { it.first == item.tileShape }?.second.orEmpty(),
+                fontSize = 12.sp, color = androidx.tv.material3.LocalContentColor.current.copy(alpha = .7f), maxLines = 1)
+        }
     }
 }
 
@@ -93,32 +181,26 @@ internal object FolderSteps {
     fun size(shape: String): Pair<Int, Int> = when (shape) { "LANDSCAPE" -> 80 to 45; "POSTER" -> 36 to 54; else -> 50 to 50 }
 }
 
-/** A folder tile shape as a small picture of itself (#185). */
-@Composable
-private fun ShapeTile(shape: String, name: String, selected: Boolean, onClick: () -> Unit) {
-    Focusable(onClick = onClick, modifier = Modifier.width(132.dp).testTag("folder_shape_$shape"), radius = TvTokens.Shape.Card, container = if (selected) WashHi else PanelHi) {
-        val ink = androidx.tv.material3.LocalContentColor.current
-        Column(Modifier.fillMaxWidth().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.height(56.dp), contentAlignment = Alignment.Center) {
-                val (w, h) = FolderSteps.size(shape)
-                Box(Modifier.width(w.dp).height(h.dp).background(ink.copy(alpha = .45f), RoundedCornerShape(5.dp)))
-            }
-            Text(if (selected) "$name  ✓" else name, fontSize = 14.sp, maxLines = 1)
-        }
-    }
-}
-
 @Composable
 private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder, onSave: (CollectionFolder) -> Unit, close: () -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var picker by remember { mutableStateOf(false) }
     var editingSource by remember { mutableStateOf<Int?>(null) }
+    var sourceMenu by remember { mutableStateOf<Int?>(null) }
+    var movingSource by remember { mutableStateOf<Int?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
-    var preview by remember { mutableStateOf(false) }
     var discard by remember { mutableStateOf(false) }
     // #185: one part at a time, as the widget editor works.
     var step by remember(initial.id) { mutableStateOf(FolderSteps.LOOK) }
+    val stepFocus = remember { FocusRequester() }
     fun dismiss() { if (draft != initial) discard = true else close() }
+    fun save() {
+        val check = Collections.inspect(Collections.encode(listOf(MediaCollection("draft", "Draft", folders = listOf(draft)))))
+        message = check.error
+        if (message == null) onSave(draft)
+        // A folder with nothing in it is the usual reason; show where to fix it.
+        else if (draft.allSources.isEmpty()) { step = FolderSteps.SOURCES; message = "Add at least one source." }
+    }
     if (editingSource != null) CollectionSourceEditor(vm, draft.allSources[editingSource!!], close = { editingSource = null }) { edited ->
         val index = editingSource!!
         if (draft.allSources.filterIndexed { i, _ -> i != index }.any { vm.collections.sourceKey(it) == vm.collections.sourceKey(edited) }) message = "This source is already in the folder."
@@ -126,64 +208,96 @@ private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder,
         editingSource = null
     } else if (picker) CollectionSourcePicker(vm, onChoose = { source ->
         if (draft.allSources.none { vm.collections.sourceKey(it) == vm.collections.sourceKey(source) }) draft = draft.copy(sources = draft.allSources + source, catalogSources = emptyList())
-        picker = false
+        picker = false; message = null
     }, close = { picker = false }, onChooseMany = { sources ->
         // #264: several catalogs at once; ones already in the folder are skipped.
         val fresh = sources.filter { s -> draft.allSources.none { vm.collections.sourceKey(it) == vm.collections.sourceKey(s) } }
         if (fresh.isNotEmpty()) draft = draft.copy(sources = draft.allSources + fresh, catalogSources = emptyList())
-        if (fresh.size < sources.size) message = "Sources already in the folder were skipped."
+        message = if (fresh.size < sources.size) "Sources already in the folder were skipped." else null
         picker = false
     })
-    else MediaDialog("Edit folder", ::dismiss, resizeForKeyboard = true, wide = true) {
-        ButtonRow { FolderSteps.all.forEachIndexed { i, (id, name) ->
-            Chip("${i + 1}  $name" + if (id == FolderSteps.SOURCES) " (${draft.allSources.size})" else "", step == id, modifier = Modifier.testTag("folder_step_$id")) { step = id }
-        } }
-        if (step == FolderSteps.LOOK) {
-        TvTextField(draft.title, { draft = draft.copy(title = it.take(100)) }, Modifier.fillMaxWidth(), placeholder = "Folder name")
-        Text(stringResource(R.string.tx_tile_shape), color = Mute, fontSize = 13.sp)
-        ButtonRow { FolderSteps.shapes.forEach { (shape, name) -> ShapeTile(shape, name, draft.tileShape == shape) { draft = draft.copy(tileShape = shape) } } }
-        TvTextField(draft.coverEmoji.orEmpty(), { draft = draft.copy(coverEmoji = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover emoji (optional)")
-        SwitchChip("Hide folder title", draft.hideTitle) { draft = draft.copy(hideTitle = !draft.hideTitle) }
-        ButtonRow { Chip("Preview cover") { preview = !preview } }
-        if (preview) Box(Modifier.size(150.dp).background(PanelHi, RoundedCornerShape(12.dp))) {
-            if (!draft.coverImageUrl.isNullOrBlank()) CollectionImage(draft.coverImageUrl!!, draft.title, Modifier.fillMaxSize(), animate = vm.collections.heroPreviews && !vm.profiles.profile.kids)
-            else Text(draft.coverEmoji ?: draft.title, Modifier.padding(12.dp), fontSize = 24.sp)
-        }
-        }
-        if (step == FolderSteps.ARTWORK) {
-        TvTextField(draft.coverImageUrl.orEmpty(), { draft = draft.copy(coverImageUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover image URL (optional)")
-        TvTextField(draft.focusGifUrl.orEmpty(), { draft = draft.copy(focusGifUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Focus video/GIF URL (optional)")
-        SwitchChip("Animate cover when focused", draft.focusGifEnabled != false) { draft = draft.copy(focusGifEnabled = draft.focusGifEnabled == false) }
-        TvTextField(draft.heroBackdropUrl.orEmpty(), { draft = draft.copy(heroBackdropUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Folder backdrop URL (optional)")
-        TvTextField(draft.heroVideoUrl.orEmpty(), { draft = draft.copy(heroVideoUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Hero video/GIF URL (optional, Animated collections must be on)")
-        TvTextField(draft.titleLogoUrl.orEmpty(), { draft = draft.copy(titleLogoUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Title logo URL (optional)")
-        }
-        if (step == FolderSteps.SOURCES) {
-        ButtonRow { Chip("Add source") { picker = true } }
-        if (draft.allSources.isEmpty()) Text(stringResource(R.string.tx_add_a_catalog_or_search_to), color = Mute)
-        draft.allSources.forEachIndexed { index, source ->
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(Collections.label(source, vm.allCatalogs), fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                ButtonRow(spacing = 6.dp) {
-                    Chip("Edit source") { editingSource = index }
-                    MoveButton(Collections.label(source, vm.allCatalogs), index, draft.allSources.lastIndex) { step -> draft = draft.copy(sources = draft.allSources.moved(index, step), catalogSources = emptyList()) }
-                    Chip("Remove source") { draft = draft.copy(sources = draft.allSources.filterIndexed { i, _ -> i != index }, catalogSources = emptyList()) }
+    else MediaDialog(if (initial.title.isBlank()) "New folder" else "Edit folder", ::dismiss, resizeForKeyboard = true, wide = true, scrollBody = false, initialFocus = stepFocus) {
+        // #468: the same steps, headings and footer as the widget editor.
+        EditorSteps(FolderSteps.all, step, "folder_step_",
+            done = { id -> when (id) { FolderSteps.LOOK -> draft.title.isNotBlank(); FolderSteps.SOURCES -> draft.allSources.isNotEmpty(); else -> false } },
+            badge = { id -> if (id == FolderSteps.SOURCES) "${draft.allSources.size}" else null }) { step = it; message = null }
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            when (step) {
+                FolderSteps.LOOK -> Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        EditorHeading("Look", "The folder's name and the shape of its tile.")
+                        TvTextField(draft.title, { draft = draft.copy(title = it.take(100)); message = null }, Modifier.fillMaxWidth().testTag("folder_name"),
+                            placeholder = "Folder name", focusRequester = stepFocus)
+                        EditorLabel(stringResource(R.string.tx_tile_shape))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            FolderSteps.shapes.forEach { (shape, name) ->
+                                ChoiceCard(name, null, draft.tileShape == shape, Modifier.testTag("folder_shape_$shape"), width = 140.dp, picture = {
+                                    val (w, h) = FolderSteps.size(shape)
+                                    Box(Modifier.width(w.dp).height(h.dp).background(androidx.tv.material3.LocalContentColor.current.copy(alpha = .45f), RoundedCornerShape(5.dp)))
+                                }) { draft = draft.copy(tileShape = shape) }
+                            }
+                        }
+                        TvTextField(draft.coverEmoji.orEmpty(), { draft = draft.copy(coverEmoji = it.ifBlank { null }) }, Modifier.width(320.dp), placeholder = "Cover emoji (optional)")
+                        EditorSwitch("Hide folder title", "The tile shows only its picture.", draft.hideTitle) { draft = draft.copy(hideTitle = !draft.hideTitle) }
+                    }
+                    // What the tile will look like, always in view.
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        EditorLabel("Preview")
+                        val (w, h) = FolderSteps.size(draft.tileShape)
+                        Box(Modifier.width((w * 3).dp).height((h * 3).dp).clip(RoundedCornerShape(12.dp)).background(PanelHi), contentAlignment = Alignment.Center) {
+                            if (!draft.coverImageUrl.isNullOrBlank()) CollectionImage(draft.coverImageUrl!!, draft.title, Modifier.fillMaxSize(), animate = vm.collections.heroPreviews && !vm.profiles.profile.kids)
+                            else Text(draft.coverEmoji ?: draft.title.ifBlank { "?" }.take(1).uppercase(), fontSize = 40.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (!draft.hideTitle) Text(draft.title.ifBlank { "Folder name" }, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                FolderSteps.SOURCES -> {
+                    EditorHeading("Sources", if (draft.allSources.isEmpty()) stringResource(R.string.tx_add_a_catalog_or_search_to)
+                        else draft.allSources.size.counted("source") + ", read in this order. OK on one to edit, move or remove it.")
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        draft.allSources.forEachIndexed { index, source ->
+                            ChoiceCard(Collections.label(source, vm.allCatalogs), CollectionEditing.sourceAbout(source), false,
+                                (if (index == 0) Modifier.focusRequester(stepFocus) else Modifier).testTag("folder_source_$index").jiggle(movingSource == index),
+                                width = 260.dp, icon = CollectionEditing.sourceIcon(source)) { if (movingSource == null) sourceMenu = index }
+                        }
+                        ChoiceCard("Add source", "Catalogs, your lists, searches, TMDB or Trakt", false,
+                            (if (draft.allSources.isEmpty()) Modifier.focusRequester(stepFocus) else Modifier).testTag("folder_add_source"), width = 260.dp,
+                            icon = Icons.Outlined.AddCircleOutline) { picker = true }
+                    }
+                }
+                else -> {
+                    EditorHeading("Artwork", "Optional pictures and video links for the tile and the open folder.")
+                    TvTextField(draft.coverImageUrl.orEmpty(), { draft = draft.copy(coverImageUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Cover picture link", focusRequester = stepFocus)
+                    TvTextField(draft.focusGifUrl.orEmpty(), { draft = draft.copy(focusGifUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Video or GIF while focused")
+                    EditorSwitch("Animate cover when focused", null, draft.focusGifEnabled != false) { draft = draft.copy(focusGifEnabled = draft.focusGifEnabled == false) }
+                    TvTextField(draft.heroBackdropUrl.orEmpty(), { draft = draft.copy(heroBackdropUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Backdrop of the open folder")
+                    TvTextField(draft.heroVideoUrl.orEmpty(), { draft = draft.copy(heroVideoUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Video or GIF behind the open folder (Animated collections must be on)")
+                    TvTextField(draft.titleLogoUrl.orEmpty(), { draft = draft.copy(titleLogoUrl = it.ifBlank { null }) }, Modifier.fillMaxWidth(), placeholder = "Title logo link")
                 }
             }
         }
-        }
-        message?.let { Text(it, color = Mute, fontSize = 13.sp) }
-        ButtonRow {
-            Chip("Save folder") {
-                val check = Collections.inspect(Collections.encode(listOf(MediaCollection("draft", "Draft", folders = listOf(draft)))))
-                message = check.error
-                if (message == null) onSave(draft)
-                // A folder with nothing in it is the usual reason; show where to fix it.
-                else if (draft.allSources.isEmpty()) step = FolderSteps.SOURCES
-            }
-            Chip("Cancel") { dismiss() }
+        EditorFooter("Cancel", ::dismiss, message) {
+            val next = FolderSteps.all.map { it.first }.let { ids -> ids.getOrNull(ids.indexOf(step) + 1) }
+            if (next != null) Chip("Next: " + FolderSteps.all.first { it.first == next }.second, modifier = Modifier.testTag("folder_next")) { step = next; message = null }
+            PrimaryAction("Save folder", draft.title.isNotBlank() && draft.allSources.isNotEmpty(), Modifier.testTag("folder_save")) { save() }
         }
     }
+    sourceMenu?.let { index ->
+        val source = draft.allSources.getOrNull(index)
+        if (source == null) sourceMenu = null
+        else OptionMenu(Collections.label(source, vm.allCatalogs), listOfNotNull(
+            MenuOption("Edit source") { sourceMenu = null; editingSource = index },
+            MenuOption("Move") { sourceMenu = null; movingSource = index }.takeIf { draft.allSources.size > 1 },
+            MenuOption("Remove source") { sourceMenu = null; draft = draft.copy(sources = draft.allSources.filterIndexed { i, _ -> i != index }, catalogSources = emptyList()) },
+        )) { sourceMenu = null }
+    }
+    movingSource?.let { index ->
+        if (index !in draft.allSources.indices) movingSource = null
+        else OptionMenu("Move " + Collections.label(draft.allSources[index], vm.allCatalogs), moveOptions(index, draft.allSources.lastIndex, horizontal = true).map { (label, by) ->
+            MenuOption(label) { draft = draft.copy(sources = draft.allSources.moved(index, by), catalogSources = emptyList()); movingSource = null }
+        }) { movingSource = null }
+    }
+    LaunchedEffect(step) { withFrameNanos { }; runCatching { stepFocus.requestFocus() } }
     if (discard) MediaDialog("Discard folder changes?", { discard = false }) {
         Chip("Keep editing") { discard = false }
         Chip("Discard changes") { discard = false; close() }
@@ -200,24 +314,32 @@ internal fun AddToCollection(vm: HomeViewModel, source: CollectionSource, close:
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    MediaDialog("Add to collection", close, resizeForKeyboard = true, wide = true) {
-        Text(source.title ?: "Selected source", fontSize = 16.sp)
-        ButtonRow {
-            Chip("New collection", collection == null) { collection = null; folder = null }
-            vm.collections.list.forEach { item -> Chip(item.title, item.id == collection) { collection = item.id; folder = null } }
+    fun add() { if (!saving) { saving = true; scope.launch {
+        error = if (owner != vm.profiles.profileId) "The profile changed. Reopen this action." else vm.collections.addSource(collection, folder, collectionName, folderName, source)
+        saving = false; if (error == null) close()
+    } } }
+    // #468: picture cards and the editors' footer, as in the collection editor.
+    MediaDialog("Add to collection", close, resizeForKeyboard = true, wide = true, scrollBody = false) {
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            EditorHeading("Collection", "Adding " + (source.title ?: "this source") + ".")
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ChoiceCard("New collection", null, collection == null, icon = Icons.Outlined.CreateNewFolder, width = 196.dp) { collection = null; folder = null }
+                vm.collections.list.forEach { item ->
+                    ChoiceCard(item.title, item.folders.size.counted("folder"), item.id == collection, icon = Icons.Outlined.Folder, width = 196.dp) { collection = item.id; folder = null }
+                }
+            }
+            if (collection == null) TvTextField(collectionName, { collectionName = it.take(100) }, Modifier.width(560.dp), placeholder = "New collection name")
+            val selected = vm.collections.list.firstOrNull { it.id == collection }
+            EditorHeading("Folder", "The source joins this folder's tabs.")
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ChoiceCard("New folder", null, folder == null, icon = Icons.Outlined.AddCircleOutline, width = 196.dp) { folder = null }
+                selected?.folders?.forEach { item ->
+                    ChoiceCard(item.title, item.allSources.size.counted("source"), item.id == folder, icon = Icons.Outlined.FolderOpen, width = 196.dp) { folder = item.id }
+                }
+            }
+            if (folder == null) TvTextField(folderName, { folderName = it.take(100) }, Modifier.width(560.dp), placeholder = "New folder name")
         }
-        if (collection == null) TvTextField(collectionName, { collectionName = it.take(100) }, Modifier.fillMaxWidth(), placeholder = "New collection name")
-        val selected = vm.collections.list.firstOrNull { it.id == collection }
-        ButtonRow {
-            Chip("New folder", folder == null) { folder = null }
-            selected?.folders?.forEach { item -> Chip(item.title, item.id == folder) { folder = item.id } }
-        }
-        if (folder == null) TvTextField(folderName, { folderName = it.take(100) }, Modifier.fillMaxWidth(), placeholder = "New folder name")
-        error?.let { Text(it, color = Mute, fontSize = 13.sp) }
-        Chip(if (saving) "Saving…" else "Add source") { if (!saving) { saving = true; scope.launch {
-            error = if (owner != vm.profiles.profileId) "The profile changed. Reopen this action." else vm.collections.addSource(collection, folder, collectionName, folderName, source)
-            saving = false; if (error == null) close()
-        } } }
+        EditorFooter("Cancel", close, error) { PrimaryAction(if (saving) "Adding…" else "Add source") { add() } }
     }
 }
 
