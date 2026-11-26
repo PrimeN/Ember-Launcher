@@ -215,7 +215,8 @@ internal fun ModernSettings(
                                 }
                             }
                             LazyColumn(state=list,modifier=Modifier.weight(1f).fillMaxWidth().focusRequester(contentFocus).focusGroup().dpadScroll(list),
-                                contentPadding=PaddingValues(start=4.dp,end=4.dp,top=8.dp,bottom=36.dp),
+                                // #466: room for a focused row's few dp of growth on each side.
+                                contentPadding=PaddingValues(start=10.dp,end=10.dp,top=8.dp,bottom=36.dp),
                                 verticalArrangement=Arrangement.spacedBy(if(location.page==null)8.dp else 18.dp)) {
                                 if(location.page==null) {
                                     val entry=lastTopic?.takeIf {it in location.category.pages} ?: location.category.pages.firstOrNull()

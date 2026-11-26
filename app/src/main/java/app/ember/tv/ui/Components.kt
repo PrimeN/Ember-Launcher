@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
@@ -66,6 +67,14 @@ import app.ember.tv.data.AppEntry
 import app.ember.tv.data.Meta
 import app.ember.tv.data.mediaKey
 import coil.compose.AsyncImage
+
+/** #466: how far a focused item may grow past each side. */
+internal object FocusEdge {
+    val CONTROL = 6.dp
+    val CARD = 14.dp
+    /** The largest scale that keeps a [widthPx]-wide item within [edgePx] of its edges; no cap until measured. */
+    fun cap(widthPx: Int, edgePx: Float): Float = if (widthPx <= 0) Float.MAX_VALUE else 1f + 2f * edgePx / widthPx
+}
 
 /**
  * A focusable box that grows when focused, with a white outline and soft glow. [focusedContainer] and
@@ -113,14 +122,20 @@ fun Focusable(
     val style=LocalCardFocusStyle.current
     val motion=card && app.ember.tv.data.CardFocusStyle.animated(style,render.lowPower,reduced)
     val pulse=cardPulse(card && outline && app.ember.tv.data.CardFocusStyle.pulse(style,render.lowPower,reduced,cardFocused,LocalSceneInteractive.current))
-    val cardScale=render.cardFocusScale(focusedScale,style,reduceFeedback)
+    // #466: a wide row or button grows only a few dp past its edges, so lists and panels that clip
+    // never cut it off; small controls and cards keep their full zoom.
+    var widthPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val edgePx = with(androidx.compose.ui.platform.LocalDensity.current) { (if (card) FocusEdge.CARD else FocusEdge.CONTROL).toPx() }
+    val cap = FocusEdge.cap(widthPx, edgePx)
+    val cardScale=minOf(render.cardFocusScale(focusedScale,style,reduceFeedback), cap)
     val content = Fg
     val shape = RoundedCornerShape((if(isEmberX && radius==TvTokens.Shape.Card)EmberXLayout.Radius else radius).dp)
     Surface(
         enabled = enabled,
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = focusModifier.onFocusChanged {cardFocused=it.isFocused}.semantics(mergeDescendants = true) {
+        modifier = focusModifier.onFocusChanged {cardFocused=it.isFocused}
+            .onSizeChanged { if (it.width != widthPx) widthPx = it.width }.semantics(mergeDescendants = true) {
             this.role = role
             if (onLongClick != null) onLongClick("Options") { onLongClick(); true }
         },
@@ -135,7 +150,7 @@ fun Focusable(
             disabledContainerColor = container,
             disabledContentColor = content,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = if(card)cardScale else render.focusScale(focusedScale,reduced),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = if(card)cardScale else minOf(render.focusScale(focusedScale,reduced), cap),
             pressedScale=if(card && cardScale>1f){if(render.lowPower || render.automaticEffectsReduced).99f else .98f} else 1f),
         border = ClickableSurfaceDefaults.border(
             // Owned by Surface so the border and image share shape, scale and pressed geometry.
