@@ -697,11 +697,22 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         onChanged = {},
         sourceAllowed = { s -> collectionSourceAllowed(s) },
         explorePage = { source, skip -> collectionExplore.page(source, skip) },
+        libraryPage = { source -> app.ember.tv.data.LibraryLists.page(libraryListItems(source.catalogId.orEmpty())) },
         cacheContext = { "${profiles.profileId}:${watch.watchRegion}:$keysRev" },
         profileId = { profiles.profileId },
     )
+    /** #461: what one of Ember's own lists holds now, for a collection folder. */
+    fun libraryListItems(id: String): List<Meta> = when (id) {
+        app.ember.tv.data.LibraryLists.WATCHLIST -> combinedWatchlist
+        app.ember.tv.data.LibraryLists.CONTINUE -> inProgressItems
+        app.ember.tv.data.LibraryLists.RECENT -> recentItems
+        else -> app.ember.tv.data.LibraryLists.smartId(id)?.let { smart ->
+            smartRows.filter { it.catalogKey == "smart:$smart" || it.catalogKey.orEmpty().startsWith("smart:$smart:") }.flatMap { it.items }.distinctBy { it.mediaKey() }
+        }.orEmpty()
+    }
     internal fun collectionSourceAllowed(s: app.ember.tv.data.CollectionSource): Boolean = if(KidsContentPolicy.restricted(profile))false else when (s.provider) {
         "ember" -> !profiles.profile.kids && s.ownerProfile == profiles.profileId
+        app.ember.tv.data.LibraryLists.PROVIDER -> app.ember.tv.data.LibraryLists.known(s.catalogId)
         "addon" -> if (profiles.profile.kids) allCatalogs.any { addonAvailable(it.addon.url) && app.ember.tv.data.Collections.matches(it, s) && profileAllows(it) }
             else s.addonKey?.let { id -> activeAddons.any { AddonAccess.key(it) == id } } ?: activeAddons.isNotEmpty()
         else -> !profiles.profile.kids

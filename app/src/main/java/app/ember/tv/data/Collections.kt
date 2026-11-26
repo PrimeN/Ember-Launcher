@@ -72,7 +72,7 @@ data class CollectionFolder(
 
 @Serializable
 data class CollectionSource(
-    /** "addon" (default), "tmdb" or "trakt". */
+    /** "addon" (default), "tmdb", "trakt", "ember" (a saved Discover search) or "library" (Ember's own lists, #461). */
     val provider: String = "addon",
     val addonId: String? = null,
     val type: String? = null,
@@ -174,6 +174,7 @@ object Collections {
 
                         }
                         "trakt" -> if ((source.traktListId ?: 0) <= 0) return invalid(location, "a positive traktListId is required")
+                        LibraryLists.PROVIDER -> if (!LibraryLists.known(source.catalogId)) return invalid(location, "an Ember list (catalogId) is required")
                         "ember" -> if (source.ownerProfile.isNullOrBlank() || source.exploreQuery == null || source.exploreQuery.error() != null)
                             return invalid(location, "a valid Discover query and profile are required")
                         else -> return invalid(location, "unsupported provider")
@@ -203,6 +204,7 @@ object Collections {
     /** How a source is named on its tab. */
     fun label(s: CollectionSource, defs: List<CatalogDef>): String = when (s.provider.lowercase()) {
         "ember" -> s.title ?: "Saved Discover search"
+        LibraryLists.PROVIDER -> s.title ?: LibraryLists.label(s.catalogId)
         "tmdb" -> s.title ?: "TMDB"
         "trakt" -> s.title ?: "Trakt list"
         else -> defs.firstOrNull { matches(it, s) }?.let { d -> d.name + (s.genre?.let { " · $it" } ?: "") }

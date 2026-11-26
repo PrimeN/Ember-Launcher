@@ -59,6 +59,8 @@ class CollectionsState(
     private val onChanged: () -> Unit,
     private val sourceAllowed: (CollectionSource) -> Boolean = { true },
     private val explorePage: suspend (CollectionSource, Int) -> CollectionPage = { _, _ -> error("Discover is unavailable.") },
+    /** #461: Ember's own lists, read from what Home has now. */
+    private val libraryPage: (CollectionSource) -> CollectionPage = { error("Your lists are unavailable.") },
     private val cacheContext: () -> String = { "" },
     private val profileId: () -> String = { app.ember.tv.data.Profile.MAIN },
 ) {
@@ -78,6 +80,9 @@ class CollectionsState(
     private val firstPages = LinkedHashMap<CacheKey, Cached>(16, .75f, true)
     private suspend fun fetch(source: CollectionSource, defs: List<CatalogDef>, skip: Int, priority: Boolean = false): Result<CollectionPage> {
         if (!sourceAllowed(source)) return Result.failure(IllegalStateException("This source is unavailable for this profile."))
+        // Your own lists change as you watch; they're never cached.
+        if (app.ember.tv.data.LibraryLists.isLibrary(source)) return if (skip == 0) runCatching { libraryPage(source) }
+            else Result.success(app.ember.tv.data.CollectionPage(emptyList(), skip, true, null))
         val key = CacheKey(sourceKey(source), cacheContext(), if (source.provider == "addon") defs.filter { Collections.matches(it, source) }.map { it.key } else emptyList())
         if (skip == 0) synchronized(firstPages) { firstPages[key]?.takeIf { app.ember.tv.data.runtimeFresh(it.at, nowMillis(), 5 * 60_000L) } }?.let { return Result.success(it.page) }
         val flightKey = FlightKey(key, skip, cacheGeneration)
@@ -373,6 +378,7 @@ class CollectionsState(
         { source, defs, skip ->
             if (!sourceAllowed(source)) Result.failure(IllegalStateException("This source is unavailable for this profile."))
             else if (source.provider.equals("ember", true)) runCatching { explorePage(source, skip) }
+            else if (app.ember.tv.data.LibraryLists.isLibrary(source)) runCatching { if (skip == 0) libraryPage(source) else app.ember.tv.data.CollectionPage(emptyList(), skip, true, null) }
             else Collections.page(source, defs, client, skip) { app.ember.tv.tracker.TokenStore(context).get(it) }
         }
 
@@ -456,6 +462,7 @@ class CollectionsState(
     private fun emptySourceMessage(source: CollectionSource): String = when (source.provider.lowercase()) {
         "tmdb" -> "TMDB returned no titles for this source's filters."
         "trakt" -> "This Trakt list has no titles of this type."
+        app.ember.tv.data.LibraryLists.PROVIDER -> "${app.ember.tv.data.LibraryLists.label(source.catalogId)} is empty right now."
         else -> "No titles loaded yet."
     }
     /** The reason a source failed (missing key, HTTP status, missing add-on), without addresses or keys. */

@@ -297,7 +297,7 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
     if (catalog != null) CatalogOptions(catalog!!, emptyMap(), { catalog = null }) { values ->
         val c = catalog!!; take(CollectionDrafts.catalog(c, values["genre"], values - "genre")); catalog = null
     } else MediaDialog(if (multiple) "Choose sources" else "Choose a source", close, resizeForKeyboard = true, wide = true) {
-        ButtonRow { listOf("Catalogs", "Saved searches", "TMDB", "Trakt").forEach { value -> Chip(value, mode == value) { mode = value; query = "" } } }
+        ButtonRow { listOf("Catalogs", "Your lists", "Saved searches", "TMDB", "Trakt").forEach { value -> Chip(value, mode == value) { mode = value; query = "" } } }
         if (multiple) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(SourcePicks.count(picked.size), color = if (picked.isEmpty()) Mute else Fg, fontSize = 14.sp)
             if (picked.isNotEmpty()) {
@@ -316,6 +316,13 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
                     // A catalog with options is set up first; choosing it again takes it out.
                     if (c.extras.isEmpty() || on) take(plain) else catalog = c
                 }
+            }
+        } else if (mode == "Your lists") {
+            // #461: Ember's own lists: they fill from your watching and your trackers.
+            Text("Your Watchlist, what you're watching and your smart rows. They stay up to date as you watch.", fontSize = 13.sp, color = Mute)
+            app.ember.tv.data.LibraryLists.all.forEach { entry ->
+                val source = app.ember.tv.data.LibraryLists.source(entry)
+                Chip(entry.label, selected = multiple && picked.any { same(it, source) }, modifier = Modifier.testTag("library_${entry.id}")) { take(source) }
             }
         } else if (mode == "Saved searches") {
             val saved = vm.collectionSearches
