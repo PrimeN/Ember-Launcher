@@ -39,9 +39,9 @@ class SparkStepsTest {
 
     @Test fun mixAndQuickRowsAreBuilt() {
         val taste = SparkTaste(mapOf(878 to .5, 53 to .3, 18 to .2), emptyMap(), emptyMap())
-        val pool = (1..12).map { i ->
+        val pool = (1..20).map { i ->
             SparkCandidate(Meta(id = "tmdb:movie:$i", type = "movie", name = "Film $i", tmdbId = i.toLong()), "movie:$i",
-                if (i <= 8) setOf(878, 53) else setOf(18), "en", 2015, 7.5, 3000, short = i % 2 == 0)
+                if (i <= 8) setOf(878, 53) else setOf(18), "en", 2015, 7.5, 3000, short = i > 12)
         }
         val rows = SparkModel.rows(pool, taste, emptyList(), emptySet())
         val mix = rows.first { it.id == "mix:878-53" }

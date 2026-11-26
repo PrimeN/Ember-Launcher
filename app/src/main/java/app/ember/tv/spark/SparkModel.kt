@@ -195,16 +195,17 @@ object SparkModel {
         taste.otherLanguage?.let { lang ->
             take(pool.filter { it.first.language == lang })?.let { rows += 40 to SparkRow("lang:$lang", "More in ${SparkNames.language(lang)}", null, it) }
         }
-        taste.topGenres(3, min = 0.12).forEachIndexed { i, g ->
-            take(pool.filter { g in it.first.genres })?.let { rows += (10 + i) to SparkRow("genre:$g", SparkNames.row(g), null, it) }
-        }
         // #453: Mixes, two of your favourite kinds in one title.
         mixes(taste).forEachIndexed { i, (a, b) ->
             take(pool.filter { a in it.first.genres && b in it.first.genres })?.let { rows += (15 + i) to SparkRow("mix:$a-$b", SparkNames.mix(a, b), "A Spark mix", it) }
         }
-        take(pool.filter { it.first.votes in 100..2500 && it.first.rating >= 7.2 })?.let { rows += 30 to SparkRow("gems", "Hidden gems for you", "Well loved, less known", it) }
         // #454: Quick watch, films under 100 minutes (found with that limit, so their length is known).
         take(pool.filter { it.first.short }, min = 4)?.let { rows += 35 to SparkRow("quick", "Quick watch", "Films under 100 minutes", it.map { m -> m.copy(runtime = m.runtime ?: "Under 100 min") }) }
+        taste.topGenres(3, min = 0.12).forEachIndexed { i, g ->
+            take(pool.filter { g in it.first.genres })?.let { rows += (10 + i) to SparkRow("genre:$g", SparkNames.row(g), null, it) }
+        }
+        take(pool.filter { it.first.votes in 100..2500 && it.first.rating >= 7.2 })?.let { rows += 30 to SparkRow("gems", "Hidden gems for you", "Well loved, less known", it) }
+
         return rows.sortedBy { it.first }.map { it.second }
     }
 

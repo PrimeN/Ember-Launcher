@@ -101,6 +101,6 @@ class SparkKeepAndWidgetsTest {
     @Test fun sparkListsAreValidWidgetSources() {
         val ok = app.ember.tv.data.CollectionSource(provider = app.ember.tv.data.HomeWidgets.LIST, catalogId = "spark:taste2")
         assertEquals(null, app.ember.tv.data.HomeWidgets.sourceError(ok))
-        assertTrue(app.ember.tv.data.HomeWidgets.sparkLists.size == 7)
+        assertTrue(app.ember.tv.data.HomeWidgets.sparkLists.size == 10)
     }
 }
