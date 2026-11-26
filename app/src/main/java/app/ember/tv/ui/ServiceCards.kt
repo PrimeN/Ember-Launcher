@@ -32,7 +32,9 @@ import app.ember.tv.R
  * #447: a service's look in settings: its logo (Simple Icons path data, drawn white) on its brand
  * colour, and the colours a focused row fills with. Services without a logo show their initials.
  */
-internal data class ServiceBrand(@DrawableRes val logo: Int?, val tile: Color, val from: Color, val to: Color = from)
+internal data class ServiceBrand(@DrawableRes val logo: Int?, val tile: Color, val from: Color, val to: Color = from,
+    /** #449: a full-colour logo picture that fills the tile, for services whose mark isn't a single shape. */
+    @DrawableRes val art: Int? = null)
 
 internal object ServiceBrands {
     private fun b(logo: Int?, hex: Long, to: Long? = null) = Color(hex).let { c -> ServiceBrand(logo, c, c, to?.let(::Color) ?: c) }
@@ -55,11 +57,11 @@ internal object ServiceBrands {
         "openrouter" to b(R.drawable.ic_brand_openrouter, 0xFF64748B, 0xFF334155),
         "your own ai server" to ServiceBrand(R.drawable.ic_brand_ollama, Color(0xFF000000), Color(0xFF2A2A2E), Color(0xFF0B0B0C)),
         "stremio" to b(R.drawable.ic_brand_stremio, 0xFF685CEE, 0xFF3F35A8),
-        "tmdb" to b(null, 0xFF01B4E4, 0xFF0D253F),
-        "openai" to b(null, 0xFF10A37F, 0xFF0B6B54),
-        "groq" to b(null, 0xFFF55036, 0xFFB5341F),
+        "tmdb" to ServiceBrand(null, Color(0xFF0D253F), Color(0xFF01B4E4), Color(0xFF0D253F), art = R.drawable.brand_tmdb),
+        "openai" to ServiceBrand(null, Color.White, Color(0xFF10A37F), Color(0xFF0B6B54), art = R.drawable.brand_openai),
+        "groq" to ServiceBrand(null, Color.Black, Color(0xFFF55036), Color(0xFFB5341F), art = R.drawable.brand_groq),
         "cerebras" to b(null, 0xFFF15A29, 0xFFA83A15),
-        "tvdb" to b(null, 0xFF6CD491, 0xFF2E7D4F),
+        "tvdb" to ServiceBrand(null, Color(0xFF555454), Color(0xFF6CD491), Color(0xFF2E7D4F), art = R.drawable.brand_tvdb),
         "fanart.tv" to b(null, 0xFF2E86C1, 0xFF1B4F72),
         "opensubtitles.com" to b(null, 0xFF178600, 0xFF0E5200),
         "subdl" to b(null, 0xFF7E57C2, 0xFF4A2F7A),
@@ -160,8 +162,8 @@ internal fun ServiceCard(c: ServiceCardInfo, modifier: Modifier = Modifier, trai
                     Text(c.status, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 320.dp),
                         color = when {
                             focused -> ink
-                            c.state == ServiceState.PROBLEM -> Color(0xFFFF8A80)
-                            c.state == ServiceState.ATTENTION -> Color(0xFFFFC66B)
+                            c.state == ServiceState.PROBLEM -> StatusBad
+                            c.state == ServiceState.ATTENTION -> StatusWarn
                             c.state == ServiceState.OFF || c.state == ServiceState.ADD -> ink.copy(alpha = .7f)
                             else -> ink
                         })
@@ -179,11 +181,13 @@ internal fun ServiceLogo(c: ServiceCardInfo, focused: Boolean, size: androidx.co
     val brand = c.brand
     val tile = when {
         c.state == ServiceState.ADD -> WashHi
-        brand != null -> if (focused && brand.tile == brand.from) Color.White.copy(alpha = .22f) else brand.tile
+        brand != null -> if (focused && brand.art == null && brand.tile == brand.from) Color.White.copy(alpha = .22f) else brand.tile
         else -> WashHi
     }
     Box(Modifier.size(size).clip(RoundedCornerShape(size * .26f)).background(tile), contentAlignment = Alignment.Center) {
         when {
+            brand?.art != null -> androidx.compose.foundation.Image(painterResource(brand.art), contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
             c.state == ServiceState.ADD -> Icon(Icons.Outlined.Add, contentDescription = null, tint = Fg, modifier = Modifier.size(size * .55f))
             brand?.logo != null -> Icon(painterResource(brand.logo), contentDescription = null, modifier = Modifier.size(size * .56f),
                 tint = if (brand.tile.luminance() > .45f) Color(0xFF141414) else Color.White)

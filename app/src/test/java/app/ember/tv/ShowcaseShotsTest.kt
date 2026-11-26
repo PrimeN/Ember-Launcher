@@ -377,7 +377,11 @@ class ShowcaseShotsTest {
     }
 
     /** #447: Settings > Trackers with brand rows, Trakt focused, and the Sources choice. */
-    @Test fun trackersPage() {
+    @Test fun trackersPage() = trackers(day = false)
+    @Test fun trackersPageDay() = trackers(day = true)
+
+    private fun trackers(day: Boolean) {
+        Ui.day = day
         val accounts = listOf(
             ServiceCardInfo("trakt", "Trakt", TrackerAbout.of("trakt"), "Connected as arash · synced 4 min ago", ServiceState.READY, ServiceBrands.of("trakt")),
             ServiceCardInfo("simkl", "Simkl", TrackerAbout.of("simkl"), "Not connected", ServiceState.OFF, ServiceBrands.of("simkl")),
@@ -389,7 +393,7 @@ class ShowcaseShotsTest {
             ServiceCardInfo("s1", "Continue watching", "Which progress powers resume and Continue watching", "All connected", ServiceState.READY),
             ServiceCardInfo("s2", "Watchlist", "Which watchlist Home and your Library show", "Trakt", ServiceState.READY, ServiceBrands.of("trakt")?.copy(logo = null)),
         )
-        compose.setContent { Frame {
+        compose.setContent { Frame(night = !day) {
             Column(Modifier.fillMaxSize().padding(horizontal = 0.dp, vertical = 18.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ServiceCardGroup("Accounts", "Connect and manage tracking services", accounts) {}
@@ -397,7 +401,7 @@ class ShowcaseShotsTest {
             }
         } }
         compose.onAllNodesWithTag("service_card")[0].requestFocus()
-        save("trackers", settle = 600)
+        save(if (day) "trackers-day" else "trackers", settle = 600)
     }
 
     /** #447: media servers and API keys as brand rows. */
@@ -405,7 +409,7 @@ class ShowcaseShotsTest {
         val servers = MediaServerTiles.cards(plex = true, plexSignedOut = false, plexUser = "Arash",
             listOf(MediaServerTiles.Server("j", "Living room", "jellyfin", "arash", signedOut = false, failing = false),
                 MediaServerTiles.Server("e", "Cottage", "emby", "", signedOut = true, failing = false)))
-        val keys = listOf("TMDB", "MDBList", "Google Gemini", "Claude (Anthropic)", "OpenSubtitles.com").mapNotNull { n -> app.ember.tv.data.ApiKeys.SERVICES.firstOrNull { it.name == n } }
+        val keys = listOf("TMDB", "MDBList", "TVDB", "OpenAI", "Groq").mapNotNull { n -> app.ember.tv.data.ApiKeys.SERVICES.firstOrNull { it.name == n } }
             .mapIndexed { i, s -> keyCard(s).copy(status = if (i < 3) "Key set" else "No key", state = if (i < 3) ServiceState.READY else ServiceState.OFF) }
         compose.setContent { Frame {
             Column(Modifier.fillMaxSize().padding(vertical = 18.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,

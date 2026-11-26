@@ -74,6 +74,14 @@ private val dayHere: Boolean
     @Composable @ReadOnlyComposable
     get() = Ui.isDay && !LocalFloating.current && !LocalNight.current
 
+/** #449: status text on panels: a problem and a warning, readable on the day theme's light panels too. */
+val StatusBad: Color
+    @Composable @ReadOnlyComposable
+    get() = if (dayHere) Color(0xFFB3261E) else Color(0xFFFF8A80)
+val StatusWarn: Color
+    @Composable @ReadOnlyComposable
+    get() = if (dayHere) Color(0xFF8A5300) else Color(0xFFFFC66B)
+
 // The colours below follow the look and theme, so every screen picks them up.
 val Ink: Color
     @Composable @ReadOnlyComposable

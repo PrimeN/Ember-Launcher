@@ -581,7 +581,7 @@ internal fun TextInput(value: String, onChange: (String) -> Unit, placeholder: S
 @Composable
 internal fun TrackerSyncCard(vm: HomeViewModel) {
     Column(
-        modifier = Modifier.width(760.dp).background(Panel, RoundedCornerShape(12.dp)).padding(16.dp),
+        modifier = Modifier.width(960.dp).background(Panel, RoundedCornerShape(TvTokens.Shape.Panel.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(stringResource(R.string.tx_keep_trackers_in_sync), fontSize = 18.sp)
@@ -639,6 +639,8 @@ internal fun TrackerSourcesCard(vm: HomeViewModel) {
     val rev = vm.trackerRev
     val profile = vm.profiles.profileId
     val connected = vm.hub.trackers.filter { it.configured && it.isConnected() }
+    // #449: nothing to choose between until a tracker is connected.
+    if (connected.isEmpty()) return
     var picking by remember { mutableStateOf<Pair<String, String>?>(null) }
     fun name(choice: String) = when (choice) {
         app.ember.tv.data.PersonalListSources.ALL -> if (connected.size == 1) connected[0].name else "All connected"
