@@ -970,7 +970,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         /** The same widget before Ember may read it: a button asking for permission. */
         data class AppMediaPermission(override val key: String, val title: String) : HomeBlock
         /** #467: "TV inputs" widget: HDMI, AV and other inputs as tiles. */
-        internal data class Inputs(override val key: String, val title: String, val inputs: List<app.ember.tv.device.DeviceInput>, val widget: HomeWidget) : HomeBlock
+        data class Inputs(override val key: String, val title: String, val inputs: List<app.ember.tv.device.DeviceInput>, val widget: HomeWidget) : HomeBlock
     }
 
     // ---- widgets showing things on this TV ----

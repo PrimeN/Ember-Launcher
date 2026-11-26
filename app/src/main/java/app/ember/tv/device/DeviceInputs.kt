@@ -10,7 +10,7 @@ import android.content.Intent
 import android.widget.Toast
 import app.ember.tv.R
 
-internal data class DeviceInput(val id: String, val label: String, val connected: Boolean?, val type: Int = TvInputInfo.TYPE_OTHER)
+data class DeviceInput(val id: String, val label: String, val connected: Boolean?, val type: Int = TvInputInfo.TYPE_OTHER)
 internal object DeviceInputs {
     fun eligible(passthrough: Boolean, hidden: Boolean) = passthrough && !hidden
     fun list(context: Context, includeTuners: Boolean = false): List<DeviceInput> = runCatching {
