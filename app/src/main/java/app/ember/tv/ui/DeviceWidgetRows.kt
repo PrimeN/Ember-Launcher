@@ -31,6 +31,7 @@ import app.ember.tv.light.LightMedia
 import app.ember.tv.light.LightMediaProvider
 import app.ember.tv.wantsAppsContinue
 import app.ember.tv.wantsTvInputs
+import app.ember.tv.openSettingsGuarded
 import androidx.compose.material.icons.outlined.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
@@ -160,8 +161,7 @@ internal fun TvInputsRow(vm: HomeViewModel, inputs: List<app.ember.tv.device.Dev
                 container = PanelHi, card = true,
             ) {
                 Box(Modifier.fillMaxSize().padding(14.dp)) {
-                    androidx.compose.material3.Icon(TvInputLook.icon(input.type), contentDescription = null,
-                        tint = if (plugged == false) Mute else Fg, modifier = Modifier.size(34.dp).align(Alignment.TopStart))
+                    Box(Modifier.align(Alignment.TopStart)) { MaterialGlyph(TvInputLook.icon(input.type), if (plugged == false) Mute else Fg, 34.dp) }
                     if (plugged != null) Box(Modifier.align(Alignment.TopEnd).size(10.dp)
                         .background(if (plugged) Color(0xFF34D399) else Mute.copy(alpha = .5f), RoundedCornerShape(50)))
                     Text(input.label, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 17.sp,
