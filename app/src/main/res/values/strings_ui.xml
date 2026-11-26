@@ -399,11 +399,11 @@
     <string name="settings_summary_menu">Choose, hide and reorder navigation tabs.</string>
     <string name="settings_summary_discover">Choose Explore, Collections and Catalogs visibility.</string>
     <string name="settings_summary_home">The Home banner and what your lists include.</string>
-    <string name="settings_summary_appearance">Interface, theme, colours, navbar and labels.</string>
-    <string name="settings_summary_metadata">Choose sources for descriptions, artwork and episodes.</string>
+    <string name="settings_summary_appearance">Interface, theme, colours, navbar style and tabs.</string>
+    <string name="settings_summary_metadata">Where descriptions, artwork and episodes come from, and where to watch.</string>
     <string name="settings_summary_weather">Location, temperature units and weather display.</string>
-    <string name="settings_summary_player">Player choice and interface, resume, skip intro, next episode and trailers.</string>
-    <string name="settings_summary_play">Choose how Ember finds the best playback source.</string>
+    <string name="settings_summary_player">Player, resume, seeking, skip intro, next episode, trailers and watched marks.</string>
+    <string name="settings_summary_play">Which stream Play picks, and how the stream list and badges look.</string>
     <string name="settings_summary_catalogs">Choose catalog names, order and visibility.</string>
     <string name="settings_summary_stremio">Source badges, formatting and collection setup.</string>
     <string name="settings_summary_subtitles">Languages, automatic selection and subtitle appearance.</string>
@@ -416,7 +416,7 @@
     <string name="settings_summary_phone">Enable a timed setup session for your phone.</string>
     <string name="settings_summary_screensaver">Choose backdrops, artwork, space or your own photos.</string>
     <string name="settings_summary_backup">Save or restore preferences, sources and account connections.</string>
-    <string name="settings_summary_about">App version, credits and release changes.</string>
+    <string name="settings_summary_about">Version, updates, credits and release changes.</string>
     <string name="settings_summary_legal">Privacy, licences and service acknowledgments.</string>
     <string name="settings_watch_status">Watched &amp; spoilers</string>
     <string name="settings_updates">Updates</string>

@@ -44,14 +44,23 @@ class SettingsNavigationTest {
         assertEquals(SettingsLocation.open(SettingsTab.SEARCH),SettingsLocation.restore("SEARCH",""))
     }
     @Test fun relatedSettingsShareACategory() {
-        assertEquals(listOf(SettingsTab.APPEARANCE,SettingsTab.SIZE,SettingsTab.PERFORMANCE),SettingsCategory.LOOK.pages)
-        // #164: the regrouped menu.
-        assertEquals(listOf(SettingsTab.WIDGETS,SettingsTab.HOME_TOOLS,SettingsTab.HOME_EXTRAS,SettingsTab.LIGHT_HOME),SettingsCategory.HOME.pages)
-        assertEquals(listOf(SettingsTab.ADDONS,SettingsTab.DISCOVER,SettingsTab.POSTERS,SettingsTab.STREAMING,SettingsTab.LIVE),SettingsCategory.SOURCES.pages)
-        // #274: the source list's look beside the Play button.
-        assertEquals(listOf(SettingsTab.PLAYER,SettingsTab.AUDIO_VIDEO,SettingsTab.SUBTITLES,SettingsTab.PLAY_BUTTON,SettingsTab.STREMIO,SettingsTab.WATCH_STATUS),SettingsCategory.PLAYBACK.pages)
-        // #407: Startup is a System setting.
-        assertEquals(listOf(SettingsTab.DEFAULT_HOME,SettingsTab.SYSTEM_ACCESS,SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.UPDATES,SettingsTab.DEBUG,SettingsTab.FEATURES),SettingsCategory.SYSTEM.pages)
+        // #463: seven groups by task.
+        assertEquals(listOf(SettingsCategory.SEARCH,SettingsCategory.HOME,SettingsCategory.LOOK,SettingsCategory.PLAYBACK,SettingsCategory.SOURCES,
+            SettingsCategory.ACCOUNTS,SettingsCategory.SYSTEM,SettingsCategory.ABOUT),SettingsCategory.entries)
+        assertEquals(listOf(SettingsTab.WIDGETS,SettingsTab.LIGHT_HOME,SettingsTab.HOME_EXTRAS),SettingsCategory.HOME.pages)
+        assertEquals(listOf(SettingsTab.APPEARANCE,SettingsTab.POSTERS,SettingsTab.SIZE),SettingsCategory.LOOK.pages)
+        assertEquals(listOf(SettingsTab.PLAYER,SettingsTab.PLAY_BUTTON,SettingsTab.AUDIO_VIDEO,SettingsTab.SUBTITLES),SettingsCategory.PLAYBACK.pages)
+        assertEquals(listOf(SettingsTab.ADDONS,SettingsTab.DISCOVER,SettingsTab.METADATA,SettingsTab.LIVE),SettingsCategory.SOURCES.pages)
+        assertEquals(listOf(SettingsTab.PROFILES,SettingsTab.TRACKERS,SettingsTab.SERVERS,SettingsTab.KEYS),SettingsCategory.ACCOUNTS.pages)
+        assertEquals(listOf(SettingsTab.DEFAULT_HOME,SettingsTab.DEVICE_TOOLS,SettingsTab.PHONE,SettingsTab.BACKUP,SettingsTab.FEATURES,SettingsTab.DEBUG),SettingsCategory.SYSTEM.pages)
+        assertEquals(SettingsTab.WIDGETS,SettingsLocation.open(SettingsTab.HOME_TOOLS).page)
+        assertEquals(SettingsTab.SIZE,SettingsLocation.open(SettingsTab.PERFORMANCE).page)
+        assertEquals(SettingsTab.PLAYER,SettingsLocation.open(SettingsTab.WATCH_STATUS).page)
+        assertEquals(SettingsTab.PLAY_BUTTON,SettingsLocation.open(SettingsTab.STREMIO).page)
+        assertEquals(SettingsTab.METADATA,SettingsLocation.open(SettingsTab.STREAMING).page)
+        assertEquals(SettingsTab.DEVICE_TOOLS,SettingsLocation.open(SettingsTab.SYSTEM_ACCESS).page)
+        assertEquals(SettingsTab.ABOUT,SettingsLocation.open(SettingsTab.UPDATES).page)
+        assertEquals("Settings › Watching › Choosing a stream",SettingsTab.STREMIO.path)
         assertEquals(SettingsTab.DEVICE_TOOLS,SettingsLocation.jump("REMOTE")!!.page);assertEquals(SettingsTab.ADDONS,SettingsLocation.open(SettingsTab.CATALOGS).page)
         assertEquals(SettingsTab.HOME_EXTRAS,SettingsLocation.restore("HOME","SCREENSAVER").page)
         assertTrue(SettingsMerges.diagnosticsKeys.containsAll(CACHE_KEYS));assertEquals(0,SettingsMerges.diagnosticsKeys.indexOf(CACHE_KEYS.first()))
@@ -59,7 +68,7 @@ class SettingsNavigationTest {
         assertEquals(SettingsCategory.SYSTEM,SettingsCategory.of(SettingsTab.DEFAULT_HOME))
         assertEquals(SettingsCategory.HOME,SettingsCategory.of(SettingsTab.WEATHER))
         assertEquals(SettingsCategory.HOME,SettingsCategory.of(SettingsTab.SCREENSAVER))
-        assertEquals(SettingsCategory.SOURCES,SettingsCategory.of(SettingsTab.POSTERS))
+        assertEquals(SettingsCategory.LOOK,SettingsCategory.of(SettingsTab.POSTERS))
         assertEquals(SettingsCategory.PLAYBACK,SettingsCategory.of(SettingsTab.AUDIO_VIDEO))
         // About and Legal have their own section (#67).
         assertEquals(SettingsCategory.ABOUT,SettingsCategory.of(SettingsTab.LEGAL))

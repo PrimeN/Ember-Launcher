@@ -96,59 +96,55 @@ import java.util.Locale
 
 /** The pages of Settings, in side-list order. Each page holds one topic; [group] heads the list. */
 internal enum class SettingsTab(val label: String, val group: String, private val mergedInto: String? = null) {
+    // #463: seven groups by what you're doing. Every page keeps its name, so search results,
+    // shortcuts and saved positions still resolve; a page that joined another opens that page.
     SEARCH("Search settings", "Search"),
-    // Look & feel: how Ember looks and responds, in every interface.
-    APPEARANCE("Appearance", "Look"),
-    SIZE("Size & spacing", "Look"),
-    PERFORMANCE("Performance & effects", "Look"),
-    // Home: what the Home screen shows and what happens at startup.
-    // #197: the banner and the lists are edited on their widgets; old links to this page open Widgets & collections.
+    // Home: what Home shows, Light's Home, and the screensaver.
+    WIDGETS("Home layout", "Home"),
     HOME_ROWS("Banner & lists", "Home", "WIDGETS"),
-    // #163: what you add to Home yourself, in one place.
-    WIDGETS("Widgets & collections", "Home"),
-    HOME_TOOLS("Apps & folders", "Home"),
-    // #245: the navbar tabs moved to Appearance, beside the navbar style.
-    TOP_MENU("Top menu", "Look", "APPEARANCE"),
-    // #318: the screensaver beside the presentation slideshow; Light's own page last.
-    HOME_EXTRAS("Screensaver & extras", "Home"),
+    HOME_TOOLS("Apps & folders", "Home", "WIDGETS"),
+    LIGHT_HOME("Ember Light Home", "Home"),
+    HOME_EXTRAS("Screensaver & weather", "Home"),
     SCREENSAVER("Screensaver", "Home", "HOME_EXTRAS"),
     WEATHER("Weather", "Home", "HOME_EXTRAS"),
-    LIGHT_HOME("Ember Light Home", "Home"),
-    // Playback: the player and what it picks.
-    PLAYER("Player", "Playback"),
-    AUDIO_VIDEO("Audio & video", "Playback"),
-    SUBTITLES("Languages & subtitles", "Playback"),
-    PLAY_BUTTON("Play button", "Playback"),
-    // #274: how the source list looks sits beside what the Play button picks from it.
-    STREMIO("Stream results & badges", "Playback"),
-    WATCH_STATUS("Watched & spoilers", "Playback"),
-    // Sources: where titles, streams and their details come from.
-    // #319: addons, then where their catalogs are browsed, how titles look, where to watch, and Live TV.
-    ADDONS("Addons & catalogs", "Sources"),
-    CATALOGS("Catalogs", "Sources", "ADDONS"),
-    DISCOVER("Discover", "Sources"),
-    POSTERS("Artwork & metadata", "Sources"),
-    METADATA("Metadata", "Sources", "POSTERS"),
-    STREAMING("Where to watch", "Sources"),
-    LIVE("Live TV", "Sources"),
+    // Look: how Ember looks and moves.
+    APPEARANCE("Theme & navbar", "Look"),
+    TOP_MENU("Top menu", "Look", "APPEARANCE"),
+    POSTERS("Posters & cards", "Look"),
+    SIZE("Size & effects", "Look"),
+    PERFORMANCE("Performance & effects", "Look", "SIZE"),
+    // Watching: the player, which stream it plays, sound and picture, languages.
+    PLAYER("Player", "Watching"),
+    WATCH_STATUS("Watched & spoilers", "Watching", "PLAYER"),
+    PLAY_BUTTON("Choosing a stream", "Watching"),
+    STREMIO("Stream results & badges", "Watching", "PLAY_BUTTON"),
+    AUDIO_VIDEO("Audio & video", "Watching"),
+    SUBTITLES("Languages & subtitles", "Watching"),
+    // Content: where titles come from and what's said about them.
+    ADDONS("Addons & catalogs", "Content"),
+    CATALOGS("Catalogs", "Content", "ADDONS"),
+    DISCOVER("Discover", "Content"),
+    METADATA("Metadata & where to watch", "Content"),
+    STREAMING("Where to watch", "Content", "METADATA"),
+    LIVE("Live TV", "Content"),
+    // Accounts.
     PROFILES("Profiles & PIN", "Accounts"),
     TRACKERS("Trackers", "Accounts"),
     SERVERS("Media servers", "Accounts"),
     KEYS("API keys", "Accounts"),
-    // #407: what Ember does when the TV starts is a System setting, first in that group.
+    // System: the TV, the phone and Ember's own housekeeping.
     DEFAULT_HOME("Startup", "System"),
-    // #408: settings Ember changes on the TV itself through its debugging service.
-    SYSTEM_ACCESS("System access", "System"),
-    DEVICE_TOOLS("TV & remote", "System"),
+    DEVICE_TOOLS("TV, remote & system access", "System"),
     REMOTE("Remote", "System", "DEVICE_TOOLS"),
+    SYSTEM_ACCESS("System access", "System", "DEVICE_TOOLS"),
     PHONE("Phone setup", "System"),
     BACKUP("Backup & restore", "System"),
-    UPDATES("Updates", "System"),
+    FEATURES("Features", "System"),
     DEBUG("Storage & diagnostics", "System"),
     CACHE("Cache management", "System", "DEBUG"),
-    FEATURES("Features", "System"),
-    // About: what Ember is and its licences, in their own section (#67).
-    ABOUT("About Ember", "About"),
+    // About: what Ember is, its updates and its licences (#67).
+    ABOUT("About & updates", "About"),
+    UPDATES("Updates", "About", "ABOUT"),
     LEGAL("Legal", "About");
 
     /**
@@ -160,7 +156,7 @@ internal enum class SettingsTab(val label: String, val group: String, private va
 }
 
 /** A Settings group's name as shown in the sidebar. */
-internal fun settingsGroupLabel(group: String): String = if (group == "Look") "Look & feel" else group
+internal fun settingsGroupLabel(group: String): String = group
 
 /**
  * #324: where a page lives, as messages write it: "Settings › Sources › Addons & catalogs". Built from
@@ -209,8 +205,10 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.FEATURES -> item(key = "features") { FeaturesPage(vm) }
             SettingsTab.TOP_MENU -> item(key = "topmenu") { TopMenuSection(vm) }
             SettingsTab.DISCOVER -> item(key = "discover-sections") { DiscoverSettings(vm) }
+            // #463: Home layout: widgets and collections, then the apps on Home and folders.
             SettingsTab.HOME_ROWS, SettingsTab.WIDGETS -> {
                 item(key = "widgets") { WidgetsSettings(vm) }
+                item(key="home-apps"){HomeToolsPage(vm, HomeToolsPart.APPS)}; appearancePage(vm, SettingsTab.HOME_TOOLS); item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)}
             }
             SettingsTab.LIGHT_HOME -> {
                 if (vm.look.uiStyle != app.ember.tv.data.InterfaceStyles.LIGHT) item(key = "light-note") {
@@ -221,21 +219,28 @@ fun SettingsScreen(vm: HomeViewModel) {
             // #318: the apps on Home and how they look, then folders, the Apps page and what is hidden.
             SettingsTab.HOME_TOOLS -> { item(key="home-apps"){HomeToolsPage(vm, HomeToolsPart.APPS)}; appearancePage(vm, SettingsTab.HOME_TOOLS); item(key="home-tools"){HomeToolsPage(vm, HomeToolsPart.FOLDERS)} }
             SettingsTab.HOME_EXTRAS -> { item(key = "screensaver") { ScreensaverSection(vm) }; item(key="home-extras"){HomeToolsPage(vm, HomeToolsPart.EXTRAS)}; item(key = "weather") { WeatherSection(vm) } }
-            SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE -> appearancePage(vm, tab)
+            SettingsTab.APPEARANCE, SettingsTab.REMOTE -> appearancePage(vm, tab)
+            // #463: size and spacing, then performance and focus effects.
+            SettingsTab.SIZE, SettingsTab.PERFORMANCE -> { appearancePage(vm, SettingsTab.SIZE); appearancePage(vm, SettingsTab.PERFORMANCE) }
             SettingsTab.POSTERS -> {
-                // #319: artwork, then where details come from, then ratings with their long source list last.
+                // #463: how titles look: the details page, labels, then posters and the ratings on them.
+                appearancePage(vm, SettingsTab.POSTERS)
                 item(key = "posters") { PostersPage(vm, openKeys) }
-                // #164: Metadata joins Posters & ratings.
-                item(key = "metadata") { MetadataPage(vm, openKeys) }
                 ratingsPage(vm, openKeys)
             }
-            SettingsTab.METADATA -> item(key = "metadata") { MetadataPage(vm, openKeys) }
+            // #463: where details come from, then where each title can be watched.
+            SettingsTab.METADATA, SettingsTab.STREAMING -> { item(key = "metadata") { MetadataPage(vm, openKeys) }; streamingPage(vm, openKeys) }
             SettingsTab.WEATHER -> item(key = "weather") { WeatherSection(vm) }
             // #387: Simple shows the everyday options; a search hit shows the page in full.
-            SettingsTab.PLAYER -> playerPage(vm, playerKeys(PLAYER_KEYS, vm.playerSettings.advanced, searchTarget))
+            SettingsTab.PLAYER -> {
+                playerPage(vm, playerKeys(PLAYER_KEYS, vm.playerSettings.advanced, searchTarget))
+                // #463: what counts as watched sits with the player that marks it.
+                item(key="watch-status") {WatchStatusSettings(vm)}
+            }
             SettingsTab.AUDIO_VIDEO -> playerPage(vm, playerKeys(AUDIO_VIDEO_KEYS, vm.playerSettings.advanced, searchTarget))
             SettingsTab.WATCH_STATUS -> item(key="watch-status") {WatchStatusSettings(vm)}
-            SettingsTab.PLAY_BUTTON -> item(key = "playbutton") { PlayButtonPage(vm) }
+            // #463: which stream Play picks, then how the stream list shows them.
+            SettingsTab.PLAY_BUTTON -> { item(key = "playbutton") { PlayButtonPage(vm) }; item(key = "stremio") { StremioFormatPage(vm) } }
             SettingsTab.ADDONS -> {
                 item(key = "addonstatus") { SourceStatusButton("Addon status", vm.catalogs.health.entries.values, vm.catalogs::retry) }
                 addonsPage(vm)
@@ -249,7 +254,6 @@ fun SettingsScreen(vm: HomeViewModel) {
             SettingsTab.STREMIO -> item(key = "stremio") { StremioFormatPage(vm) }
             SettingsTab.SUBTITLES -> { playerPage(vm, LANGUAGE_KEYS); item(key = "subtitles") { SubtitlesPage(vm, openKeys) } }
             SettingsTab.LIVE -> item(key = "livetv") { LiveTvSettingsPage(vm) }
-            SettingsTab.STREAMING -> streamingPage(vm, openKeys)
             SettingsTab.TRACKERS -> {
                 item(key = "trackers") {
                     Section(stringResource(R.string.ui_trackers), stringResource(R.string.ui_continue_watching_and_watchlists_come_from)) {
@@ -282,6 +286,8 @@ fun SettingsScreen(vm: HomeViewModel) {
                 appearancePage(vm, SettingsTab.REMOTE)
                 item(key = "device-tools") { DeviceToolsSettings(vm) }
                 item(key = "engineering") { EngineeringMenusSettings(vm) }
+                // #463: what Ember changes on the TV itself, beside the TV's own tools.
+                item(key = "system-access") { SystemAccessPage(vm) }
             }
             SettingsTab.PHONE -> item(key = "phone") { PhoneSetupPage(vm) }
             SettingsTab.SCREENSAVER -> item(key = "screensaver") { ScreensaverSection(vm) }
@@ -289,7 +295,7 @@ fun SettingsScreen(vm: HomeViewModel) {
                 item(key = "backup") { BackupPage(vm) }
                 item(key = "restore") { RestorePage(vm) }
             }
-            SettingsTab.ABOUT -> aboutPage(vm)
+            SettingsTab.ABOUT -> { aboutPage(vm); item(key="updates") {UpdatesSection(vm)} }
             SettingsTab.CACHE -> CACHE_KEYS.forEach { part -> item(key=part) { CacheManagementSettings(part) } }
             SettingsTab.UPDATES -> item(key="updates") {UpdatesSection(vm)}
             SettingsTab.DEBUG -> {

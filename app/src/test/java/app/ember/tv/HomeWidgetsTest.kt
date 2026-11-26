@@ -666,7 +666,7 @@ class HomeWidgetsTest {
     @Test fun widgetsAndCollectionsShareOneSettingsPageAndThePhoneMovesPacks() {
         // #163
         assertEquals("Home", app.ember.tv.ui.SettingsTab.WIDGETS.group)
-        assertEquals("Widgets & collections", app.ember.tv.ui.SettingsTab.WIDGETS.label)
+        assertEquals("Home layout", app.ember.tv.ui.SettingsTab.WIDGETS.label)
         val index = app.ember.tv.ui.SETTINGS_INDEX.single { it.first == app.ember.tv.ui.SettingsTab.WIDGETS }.second.lowercase()
         for (word in listOf("widgets", "import", "export", "collections", "trakt", "carousel")) assertTrue(word, word in index)
 

@@ -11,10 +11,10 @@ import org.junit.Test
 class ReleasePolishTest {
     /** #324: directions are written from the pages' own names; a merged page points at the page showing it. */
     @Test fun settingsDirectionsUseTheRealPages() {
-        assertEquals("Settings › Sources › Addons & catalogs", SettingsTab.ADDONS.path)
-        assertEquals("Settings › Look & feel › Appearance", SettingsTab.APPEARANCE.path)
-        assertEquals("Settings › Home › Screensaver & extras", SettingsTab.SCREENSAVER.path)
-        assertEquals("Settings › Sources › Artwork & metadata", SettingsTab.METADATA.path)
+        assertEquals("Settings › Content › Addons & catalogs", SettingsTab.ADDONS.path)
+        assertEquals("Settings › Look › Theme & navbar", SettingsTab.APPEARANCE.path)
+        assertEquals("Settings › Home › Screensaver & weather", SettingsTab.SCREENSAVER.path)
+        assertEquals("Settings › Content › Metadata & where to watch", SettingsTab.STREAMING.path)
         assertEquals("Settings › System › Storage & diagnostics", SettingsTab.DEBUG.path)
     }
 

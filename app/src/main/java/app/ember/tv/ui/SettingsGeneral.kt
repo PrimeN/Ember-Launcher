@@ -119,9 +119,9 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
             if (active != "light") add("navbar-style")
             // #245: the tabs sit with the navbar they belong to.
             add("navbar-tabs")
-            add("media-page-layout")
-            add("tile-labels"); add("row-addon-labels")
         }
+        // #463: how titles and their cards look, on Posters & cards.
+        SettingsTab.POSTERS -> listOf("media-page-layout", "tile-labels", "row-addon-labels")
         SettingsTab.SIZE -> listOf("interface-size", "text-size", "density", "screen_margins")
         SettingsTab.PERFORMANCE -> listOf("device-performance", "artwork", "focus-backgrounds", "card-focus")
         SettingsTab.REMOTE -> listOf("remote_s_settings_button", "remote-sounds", "auto-load")
@@ -134,7 +134,7 @@ internal fun lookKeys(tab: SettingsTab, style: String): List<String> {
 
 /** Every Look & feel section for an interface (Appearance, Size & spacing, Performance & effects, Remote). */
 internal fun appearanceKeys(style: String): List<String> =
-    listOf(SettingsTab.APPEARANCE, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE).flatMap { lookKeys(it, style) }
+    listOf(SettingsTab.APPEARANCE, SettingsTab.POSTERS, SettingsTab.SIZE, SettingsTab.PERFORMANCE, SettingsTab.REMOTE).flatMap { lookKeys(it, style) }
 
 internal fun androidx.compose.foundation.lazy.LazyListScope.appearancePage(vm: HomeViewModel, tab: SettingsTab = SettingsTab.APPEARANCE) {
     lookKeys(tab, vm.look.uiStyle).forEach { key -> item(key = "look:$key") { AppearancePart(vm, key) } }

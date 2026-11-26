@@ -75,8 +75,8 @@ internal fun SettingsTab.groupTitle(): String = stringResource(
         "Search" -> R.string.group_search
         "Look" -> R.string.group_look
         "Home" -> R.string.group_home
-        "Playback" -> R.string.group_playback
-        "Sources" -> R.string.group_sources
+        "Watching" -> R.string.group_playback
+        "Content" -> R.string.group_sources
         "Accounts" -> R.string.group_accounts
         "System" -> R.string.group_system
         "About" -> R.string.group_about

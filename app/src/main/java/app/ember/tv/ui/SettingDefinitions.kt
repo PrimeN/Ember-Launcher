@@ -15,7 +15,7 @@ internal object SettingDefinitions {
         app.ember.tv.data.InterfaceStyles.options)
     val theme = SettingDefinition("theme", SettingsTab.APPEARANCE, "Theme", "OLED black day night automatic",
         listOf("night" to "Night", "day" to "Day", "auto" to "Auto"))
-    val mediaPageLayout = SettingDefinition("media-page-layout", SettingsTab.APPEARANCE, "Media page layout",
+    val mediaPageLayout = SettingDefinition("media-page-layout", SettingsTab.POSTERS, "Media page layout",
         "movie show details episodes sources independent Modern Ember X right panel",
         app.ember.tv.data.MediaPageLayouts.options, formerly = listOf("Modern"))
     val navbarStyle=SettingDefinition("navbar-style",SettingsTab.APPEARANCE,"Navbar style",
@@ -35,8 +35,8 @@ internal object SettingDefinitions {
         app.ember.tv.data.DevicePerformance.options)
     val artwork = SettingDefinition("artwork", SettingsTab.PERFORMANCE, "Glass", "modern frosted navigation glass blur popups dock live prepared liquid refraction tint vibrancy highlights google tv android tv stock solid opaque plain")
     val focusBackgrounds = SettingDefinition("focus-backgrounds", SettingsTab.PERFORMANCE, "Focused backgrounds", "app colors media rows collections tile colors artwork backdrop theme only focus hover background palette", app.ember.tv.data.FocusBackground.choices)
-    val rowAddonLabels=SettingDefinition("row-addon-labels",SettingsTab.APPEARANCE,"Addon names on rows","show hide addon add-on names catalog source label after row title home live")
-    val tileLabels=SettingDefinition("tile-labels",SettingsTab.APPEARANCE,"Labels under tiles","hide remove text names titles under below tiles cards apps collections folders captions",app.ember.tv.data.TileLabels.choices)
+    val rowAddonLabels=SettingDefinition("row-addon-labels",SettingsTab.POSTERS,"Addon names on rows","show hide addon add-on names catalog source label after row title home live")
+    val tileLabels=SettingDefinition("tile-labels",SettingsTab.POSTERS,"Labels under tiles","hide remove text names titles under below tiles cards apps collections folders captions",app.ember.tv.data.TileLabels.choices)
     val cardFocus=SettingDefinition("card-focus",SettingsTab.PERFORMANCE,"Card focus effects","selected apps media glow pulse lift scale animation effects blinking",app.ember.tv.data.CardFocusStyle.choices)
     val watched=SettingDefinition("watch-status",SettingsTab.WATCH_STATUS,"Watched indicators","watched unwatched mark check badge movie show episode")
     val spoilers=SettingDefinition("episode-spoilers",SettingsTab.WATCH_STATUS,"Episode spoilers","blur unwatched episode artwork thumbnail image")

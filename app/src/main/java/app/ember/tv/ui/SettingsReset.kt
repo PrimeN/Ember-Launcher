@@ -21,8 +21,8 @@ import kotlinx.serialization.json.Json
 /** #273: put one settings page back to its defaults. Accounts, addons, lists and keys are never touched. */
 internal object SettingsReset {
     fun keys(tab: SettingsTab): List<PreferenceKey<*>> = when (tab) {
-        SettingsTab.APPEARANCE -> listOf(K.ACCENT, K.ACCENT2, K.ACCENT3, K.THEME, K.OLED, K.ROW_ADDON_LABELS, K.TILE_LABELS_OFF,
-            K.MEDIA_PAGE_LAYOUT, K.NAVBAR_STYLE, K.MODERN_CARDS, K.MENU_POSITION, K.HERO_ARTWORK_MODE)
+        SettingsTab.APPEARANCE -> listOf(K.ACCENT, K.ACCENT2, K.ACCENT3, K.THEME, K.OLED,
+            K.NAVBAR_STYLE, K.MODERN_CARDS, K.MENU_POSITION, K.HERO_ARTWORK_MODE)
         SettingsTab.SIZE -> listOf(K.UI_SIZE, K.UI_SCALE, K.TEXT_SIZE, K.SCREEN_MARGIN, K.CONTENT_DENSITY)
         SettingsTab.PERFORMANCE -> listOf(K.DEVICE_PERFORMANCE, K.CUSTOM_PERFORMANCE, K.ARTWORK_QUALITY, K.NAVIGATION_GLASS,
             K.NAVIGATION_GLASS_METHOD, K.CARD_FOCUS_STYLE, K.MEDIA_FOCUS_BACKGROUND, K.COLLECTION_FOCUS_BACKGROUND, K.APP_FOCUS_COLORS)
@@ -37,7 +37,9 @@ internal object SettingsReset {
             K.DETAILED_BADGE_CATEGORIES_OFF, K.DETAILED_BADGE_ORDER, K.BADGES_OFF)
         SettingsTab.WATCH_STATUS -> listOf(K.SHOW_WATCHED_BADGES, K.BLUR_UNWATCHED_EPISODES)
         SettingsTab.STREAMING -> listOf(K.WATCH_PROVIDER, K.WATCH_REGION, K.SERVICES_ON, K.SERVICES_OFF, K.SERVICES_SOURCE)
-        SettingsTab.POSTERS -> listOf(K.POSTER_CONFIG, K.META_CONFIG, K.RATINGS_ON, K.RATINGS_OFF, K.RATINGS_ORDER)
+        // #463: Posters & cards holds the details layout and tile labels; Metadata its own page.
+        SettingsTab.POSTERS -> listOf(K.POSTER_CONFIG, K.RATINGS_ON, K.RATINGS_OFF, K.RATINGS_ORDER, K.ROW_ADDON_LABELS, K.TILE_LABELS_OFF, K.MEDIA_PAGE_LAYOUT)
+        SettingsTab.METADATA -> listOf(K.META_CONFIG)
         SettingsTab.DISCOVER -> listOf(K.DISCOVER_SECTIONS, K.AI_DISCOVERY_ENABLED)
         SettingsTab.DEVICE_TOOLS -> listOf(K.REMOTE_SETTINGS_KEY, K.REMOTE_SOUNDS)
         SettingsTab.UPDATES -> listOf(K.UPDATE_AUTO_CHECK, K.UPDATE_BETA, K.UPDATE_BETA_SOURCE, K.UPDATE_CHANNEL)
@@ -74,18 +76,25 @@ internal object SettingsReset {
         }
     }
 
-    fun available(tab: SettingsTab) = keys(tab).isNotEmpty() || playback(tab, PlaybackConfig()) != null || extras(tab, LauncherExtras()) != null
+    /** #463: a page and the pages that joined it reset together. */
+    fun parts(tab: SettingsTab): List<SettingsTab> = SettingsTab.entries.filter { it.host == tab.host }
+
+    private fun own(tab: SettingsTab) = keys(tab).isNotEmpty() || playback(tab, PlaybackConfig()) != null || extras(tab, LauncherExtras()) != null
+    fun available(tab: SettingsTab) = parts(tab).any(::own)
 
     /** Written synchronously: Ember restarts straight after. */
     fun apply(context: Context, tab: SettingsTab) {
         val sp = context.getSharedPreferences("ember", Context.MODE_PRIVATE)
-        val config = playback(tab, app.ember.tv.data.Prefs(context).playbackConfig)
+        val pages = parts(tab)
+        val stored = app.ember.tv.data.Prefs(context).playbackConfig
+        val config = pages.fold(stored) { c, page -> playback(page, c) ?: c }.takeIf { it != stored }
         val json = Json { ignoreUnknownKeys = true }
         val saved = runCatching { json.decodeFromString<LauncherExtras>(sp.getString(K.LAUNCHER_EXTRAS.name, null) ?: "{}") }.getOrDefault(LauncherExtras())
+        val extrasReset = pages.fold(saved) { e, page -> extras(page, e) ?: e }.takeIf { pages.any { extras(it, LauncherExtras()) != null } }
         sp.edit(commit = true) {
-            keys(tab).forEach { remove(it.name) }
+            pages.flatMap(::keys).forEach { remove(it.name) }
             if (config != null) putString(K.PLAYBACK_CONFIG.name, json.encodeToString(config))
-            extras(tab, saved)?.let { putString(K.LAUNCHER_EXTRAS.name, json.encodeToString(it.normalized())) }
+            extrasReset?.let { putString(K.LAUNCHER_EXTRAS.name, json.encodeToString(it.normalized())) }
         }
     }
 }
