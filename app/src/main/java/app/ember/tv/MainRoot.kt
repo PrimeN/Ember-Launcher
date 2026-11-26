@@ -104,6 +104,8 @@ import app.ember.tv.ui.WatchlistScreen
 import androidx.lifecycle.compose.currentStateAsState
 import app.ember.tv.ui.sceneContent
 import kotlinx.coroutines.delay
+import app.ember.tv.ui.AppMove
+import app.ember.tv.ui.AppMoveSession
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -300,6 +302,7 @@ private fun RootContent(
             pageProfile = vm.profiles.profileId
             options = null
             moving = null
+            AppMove.session = null
             vm.quickPanel = false
             onTab(NavTabs.HOME)
         }
@@ -623,6 +626,20 @@ private fun RootContent(
             }
         }
     }
-    options?.takeIf { vm.canManageHomeItem(it.pkg) }?.let { app -> AppOptionsDialog(app, app.pkg in vm.hidden, vm, onMove = { options = null; moving = app }) { options = null } }
+    options?.takeIf { vm.canManageHomeItem(it.pkg) }?.let { app -> AppOptionsDialog(app, app.pkg in vm.hidden, vm, onMove = {
+        options = null
+        // #456: the app jiggles where it is and moves with the arrows; where it isn't on screen
+        // (or the Apps page is sorted or searched), the mover dialog opens instead.
+        AppMove.session = AppMoveSession(app, save = { vm.setAppOrder(it) }) { placed -> if (placed) vm.showNotice("App order saved.") }
+    }) { options = null } }
+    AppMove.session?.let { session ->
+        LaunchedEffect(session) {
+            delay(400)
+            if (AppMove.session === session && !session.attached) {
+                AppMove.session = null
+                moving = session.app
+            }
+        }
+    }
     moving?.takeIf { vm.canManageHomeItem(it.pkg) }?.let { movedApp -> app.ember.tv.ui.AppMoveDialog(movedApp, vm) { moving = null } }
 }

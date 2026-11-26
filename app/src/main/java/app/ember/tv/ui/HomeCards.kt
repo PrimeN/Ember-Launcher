@@ -223,7 +223,7 @@ fun AppBanner(app: AppEntry, dim: Boolean = false, onClick: () -> Unit, onLongCl
     Focusable(
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = Modifier.width(width).height(width * 0.5625f).focusBackdrop(backdrop).onFocusChanged {
+        modifier = Modifier.appMove(app.pkg).width(width).height(width * 0.5625f).focusBackdrop(backdrop).onFocusChanged {
             if (it.isFocused || it.hasFocus) onFocus()
         },
         container = PanelHi,card=true,
@@ -251,7 +251,7 @@ fun AppCircle(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, onFoc
         Focusable(
             onClick = onClick,
             onLongClick = onLongClick,
-            modifier = Modifier.size(width).focusBackdrop(backdrop).onFocusChanged {
+            modifier = Modifier.appMove(app.pkg).size(width).focusBackdrop(backdrop).onFocusChanged {
                 focused = it.isFocused || it.hasFocus
                 if (focused) onFocus()
             },
@@ -365,6 +365,9 @@ fun AppsGrid(
             else CardSizes.width(maxWidth, CardSizes.WIDE, gap, 4.dp)
         val rows = vm.homeAppRows.coerceIn(1, 2).coerceAtMost(apps.size.coerceAtLeast(1))
         val perRow = (apps.size + rows - 1) / rows
+        // #456: an app being moved here steps along the row, and up or down between the two rows.
+        val moveScope = remember(apps, rows, perRow) { AppMoveScope(apps.map { it.pkg }, if (rows > 1) perRow else 0) }
+        CompositionLocalProvider(LocalAppMoveScope provides moveScope) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             apps.chunked(perRow.coerceAtLeast(1)).forEach { line ->
                 androidx.compose.foundation.lazy.LazyRow(
@@ -379,6 +382,7 @@ fun AppsGrid(
                     }
                 }
             }
+        }
         }
     }
 }

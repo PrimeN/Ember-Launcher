@@ -272,6 +272,8 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                 (fadeShoulder + 1f) / 2f to wallpaperColors.last().copy(alpha = .82f),
                 1f to wallpaperColors.last())
             Box(Modifier.fillMaxSize().background(scrim))
+            // #456: the dock and the grid are one run of apps, six across.
+            CompositionLocalProvider(LocalAppMoveScope provides remember(apps) { AppMoveScope(apps.map { it.pkg }, 6) }) {
             LazyColumn(state = state, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (idle) 0f else 1f },
                 userScrollEnabled = !idle, contentPadding = PaddingValues(start = grid.outer.dp, end = grid.outer.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 item("dock") {
@@ -307,6 +309,7 @@ fun LightHome(vm: HomeViewModel, state: LazyListState, tabs: List<String>, onTab
                         }
                     }
                 }
+            }
             }
             val showShelf = shelfOn && shelfPkg != null && shelf.isNotEmpty() && !idle && heroInView
             if (showShelf) {
@@ -469,7 +472,7 @@ internal fun LightAppTile(app: AppEntry, grid: LightLayout.Grid, millis: Int, la
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (millis == 0) 1f else if (launching) 1.4f else if (focused) (if (LocalRenderOptions.current.lowPower) 1.02f else 1.2f) else 1f, tween(millis), label = "Light app lift")
     Column(modifier.width(grid.width.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Focusable(onClick, Modifier.fillMaxWidth().height(grid.height.dp).then(if (destination != null) Modifier.testTag("light_page_$destination") else Modifier)
+        Focusable(onClick, Modifier.appMove(app.pkg).fillMaxWidth().height(grid.height.dp).then(if (destination != null) Modifier.testTag("light_page_$destination") else Modifier)
             .onFocusChanged { focused = it.isFocused }.graphicsLayer {
             scaleX = scale; scaleY = scale; translationY = if (focused && millis > 0) -3.dp.toPx() else 0f
         }, onLongClick = onLongClick, radius = grid.radius.toInt().coerceAtLeast(2), container = Color(0xFF262C3C), focusedScale = TvTokens.Focus.None) {

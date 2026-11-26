@@ -312,7 +312,7 @@ fun AppTile(app: AppEntry, modifier: Modifier = Modifier, dim: Boolean = false, 
     val bitmap=rememberAppArtwork(app)
     val backdrop = rememberAppFocus(app, bitmap)
     Focusable(onClick = onClick, onLongClick = onLongClick,
-        modifier = modifier.width(width).height(width * 0.5625f).focusBackdrop(backdrop),card=true) {
+        modifier = modifier.appMove(app.pkg).width(width).height(width * 0.5625f).focusBackdrop(backdrop),card=true) {
         if(bitmap!=null)Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = app.label + if (dim) " (hidden)" else "",

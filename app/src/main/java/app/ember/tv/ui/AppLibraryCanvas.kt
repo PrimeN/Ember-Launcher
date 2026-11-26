@@ -73,6 +73,10 @@ internal fun AppLibraryCanvas(permitted: List<AppEntry>, hidden: Set<String>, pr
                     } else key(query.trim(), sort, showHidden) {
                         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                             val columns = LocalRenderOptions.current.columns(maxWidth.value, LocalDensity.current.fontScale)
+                            // #456: apps move in place only in your own order; sorted or searched, Move opens the mover.
+                            val moveScope = remember(apps, columns, sort, query) {
+                                if (sort == AppLibrarySort.CUSTOM && query.isBlank()) AppMoveScope(apps.map { it.pkg }, columns) else null }
+                            CompositionLocalProvider(LocalAppMoveScope provides moveScope) {
                             LazyVerticalGrid(GridCells.Fixed(columns), modifier = Modifier.fillMaxSize().testTag("app_library_grid")
                                 .focusKeeperList(keeper),
                                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
@@ -89,6 +93,7 @@ internal fun AppLibraryCanvas(permitted: List<AppEntry>, hidden: Set<String>, pr
                                         }
                                     }
                                 }
+                            }
                             }
                         }
                     }
