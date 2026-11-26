@@ -203,26 +203,14 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                             modifier = Modifier.padding(start = 28.dp, bottom = 4.dp),
                         )
 
-                        // ---- Ember: profile and theme ----
+                        // ---- Ember: profile ----
                         if (vm.profiles.all.size > 1) {
                             Heading(stringResource(R.string.ui_profile), accent)
                             ButtonRow(Modifier.padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 6.dp), spacing = 8.dp) {
                                 vm.profiles.all.forEach { p -> Chip(p.name, selected = p.id == vm.profiles.profileId, maxLines = 1) { vm.profiles.switchProfile(p.id) } }
                             }
                         }
-                        Heading(stringResource(R.string.ui_interface), accent)
-                        ButtonRow(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 6.dp), spacing = 8.dp) {
-                            app.ember.tv.data.InterfaceStyles.options.forEach { (id, label) ->
-                                Chip(label, selected = vm.look.uiStyle == id, maxLines = 1) { vm.look.updateUiStyle(id) }
-                            }
-                        }
-                        Heading(stringResource(R.string.ui_qs_theme), accent)
-                        ButtonRow(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 6.dp), spacing = 8.dp) {
-                            Chip(stringResource(R.string.ui_night), selected = vm.look.theme == "night", maxLines = 1) { vm.look.updateTheme("night") }
-                            Chip(stringResource(R.string.ui_day), selected = vm.look.theme == "day", maxLines = 1) { vm.look.updateTheme("day") }
-                            Chip(stringResource(R.string.ui_auto), selected = vm.look.theme == "auto", maxLines = 1) { vm.look.updateTheme("auto") }
-                            Chip(stringResource(R.string.ui_oled), selected = vm.look.oled, maxLines = 1) { vm.look.updateOled(!vm.look.oled) }
-                        }
+                        // #462: Interface and Theme live in Settings › Appearance only.
 
                         // ---- this TV right now ----
                         Heading(stringResource(R.string.ui_qs_now), accent)
