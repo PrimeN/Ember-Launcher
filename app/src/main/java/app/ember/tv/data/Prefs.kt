@@ -306,11 +306,6 @@ class Prefs(context: Context) {
         get() = sp.read(PreferenceKeys.COLLECTIONS_DISCOVER)
         set(v) = sp.edit { putStringSet(PreferenceKeys.COLLECTIONS_DISCOVER.name, v) }
 
-    /** #459: addon collections Ember has met, so each starts hidden on Home only once. */
-    var linkedCollectionsSeen: Set<String>
-        get() = sp.read(PreferenceKeys.LINKED_COLLECTIONS_SEEN)
-        set(v) = sp.edit { putStringSet(PreferenceKeys.LINKED_COLLECTIONS_SEEN.name, v) }
-
     /** Folders switched off ("collection id/folder id"). */
     var collectionFoldersOff: Set<String>
         get() = sp.read(PreferenceKeys.COLLECTION_FOLDERS_OFF)

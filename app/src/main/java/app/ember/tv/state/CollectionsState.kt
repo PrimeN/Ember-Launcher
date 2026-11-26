@@ -166,24 +166,30 @@ class CollectionsState(
         }
     }
 
+    /** Why an addon collection has nothing to show, by collection id; empty once it loads. */
+    var linkedProblems by mutableStateOf<Map<String, String>>(emptyMap()); private set
+
     /**
-     * Reads every collection catalog again. A catalog that fails keeps what it sent last; a new one
-     * starts hidden on Home, as AIOMetadata marks them, until you show it.
+     * Reads every collection catalog again. A catalog that fails keeps what it sent last. Like any
+     * collection you add, a new one is on Home straight away (#460).
      */
     suspend fun syncLinked(defs: List<CatalogDef>) {
         val previous = linked.associateBy { it.id }
+        val problems = mutableMapOf<String, String>()
         val next = coroutineScope {
             defs.filter { it.isCollection }.distinctBy { AddonCollections.collectionId(it) }.map { def -> async {
                 val id = AddonCollections.collectionId(def)
-                runCatching { fetchLinked(def) }.getOrElse { if (it is CancellationException) throw it; null }?.takeIf { it.folders.isNotEmpty() } ?: previous[id]
+                val read = runCatching { fetchLinked(def) }
+                read.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+                val got = read.getOrNull()
+                when {
+                    got == null -> problems[id] = "${def.addon.name} couldn't be reached" + (read.exceptionOrNull()?.message?.let { ": ${it.take(120)}" } ?: ".")
+                    got.folders.isEmpty() -> problems[id] = "${def.addon.name} sent ${def.name} without any folders that open catalogs."
+                }
+                got?.takeIf { it.folders.isNotEmpty() } ?: previous[id]
             } }.awaitAll().filterNotNull()
         }
-        val seen = prefs.linkedCollectionsSeen
-        val fresh = next.map { it.id }.filter { it !in seen && list.none { own -> own.id == it } }
-        if (fresh.isNotEmpty()) {
-            hidden = hidden + fresh; prefs.collectionsOff = hidden
-        }
-        if (next.any { it.id !in seen }) prefs.linkedCollectionsSeen = seen + next.map { it.id }
+        linkedProblems = problems
         if (next != linked) {
             linked = next
             withContext(Dispatchers.IO) { AddonCollections.save(context, next) }

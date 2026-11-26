@@ -11,7 +11,8 @@ import kotlinx.serialization.json.JsonPrimitive
 /**
  * #459: collections an addon serves itself. AIOMetadata (3.2 and later) lists each collection made
  * in its builder as a catalog of type "collection"; each entry is a folder whose collection block
- * names the catalogs it opens and its subfolders. Ember shows them as collections that follow the
+ * (AIOStreams' collection extension) lists the catalogs it opens as `sources` and its subfolders
+ * among its `items`. A catalog entry may carry an empty block; the folder's meta has the rest. Ember shows them as collections that follow the
  * addon: on Home as folder tiles, in Discover, and in the Home widgets list.
  */
 object AddonCollections {
@@ -28,21 +29,31 @@ object AddonCollections {
 
     private fun block(entry: JsonElement?): JsonObject? = entry.obj("collection")
 
+    /** The catalogs a folder opens: `sources`, or `catalogs` as some addons write it. */
+    private fun sources(b: JsonObject): List<JsonElement> = b.arr("sources").list().ifEmpty { b.arr("catalogs").list() }
+
     /** Whether an entry already says what its folder opens, so it needn't be opened first. */
     fun complete(entry: JsonElement): Boolean = block(entry)?.let { b ->
-        b.arr("catalogs").list().isNotEmpty() || b.arr("items").list().any { block(it) != null }
+        sources(b).isNotEmpty() || b.arr("items").list().any { block(it) != null }
     } == true
 
-    /** One catalog a folder opens. Without an addon id it is the collection addon's own catalog. */
+    private fun manifestUrl(url: String) = url.trim().trimEnd('/').let { if (it.endsWith("manifest.json")) it else "$it/manifest.json" }
+
+    /**
+     * One catalog a folder opens. Without an addon id it is the collection addon's own catalog; the
+     * id may also be another addon's manifest link, which is then matched by that link.
+     */
     fun source(value: JsonElement, def: CatalogDef): CollectionSource? {
         val catalogId = value.str("catalogId")?.takeIf { it.isNotBlank() } ?: return null
         val type = value.str("type")?.takeIf { it.isNotBlank() } ?: return null
-        val addonId = value.str("addonId")?.takeIf { it.isNotBlank() } ?: def.addon.manifestId
-        val own = addonId == def.addon.manifestId
+        val given = value.str("addonId")?.trim()?.takeIf { it.isNotBlank() }
+        val link = given?.takeIf { it.startsWith("http://", true) || it.startsWith("https://", true) }?.let(::manifestUrl)
+        val own = given == null || given == def.addon.manifestId || link == manifestUrl(def.addon.url)
+        val addonId = if (own) def.addon.manifestId else link ?: given!!
         val name = value.str("name") ?: value.str("title")
         return CollectionSource(provider = "addon", addonId = addonId, type = type, catalogId = catalogId,
             genre = value.str("genre")?.takeIf { it.isNotBlank() }, title = name,
-            addonKey = if (own) AddonAccess.key(def.addon.url) else null,
+            addonKey = if (own) AddonAccess.key(def.addon.url) else link?.let(AddonAccess::key),
             extensionFields = name?.let { mapOf("catalogName" to JsonPrimitive(it)) }.orEmpty())
     }
 
@@ -58,7 +69,7 @@ object AddonCollections {
         val b = block(entry) ?: return emptyList()
         val id = entry.str("id")?.takeIf { it.isNotBlank() } ?: return emptyList()
         val name = entry.str("name")?.takeIf { it.isNotBlank() } ?: id
-        val sources = b.arr("catalogs").list().mapNotNull { source(it, def) }
+        val sources = sources(b).mapNotNull { source(it, def) }
             .distinctBy { listOf(it.addonId, it.type, it.catalogId, it.genre) }
         val tile = shape(entry)
         val cover = (if (tile == "LANDSCAPE") entry.str("landscapePoster") else null) ?: entry.str("poster") ?: entry.str("landscapePoster") ?: entry.str("background")

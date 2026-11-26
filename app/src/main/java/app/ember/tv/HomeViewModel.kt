@@ -513,9 +513,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun isInDiscover(c: CatalogDef) = catalogs.isInDiscover(c)
     // #459: a collection catalog's Home and Discover switches are its collection's.
     fun collectionCatalogOnHome(c: CatalogDef) = collectionShown(HomeSectionsState.collectionSection(app.ember.tv.data.AddonCollections.collectionId(c)))
-    fun toggleCollectionCatalogHome(c: CatalogDef) = toggleCollectionOnHome(HomeSectionsState.collectionSection(app.ember.tv.data.AddonCollections.collectionId(c)))
+    fun toggleCollectionCatalogHome(c: CatalogDef) {
+        val id = app.ember.tv.data.AddonCollections.collectionId(c)
+        if (collections.all.none { it.id == id }) { showNotice(collectionNotLoaded(c)); return }
+        toggleCollectionOnHome(HomeSectionsState.collectionSection(id))
+    }
+    /** #460: why a collection catalog's switch can't do anything yet. */
+    fun collectionNotLoaded(c: CatalogDef): String =
+        collections.linkedProblems[app.ember.tv.data.AddonCollections.collectionId(c)]?.let { "${c.name} hasn't loaded. $it" }
+            ?: "${c.name} is still loading from ${c.addon.name}. Try again in a moment."
     fun collectionCatalogInDiscover(c: CatalogDef) = app.ember.tv.data.AddonCollections.collectionId(c) in collections.inDiscover
-    fun toggleCollectionCatalogDiscover(c: CatalogDef) = collections.toggleDiscover(app.ember.tv.data.AddonCollections.collectionId(c))
+    fun toggleCollectionCatalogDiscover(c: CatalogDef) {
+        val id = app.ember.tv.data.AddonCollections.collectionId(c)
+        if (collections.all.none { it.id == id }) { showNotice(collectionNotLoaded(c)); return }
+        collections.toggleDiscover(id)
+    }
     /** Where a catalog shows, its collection's places for a collection catalog. */
     fun catalogOnHome(c: CatalogDef) = if (c.isCollection) collectionCatalogOnHome(c) else isOnHome(c)
     fun catalogInDiscover(c: CatalogDef) = if (c.isCollection) collectionCatalogInDiscover(c) else isInDiscover(c)

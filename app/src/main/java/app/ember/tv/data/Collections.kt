@@ -210,8 +210,11 @@ object Collections {
     }
 
     fun matches(d: CatalogDef, s: CollectionSource): Boolean =
-        d.addon.manifestId == s.addonId && d.id == s.catalogId && d.type == s.type &&
-            (s.addonKey == null || s.addonKey == AddonAccess.key(d.addon.url))
+        d.id == s.catalogId && d.type == s.type && when {
+            // #459: a source may name its addon by manifest link instead of id.
+            s.addonId?.startsWith("http", ignoreCase = true) == true -> s.addonKey == AddonAccess.key(d.addon.url)
+            else -> d.addon.manifestId == s.addonId && (s.addonKey == null || s.addonKey == AddonAccess.key(d.addon.url))
+        }
 
     /**
      * Titles for one source. Addon sources need that addon installed (matched by its manifest id);
