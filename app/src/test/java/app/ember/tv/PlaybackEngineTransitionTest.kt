@@ -134,4 +134,41 @@ class PlaybackEngineTransitionTest {
             assertTrue(engine.recover(androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED));assertTrue(constructed)
         }finally{engine.player.release();if(!constructed)candidate.release()}
     }
+
+    /** #379: tunneling (like an explicit decoder choice) keeps automatic recovery on Standard; a manual switch still works. */
+    @Test fun tunnelingKeepsAutomaticRecoveryOnStandard() {
+        val context=RuntimeEnvironment.getApplication()
+        val original=ExoPlayer.Builder(context).build();val candidate=ExoPlayer.Builder(context).build()
+        var constructed=false
+        val standard=intercept(original){name->if(name=="getAudioFormat")Format.Builder().setSampleMimeType("audio/ac3").build() else Unit}
+        val engine=PlaybackEngine(context,standard,{PlaybackConfig(rememberDecoderChoices=false,tunneling=true)},
+            compatibilityFactory={_,_,_->constructed=true;candidate}) {}
+        try {
+            engine.configure(EngineSource(listOf("https://debrid.example/d/abc"),"Film","key"))
+            original.setMediaItem(MediaItem.fromUri("https://debrid.example/d/abc"))
+            assertFalse(engine.recover(androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED));assertFalse(constructed)
+            assertTrue(engine.switch());assertTrue(constructed)
+        }finally{engine.player.release();if(!constructed)candidate.release()}
+    }
+
+    /** #378: a switch keeps the pause, speed, volume and repeat mode. */
+    @Test fun aSwitchKeepsPauseSpeedVolumeAndRepeat() {
+        val context=RuntimeEnvironment.getApplication()
+        val original=ExoPlayer.Builder(context).build();val candidate=ExoPlayer.Builder(context).build()
+        val standard=intercept(original){name->if(name=="getAudioFormat")Format.Builder().setSampleMimeType("audio/ac3").build() else Unit}
+        val engine=PlaybackEngine(context,standard,{PlaybackConfig(rememberDecoderChoices=false)},compatibilityFactory={_,_,_->candidate}) {}
+        try {
+            engine.configure(EngineSource(listOf("content://media/123"),"Film","key"))
+            original.setMediaItem(MediaItem.fromUri("content://media/123"));original.seekTo(42000)
+            original.playWhenReady=false
+            original.playbackParameters=androidx.media3.common.PlaybackParameters(1.5f)
+            original.volume=.4f
+            original.repeatMode=Player.REPEAT_MODE_ONE
+            assertTrue(engine.switch())
+            assertFalse(candidate.playWhenReady)
+            assertEquals(1.5f,candidate.playbackParameters.speed,.001f)
+            assertEquals(.4f,candidate.volume,.001f)
+            assertEquals(Player.REPEAT_MODE_ONE,candidate.repeatMode)
+        }finally{engine.player.release()}
+    }
 }
