@@ -439,10 +439,15 @@ class ShowcaseShotsTest {
         ), showAllTab = true)
         compose.setContent { Frame { app.ember.tv.ui.CollectionEditor(vm, collection) {} } }
         dialog("collection-editor")
-        compose.onNodeWithTag("collection_folder_f1").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
-        compose.waitForIdle()
-        compose.onNodeWithText("Edit folder").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
-        compose.waitForIdle()
+    }
+
+    @Test fun folderEditor() {
+        val vm = HomeViewModel(context)
+        val source = { id: String -> app.ember.tv.data.CollectionSource(addonId = "aio-metadata", type = "movie", catalogId = id) }
+        val folder = app.ember.tv.data.CollectionFolder("f1", "Classics", tileShape = "LANDSCAPE", coverEmoji = "🎞",
+            sources = listOf(source("a"), app.ember.tv.data.LibraryLists.source(app.ember.tv.data.LibraryLists.all.first()),
+                app.ember.tv.data.CollectionSource(provider = "trakt", traktListId = "1", title = "Film noir essentials")))
+        compose.setContent { Frame { app.ember.tv.ui.CollectionFolderEditor(vm, folder, onSave = {}) {} } }
         dialog("folder-editor")
         compose.onNodeWithTag("folder_step_sources").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
         compose.waitForIdle()

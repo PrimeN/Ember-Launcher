@@ -182,7 +182,7 @@ internal object FolderSteps {
 }
 
 @Composable
-private fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder, onSave: (CollectionFolder) -> Unit, close: () -> Unit) {
+internal fun CollectionFolderEditor(vm: HomeViewModel, initial: CollectionFolder, onSave: (CollectionFolder) -> Unit, close: () -> Unit) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
     var picker by remember { mutableStateOf(false) }
     var editingSource by remember { mutableStateOf<Int?>(null) }
