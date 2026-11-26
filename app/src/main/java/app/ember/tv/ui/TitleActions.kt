@@ -37,6 +37,14 @@ fun TitleActions(meta: Meta, vm: HomeViewModel, close: () -> Unit) {
                 }
                 add(TitleMenuAction(label,Icons.Outlined.Visibility,selected=vm.isWatched(meta)) { vm.markTitleWatched(meta); close() })
             }
+            // #452: tell Spark what you think; choosing the same again takes it back.
+            if (app.ember.tv.tracker.Tmdb.available && meta.type in setOf("movie", "series", "show", "tv") && (meta.tmdbId != null || meta.imdb != null)) {
+                val now = vm.spark.voteOf(meta)
+                fun vote(v: Int) { vm.spark.vote(meta, if (now == v) null else v); close() }
+                add(TitleMenuAction("Love it",Icons.Outlined.FavoriteBorder,selected=now==app.ember.tv.spark.SparkVote.LOVE,divider=true) { vote(app.ember.tv.spark.SparkVote.LOVE) })
+                add(TitleMenuAction("Like it",Icons.Outlined.ThumbUp,selected=now==app.ember.tv.spark.SparkVote.LIKE) { vote(app.ember.tv.spark.SparkVote.LIKE) })
+                add(TitleMenuAction("Not for me",Icons.Outlined.ThumbDown,selected=now==app.ember.tv.spark.SparkVote.NOT) { vote(app.ember.tv.spark.SparkVote.NOT) })
+            }
             if (vm.isContinueItem(meta)) add(TitleMenuAction("Remove from Continue watching",Icons.Outlined.RemoveCircleOutline,destructive=true,divider=true) { vm.removeFromContinue(meta); close() })
         }
         add(TitleMenuAction("Hide from Home",Icons.Outlined.VisibilityOff,destructive=true,

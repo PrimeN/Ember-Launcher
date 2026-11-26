@@ -31,6 +31,8 @@ data class SparkCandidate(
     val votes: Int,
     val from: List<String> = emptyList(),
     val fromWeight: Double = 0.0,
+    /** #454: found as a film under 100 minutes. */
+    val short: Boolean = false,
 )
 
 /** Shares of your watching (0..1) by genre, original language and decade. */
@@ -44,6 +46,32 @@ data class SparkTaste(val genres: Map<Int, Double>, val languages: Map<String, D
 
 @Serializable
 data class SparkRow(val id: String, val title: String, val subtitle: String? = null, val items: List<Meta>)
+
+/** #452: what you told Spark about a title: [LOVE], [LIKE] or [NOT] for you. */
+@Serializable
+data class SparkVote(val vote: Int, val name: String, val movie: Boolean, val tmdb: Long? = null, val imdb: String? = null,
+    val poster: String? = null, val at: Long = 0) {
+    companion object { const val LOVE = 2; const val LIKE = 1; const val NOT = -1 }
+}
+
+/**
+ * #454: moods for the Spark page: each keeps the titles with one of its kinds (by genre name, as
+ * Spark's picks carry them) and drops those with a kind it rules out.
+ */
+enum class SparkMood(val label: String, val wants: Set<String>, val avoids: Set<String> = emptySet()) {
+    ANY("Any mood", emptySet()),
+    FEEL_GOOD("Feel-good", setOf("Comedy", "Family", "Animation", "Romance", "Music"), setOf("Horror", "War", "Crime")),
+    THRILLING("Thrilling", setOf("Thriller", "Action", "Crime", "Action & adventure", "Mystery")),
+    THOUGHTFUL("Thought-provoking", setOf("Drama", "Sci-fi", "History", "Documentary", "Sci-fi & fantasy", "War & politics")),
+    SCARY("Scary", setOf("Horror", "Thriller", "Mystery")),
+    ESCAPE("Escape", setOf("Fantasy", "Adventure", "Sci-fi", "Sci-fi & fantasy", "Animation", "Action & adventure"));
+
+    fun matches(m: Meta): Boolean {
+        if (this == ANY) return true
+        val g = m.genres.orEmpty()
+        return g.any { it in wants } && g.none { it in avoids }
+    }
+}
 
 object SparkModel {
     /** Half of a play's say is gone after about four months. */
@@ -82,6 +110,30 @@ object SparkModel {
             !watched -> 0.0
             else -> base * 0.6
         }.let { if (!watched && rating != null && rating < 8) 0.0 else it }
+    }
+
+    /** #452: Love it counts like a favourite you rated 9–10, Like it like a finished title, Not for me against its kind. */
+    fun voteWeight(vote: Int): Double = when {
+        vote >= SparkVote.LOVE -> 4.0
+        vote == SparkVote.LIKE -> 2.0
+        vote < 0 -> -2.5
+        else -> 0.0
+    }
+
+    /**
+     * #454: two people's tastes for couch mode: a kind counts by how much you both like it (the
+     * geometric mean), so it leans to what you share rather than to whoever watches more.
+     */
+    fun blend(a: Map<Int, Double>, b: Map<Int, Double>): Map<Int, Double> {
+        val both = a.keys.intersect(b.keys).associateWith { sqrt((a[it] ?: 0.0) * (b[it] ?: 0.0)) }.filterValues { it > 0 }
+        val total = both.values.sum()
+        return if (total <= 0) emptyMap() else both.mapValues { it.value / total }
+    }
+
+    /** #453: the two pairs of your favourite kinds that make a Mix: 1st with 2nd, 1st with 3rd. */
+    fun mixes(taste: SparkTaste): List<Pair<Int, Int>> {
+        val top = taste.topGenres(3, min = 0.1)
+        return listOfNotNull(top.getOrNull(1)?.let { top[0] to it }, top.getOrNull(2)?.let { top[0] to it })
     }
 
     fun taste(seeds: List<SparkSeed>, facts: Map<String, SparkFacts>): SparkTaste {
@@ -123,7 +175,7 @@ object SparkModel {
      */
     fun rows(candidates: List<SparkCandidate>, taste: SparkTaste, recentSeeds: List<SparkSeed>, excluded: Set<String>): List<SparkRow> {
         val pool = candidates.filter { it.key !in excluded }
-            .groupBy { it.key }.map { (_, same) -> same.reduce { a, b -> a.copy(from = (a.from + b.from).distinct(), fromWeight = a.fromWeight + b.fromWeight) } }
+            .groupBy { it.key }.map { (_, same) -> same.reduce { a, b -> a.copy(from = (a.from + b.from).distinct(), fromWeight = a.fromWeight + b.fromWeight, short = a.short || b.short) } }
             .map { it to score(it, taste) }.sortedByDescending { it.second }
         if (pool.isEmpty()) return emptyList()
         val uses = HashMap<String, Int>()
@@ -131,7 +183,7 @@ object SparkModel {
             val picked = list.filter { (uses[it.first.key] ?: 0) < 2 }.take(n)
             if (picked.size < min) return null
             picked.forEach { uses[it.first.key] = (uses[it.first.key] ?: 0) + 1 }
-            return picked.map { (c, _) -> c.meta.copy(badge = reason(c, taste)) }
+            return picked.map { (c, _) -> c.meta.copy(badge = reason(c, taste), genres = c.genres.map(SparkNames::genre).distinct()) }
         }
         // Filled in this order (so the narrow rows get their titles first), shown in [show] order.
         val rows = ArrayList<Pair<Int, SparkRow>>()
@@ -146,7 +198,13 @@ object SparkModel {
         taste.topGenres(3, min = 0.12).forEachIndexed { i, g ->
             take(pool.filter { g in it.first.genres })?.let { rows += (10 + i) to SparkRow("genre:$g", SparkNames.row(g), null, it) }
         }
+        // #453: Mixes, two of your favourite kinds in one title.
+        mixes(taste).forEachIndexed { i, (a, b) ->
+            take(pool.filter { a in it.first.genres && b in it.first.genres })?.let { rows += (15 + i) to SparkRow("mix:$a-$b", SparkNames.mix(a, b), "A Spark mix", it) }
+        }
         take(pool.filter { it.first.votes in 100..2500 && it.first.rating >= 7.2 })?.let { rows += 30 to SparkRow("gems", "Hidden gems for you", "Well loved, less known", it) }
+        // #454: Quick watch, films under 100 minutes (found with that limit, so their length is known).
+        take(pool.filter { it.first.short }, min = 4)?.let { rows += 35 to SparkRow("quick", "Quick watch", "Films under 100 minutes", it.map { m -> m.copy(runtime = m.runtime ?: "Under 100 min") }) }
         return rows.sortedBy { it.first }.map { it.second }
     }
 
@@ -208,5 +266,17 @@ object SparkNames {
         }
     }.distinct()
     fun row(id: Int) = rows[id] ?: "More ${genre(id).lowercase()}"
+
+    private val mixNames = mapOf(
+        setOf(878, 53) to "Sci-fi thrillers", setOf(35, 10749) to "Romcoms", setOf(27, 35) to "Horror comedies",
+        setOf(80, 18) to "Crime dramas", setOf(28, 35) to "Action comedies", setOf(14, 12) to "Fantasy adventures",
+        setOf(878, 28) to "Sci-fi action", setOf(9648, 53) to "Mystery thrillers", setOf(18, 10749) to "Romantic dramas",
+        setOf(16, 35) to "Animated comedies", setOf(16, 10751) to "Animated family films", setOf(36, 18) to "Historical dramas",
+        setOf(10752, 18) to "War dramas", setOf(27, 53) to "Horror thrillers", setOf(80, 53) to "Crime thrillers",
+        setOf(878, 18) to "Sci-fi dramas", setOf(35, 18) to "Comedy dramas", setOf(80, 35) to "Crime comedies",
+        setOf(12, 28) to "Action adventures", setOf(878, 12) to "Space and sci-fi adventures",
+    )
+    /** #453: a Mix's name: "Sci-fi thrillers", or "Drama meets mystery" when there's no common name. */
+    fun mix(a: Int, b: Int): String = mixNames[setOf(a, b)] ?: "${genre(a)} meets ${genre(b).lowercase()}"
     fun language(code: String): String = java.util.Locale(code).getDisplayLanguage(java.util.Locale.ENGLISH).ifBlank { code }
 }

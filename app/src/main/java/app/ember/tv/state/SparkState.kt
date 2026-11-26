@@ -15,6 +15,10 @@ import app.ember.tv.spark.SparkFacts
 import app.ember.tv.spark.SparkModel
 import app.ember.tv.spark.SparkRow
 import app.ember.tv.spark.SparkSeed
+import app.ember.tv.spark.SparkVote
+import app.ember.tv.spark.SparkMood
+import app.ember.tv.spark.SparkNames
+import kotlinx.serialization.builtins.serializer
 import app.ember.tv.tracker.Http
 import app.ember.tv.tracker.Tmdb
 import app.ember.tv.tracker.arr
@@ -91,11 +95,139 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         val summary: String? = null,
         val builtAt: Long = 0,
         val asks: List<SavedAsk> = emptyList(),
+        /** #454: your taste as shares, for the taste page and couch mode. */
+        val genres: Map<Int, Double> = emptyMap(),
+        val languages: Map<String, Double> = emptyMap(),
+        val decades: Map<Int, Double> = emptyMap(),
+        /** #454: titles you've watched or voted on, so couch mode can leave out what either of you has seen. */
+        val seen: List<String> = emptyList(),
     )
 
     /** #438: an Ask Spark answer kept as a row (and a Home widget); asked again about once a week. */
     @Serializable
     data class SavedAsk(val id: String, val question: String, val row: SparkRow, val at: Long)
+
+    // ---- Love it / Like it / Not for me (#452) ----
+    /** This profile's votes, by title key. */
+    var votes by mutableStateOf<Map<String, SparkVote>>(emptyMap()); private set
+    private fun votesFile(profile: String) = File(File(context.filesDir, "spark").apply { mkdirs() }, profile.replace(Regex("[^A-Za-z0-9_-]"), "_") + "-votes.json")
+    private var rebuildSoon: Job? = null
+
+    fun voteOf(meta: Meta): Int? = votes[meta.titleKey()]?.vote
+
+    /** Records (or with null, takes back) what you think of a title; Spark's picks follow a few seconds later. */
+    fun vote(meta: Meta, vote: Int?) {
+        load()
+        val key = meta.titleKey()
+        val next = if (vote == null) votes - key else votes + (key to SparkVote(vote, meta.name, meta.type == "movie", meta.tmdbId,
+            meta.imdb, meta.poster, System.currentTimeMillis()))
+        votes = next
+        // Not for me leaves the page straight away.
+        if (vote == SparkVote.NOT) rows = rows.map { r -> r.copy(items = r.items.filterNot { it.titleKey() == key }) }
+        val profile = profileId()
+        scope.launch(Dispatchers.IO) { runCatching { votesFile(profile).writeText(json.encodeToString(VOTES, next)) } }
+        rebuildSoon?.cancel()
+        rebuildSoon = scope.launch { kotlinx.coroutines.delay(4_000); build(force = true) }
+    }
+
+    /** #452: votes from "Pick five you love" for a new profile. */
+    fun loveAll(picked: List<Meta>) {
+        load()
+        val now = System.currentTimeMillis()
+        val next = votes + picked.associate { m -> m.titleKey() to SparkVote(SparkVote.LOVE, m.name, m.type == "movie", m.tmdbId, m.imdb, m.poster, now) }
+        votes = next
+        val profile = profileId()
+        scope.launch(Dispatchers.IO) { runCatching { votesFile(profile).writeText(json.encodeToString(VOTES, next)) } }
+        build(force = true)
+    }
+
+    /** Takes back one vote, from the taste page. */
+    fun unvote(key: String) {
+        val next = votes - key
+        votes = next
+        val profile = profileId()
+        scope.launch(Dispatchers.IO) { runCatching { votesFile(profile).writeText(json.encodeToString(VOTES, next)) } }
+        rebuildSoon?.cancel()
+        rebuildSoon = scope.launch { kotlinx.coroutines.delay(4_000); build(force = true) }
+    }
+
+    fun forgetVotes() {
+        votes = emptyMap()
+        val profile = profileId()
+        scope.launch(Dispatchers.IO) { runCatching { votesFile(profile).delete() } }
+        build(force = true)
+    }
+
+    /** #452: well-known titles to pick five you love from: this week's popular films and shows on TMDB. */
+    var starters by mutableStateOf<List<Meta>>(emptyList()); private set
+    var startersLoading by mutableStateOf(false); private set
+    fun loadStarters() {
+        if (startersLoading || starters.isNotEmpty() || !Tmdb.available) return
+        startersLoading = true
+        scope.launch {
+            val key = ApiKeys.get("TMDB_API_KEY")
+            val found = withContext(Dispatchers.IO) { listOf("movie", "tv").map { type -> async {
+                runCatching { Http.metadata("https://api.themoviedb.org/3/trending/$type/week?api_key=$key").arr("results").list()
+                    .mapNotNull { ExploreRepository.parseTitle(it, if (type == "tv") ExploreKind.TV else ExploreKind.MOVIE)?.takeUnless { t -> t.adult }?.meta } }
+                    .getOrDefault(emptyList())
+            } }.awaitAll() }
+            // Films and shows taken in turn, so both are there to choose from.
+            starters = (0 until 15).flatMap { i -> listOfNotNull(found[0].getOrNull(i), found[1].getOrNull(i)) }.filter { it.poster != null }
+            startersLoading = false
+        }
+    }
+
+    // ---- Moods, quick watch, couch mode and the taste page (#454) ----
+    var mood by mutableStateOf(SparkMood.ANY)
+    var quickOnly by mutableStateOf(false)
+    /** What Spark knows: shares by kind, language and decade, as last built. */
+    val tasteGenres get() = saved.genres
+    val tasteLanguages get() = saved.languages
+    val tasteDecades get() = saved.decades
+
+    /** Couch mode: picks for you and [couchName] together. */
+    var couchName by mutableStateOf<String?>(null); private set
+    var couchRows by mutableStateOf<List<SparkRow>>(emptyList()); private set
+    var couchLoading by mutableStateOf(false); private set
+    var couchNote by mutableStateOf<String?>(null); private set
+    private var couchJob: Job? = null
+
+    fun stopCouch() { couchJob?.cancel(); couchName = null; couchRows = emptyList(); couchNote = null; couchLoading = false }
+
+    /** Builds rows for both of you from what you each like most, leaving out what either of you has seen. */
+    fun startCouch(otherProfile: String, otherName: String) {
+        stopCouch()
+        load()
+        couchName = otherName
+        val mine = saved
+        val theirs = runCatching { json.decodeFromString(Saved.serializer(), file(otherProfile).readText()) }.getOrNull()
+        if (theirs == null || theirs.genres.isEmpty() || mine.genres.isEmpty()) {
+            couchNote = "Spark needs to know you both first: open Spark on $otherName's profile once."
+            return
+        }
+        couchLoading = true
+        couchJob = scope.launch {
+            val key = ApiKeys.get("TMDB_API_KEY")
+            val shared = SparkModel.blend(mine.genres, theirs.genres)
+            val top = shared.entries.sortedByDescending { it.value }.take(3).map { it.key }
+            val seen = (mine.seen + theirs.seen).toSet()
+            val result = runCatching { withContext(Dispatchers.IO) {
+                top.map { g -> async {
+                    val type = if (g in MOVIE_GENRES) "movie" else "tv"
+                    val items = runCatching { Http.metadata("https://api.themoviedb.org/3/discover/$type?api_key=$key&with_genres=$g" +
+                        "&sort_by=vote_average.desc&vote_count.gte=${if (type == "movie") 400 else 150}&without_genres=99,10770&page=${(1..2).random()}")
+                        .arr("results").list().mapNotNull { ExploreRepository.parseTitle(it, if (type == "tv") ExploreKind.TV else ExploreKind.MOVIE)?.takeUnless { t -> t.adult } } }
+                        .getOrDefault(emptyList())
+                        .filter { (if (type == "tv") "tv:" else "movie:") + it.tmdb !in seen }
+                        .map { it.meta.copy(badge = "You both like ${SparkNames.genre(g).lowercase()}", genres = it.genreIds.map(SparkNames::genre)) }
+                    SparkRow("couch:$g", "${SparkNames.row(g)} for you both", null, items.take(20))
+                } }.awaitAll().filter { it.items.size >= 4 }
+            } }
+            couchRows = result.getOrDefault(emptyList())
+            couchNote = if (couchRows.isEmpty()) "Spark couldn't find picks you'd both like. Try again in a moment." else null
+            couchLoading = false
+        }
+    }
 
     // ---- Ask Spark (#438) ----
     var answer by mutableStateOf<SparkRow?>(null); private set
@@ -251,6 +383,8 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             rows = saved.rows; summary = saved.summary; builtAt = saved.builtAt; error = null; noHistory = false
             imported = runCatching { json.decodeFromString(Imported.serializer(), importFile(profile).readText()) }.getOrNull()
             asks = saved.asks; answer = null; askError = null
+            votes = runCatching { json.decodeFromString(VOTES, votesFile(profile).readText()) }.getOrDefault(emptyMap())
+            stopCouch(); mood = SparkMood.ANY; quickOnly = false
             importNote = null
             searchAnswer = null
         }
@@ -303,6 +437,8 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         "spark:because" -> rows.firstOrNull { it.id.startsWith("because:") }
         "spark:gems" -> rows.firstOrNull { it.id == "gems" }
         "spark:language" -> rows.firstOrNull { it.id.startsWith("lang:") }
+        "spark:mix1", "spark:mix2" -> rows.filter { it.id.startsWith("mix:") }.getOrNull(slot.last().digitToInt() - 1)
+        "spark:quick" -> rows.firstOrNull { it.id == "quick" }
         else -> asks.firstOrNull { slot == "spark:ask:${it.id}" }?.row
     }
 
@@ -313,7 +449,8 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         loading = true; error = null
         job = scope.launch {
             val history = imported
-            val result = runCatching { withContext(Dispatchers.IO) { make(saved, history) } }
+            val voted = votes
+            val result = runCatching { withContext(Dispatchers.IO) { make(saved, history, voted) } }
             if (profileId() != profile) { loading = false; return@launch }
             result.onSuccess { built ->
                 val next = built.copy(asks = asks)
@@ -328,7 +465,7 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
 
     private class Seen(val meta: Meta, var episodes: Int, var finished: Boolean, var progress: Float, var at: Long)
 
-    private suspend fun make(before: Saved, history: Imported?): Saved = coroutineScope {
+    private suspend fun make(before: Saved, history: Imported?, voted: Map<String, SparkVote> = emptyMap()): Saved = coroutineScope {
         val key = ApiKeys.get("TMDB_API_KEY")
         val now = System.currentTimeMillis()
         // ---- what you watched on this TV: one entry per title ----
@@ -339,7 +476,7 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             s.episodes++; s.finished = s.finished || p.finished; s.progress = maxOf(s.progress, p.progress); s.at = maxOf(s.at, p.at)
         }
         if (history == null) for (m in LocalLibrary.trackerHistory) titles.getOrPut(m.titleKey()) { Seen(m, 1, true, 1f, now - 30L * DAY_MS) }
-        if (titles.isEmpty() && history?.titles.isNullOrEmpty()) return@coroutineScope before.copy(rows = emptyList(), summary = null, builtAt = now)
+        if (titles.isEmpty() && history?.titles.isNullOrEmpty() && voted.isEmpty()) return@coroutineScope before.copy(rows = emptyList(), summary = null, builtAt = now)
 
         // ---- TMDB ids ----
         val imdb = before.imdb.toMutableMap()
@@ -370,7 +507,12 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
             val w = SparkModel.importedWeight(h.plays, h.rating, h.watched, !h.movie, (now - at).coerceAtLeast(0) / DAY_MS.toDouble())
             if (w != 0.0) fromTrackers += SparkSeed(k, h.name ?: "", w, at)
         }
-        val seeds = (local + fromTrackers).groupBy { it.key }.map { (_, same) ->
+        // #452: what you said: Love it, Like it, Not for me.
+        val fromVotes = voted.values.mapNotNull { v ->
+            val k = v.tmdb?.let { (if (v.movie) "movie:" else "tv:") + it } ?: v.imdb?.let { find(it) } ?: return@mapNotNull null
+            SparkSeed(k, v.name, SparkModel.voteWeight(v.vote), v.at)
+        }
+        val seeds = (local + fromTrackers + fromVotes).groupBy { it.key }.map { (_, same) ->
             same.reduce { a, b -> SparkSeed(a.key, a.name.ifBlank { b.name }, (a.weight + b.weight).coerceIn(-2.0, 12.0), maxOf(a.at, b.at)) }
         }
 
@@ -400,10 +542,10 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
 
 
         // ---- candidates: TMDB's picks for your strongest titles, and the best of your favourite kinds ----
-        fun parse(r: JsonElement, tv: Boolean, from: SparkSeed?): SparkCandidate? {
+        fun parse(r: JsonElement, tv: Boolean, from: SparkSeed?, short: Boolean = false): SparkCandidate? {
             val t = ExploreRepository.parseTitle(r, if (tv) ExploreKind.TV else ExploreKind.MOVIE)?.takeUnless { it.adult } ?: return null
             return SparkCandidate(t.meta, (if (tv) "tv:" else "movie:") + t.tmdb, t.genreIds, r.str("original_language"),
-                t.date?.take(4)?.toIntOrNull(), t.rating, t.votes, listOfNotNull(from?.name), from?.weight ?: 0.0)
+                t.date?.take(4)?.toIntOrNull(), t.rating, t.votes, listOfNotNull(from?.name), from?.weight ?: 0.0, short)
         }
         val strong = named.filter { it.name.isNotBlank() }.filter { it.weight > 0 }.sortedByDescending { it.weight }.take(10)
         val fromSeeds = strong.map { s -> async {
@@ -429,14 +571,33 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
                     .mapNotNull { parse(it, type == "tv", null) }
             }.getOrDefault(emptyList())
         } } }.orEmpty()
-        val candidates = (fromSeeds + byKind + byLanguage).awaitAll().flatten()
+        // #453: Mixes, two of your favourite kinds together (TMDB's "and" between genres).
+        val byMix = SparkModel.mixes(taste).flatMap { (a, b) ->
+            listOfNotNull(if (a in MOVIE_GENRES && b in MOVIE_GENRES) "movie" else null, if (a in TV_GENRES && b in TV_GENRES) "tv" else null).map { type -> async {
+                runCatching {
+                    Http.metadata("https://api.themoviedb.org/3/discover/$type?api_key=$key&with_genres=$a,$b&sort_by=vote_average.desc" +
+                        "&vote_count.gte=${if (type == "movie") 300 else 100}&without_genres=99,10770&page=$page").arr("results").list()
+                        .mapNotNull { parse(it, type == "tv", null) }
+                }.getOrDefault(emptyList())
+            } }
+        }
+        // #454: Quick watch, well-liked films in your kinds under 100 minutes.
+        val quick = taste.topGenres(3, min = 0.1).filter { it in MOVIE_GENRES }.takeIf { it.isNotEmpty() }?.let { gs -> listOf(async {
+            runCatching {
+                Http.metadata("https://api.themoviedb.org/3/discover/movie?api_key=$key&with_genres=${gs.joinToString("|")}&with_runtime.lte=100&with_runtime.gte=60" +
+                    "&sort_by=vote_average.desc&vote_count.gte=300&without_genres=99,10770&page=$page").arr("results").list()
+                    .mapNotNull { parse(it, false, null, short = true) }
+            }.getOrDefault(emptyList())
+        }) }.orEmpty()
+        val candidates = (fromSeeds + byKind + byLanguage + byMix + quick).awaitAll().flatten()
         if (candidates.isEmpty() && strong.isNotEmpty()) throw java.io.IOException("TMDB gave nothing")
 
         // Nothing you have already played, rated or that your trackers say you watched.
         val excluded = seeds.map { it.key }.toSet() + imdb.values
         val rows = SparkModel.rows(candidates, taste, named.filter { it.name.isNotBlank() }.sortedByDescending { it.at }, excluded)
         val keep = seeds.mapTo(HashSet()) { it.key }
-        Saved(facts.filterKeys { it in keep }, imdb, rows, SparkModel.summary(taste), now)
+        Saved(facts.filterKeys { it in keep }, imdb, rows, SparkModel.summary(taste), now,
+            genres = taste.genres, languages = taste.languages, decades = taste.decades, seen = excluded.toList())
     }
 
     private companion object {
@@ -447,6 +608,7 @@ class SparkState(private val context: Context, private val scope: CoroutineScope
         /** Titles whose facts are looked up: those that say most about you. */
         const val MAX_FACTS = 300
         const val MAX_ASKS = 5
+        val VOTES = kotlinx.serialization.builtins.MapSerializer(String.serializer(), SparkVote.serializer())
         val MOVIE_GENRES = setOf(28, 12, 16, 35, 80, 99, 18, 10751, 14, 36, 27, 10402, 9648, 10749, 878, 53, 10752, 37)
         val TV_GENRES = setOf(16, 35, 80, 99, 18, 10751, 9648, 37, 10759, 10762, 10765, 10768)
     }

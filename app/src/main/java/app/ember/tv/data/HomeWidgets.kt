@@ -51,6 +51,9 @@ object HomeWidgets {
         "spark:because" to "Spark · Because you watched…",
         "spark:gems" to "Spark · Hidden gems for you",
         "spark:language" to "Spark · More in your other language",
+        "spark:mix1" to "Spark · Your first mix",
+        "spark:mix2" to "Spark · Your second mix",
+        "spark:quick" to "Spark · Quick watch",
     )
     fun isSparkList(id: String?) = id != null && (sparkLists.any { it.first == id } || (id.startsWith("spark:ask:") && id.length in 11..40))
 
