@@ -71,20 +71,22 @@ internal fun EditorSteps(steps: List<Pair<String, String>>, current: String, tag
 
 /** The main action: filled with the accent when it can be used, dimmed when it can't. */
 @Composable
-internal fun PrimaryAction(label: String, ready: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val accent = MaterialTheme.colorScheme.primary
+internal fun PrimaryAction(label: String, ready: Boolean = true, modifier: Modifier = Modifier, danger: Boolean = false, onClick: () -> Unit) {
+    // #470: a step that deletes or resets is filled red rather than the accent.
+    val accent = if (danger) Color(0xFFE5534B) else MaterialTheme.colorScheme.primary
     Focusable(onClick = onClick, modifier = modifier, radius = TvTokens.Shape.Pill, container = if (ready) accent else Wash,
         focusedContainer = PillColor, focusedContent = OnPillColor, outline = false, focusedScale = TvTokens.Focus.Control) {
         Text(label, Modifier.padding(horizontal = 22.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-            color = if (ready) MaterialTheme.colorScheme.onPrimary else LocalContentColor.current.copy(alpha = .6f))
+            color = if (ready) (if (danger) Color.White else MaterialTheme.colorScheme.onPrimary) else LocalContentColor.current.copy(alpha = .6f))
     }
 }
 
 /** Back or Cancel on the left, what's missing in the middle, the actions on the right. */
 @Composable
-internal fun EditorFooter(back: String, onBack: () -> Unit, message: String?, warn: Boolean = true, actions: @Composable RowScope.() -> Unit) {
+internal fun EditorFooter(back: String, onBack: () -> Unit, message: String?, warn: Boolean = true, backModifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Chip(back) { onBack() }
+        Chip(back, modifier = backModifier) { onBack() }
         Text(message.orEmpty(), Modifier.weight(1f), color = if (message != null && warn) Color(0xFFFFB86B) else Mute,
             fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         actions()
@@ -97,7 +99,7 @@ internal fun EditorFooter(back: String, onBack: () -> Unit, message: String?, wa
  */
 @Composable
 internal fun ChoiceCard(name: String, about: String?, selected: Boolean, modifier: Modifier = Modifier, width: Dp = 214.dp,
-    icon: ImageVector? = null, picture: (@Composable BoxScope.() -> Unit)? = null, onClick: () -> Unit) {
+    icon: ImageVector? = null, picture: (@Composable BoxScope.() -> Unit)? = null, aboutLines: Int = 0, onClick: () -> Unit) {
     val accent = MaterialTheme.colorScheme.primary
     Focusable(onClick = onClick, modifier = modifier.width(width).semantics { this.selected = selected }
         .then(if (selected) Modifier.border(2.dp, accent, RoundedCornerShape(TvTokens.Shape.Card.dp)) else Modifier),
@@ -112,8 +114,9 @@ internal fun ChoiceCard(name: String, about: String?, selected: Boolean, modifie
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // #470: aboutLines fixes the line count, so cards side by side are the same height.
                         if (!about.isNullOrBlank()) Text(about, fontSize = 12.sp, lineHeight = 14.sp, color = LocalContentColor.current.copy(alpha = .7f),
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            minLines = aboutLines.coerceAtLeast(1), maxLines = if (aboutLines > 0) aboutLines else 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

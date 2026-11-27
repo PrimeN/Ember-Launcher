@@ -62,9 +62,8 @@ internal fun CacheManagementSettings(part: String) {
         if (confirm) { val keep = remember { androidx.compose.ui.focus.FocusRequester() }
         MediaDialog("Clear cache data?",{if(!busy)confirm=false},initialFocus=keep) {
             Text(stringResource(R.string.tx_downloaded_images_cached_metadata_catalogs_an),color=Mute)
-            ButtonRow {
-                Chip(stringResource(R.string.ui_cancel),maxLines=1,modifier=Modifier.focusRequester(keep)){if(!busy)confirm=false}
-                Chip(if(busy)stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data),maxLines=1) {
+            EditorFooter(stringResource(R.string.ui_cancel),{if(!busy)confirm=false},null,backModifier=Modifier.focusRequester(keep)) {
+                PrimaryAction(if(busy)stringResource(R.string.st_clearing) else stringResource(R.string.st_clear_cache_data),ready=!busy,danger=true) {
                     if(!busy) {
                         busy=true;error=null
                         scope.launch {
@@ -105,12 +104,11 @@ internal fun CacheManagementSettings(part: String) {
     if(custom)MediaDialog(title,{if(!busy)custom=false},resizeForKeyboard=true) {
         Text(stringResource(R.string.tx_enter_a_value_from_1_to, maximum),color=Mute)
         TextInput(draft,{draft=it.take(6)},if(days)"Days" else "Hours",width=240,numeric=true)
-        ButtonRow {
-            Chip(if(busy)stringResource(R.string.st_saving) else stringResource(R.string.ui_save),maxLines=1){
+        EditorFooter(stringResource(R.string.ui_cancel),{if(!busy)custom=false},null) {
+            PrimaryAction(if(busy)stringResource(R.string.st_saving) else stringResource(R.string.ui_save),ready=!busy){
                 val amount=draft.toIntOrNull()
                 if(amount!=null && amount in 1..maximum)apply(kind,amount) else error="Enter a number from 1 to $maximum."
             }
-            Chip(stringResource(R.string.ui_cancel),maxLines=1){if(!busy)custom=false}
         }
         error?.let{Text(it,color=Mute)}
     }

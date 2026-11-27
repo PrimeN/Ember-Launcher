@@ -293,7 +293,7 @@ private fun BadgeAddDialog(vm: HomeViewModel, close: () -> Unit) {
         TvTextField(sample, { sample = it }, Modifier.fillMaxWidth(), placeholder = "Try it on a source name (optional)")
         if (sample.isNotBlank() && pattern.isNotBlank()) Text(when (BadgeEditor.matches(pattern, sample)) { true -> "Matches."; false -> "No match."; null -> "The pattern cannot run." }, color = Mute, fontSize = 13.sp)
         problem?.let { Text(it, color = Color(0xFFFFB4AB), fontSize = 13.sp) }
-        ButtonRow { Chip(stringResource(R.string.tx_add)) { problem = vm.sourceFormat.addBadge(name, pattern); if (problem == null) close() }; Chip(stringResource(R.string.ui_cancel)) { close() } }
+        EditorFooter(stringResource(R.string.ui_cancel), close, null) { PrimaryAction(stringResource(R.string.tx_add)) { problem = vm.sourceFormat.addBadge(name, pattern); if (problem == null) close() } }
     }
 }
 
@@ -304,6 +304,6 @@ private fun BadgeLinkDialog(vm: HomeViewModel, close: () -> Unit) {
         Note(stringResource(R.string.ui_badges_custom_note, SettingsTab.PHONE.path))
         Text(stringResource(R.string.tx_this_replaces_your_custom_badges), color = Mute, fontSize = 13.sp)
         TvTextField(url, { url = it }, Modifier.fillMaxWidth(), placeholder = "https://.../badges.json")
-        ButtonRow { Chip(stringResource(R.string.ui_badges_load)) { if (url.isNotBlank()) { vm.sourceFormat.importBadges(url); close() } }; Chip(stringResource(R.string.ui_cancel)) { close() } }
+        EditorFooter(stringResource(R.string.ui_cancel), close, null) { PrimaryAction(stringResource(R.string.ui_badges_load), ready = url.isNotBlank()) { if (url.isNotBlank()) { vm.sourceFormat.importBadges(url); close() } } }
     }
 }

@@ -68,9 +68,9 @@ internal fun ConfirmDestructive(title:String,message:String,close:()->Unit,actio
     val cancel=remember {FocusRequester()}
     MediaDialog(title,close,initialFocus=cancel) {
         Text(message,color=Mute,fontSize=TvTokens.Type.CompactBody.sp)
-        ButtonRow {
-            Chip(androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_cancel),modifier=Modifier.focusRequester(cancel),onClick=close)
-            Chip(action ?: androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_delete)) {confirm();close()}
+        // #470: the editors' footer; Cancel keeps the focus, the step itself is red on the right.
+        EditorFooter(androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_cancel),close,null,backModifier=Modifier.focusRequester(cancel)) {
+            PrimaryAction(action ?: androidx.compose.ui.res.stringResource(app.ember.tv.R.string.ui_delete),danger=true) {confirm();close()}
         }
     }
 }

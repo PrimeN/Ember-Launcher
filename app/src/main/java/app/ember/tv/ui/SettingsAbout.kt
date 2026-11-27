@@ -166,9 +166,8 @@ private fun PrivateUnlockDialog(vm: HomeViewModel, onClose: () -> Unit) {
                     TvTextField(pass, { pass = it }, Modifier.fillMaxWidth().focusRequester(field), placeholder = "Password", password = true, onSubmit = { unlock() })
                 }
                 message?.let { Text(it, fontSize = 14.sp, lineHeight = 20.sp) }
-                ButtonRow(spacing = 10.dp) {
-                    if (!done) Chip(if (vm.privateBusy) stringResource(R.string.ui_working) else stringResource(R.string.st_unlock)) { unlock() }
-                    Chip(if (done) stringResource(R.string.ui_close) else stringResource(R.string.ui_cancel)) { onClose() }
+                EditorFooter(if (done) stringResource(R.string.ui_close) else stringResource(R.string.ui_cancel), onClose, null) {
+                    if (!done) PrimaryAction(if (vm.privateBusy) stringResource(R.string.ui_working) else stringResource(R.string.st_unlock), ready = !vm.privateBusy) { unlock() }
                 }
             }
     }

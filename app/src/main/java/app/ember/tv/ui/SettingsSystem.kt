@@ -213,9 +213,8 @@ internal fun RestorePage(vm: HomeViewModel) {
                     fontSize = 14.sp,
                 )
                 Text(stringResource(R.string.ui_everything_on_this_tv_is_replaced), color = Mute, fontSize = 13.sp)
-                ButtonRow(spacing = 10.dp) {
-                    Chip(stringResource(R.string.ui_restore_and_restart)) { vm.backup.confirmRestore() }
-                    Chip(stringResource(R.string.ui_cancel)) { vm.backup.cancelRestore() }
+                EditorFooter(stringResource(R.string.ui_cancel), { vm.backup.cancelRestore() }, null) {
+                    PrimaryAction(stringResource(R.string.ui_restore_and_restart), danger = true) { vm.backup.confirmRestore() }
                 }
             }
         }

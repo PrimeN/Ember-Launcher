@@ -217,7 +217,7 @@ fun DetailsScreen(
                         }
                     }
                     if (d.streams.isNotEmpty() || d.serverStreams.isNotEmpty()) {
-                        Text(stringResource(R.string.ui_hold_ok_on_a_source_to), color = Mute, fontSize = 13.sp)
+                        Text(stringResource(R.string.ui_hold_ok_on_a_source_to), color = Mute, fontSize = 13.sp, lineHeight = 18.sp)
                     }
                     if (d.subtitles.isNotEmpty()) {
                         val langs = d.subtitles.map { it.lang }.distinct()

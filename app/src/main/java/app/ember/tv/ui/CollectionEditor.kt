@@ -429,7 +429,7 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             // Five across, sharing the width.
             SourceKinds.all.forEach { k ->
-                ChoiceCard(k.name, k.about, mode == k.name, Modifier.weight(1f).testTag("source_kind_${k.name}"), width = 400.dp, icon = k.icon) { mode = k.name; query = ""; error = null }
+                ChoiceCard(k.name, k.about, mode == k.name, Modifier.weight(1f).testTag("source_kind_${k.name}"), width = 400.dp, icon = k.icon, aboutLines = 2) { mode = k.name; query = ""; error = null }
             }
         }
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -443,7 +443,7 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
                         matches.take(60).forEach { c ->
                             val plain = CollectionDrafts.catalog(c)
                             val on = multiple && picked.any { same(it, plain) }
-                            ChoiceCard(c.label, c.addon.name + if (c.extras.isNotEmpty()) " · filters" else "", on, cards, width = 260.dp, icon = Icons.Outlined.Widgets) {
+                            ChoiceCard(c.label, c.addon.name + if (c.extras.isNotEmpty()) " · filters" else "", on, cards, width = 260.dp, icon = Icons.Outlined.Widgets, aboutLines = 1) {
                                 // A catalog with options is set up first; choosing it again takes it out.
                                 if (c.extras.isEmpty() || on) take(plain) else catalog = c
                             }
@@ -457,11 +457,11 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
                         app.ember.tv.data.LibraryLists.all.forEach { entry ->
                             val source = app.ember.tv.data.LibraryLists.source(entry)
                             ChoiceCard(entry.label, null, multiple && picked.any { same(it, source) }, Modifier.testTag("library_${entry.id}"), width = 230.dp,
-                                icon = Icons.Outlined.Bookmarks) { take(source) }
+                                icon = SourceKinds.listIcon(entry.id)) { take(source) }
                         }
                     }
                 }
-                "Saved searches" -> {
+                "Searches" -> {
                     val saved = vm.collectionSearches
                     EditorHeading("Saved searches", if (saved.isEmpty()) stringResource(R.string.tx_save_a_search_in_discover_first) else "Searches you saved in Discover.")
                     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -520,10 +520,23 @@ internal object SourceKinds {
     val all = listOf(
         Kind("Catalogs", "From your addons", Icons.Outlined.Widgets),
         Kind("Your lists", "Watchlist and smart rows", Icons.Outlined.Bookmarks),
-        Kind("Saved searches", "From Discover", Icons.Outlined.Tune),
+        Kind("Searches", "Saved in Discover", Icons.Outlined.Tune),
         Kind("TMDB", "Collections, people…", Icons.Outlined.Movie),
         Kind("Trakt", "A list's link", Icons.Outlined.PlaylistPlay),
     )
+    /** #470: each of Ember's lists gets its own icon. */
+    fun listIcon(id: String) = when (id) {
+        app.ember.tv.data.LibraryLists.WATCHLIST -> Icons.Outlined.BookmarkBorder
+        app.ember.tv.data.LibraryLists.CONTINUE -> Icons.Outlined.PlayCircle
+        app.ember.tv.data.LibraryLists.RECENT -> Icons.Outlined.History
+        "smart:upnext" -> Icons.Outlined.SkipNext
+        "smart:airing" -> Icons.Outlined.Event
+        "smart:recs" -> Icons.Outlined.ThumbUp
+        "smart:because" -> Icons.Outlined.AutoAwesome
+        "smart:gems" -> Icons.Outlined.Diamond
+        "smart:lists" -> Icons.Outlined.FormatListBulleted
+        else -> Icons.Outlined.Bookmarks
+    }
     val tmdb = listOf(
         Triple("COLLECTION", "Collection", Icons.Outlined.VideoLibrary), Triple("LIST", "List", Icons.Outlined.FormatListBulleted),
         Triple("COMPANY", "Company", Icons.Outlined.Business), Triple("NETWORK", "Network", Icons.Outlined.Tv),

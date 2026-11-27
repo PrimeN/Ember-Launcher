@@ -208,7 +208,7 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
         // Labels under tiles > Titles is off (#43).
         if (tileLabelShown(TileLabels.MEDIA)) Text(
             if (focused) meta.resumeLabel() ?: TitleInfoLine.text(meta.type, meta.releaseInfo, null, null) else "",
-            fontSize = 12.sp,
+            fontSize = 12.sp, lineHeight = 15.sp,
             color = Mute,
             minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics { },

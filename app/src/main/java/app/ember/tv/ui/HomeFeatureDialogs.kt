@@ -86,10 +86,9 @@ internal fun HomeFeatureDialogs(vm:HomeViewModel,onLaunch:(AppEntry)->Unit) {
                     DialogHeading("Rename app")
                     Text(original,color=Mute,fontSize=13.sp)
                     TextInput(name,{name=it.take(app.ember.tv.home.AppNames.LENGTH)},"App name",width=500)
-                    ButtonRow(spacing=10.dp) {
-                        Chip(stringResource(R.string.ui_save)) {if(vm.profiles.allowsApp(pkg))vm.personalHomes.rename(pkg,if(name.trim()==original)"" else name);close()}
+                    EditorFooter(stringResource(R.string.ui_cancel),close,null) {
                         Chip(stringResource(R.string.ui_use_original)) {vm.personalHomes.rename(pkg,"");close()}
-                        Chip(stringResource(R.string.ui_cancel)) {close()}
+                        PrimaryAction(stringResource(R.string.ui_save)) {if(vm.profiles.allowsApp(pkg))vm.personalHomes.rename(pkg,if(name.trim()==original)"" else name);close()}
                     }
                 }
             }

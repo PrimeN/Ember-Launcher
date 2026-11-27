@@ -256,7 +256,7 @@ private fun SaveExploreDialog(onClose: () -> Unit, onSave: (String) -> String?) 
         TvTextField(name, { name = it.take(80) }, placeholder = "for example DreamWorks favourites", focusRequester = first)
         Text(stringResource(R.string.tx_an_existing_name_updates_that_search), color = Mute, fontSize = TvTokens.Type.Compact.sp)
         error?.let { Text(it, color = Mute, fontSize = TvTokens.Type.Compact.sp) }
-        ButtonRow { Chip("Save") { error = onSave(name); if (error == null) onClose() }; Chip("Cancel", onClick = onClose) }
+        EditorFooter("Cancel", onClose, null) { PrimaryAction("Save", ready = name.isNotBlank()) { error = onSave(name); if (error == null) onClose() } }
 
         LaunchedEffect(Unit) { withFrameNanos { }; runCatching { first.requestFocus() } }
     }

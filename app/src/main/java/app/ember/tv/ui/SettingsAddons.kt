@@ -258,10 +258,9 @@ private fun AddonRenameDialog(vm: HomeViewModel, url: String, info: app.ember.tv
     var name by remember(url) { mutableStateOf(info?.name.orEmpty()) }
     MediaDialog("Rename ${vm.addonLabel(url)}", close, resizeForKeyboard = true) {
         TextInput(name, { name = it }, info?.originalName ?: info?.name ?: "Name")
-        ButtonRow(spacing = 10.dp) {
-            Chip(stringResource(R.string.ui_save)) { vm.renameAddon(url, name); close() }
+        EditorFooter(stringResource(R.string.ui_cancel), close, null) {
             if (info?.originalName != null) Chip(stringResource(R.string.ui_use_original)) { vm.renameAddon(url, ""); close() }
-            Chip(stringResource(R.string.ui_cancel)) { close() }
+            PrimaryAction(stringResource(R.string.ui_save)) { vm.renameAddon(url, name); close() }
         }
     }
 }
