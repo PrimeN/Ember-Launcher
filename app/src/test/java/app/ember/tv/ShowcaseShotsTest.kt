@@ -437,7 +437,7 @@ class ShowcaseShotsTest {
             app.ember.tv.data.CollectionFolder("f4", "My watchlist", tileShape = "LANDSCAPE",
                 sources = listOf(app.ember.tv.data.LibraryLists.source(app.ember.tv.data.LibraryLists.all.first()))),
         ), showAllTab = true)
-        compose.setContent { Frame { app.ember.tv.ui.CollectionEditor(vm, collection) {} } }
+        compose.setContent { Frame { CompositionLocalProvider(LocalInlineDialogs provides true) { app.ember.tv.ui.CollectionEditor(vm, collection) {} } } }
         dialog("collection-editor")
     }
 
@@ -447,7 +447,7 @@ class ShowcaseShotsTest {
         val folder = app.ember.tv.data.CollectionFolder("f1", "Classics", tileShape = "LANDSCAPE", coverEmoji = "🎞",
             sources = listOf(source("a"), app.ember.tv.data.LibraryLists.source(app.ember.tv.data.LibraryLists.all.first()),
                 app.ember.tv.data.CollectionSource(provider = "trakt", traktListId = 1L, title = "Film noir essentials")))
-        compose.setContent { Frame { app.ember.tv.ui.CollectionFolderEditor(vm, folder, onSave = {}) {} } }
+        compose.setContent { Frame { CompositionLocalProvider(LocalInlineDialogs provides true) { app.ember.tv.ui.CollectionFolderEditor(vm, folder, onSave = {}) {} } } }
         dialog("folder-editor")
         compose.onNodeWithTag("folder_step_sources").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
         compose.waitForIdle()
@@ -456,8 +456,7 @@ class ShowcaseShotsTest {
 
     /** A dialog is its own window: the newest root. */
     private fun dialog(name: String) {
-        repeat(3) { compose.mainClock.advanceTimeBy(400); compose.waitForIdle(); Thread.sleep(150) }
-        write(name, compose.onAllNodes(isRoot()).onLast().captureToImage().asAndroidBitmap())
+        save(name, settle = 400)
     }
 }
 

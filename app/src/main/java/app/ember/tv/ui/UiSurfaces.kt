@@ -43,14 +43,21 @@ internal fun Modifier.floatingPanelSurface():Modifier {
     return glassSurface(shape,panel=true)
 }
 
+/** #468: true in screenshot tests, where dialogs are drawn in the page instead of their own window. */
+internal val LocalInlineDialogs=androidx.compose.runtime.staticCompositionLocalOf {false}
+
 /** Bounded TV modal; callers choose a scrollable form or provide their own bounded lazy body. */
 @Composable
 internal fun TvDialog(
     close:()->Unit,modifier:Modifier=Modifier,width:Dp=680.dp,height:Dp=540.dp,resizeForKeyboard:Boolean=false,scrollContent:Boolean=false,
     horizontalAlignment:Alignment.Horizontal=Alignment.Start,contentPadding:Dp=TvTokens.Space.XXL.dp,glassSurface:Boolean=false,content:@Composable ColumnScope.()->Unit,
 ) {
-    Dialog(onDismissRequest=close,properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        DialogMotion()
+    // #468: screenshots draw a dialog in place; a test window can't capture another window.
+    val inline=LocalInlineDialogs.current
+    val host:@Composable (@Composable ()->Unit)->Unit = if(inline) {body->Box(Modifier.fillMaxSize().background(Color(0x99000000))){body()}}
+        else {body->Dialog(onDismissRequest=close,properties=DialogProperties(usePlatformDefaultWidth=false)){body()}}
+    host {
+        if(!inline)DialogMotion()
         if(resizeForKeyboard)KeyboardResizesDialog()
         var panelBounds by remember {mutableStateOf(Rect.Zero)}
         val dismiss by rememberUpdatedState(close)
