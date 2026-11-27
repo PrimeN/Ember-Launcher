@@ -27,8 +27,14 @@ import app.ember.tv.data.SourceRules
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun HideSourcesSection(vm: HomeViewModel) {
-    val r = vm.sourceFormat.sourceRules
-    fun change(f: (SourceRules) -> SourceRules) = vm.sourceFormat.updateSourceRules(f)
+    val addonNames = vm.addonInfo.values.filter { "stream" in it.provides }.map { it.name }.distinct().sorted()
+    HideSourcesSection(vm.sourceFormat.sourceRules, addonNames) { f -> vm.sourceFormat.updateSourceRules(f) }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun HideSourcesSection(r: SourceRules, addonNames: List<String>, update: ((SourceRules) -> SourceRules) -> Unit) {
+    fun change(f: (SourceRules) -> SourceRules) = update(f)
     val summary = if (!r.active) "Nothing is hidden. Turn on what you never want to see; a title screen can still show what's filtered."
         else "${r.count} ${if (r.count == 1) "filter" else "filters"} on. A title screen shows how many sources they hid, and can show them."
     Section("Hide sources", summary, id = "hide-sources") {
@@ -41,7 +47,6 @@ internal fun HideSourcesSection(vm: HomeViewModel) {
             FilterChips("Release", SourceRules.RELEASES.map { it to it }, r.releases, "hide_release") { v -> change { it.copy(releases = it.toggle(it.releases, v)) } }
             SizeChips("Bigger than", SourceRules.MAX_SIZES, r.maxSizeGb, "hide_max") { v -> change { it.copy(maxSizeGb = v) } }
             SizeChips("Smaller than", SourceRules.MIN_SIZES, r.minSizeGb, "hide_min") { v -> change { it.copy(minSizeGb = v) } }
-            val addonNames = vm.addonInfo.values.filter { "stream" in it.provides }.map { it.name }.distinct().sorted()
             val shownAddons = (addonNames + r.addons).distinct()
             if (shownAddons.isNotEmpty()) FilterChips("Addons", shownAddons.map { it to it }, r.addons, "hide_addon") { a -> change { it.copy(addons = it.toggle(it.addons, a)) } }
             WordFilters(r.words, onAdd = { w -> change { it.copy(words = SourceRules.addWord(it.words, w)) } },

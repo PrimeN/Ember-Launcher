@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -59,6 +60,25 @@ class SettingsScreenshotTest {
     @Test fun controlsNight() { page(true); save("controls-night") }
 
     @Test fun controlsDay() { page(false); save("controls-day") }
+
+    // #471: the Hide sources section with a few filters on.
+    @Test fun hideSources() {
+        val scroll = ScrollState(0)
+        compose.setContent {
+            CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides Fg, LocalReduceMotion provides true, LocalRenderOptions provides RenderOptions(device = "low")) {
+                EmberTheme(0, InterfaceStyles.MODERN) {
+                    var r by remember { mutableStateOf(app.ember.tv.data.SourceRules(uncached = true, cam = true, qualities = setOf("SD"), codecs = setOf("AV1"), maxSizeGb = 40, words = listOf("HDTS", "YIFY"))) }
+                    Column(Modifier.size(960.dp, 540.dp).background(Color(0xFF101012)).verticalScroll(scroll).padding(24.dp)) {
+                        HideSourcesSection(r, listOf("Comet", "MediaFusion", "Torrentio")) { f -> r = f(r) }
+                    }
+                }
+            }
+        }
+        save("hide-sources")
+        compose.runOnIdle { kotlinx.coroutines.runBlocking { scroll.scrollTo(scroll.maxValue) } }
+        compose.waitForIdle()
+        save("hide-sources-end")
+    }
 
     @Test fun choiceMenu() {
         page(true)
