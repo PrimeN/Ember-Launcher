@@ -329,6 +329,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         addonTimeout = { addonTimeout },
         noteSlow = ::noteSlow,
         serversConnected = { plexConnected || serverAccounts.isNotEmpty() },
+        sourceRules = { sourceFormat.sourceRules },
     )
     val details: DetailsUi? get() = title.details?.takeIf {contentAllowed(it.meta)}
     fun contentAllowed(meta:Meta)=KidsContentPolicy.allows(profile,meta)
@@ -721,7 +722,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshCollection() { collectionExplore.clear(); collections.refreshFolder() }
     val collectionCatalogs get() = allCatalogs.filter { addonAvailable(it.addon.url) && profileAllows(it) && it.addon.manifestId != null }
     val collectionSearches get() = prefs.explorePresets(profiles.profileId)
-    val sourceFormat = SourceFormatState(getApplication<Application>(), prefs, viewModelScope) { details }
+    val sourceFormat = SourceFormatState(getApplication<Application>(), prefs, viewModelScope, { details }) { title.applySourceRules() }
 
     // ---- IPTV (Live TV page, Settings > Live TV) ----
     /** Created the first time Live TV is used, so it costs nothing at start when unused. */

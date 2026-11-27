@@ -264,6 +264,11 @@ class Prefs(context: Context) {
         get() = decodedOnce(PreferenceKeys.PLAY_RULES.name, sp.read(PreferenceKeys.PLAY_RULES)) { raw -> runCatching { json.decodeFromString<PlayRules>(raw!!) }.getOrDefault(PlayRules()) }
         set(v) = sp.edit { putString(PreferenceKeys.PLAY_RULES.name, json.encodeToString(v)) }
 
+    /** #471: sources to hide (Settings › Choosing a stream › Hide sources). */
+    var sourceRules: SourceRules
+        get() = decodedOnce(PreferenceKeys.SOURCE_RULES.name, sp.read(PreferenceKeys.SOURCE_RULES)) { raw -> runCatching { json.decodeFromString<SourceRules>(raw!!) }.getOrDefault(SourceRules()) }
+        set(v) = sp.edit { putString(PreferenceKeys.SOURCE_RULES.name, json.encodeToString(v)) }
+
     var playbackConfig: app.ember.tv.player.PlaybackConfig
         get() = decodedOnce(PreferenceKeys.PLAYBACK_CONFIG.name, sp.read(PreferenceKeys.PLAYBACK_CONFIG)) { raw -> runCatching { json.decodeFromString<app.ember.tv.player.PlaybackConfig>(raw!!) }.getOrDefault(app.ember.tv.player.PlaybackConfig()) }
         set(v) = sp.edit { putString(PreferenceKeys.PLAYBACK_CONFIG.name, json.encodeToString(v)) }

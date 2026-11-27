@@ -341,7 +341,7 @@ private fun RootContent(
         val detailsBackground=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.EMBER_X)app.ember.tv.ui.EmberXColors.Background
             else app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).background
         app.ember.tv.ui.MediaPageLayoutScope(mediaLayout) {
-        MaterialTheme(colorScheme=app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).copy(background=detailsBackground,
+        MaterialTheme(typography = app.ember.tv.ui.EmberTypography, colorScheme =app.ember.tv.ui.emberColorScheme(vm.look.accent,false,app.ember.tv.ui.Ui.isOled).copy(background=detailsBackground,
             surface=detailsBackground,onSurface=androidx.compose.ui.graphics.Color.White,onBackground=androidx.compose.ui.graphics.Color.White)) {
         Box(Modifier.fillMaxSize().background(detailsBackground)) {
             app.ember.tv.ui.ModernBackdrop(d.meta,dim=detailsDim,backgroundColor=detailsBackground,heightFraction=if(mediaLayout == app.ember.tv.data.MediaPageLayouts.MODERN).78f else 1f)
@@ -376,6 +376,8 @@ private fun RootContent(
                         onEpisode = vm::selectEpisode,
                         onMoreEpisodes = vm::moreServerEpisodes,
                         formatSource = vm.sourceFormat::formatSource,
+                        hiddenReason = { vm.sourceFormat.sourceRules.reason(it) },
+                        onEditSourceRules = { vm.openSettingsPage("PLAY_BUTTON") },
                         badgesFor = vm.sourceFormat::badgesFor,
                         hiddenBadgeCategories = vm.sourceFormat.activeBadgeCategoriesOff,
                         onPlayTrailer = onPlayTrailer,

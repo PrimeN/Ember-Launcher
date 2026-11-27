@@ -122,6 +122,7 @@ class TitleState(
     private val addonTimeout: () -> Int,
     private val noteSlow: (String, Boolean) -> Unit,
     private val serversConnected: () -> Boolean,
+    private val sourceRules: () -> app.ember.tv.data.SourceRules = { app.ember.tv.data.SourceRules() },
 ) {
     private val visit = MediaVisit(scope)
     var details by mutableStateOf<DetailsUi?>(null)
@@ -440,7 +441,7 @@ class TitleState(
         streamInfos = emptyList()
         streamResults.clear(); linkResults.clear()
         subtitleResults.clear()
-        details = details?.copy(streams = emptyList(), subtitles = emptyList(), addonLinks = emptyList(),
+        details = details?.copy(streams = emptyList(), hiddenStreams = emptyList(), subtitles = emptyList(), addonLinks = emptyList(),
             serverStreams = emptyList(), loadingStreams = false, loadingServer = false)
     }
 
@@ -491,7 +492,7 @@ class TitleState(
         if (!keep) {
             streamResults.clear(); linkResults.clear(); subtitleResults.clear(); sourceHealth.retain(emptySet())
         }
-        details = details?.copy(streams = if (keep) details!!.streams else emptyList(),
+        details = details?.copy(streams = if (keep) details!!.streams else emptyList(), hiddenStreams = if (keep) details!!.hiddenStreams else emptyList(),
             subtitles = if (keep) details!!.subtitles else emptyList(), addonLinks = if (keep) details!!.addonLinks else emptyList(),
             loadingStreams = true, note = null)
         val forTitle = details?.meta?.id
@@ -536,16 +537,24 @@ class TitleState(
                     sourceHealth.finish(addon.url, result?.isSuccess == true,
                         cached = result?.isSuccess != true && streamResults[addon.url]?.isNotEmpty() == true,
                         failure=if(result==null)app.ember.tv.data.SourceFailure.TIMEOUT else result.exceptionOrNull()?.let(app.ember.tv.data.SourceFailure::from))
-                    details = details?.copy(streams = streamResults.values.flatten().sortedWith(StreamParser.order),
+                    val (shown, hidden) = sourceRules().split(streamResults.values.flatten().sortedWith(StreamParser.order))
+                    details = details?.copy(streams = shown, hiddenStreams = hidden,
                         addonLinks = linkResults.values.flatten().distinctBy { it.externalId })
                 } }
             }
             val subs = subsJob.await()
             ensureActive()
             if (details?.meta?.id != forTitle || details?.episode?.id != forEpisode) return@launch
-            val streams = streamResults.values.flatten().sortedWith(StreamParser.order)
-            details = details?.copy(streams = streams, subtitles = subs.distinctBy { it.url }, loadingStreams = false, note = null)
+            val (streams, hidden) = sourceRules().split(streamResults.values.flatten().sortedWith(StreamParser.order))
+            details = details?.copy(streams = streams, hiddenStreams = hidden, subtitles = subs.distinctBy { it.url }, loadingStreams = false, note = null)
         }
+    }
+
+    /** #471: the hide rules changed; sorts the open title's sources again without asking the addons. */
+    fun applySourceRules() {
+        val d = details ?: return
+        val (shown, hidden) = sourceRules().split((d.streams + d.hiddenStreams).sortedWith(StreamParser.order))
+        details = d.copy(streams = shown, hiddenStreams = hidden)
     }
 
     /** Looks for the open title (and episode) on your media servers, alongside the addons. */

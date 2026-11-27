@@ -33,7 +33,7 @@ class NextEpisodeLoader(private val context: Context, private val serverSession:
         val infos = addons.map { async { request { client.manifest(it) } } }.awaitAll().filterNotNull()
         val streams = infos.filter { it.supports("stream", "series", ep.id) }.map { addon ->
             async { request { client.streams(addon, "series", ep.id) }.orEmpty() }
-        }.awaitAll().flatten()
+        }.awaitAll().flatten().let { all -> Prefs(context).sourceRules.split(all).first }
         val pick = StreamParser.pickSimilar(streams, prevAddon, prevQuality, bingeGroup) ?: return@coroutineScope null
         Selected(pick) {
             coroutineScope {

@@ -95,6 +95,9 @@ import androidx.tv.material3.Icon
 fun DetailsScreen(
     modifier: Modifier = Modifier,
     d: DetailsUi,
+    /** #471: why a hidden source is hidden, for the list of hidden ones. */
+    hiddenReason: (StreamOption) -> String? = { null },
+    onEditSourceRules: (() -> Unit)? = null,
     listState: LazyListState,
     saved: Boolean,
     isContinue: Boolean,
@@ -156,6 +159,8 @@ fun DetailsScreen(
     var person by remember(meta.id) { mutableStateOf<Person?>(null) }
     val sourceKeys = remember(d.streams) { sourceRowKeys(d.streams) }
     val serverKeys = remember(d.serverStreams) { sourceRowKeys(d.serverStreams) }
+    val hiddenKeys = remember(d.hiddenStreams) { sourceRowKeys(d.hiddenStreams) }
+    var showHidden by remember(meta.mediaKey()) { mutableStateOf(false) }
     // Same for every source of this title, so worked out once.
     val runtimeLabel = meta.runtimeMinutes?.let { m -> if (m >= 60) "${m / 60}h ${m % 60}m" else "${m}m" }
     // Put the remote on the first button when the screen opens, so something is selected.
@@ -230,6 +235,12 @@ fun DetailsScreen(
                     // An action, not a switch (#140): it never turns the Play button setting off.
                     if(split && onPlayBest!=null && (d.streams.isNotEmpty() || d.serverStreams.isNotEmpty()))
                         GlassControl("Play best",Icons.Outlined.AutoAwesome,Modifier.testTag("play_best"),onClick=onPlayBest)
+                    // #471: what the hide rules left out, one press away.
+                    if (d.hiddenStreams.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Chip(if (showHidden) "Hide ${d.hiddenStreams.size} filtered" else "Show ${d.hiddenStreams.size} filtered",
+                            selected = showHidden, modifier = Modifier.testTag("sources_show_hidden")) { showHidden = !showHidden }
+                        if (onEditSourceRules != null) Chip("Edit filters", onClick = onEditSourceRules)
+                    }
                     sources.message?.let { Text(it, color = Mute, fontSize = 14.sp) }
                     if (sources.total == 0 && sources.loading) {if(flix)Text(stringResource(R.string.tx_finding_sources),color=Mute) else LoadingCards()}
                     if (app.ember.tv.mediaserver.ServerRef.of(meta) != null && d.serverStreams.isEmpty() && !d.loadingServer) {
@@ -268,6 +279,17 @@ fun DetailsScreen(
                 }
                 itemsIndexed(d.streams, key = { i, _ -> "src:${sourceKeys[i]}" }) { _, s ->
                     Box(Modifier.padding(horizontal = if(split)0.dp else 48.dp)) {
+                        SourceRow(s, formatSource(s), badgesFor(s), runtimeLabel, hiddenBadgeCategories, onClick = { onPlay(s) }, onLongClick = { onPlayWith(s) })
+                    }
+                }
+            }
+            if (showHidden && d.hiddenStreams.isNotEmpty()) {
+                item(key = "grp:hidden") {
+                    GroupHeader("Filtered out", "Your filters hide these. They still play if you pick one.", contentPadding=if(split)0.dp else 48.dp)
+                }
+                itemsIndexed(d.hiddenStreams, key = { i, _ -> "hid:${hiddenKeys[i]}" }) { _, s ->
+                    Column(Modifier.padding(horizontal = if(split)0.dp else 48.dp).graphicsLayer { alpha = .62f }, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        hiddenReason(s)?.let { Text("Hidden: $it", color = Mute, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp)) }
                         SourceRow(s, formatSource(s), badgesFor(s), runtimeLabel, hiddenBadgeCategories, onClick = { onPlay(s) }, onLongClick = { onPlayWith(s) })
                     }
                 }

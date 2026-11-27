@@ -457,6 +457,7 @@ internal fun PlayButtonPage(vm: HomeViewModel) {
             // #429
             ToggleRow("Find sources early", "Looks up sources for the Continue watching title you're on, so they're ready when you open it.", vm.playing.earlySources) { vm.playing.updateEarlySources(!vm.playing.earlySources) }
         }
+        HideSourcesSection(vm)
         if (r.enabled) {
             Section(stringResource(R.string.ui_highest_picture), stringResource(R.string.ui_pick_no_higher_than_your_screen)) {
                 Choice(listOf("4K" to "4K", "FHD" to "1080p", "HD" to "720p"), r.maxQuality) { q -> vm.playerSettings.updatePlayRules { it.copy(maxQuality = q) } }

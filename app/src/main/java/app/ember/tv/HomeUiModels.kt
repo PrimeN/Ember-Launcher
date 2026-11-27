@@ -163,6 +163,8 @@ data class DetailsUi(
     val nativeSeasons: List<Int> = emptyList(),
     val episodeCursor: Int? = null,
     val streams: List<StreamOption> = emptyList(),
+    /** #471: sources your hide rules leave out; the title screen can still show them. */
+    val hiddenStreams: List<StreamOption> = emptyList(),
     /** Directors, top cast and a trailer from the addon's details, and from TMDB when a key is set. */
     val addonCredits: Credits? = null,
     val tmdbCredits: Credits? = null,

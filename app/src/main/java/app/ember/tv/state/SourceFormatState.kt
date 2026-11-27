@@ -20,7 +20,18 @@ class SourceFormatState(
     private val prefs: Prefs,
     private val scope: kotlinx.coroutines.CoroutineScope,
     private val details: () -> DetailsUi?,
+    private val rulesChanged: () -> Unit = {},
 ) {
+    /** #471: sources to hide everywhere a source is chosen. */
+    var sourceRules by mutableStateOf(prefs.sourceRules); private set
+    fun updateSourceRules(change: (app.ember.tv.data.SourceRules) -> app.ember.tv.data.SourceRules) {
+        val next = change(sourceRules)
+        if (next == sourceRules) return
+        sourceRules = next
+        prefs.sourceRules = next
+        rulesChanged()
+    }
+
     // ---- badges (data/Badges.kt) ----
     var badgeMode by mutableStateOf(prefs.badgeMode); private set
     var detailedBadgeCategoriesOff by mutableStateOf(prefs.detailedBadgeCategoriesOff); private set
