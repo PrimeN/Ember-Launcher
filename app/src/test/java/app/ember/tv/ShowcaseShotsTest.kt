@@ -471,7 +471,10 @@ class ShowcaseShotsTest {
 
     @Test fun catalogFilters() {
         val addon = app.ember.tv.data.AddonInfo("https://example.invalid/manifest.json", "https://example.invalid", "Cinemeta", listOf("movie"), null, emptyList(), emptyList())
-        val def = app.ember.tv.data.CatalogDef(addon, "movie", "top", "Popular", listOf("Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller", "Western"), false, false, false, false)
+        val def = app.ember.tv.data.CatalogDef(addon, "movie", "top", "Popular", listOf("Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller", "Western"), false, false, false, false,
+            extras = listOf(app.ember.tv.data.CatalogExtraDef("genre", options = listOf("Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family",
+                "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller", "Western"), limit = 3),
+                app.ember.tv.data.CatalogExtraDef("year", options = (2026 downTo 2015).map { "$it" })))
         compose.setContent { Frame { CompositionLocalProvider(LocalInlineDialogs provides true) {
             app.ember.tv.ui.CatalogOptions(def, mapOf("genre" to "Comedy"), {}) {} } } }
         dialog("catalog-filters")

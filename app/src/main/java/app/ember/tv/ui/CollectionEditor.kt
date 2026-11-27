@@ -427,8 +427,9 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
     } else MediaDialog(if (multiple) "Choose sources" else "Choose a source", close, resizeForKeyboard = true, wide = true, scrollBody = false) {
         // #468: kinds as cards, choices as cards, and the editors' footer.
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Five across, sharing the width.
             SourceKinds.all.forEach { k ->
-                ChoiceCard(k.name, k.about, mode == k.name, Modifier.testTag("source_kind_${k.name}"), width = 178.dp, icon = k.icon) { mode = k.name; query = ""; error = null }
+                ChoiceCard(k.name, k.about, mode == k.name, Modifier.weight(1f).testTag("source_kind_${k.name}"), width = 400.dp, icon = k.icon) { mode = k.name; query = ""; error = null }
             }
         }
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -521,7 +522,7 @@ internal object SourceKinds {
         Kind("Your lists", "Watchlist and smart rows", Icons.Outlined.Bookmarks),
         Kind("Saved searches", "From Discover", Icons.Outlined.Tune),
         Kind("TMDB", "Collections, people…", Icons.Outlined.Movie),
-        Kind("Trakt", "A list by number", Icons.Outlined.PlaylistPlay),
+        Kind("Trakt", "A list's link", Icons.Outlined.PlaylistPlay),
     )
     val tmdb = listOf(
         Triple("COLLECTION", "Collection", Icons.Outlined.VideoLibrary), Triple("LIST", "List", Icons.Outlined.FormatListBulleted),
