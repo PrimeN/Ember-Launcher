@@ -401,7 +401,7 @@ internal fun ModernHero(
     PrefetchHeroArtwork(items, safe, enabled = rotating)
     // Artwork retains a neutral readability scrim in Day mode; the surrounding page stays light.
     CompositionLocalProvider(LocalNight provides true) {
-    MaterialTheme(colorScheme=emberColorScheme(LocalAccentIndex.current,false,Ui.isOled)) {
+    MaterialTheme(typography = app.ember.tv.ui.EmberTypography, colorScheme =emberColorScheme(LocalAccentIndex.current,false,Ui.isOled)) {
     Box(Modifier.fillMaxWidth().height(height).clipToBounds()) {
         Column(Modifier.align(Alignment.BottomStart)
             .fillMaxWidth(HeroLayout.textFraction(androidx.compose.ui.platform.LocalDensity.current.fontScale))

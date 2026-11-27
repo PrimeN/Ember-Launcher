@@ -54,7 +54,16 @@ class RecoveryActivity : Activity() {
 
     private fun button(label: String, note: String? = null, action: () -> Unit): View {
         val b = Button(this).apply {
-            text = if (note == null) label else "$label\n$note"
+            // #472: the name stands out; the line about it is smaller and softer.
+            text = if (note == null) label else android.text.SpannableStringBuilder().apply {
+                append(label, android.text.style.StyleSpan(android.graphics.Typeface.BOLD), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                append("\n")
+                val start = length
+                append(note)
+                setSpan(android.text.style.RelativeSizeSpan(.82f), start, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(android.text.style.ForegroundColorSpan(0xC8FFFFFF.toInt()), start, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            setLineSpacing(dp(3).toFloat(), 1f)
             isAllCaps = false; gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f); setTextColor(Color.WHITE)
             setPadding(dp(18), dp(12), dp(18), dp(12))

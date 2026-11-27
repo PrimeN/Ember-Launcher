@@ -155,7 +155,7 @@ internal fun WidgetHero(id: String, items: List<Meta>, height: Dp, isSaved: (Met
         if (items.size > 1 && !focused && rotating && !reduceMotion) { delay(9000); index = HeroBanner.next(safe, items.size) }
     }
     CompositionLocalProvider(LocalNight provides true) {
-    MaterialTheme(colorScheme = emberColorScheme(LocalAccentIndex.current, false, Ui.isOled)) {
+    MaterialTheme(typography = app.ember.tv.ui.EmberTypography, colorScheme = emberColorScheme(LocalAccentIndex.current, false, Ui.isOled)) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).height(height).clip(RoundedCornerShape(TvTokens.Shape.Panel.dp)).background(PanelHi).testTag("widget_hero")) {
         // #187: the artwork slides the way you go, as the carousel's does.
         val millis = if (reduceMotion) 0 else 420

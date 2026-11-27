@@ -250,8 +250,17 @@ internal fun GuideGrid(
                                                 .pointerInput(channel.key, slot.from) { detectTapGestures(
                                                     onLongPress = { onFavourite(channel) }, onTap = {followLive=false; time = slot.from; selectedKey = channel.key; requester.requestFocus();
                                                         if (slot.programme != null && slot.programme.start > clock && onProgramme != null) onProgramme(channel, slot.programme) else onPlay(index) }) }) {
+                                                // #472: how far the programme on now has got, as a bar along the cell's foot.
+                                                if (slot.programme != null && clock in slot.from until slot.to) {
+                                                    val done = ((clock - slot.from).toFloat() / (slot.to - slot.from).coerceAtLeast(1)).coerceIn(0f, 1f)
+                                                    Box(Modifier.align(Alignment.BottomStart).padding(horizontal = 8.dp, vertical = 6.dp).fillMaxWidth().height(3.dp)
+                                                        .background(Color.White.copy(alpha = .14f), RoundedCornerShape(2.dp))) {
+                                                        Box(Modifier.fillMaxWidth(done).fillMaxHeight().background(if (active) LiveColors.OnFocus else LiveRed, RoundedCornerShape(2.dp)))
+                                                    }
+                                                }
                                                 Text(slot.programme?.title ?: "No programme information", fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                                    color = if (active) LiveColors.OnFocus else LiveColors.Text, modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 8.dp))
+                                                    color = if (active) LiveColors.OnFocus else if (slot.programme == null) LiveColors.Text.copy(alpha = .5f) else LiveColors.Text,
+                                                    modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 8.dp))
                                             }
                                             cursor = slot.to
                                         } }

@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.unit.em
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
@@ -205,6 +206,16 @@ val Ring: Color
         else -> Color.White
     }
 
+/**
+ * #472: body and label text keep their line spacing in proportion to their size. The stock styles
+ * fix it in sp (24 sp for 16 sp text), so a 12 sp line under a card was spaced like 16 sp text.
+ */
+val EmberTypography: androidx.tv.material3.Typography = androidx.tv.material3.Typography().let { t ->
+    fun androidx.compose.ui.text.TextStyle.even() = copy(lineHeight = 1.32.em)
+    t.copy(bodyLarge = t.bodyLarge.even(), bodyMedium = t.bodyMedium.even(), bodySmall = t.bodySmall.even(),
+        labelLarge = t.labelLarge.even(), labelMedium = t.labelMedium.even(), labelSmall = t.labelSmall.even())
+}
+
 /** The "LIVE" badge and the guide's now-line. */
 val LiveRed = Color(0xFFE53935)
 
@@ -214,7 +225,7 @@ fun EmberTheme(accentIndex: Int, interfaceStyle: String = app.ember.tv.data.Inte
     val index=app.ember.tv.data.ColorThemes.normalize(accentIndex)
     val style = app.ember.tv.data.InterfaceStyles.normalize(interfaceStyle)
     val scheme = emberColorScheme(index,style!=app.ember.tv.data.InterfaceStyles.EMBER_X && Ui.isDay && !LocalNight.current,Ui.isOled)
-    MaterialTheme(colorScheme = scheme) {
+    MaterialTheme(typography = app.ember.tv.ui.EmberTypography, colorScheme = scheme) {
         androidx.compose.runtime.CompositionLocalProvider(LocalAccentIndex provides index, LocalInterfaceStyle provides style, content = content)
     }
 }

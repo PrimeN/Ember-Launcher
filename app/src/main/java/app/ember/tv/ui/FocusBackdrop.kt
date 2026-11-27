@@ -56,7 +56,7 @@ internal fun focusUsesArtwork(tile:FocusTile?,media:String,collections:String)=w
     val oled=Ui.isOled
     val scheme=remember(inherited,accent,photo,oled) {if(photo)emberColorScheme(accent,false,oled) else inherited}
     CompositionLocalProvider(LocalNight provides night) {
-        androidx.tv.material3.MaterialTheme(colorScheme=scheme) {
+        androidx.tv.material3.MaterialTheme(typography = app.ember.tv.ui.EmberTypography, colorScheme =scheme) {
             val text=androidx.tv.material3.LocalTextStyle.current
             val readable=remember(text,photo) {if(photo)text.merge(androidx.compose.ui.text.TextStyle(shadow=
                 androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha=.9f),androidx.compose.ui.geometry.Offset(0f,1f),3f))) else text}
