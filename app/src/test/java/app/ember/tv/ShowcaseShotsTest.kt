@@ -454,6 +454,29 @@ class ShowcaseShotsTest {
         dialog("folder-sources")
     }
 
+    /** #469: the source picker, catalog filters and source editor in the editors' style. */
+    @Test fun sourcePicker() {
+        val vm = HomeViewModel(context)
+        compose.setContent { Frame { CompositionLocalProvider(LocalInlineDialogs provides true) {
+            app.ember.tv.ui.CollectionSourcePicker(vm, onChoose = {}, close = {}, onChooseMany = {}) } } }
+        compose.onNodeWithTag("source_kind_Your lists").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.onNodeWithTag("library_watchlist").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.onNodeWithTag("library_smart:upnext").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.waitForIdle()
+        dialog("source-picker")
+        compose.onNodeWithTag("source_kind_TMDB").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        compose.waitForIdle()
+        dialog("source-tmdb")
+    }
+
+    @Test fun catalogFilters() {
+        val addon = app.ember.tv.data.AddonInfo("https://example.invalid/manifest.json", "https://example.invalid", "Cinemeta", listOf("movie"), null, emptyList(), emptyList())
+        val def = app.ember.tv.data.CatalogDef(addon, "movie", "top", "Popular", listOf("Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller", "Western"), false, false, false, false)
+        compose.setContent { Frame { CompositionLocalProvider(LocalInlineDialogs provides true) {
+            app.ember.tv.ui.CatalogOptions(def, mapOf("genre" to "Comedy"), {}) {} } } }
+        dialog("catalog-filters")
+    }
+
     /** A dialog is its own window: the newest root. */
     private fun dialog(name: String) {
         save(name, settle = 400)

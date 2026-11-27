@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -432,34 +435,37 @@ internal fun TraktListPicker(vm: HomeViewModel, onChoose: (CollectionSource) -> 
         failed = result.exceptionOrNull()?.let { app.ember.tv.phone.PhoneLookups.reason("trakt", it).replace("Accounts & APIs > Trakt", "${SettingsTab.KEYS.path} › Trakt").replace("under Accounts & APIs", "in ${SettingsTab.KEYS.path}") }
         found = result.getOrDefault(emptyList())
     }
-    MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true, wide = true) {
-        ButtonRow {
-            if (signedIn) {
-                Chip("My lists", tab == "mine" && query.isBlank()) { tab = "mine"; query = "" }
-                Chip("Liked", tab == "liked" && query.isBlank()) { tab = "liked"; query = "" }
+    // #468: which lists as cards, the lists as cards, the editors' footer.
+    MediaDialog("Choose a Trakt list", close, resizeForKeyboard = true, wide = true, scrollBody = false) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOfNotNull(
+                Triple("mine", "My lists", Icons.Outlined.Person).takeIf { signedIn }, Triple("liked", "Liked", Icons.Outlined.FavoriteBorder).takeIf { signedIn },
+                Triple("popular", "Popular", Icons.Outlined.Whatshot), Triple("trending", "Trending", Icons.Outlined.TrendingUp), Triple("official", "Official", Icons.Outlined.Verified),
+            ).forEach { (id, label, icon) ->
+                ChoiceCard(label, null, tab == id && query.isBlank(), Modifier.testTag("trakt_tab_$id"), width = 150.dp, icon = icon) { tab = id; query = "" }
             }
-            Chip("Popular", tab == "popular" && query.isBlank()) { tab = "popular"; query = "" }
-            Chip("Trending", tab == "trending" && query.isBlank()) { tab = "trending"; query = "" }
-            Chip("Official", tab == "official" && query.isBlank()) { tab = "official"; query = "" }
-            listOf("MOVIE" to "Movies", "TV" to "Shows").forEach { (key, label) -> Chip(label, media == key) { media = key } }
         }
-        TvTextField(query, { query = it.take(100) }, Modifier.fillMaxWidth(), placeholder = "Search Trakt lists")
-        val lists = found
-        when {
-            lists == null -> Text(stringResource(R.string.tx_loading), color = Mute)
-            failed != null -> Text(failed.orEmpty(), color = Mute)
-            lists.isEmpty() -> Text(if (tab == "mine" && query.isBlank()) "Your Trakt account has no lists yet." else "No lists found.", color = Mute)
-            // #178: cards, two across, instead of thirty full-width buttons.
-            else -> ButtonRow { lists.take(30).forEach { l ->
-                Focusable(onClick = { onChoose(WidgetDrafts.trakt(l, media)) }, modifier = Modifier.width(270.dp).testTag("trakt_list"), radius = TvTokens.Shape.Card, container = PanelHi) {
-                    val ink = androidx.tv.material3.LocalContentColor.current
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(l.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(WidgetDrafts.traktLine(l), fontSize = 12.sp, color = ink.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(l.description, fontSize = 12.sp, lineHeight = 15.sp, color = ink.copy(alpha = .6f), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TvTextField(query, { query = it.take(100) }, Modifier.width(420.dp), placeholder = "Search Trakt lists")
+            listOf(Triple("MOVIE", "Movies", Icons.Outlined.Movie), Triple("TV", "Shows", Icons.Outlined.Tv)).forEach { (key, label, icon) ->
+                ChoiceCard(label, null, media == key, width = 150.dp, icon = icon) { media = key }
+            }
+        }
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val lists = found
+            when {
+                lists == null -> Text(stringResource(R.string.tx_loading), color = Mute)
+                failed != null -> Text(failed.orEmpty(), color = Mute)
+                lists.isEmpty() -> Text(if (tab == "mine" && query.isBlank()) "Your Trakt account has no lists yet." else "No lists found.", color = Mute)
+                // #178: cards instead of thirty full-width buttons.
+                else -> androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    lists.take(30).forEach { l ->
+                        ChoiceCard(l.name, WidgetDrafts.traktLine(l) + if (l.description.isNotBlank()) " · " + l.description else "", false,
+                            Modifier.testTag("trakt_list"), width = 300.dp, icon = Icons.Outlined.PlaylistPlay) { onChoose(WidgetDrafts.trakt(l, media)) }
                     }
                 }
-            } }
+            }
         }
+        EditorFooter("Cancel", close, null) {}
     }
 }

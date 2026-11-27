@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.platform.testTag
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.ChildCare
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.SolidColor
@@ -304,9 +306,12 @@ internal fun ProfilesPage(vm: HomeViewModel) {
                         }
                     }
                 }
-                ButtonRow(spacing = 10.dp) {
-                    Chip(stringResource(R.string.ui_add_profile)) { editId = vm.profiles.addProfile(kids = false) }
-                    Chip(stringResource(R.string.ui_add_kids_profile)) {newKids=true}
+                // #468: the same picture cards as the editors.
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ChoiceCard(stringResource(R.string.ui_add_profile), "Its own Home, lists and trackers", false, Modifier.testTag("profiles_add"), width = 250.dp,
+                        icon = androidx.compose.material.icons.Icons.Outlined.PersonAdd) { editId = vm.profiles.addProfile(kids = false) }
+                    ChoiceCard(stringResource(R.string.ui_add_kids_profile), "Guided setup with a parent PIN", false, Modifier.testTag("profiles_add_kids"), width = 250.dp,
+                        icon = androidx.compose.material.icons.Icons.Outlined.ChildCare) { newKids = true }
                 }
                 if (vm.profiles.all.size > 1) {
                     ToggleRow(stringResource(R.string.ui_ask_who_s_watching), stringResource(R.string.ui_show_the_profiles_when_ember_starts), vm.profiles.askProfileAtStart) { vm.profiles.toggleAskProfileAtStart() }

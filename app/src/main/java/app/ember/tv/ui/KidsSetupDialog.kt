@@ -4,6 +4,10 @@ import androidx.compose.ui.res.stringResource
 import app.ember.tv.R
 
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.ember.tv.HomeViewModel
 import app.ember.tv.data.Profile
@@ -31,19 +35,30 @@ import app.ember.tv.data.LocalActivity
         },onCancel={stage=0},vm=vm)
         return
     }
-    MediaDialog(if(stage==3)"Kids profile ready" else "Set up a Kids profile",close,resizeForKeyboard=true) {
-        if(stage==3) {
-            Text(stringResource(R.string.tx_administrator_pin_verified_has_local_playback, draft.name))
-            Note(KidsContentPolicy.summary(draft))
-            Chip("Save Kids profile") {if(verified && verifiedRevision==vm.pin.revision && vm.profiles.completeKidsSetup(draft)){onReady(draft.id);close()}}
-            if(verifiedRevision!=vm.pin.revision)Chip("Verify administrator PIN again") {stage=2}
-            Chip("Review choices") {stage=0;verified=false}
-        } else {
-            TextInput(draft.name,{draft=draft.copy(name=it.take(60))},"Profile name")
-            KidsContentSettings(draft){change->draft=change(draft)}
-            Note("${draft.apps?.size ?: vm.apps.size} allowed apps · ${draft.catalogs?.size ?: vm.allCatalogs.size} allowed catalogs. Adjust these in Profiles after setup. Other apps retain their own parental controls.")
-            Text(stringResource(R.string.tx_next_configure_the_administrator_pin_if))
-            Chip("Continue") {draft=draft.copy(name=draft.name.trim().ifBlank {"Kids"});stage=if(vm.pin.pinSet)2 else 1}
+    // #468: the setup's steps across the top and the editors' footer, as in the other editors.
+    MediaDialog(if(stage==3)"Kids profile ready" else "Set up a Kids profile",close,resizeForKeyboard=true,wide=true,scrollBody=false) {
+        EditorSteps(listOf("choices" to "Choices","pin" to "Parent PIN","ready" to "Ready"),if(stage==3)"ready" else "choices","kids_step_",
+            done={id->id=="choices" && stage==3 || id=="pin" && stage==3 && verified}) {id->if(id=="choices" && stage==3){stage=0;verified=false}}
+        androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()),
+            verticalArrangement=androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
+            if(stage==3) {
+                EditorHeading("Ready to save",stringResource(R.string.tx_administrator_pin_verified_has_local_playback, draft.name))
+                Note(KidsContentPolicy.summary(draft))
+                if(verifiedRevision!=vm.pin.revision)Chip("Verify administrator PIN again") {stage=2}
+            } else {
+                EditorHeading("Name","What the profile is called on the profile picker.")
+                TextInput(draft.name,{draft=draft.copy(name=it.take(60))},"Profile name")
+                EditorHeading("What kids can see","Content, apps and catalogs this profile allows.")
+                KidsContentSettings(draft){change->draft=change(draft)}
+                Note("${draft.apps?.size ?: vm.apps.size} allowed apps · ${draft.catalogs?.size ?: vm.allCatalogs.size} allowed catalogs. Adjust these in Profiles after setup. Other apps retain their own parental controls.")
+            }
+        }
+        if(stage==3) EditorFooter("Review choices",{stage=0;verified=false},null) {
+            PrimaryAction("Save Kids profile",verified && verifiedRevision==vm.pin.revision,androidx.compose.ui.Modifier.testTag("kids_save")) {
+                if(verified && verifiedRevision==vm.pin.revision && vm.profiles.completeKidsSetup(draft)){onReady(draft.id);close()}
+            }
+        } else EditorFooter("Cancel",close,stringResource(R.string.tx_next_configure_the_administrator_pin_if),warn=false) {
+            PrimaryAction("Continue",modifier=androidx.compose.ui.Modifier.testTag("kids_continue")) {draft=draft.copy(name=draft.name.trim().ifBlank {"Kids"});stage=if(vm.pin.pinSet)2 else 1}
         }
     }
 }

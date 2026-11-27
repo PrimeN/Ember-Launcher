@@ -82,10 +82,10 @@ internal fun PrimaryAction(label: String, ready: Boolean = true, modifier: Modif
 
 /** Back or Cancel on the left, what's missing in the middle, the actions on the right. */
 @Composable
-internal fun EditorFooter(back: String, onBack: () -> Unit, message: String?, actions: @Composable RowScope.() -> Unit) {
+internal fun EditorFooter(back: String, onBack: () -> Unit, message: String?, warn: Boolean = true, actions: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Chip(back) { onBack() }
-        Text(message.orEmpty(), Modifier.weight(1f), color = if (message != null) Color(0xFFFFB86B) else Mute,
+        Text(message.orEmpty(), Modifier.weight(1f), color = if (message != null && warn) Color(0xFFFFB86B) else Mute,
             fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         actions()
     }

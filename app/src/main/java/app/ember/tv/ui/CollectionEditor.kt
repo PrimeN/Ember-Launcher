@@ -347,31 +347,37 @@ internal fun AddToCollection(vm: HomeViewModel, source: CollectionSource, close:
 internal fun CatalogOptions(def: CatalogDef, initial: Map<String, String>, close: () -> Unit, apply: (Map<String, String>) -> Unit) {
     var values by remember(def.key) { mutableStateOf(def.requestExtras + initial) }
     var error by remember { mutableStateOf<String?>(null) }
-    MediaDialog("Catalog filters", close, resizeForKeyboard = true) {
-        Text(def.label, fontSize = 16.sp)
-        def.extras.forEach { extra ->
-            var optionSearch by remember(extra.name) { mutableStateOf("") }
-            if (extra.options.size > 30) TvTextField(optionSearch, { optionSearch = it }, Modifier.fillMaxWidth(), placeholder = "Find ${extra.name}")
-            Text(extra.name.replaceFirstChar { it.uppercase() } + (if (extra.required) " · Required" else "") + (if (extra.limit > 1) " · up to ${extra.limit}" else ""), fontSize = 14.sp)
-            if (extra.options.isNotEmpty()) ButtonRow(spacing = 6.dp) {
-                if (!extra.required) Chip("Any", values[extra.name].isNullOrBlank()) { values = values + (extra.name to "") }
-                val chosen = app.ember.tv.data.extraValues(values[extra.name].orEmpty())
-                extra.options.filter { it.contains(optionSearch, true) }.take(40).forEach { value ->
-                    Chip(value, value in chosen) {
-                        // Several at once where the catalog allows it (optionsLimit, #72).
-                        val next = when {
-                            extra.limit <= 1 -> listOf(value)
-                            value in chosen -> chosen - value
-                            chosen.size < extra.limit -> chosen + value
-                            else -> chosen.drop(1) + value
+    // #468: each filter a headed part, the editors' footer under them.
+    MediaDialog("Catalog filters", close, resizeForKeyboard = true, wide = true, scrollBody = false) {
+        Text(def.label + " · " + def.addon.name, fontSize = 15.sp, color = Mute)
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            def.extras.forEach { extra ->
+                var optionSearch by remember(extra.name) { mutableStateOf("") }
+                EditorHeading(extra.name.replaceFirstChar { it.uppercase() },
+                    listOfNotNull("Required".takeIf { extra.required }, "up to ${extra.limit}".takeIf { extra.limit > 1 },
+                        "${extra.options.size} choices".takeIf { extra.options.size > 12 }).joinToString(" · ").ifBlank { null })
+                if (extra.options.size > 30) TvTextField(optionSearch, { optionSearch = it }, Modifier.width(420.dp), placeholder = "Find ${extra.name}")
+                if (extra.options.isNotEmpty()) ButtonRow(spacing = 8.dp) {
+                    if (!extra.required) Chip("Any", values[extra.name].isNullOrBlank()) { values = values + (extra.name to "") }
+                    val chosen = app.ember.tv.data.extraValues(values[extra.name].orEmpty())
+                    extra.options.filter { it.contains(optionSearch, true) }.take(40).forEach { value ->
+                        Chip(value, value in chosen) {
+                            // Several at once where the catalog allows it (optionsLimit, #72).
+                            val next = when {
+                                extra.limit <= 1 -> listOf(value)
+                                value in chosen -> chosen - value
+                                chosen.size < extra.limit -> chosen + value
+                                else -> chosen.drop(1) + value
+                            }
+                            values = values + (extra.name to next.joinToString(app.ember.tv.data.EXTRA_VALUES_SEPARATOR.toString())); error = null
                         }
-                        values = values + (extra.name to next.joinToString(app.ember.tv.data.EXTRA_VALUES_SEPARATOR.toString()))
                     }
-                }
-            } else TvTextField(values[extra.name].orEmpty(), { values = values + (extra.name to it) }, Modifier.fillMaxWidth(), placeholder = extra.name, password = CollectionSecrets.sensitive(extra.name))
+                } else TvTextField(values[extra.name].orEmpty(), { values = values + (extra.name to it); error = null }, Modifier.width(560.dp), placeholder = extra.name, password = CollectionSecrets.sensitive(extra.name))
+            }
         }
-        error?.let { Text(it, color = Mute) }
-        Chip("Apply filters") { error = def.extraError(values); if (error == null) apply(values) }
+        EditorFooter("Cancel", close, error) {
+            PrimaryAction("Apply filters", def.extraError(values) == null, Modifier.testTag("catalog_filters_apply")) { error = def.extraError(values); if (error == null) apply(values) }
+        }
     }
 }
 
@@ -418,62 +424,108 @@ internal fun CollectionSourcePicker(vm: HomeViewModel, onChoose: (CollectionSour
     }
     if (catalog != null) CatalogOptions(catalog!!, emptyMap(), { catalog = null }) { values ->
         val c = catalog!!; take(CollectionDrafts.catalog(c, values["genre"], values - "genre")); catalog = null
-    } else MediaDialog(if (multiple) "Choose sources" else "Choose a source", close, resizeForKeyboard = true, wide = true) {
-        ButtonRow { listOf("Catalogs", "Your lists", "Saved searches", "TMDB", "Trakt").forEach { value -> Chip(value, mode == value) { mode = value; query = "" } } }
-        if (multiple) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(SourcePicks.count(picked.size), color = if (picked.isEmpty()) Mute else Fg, fontSize = 14.sp)
-            if (picked.isNotEmpty()) {
-                Chip(SourcePicks.addLabel(picked.size), modifier = Modifier.testTag("sources_add")) { onChooseMany!!(picked) }
-                Chip("Clear") { picked = emptyList() }
+    } else MediaDialog(if (multiple) "Choose sources" else "Choose a source", close, resizeForKeyboard = true, wide = true, scrollBody = false) {
+        // #468: kinds as cards, choices as cards, and the editors' footer.
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SourceKinds.all.forEach { k ->
+                ChoiceCard(k.name, k.about, mode == k.name, Modifier.testTag("source_kind_${k.name}"), width = 178.dp, icon = k.icon) { mode = k.name; query = ""; error = null }
             }
         }
-        if (mode == "Catalogs") {
-            TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Find catalogs")
-            val matches = vm.collectionCatalogs.filter { (it.label + it.addon.name).contains(query, true) }
-            Text(stringResource(R.string.tx_catalogs, matches.size) + if (matches.size > 60) " · First 60 shown; search to narrow the list." else "", fontSize = 12.sp, color = Mute)
-            matches.take(60).forEach { c ->
-                val plain = CollectionDrafts.catalog(c)
-                val on = multiple && picked.any { same(it, plain) }
-                Chip(c.label + " · " + c.addon.name, selected = on) {
-                    // A catalog with options is set up first; choosing it again takes it out.
-                    if (c.extras.isEmpty() || on) take(plain) else catalog = c
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberMenuScrollState()).padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val cards = Modifier
+            when (mode) {
+                "Catalogs" -> {
+                    val matches = vm.collectionCatalogs.filter { (it.label + it.addon.name).contains(query, true) }
+                    EditorHeading("Catalogs", stringResource(R.string.tx_catalogs, matches.size) + if (matches.size > 60) " · the first 60; search to narrow them." else "")
+                    TvTextField(query, { query = it }, Modifier.width(560.dp), placeholder = "Find catalogs")
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        matches.take(60).forEach { c ->
+                            val plain = CollectionDrafts.catalog(c)
+                            val on = multiple && picked.any { same(it, plain) }
+                            ChoiceCard(c.label, c.addon.name + if (c.extras.isNotEmpty()) " · filters" else "", on, cards, width = 260.dp, icon = Icons.Outlined.Widgets) {
+                                // A catalog with options is set up first; choosing it again takes it out.
+                                if (c.extras.isEmpty() || on) take(plain) else catalog = c
+                            }
+                        }
+                    }
+                }
+                "Your lists" -> {
+                    // #461: Ember's own lists: they fill from your watching and your trackers.
+                    EditorHeading("Your lists", "Your Watchlist, what you're watching and your smart rows. They stay up to date as you watch.")
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        app.ember.tv.data.LibraryLists.all.forEach { entry ->
+                            val source = app.ember.tv.data.LibraryLists.source(entry)
+                            ChoiceCard(entry.label, null, multiple && picked.any { same(it, source) }, Modifier.testTag("library_${entry.id}"), width = 230.dp,
+                                icon = Icons.Outlined.Bookmarks) { take(source) }
+                        }
+                    }
+                }
+                "Saved searches" -> {
+                    val saved = vm.collectionSearches
+                    EditorHeading("Saved searches", if (saved.isEmpty()) stringResource(R.string.tx_save_a_search_in_discover_first) else "Searches you saved in Discover.")
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        saved.forEach { search ->
+                            val source = CollectionDrafts.discover(search.name, search.query, vm.profiles.profileId)
+                            ChoiceCard(search.name, null, multiple && picked.any { same(it, source) }, cards, width = 230.dp, icon = Icons.Outlined.Tune) { take(source) }
+                        }
+                    }
+                }
+                else -> {
+                    val tmdb = mode == "TMDB"
+                    EditorHeading(if (tmdb) "From TMDB" else "A Trakt list", if (tmdb) "A collection, list, company, network or person on TMDB." else "Paste a Trakt list's number or link.")
+                    if (tmdb) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SourceKinds.tmdb.forEach { (value, label, icon) ->
+                            ChoiceCard(label, null, kind == value, cards, width = 170.dp, icon = icon) { kind = value; if (value == "NETWORK") media = "TV" else if (value == "COLLECTION") media = "MOVIE" }
+                        }
+                    }
+                    TvTextField(name, { name = it.take(100) }, Modifier.width(560.dp), placeholder = "Source name")
+                    if (tmdb && kind in setOf("COMPANY", "PERSON", "DIRECTOR")) {
+                        TvTextField(query, { query = it }, Modifier.width(560.dp), placeholder = "Search by name")
+                        if (found.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            found.forEach { ref -> ChoiceCard(ref.name, null, id == ref.id.toString(), cards, width = 220.dp) { id = ref.id.toString(); if (name.isBlank()) name = ref.name } }
+                        }
+                    }
+                    TvTextField(id, { id = it }, Modifier.width(560.dp), placeholder = if (tmdb) "TMDB ID or link" else "Trakt list number or link")
+                    if (!tmdb || kind !in setOf("COLLECTION", "NETWORK")) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf(Triple("MOVIE", "Movies", Icons.Outlined.Movie), Triple("TV", "Shows", Icons.Outlined.Tv)).forEach { (key, label, icon) ->
+                            ChoiceCard(label, null, media == key, cards, width = 170.dp, icon = icon) { media = key }
+                        }
+                    }
                 }
             }
-        } else if (mode == "Your lists") {
-            // #461: Ember's own lists: they fill from your watching and your trackers.
-            Text("Your Watchlist, what you're watching and your smart rows. They stay up to date as you watch.", fontSize = 13.sp, color = Mute)
-            app.ember.tv.data.LibraryLists.all.forEach { entry ->
-                val source = app.ember.tv.data.LibraryLists.source(entry)
-                Chip(entry.label, selected = multiple && picked.any { same(it, source) }, modifier = Modifier.testTag("library_${entry.id}")) { take(source) }
-            }
-        } else if (mode == "Saved searches") {
-            val saved = vm.collectionSearches
-            if (saved.isEmpty()) Text(stringResource(R.string.tx_save_a_search_in_discover_first), color = Mute)
-            saved.forEach { search ->
-                val source = CollectionDrafts.discover(search.name, search.query, vm.profiles.profileId)
-                Chip(search.name, selected = multiple && picked.any { same(it, source) }) { take(source) }
-            }
-        } else {
-            if (mode == "TMDB") ButtonRow {
-                listOf("COLLECTION", "LIST", "COMPANY", "NETWORK", "PERSON", "DIRECTOR").forEach { value -> Chip(value.lowercase().replaceFirstChar { it.uppercase() }, kind == value) { kind = value; if (value == "NETWORK") media = "TV" else if (value == "COLLECTION") media = "MOVIE" } }
-            }
-            TvTextField(name, { name = it.take(100) }, Modifier.fillMaxWidth(), placeholder = "Source name")
-            if (mode == "TMDB" && kind in setOf("COMPANY", "PERSON", "DIRECTOR")) {
-                TvTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "Search by name")
-                found.forEach { ref -> Chip(ref.name) { id = ref.id.toString(); if (name.isBlank()) name = ref.name; found = emptyList() } }
-            }
-            TvTextField(id, { id = it }, Modifier.fillMaxWidth(), placeholder = if (mode == "TMDB") "TMDB ID or URL" else "Trakt list ID or numeric list URL")
-            if (mode == "Trakt" || kind !in setOf("COLLECTION", "NETWORK")) ButtonRow { listOf("MOVIE" to "Movies", "TV" to "Shows").forEach { (key, label) -> Chip(label, media == key) { media = key } } }
-            error?.let { Text(it, color = Mute) }
-            Chip(if (multiple) "Add source" else "Use source") {
+        }
+        val manual = mode == "TMDB" || mode == "Trakt"
+        EditorFooter("Cancel", close, error ?: if (multiple) SourcePicks.count(picked.size) else null, warn = error != null && !error!!.startsWith("Added")) {
+            if (manual) PrimaryAction(if (multiple) "Add this source" else "Use source", name.isNotBlank() && id.isNotBlank()) {
                 val number = CollectionDrafts.numericId(id)
-                error = when { name.isBlank() -> "Enter a source name."; number == null -> "Enter a positive numeric ID or URL containing it."; mode == "TMDB" && number > Int.MAX_VALUE -> "That TMDB ID is too large."; else -> null }
+                error = when { name.isBlank() -> "Enter a source name."; number == null -> "Enter a positive numeric ID or a link containing it."; mode == "TMDB" && number > Int.MAX_VALUE -> "That TMDB ID is too large."; else -> null }
                 if (error == null) {
                     take(if (mode == "TMDB") CollectionSource(provider = "tmdb", title = name.trim(), tmdbSourceType = kind, tmdbId = number!!.toInt(), mediaType = media)
                         else CollectionSource(provider = "trakt", title = name.trim(), traktListId = number, mediaType = media))
                     if (multiple) { id = ""; name = ""; error = "Added. Add another, or choose " + SourcePicks.addLabel(picked.size) + "." }
                 }
             }
+            if (multiple && picked.isNotEmpty()) {
+                Chip("Clear") { picked = emptyList() }
+                PrimaryAction(SourcePicks.addLabel(picked.size), modifier = Modifier.testTag("sources_add")) { onChooseMany!!(picked) }
+            }
         }
     }
+}
+
+/** #468: the kinds of source, as cards. */
+internal object SourceKinds {
+    data class Kind(val name: String, val about: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+    val all = listOf(
+        Kind("Catalogs", "From your addons", Icons.Outlined.Widgets),
+        Kind("Your lists", "Watchlist and smart rows", Icons.Outlined.Bookmarks),
+        Kind("Saved searches", "From Discover", Icons.Outlined.Tune),
+        Kind("TMDB", "Collections, people…", Icons.Outlined.Movie),
+        Kind("Trakt", "A list by number", Icons.Outlined.PlaylistPlay),
+    )
+    val tmdb = listOf(
+        Triple("COLLECTION", "Collection", Icons.Outlined.VideoLibrary), Triple("LIST", "List", Icons.Outlined.FormatListBulleted),
+        Triple("COMPANY", "Company", Icons.Outlined.Business), Triple("NETWORK", "Network", Icons.Outlined.Tv),
+        Triple("PERSON", "Person", Icons.Outlined.Person), Triple("DIRECTOR", "Director", Icons.Outlined.Videocam),
+    )
 }
