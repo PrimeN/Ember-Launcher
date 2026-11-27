@@ -58,9 +58,7 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
     val emberHome = remember(rev, state) { DefaultHome.emberIsDefault(app) }
     val stock = remember(rev) { DefaultHome.stockPackages(app) }
     val stockOff = remember(rev, state) { stock.isNotEmpty() && stock.none { DefaultHome.isEnabled(app, it) } }
-    val recsInstalled = remember(rev) { DefaultHome.isInstalled(app, SystemTweaks.RECOMMENDATIONS) }
-    val recsOn = remember(rev, state) { DefaultHome.isEnabled(app, SystemTweaks.RECOMMENDATIONS) }
-    val fast = remember(rev, state) { SystemTweaks.fastAnimations(app) }
+    val fire = remember { app.ember.tv.system.Lighter.isFireTv(app) }
     val serviceOn = remember(rev, state) { DefaultHome.serviceOn(app) }
     val adBlock = remember(rev, state) { AdBlockDns.refresh(app) }
     var busy by remember { mutableStateOf(false) }
@@ -92,13 +90,16 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
                 Text(statusLine(state, granted, devOn), fontSize = 15.sp,
                     color = if (state == SystemAccess.State.CONNECTED || granted) MaterialTheme.colorScheme.primary else Fg)
                 (message ?: note)?.let { Text(it, color = Mute, fontSize = 14.sp, modifier = Modifier.width(760.dp)) }
-                if (!devOn) SettingActionRow("Turn on Developer options", "Settings › System › About › Android TV OS build: press OK 7 times.") {
+                // #473: Fire TV hides Developer options under its device name and uses ADB debugging.
+                if (!devOn) SettingActionRow("Turn on Developer options",
+                    if (fire) "Settings › My Fire TV › About: press OK on the device's name 7 times. Then turn on ADB debugging."
+                    else "Settings › System › About › Android TV OS build: press OK 7 times.") {
                     DefaultHome.open(context, Settings.ACTION_DEVICE_INFO_SETTINGS)
                 }
                 SettingActionRow(if (busy) "Connecting…" else "Connect", "Uses Wireless debugging, or USB debugging on older TVs.") {
                     act { if (SystemAccess.connect(app)) "Connected." else null }
                 }
-                if (SystemAccess.wireless) SettingActionRow("Pair with a code", "Once, for Wireless debugging (most Google TVs).") { pairing = true }
+                if (SystemAccess.wireless && !fire) SettingActionRow("Pair with a code", "Once, for Wireless debugging (most Google TVs).") { pairing = true }
                 SettingActionRow("Open Developer options") {
                     if (!DefaultHome.open(context, Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) message = "Turn on Developer options first."
                 }
@@ -111,7 +112,11 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
                 "Give it back switches it on again and makes it Home.\n\nIf you uninstall Ember while the TV's home is off, the TV has no Home screen: give it back first.",
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
+                if (fire) Text(
+                    if (serviceOn) "Fire TV doesn't let another app be Home, so the Home button service opens Ember when you press Home. It's on."
+                    else "Fire TV doesn't let another app be Home. Turn on the Home button service and pressing Home opens Ember.",
+                    fontSize = 15.sp,
+                ) else Text(
                     when {
                         emberHome && stockOff -> "Ember is Home and the TV's own home is off."
                         emberHome -> "Ember is Home."
@@ -119,7 +124,7 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
                     },
                     fontSize = 15.sp,
                 )
-                if (!(emberHome && (stockOff || stock.isEmpty()))) SettingActionRow("Make Ember the TV's Home", "Switches the TV's own home screen off.") { confirmHome = true }
+                if (!fire && !(emberHome && (stockOff || stock.isEmpty()))) SettingActionRow("Make Ember the TV's Home", "Switches the TV's own home screen off.") { confirmHome = true }
                 if (stock.any { !DefaultHome.isEnabled(app, it) }) SettingActionRow("Give Home back to the TV", "Switches the TV's own home screen on again.") { confirmGiveBack = true }
                 if (!serviceOn) SettingActionRow("Turn on the Home button service", "Sends the Home button to Ember on TVs that keep their own home.") {
                     act { SystemTweaks.homeButtonService(app) }
@@ -127,17 +132,10 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
             }
         }
 
-        Section("TV tweaks", "System-wide changes; each switches back the same way.", id = "system-tweaks") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ToggleRow("Fast animations", "Menus and screens animate twice as fast in every app.", fast) {
-                    act { SystemTweaks.setFastAnimations(app, !fast) }
-                }
-                if (recsInstalled) ToggleRow("Google TV recommendations", "A background service only Google's home uses. Off saves memory.", recsOn,
-                    unavailable = if (!devOn && state != SystemAccess.State.CONNECTED) "Turn on Developer options and connect first." else null) {
-                    act { SystemTweaks.setPackage(app, SystemTweaks.RECOMMENDATIONS, !recsOn) }
-                }
-                SettingActionRow("Ad blocking", adBlockLine(adBlock)) { vm.openSettingsPage(SettingsTab.KEYS.name) }
-            }
+        LighterSection(app, rev, ready = devOn || granted || state == SystemAccess.State.CONNECTED, busy = busy) { block -> act(block) }
+
+        Section("Ad blocking", "Blocks ads in every app through Private DNS.", id = "system-tweaks") {
+            SettingActionRow("Ad blocking", adBlockLine(adBlock)) { vm.openSettingsPage(SettingsTab.KEYS.name) }
         }
     }
 

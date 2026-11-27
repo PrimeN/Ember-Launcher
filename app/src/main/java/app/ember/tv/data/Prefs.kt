@@ -457,6 +457,10 @@ class Prefs(context: Context) {
     var skipDeadLinks: Boolean
         get() = runCatching { sp.read(PreferenceKeys.SKIP_DEAD_LINKS) }.getOrDefault(true)
         set(v) = sp.edit { putBoolean(PreferenceKeys.SKIP_DEAD_LINKS.name, v) }
+    /** #473: close apps waiting in the background when a video starts (needs System access). */
+    var freeMemoryOnPlay: Boolean
+        get() = runCatching { sp.read(PreferenceKeys.FREE_MEMORY_ON_PLAY) }.getOrDefault(false)
+        set(v) = sp.edit { putBoolean(PreferenceKeys.FREE_MEMORY_ON_PLAY.name, v) }
     var earlySources: Boolean
         get() = runCatching { sp.read(PreferenceKeys.EARLY_SOURCES) }.getOrDefault(true)
         set(v) = sp.edit { putBoolean(PreferenceKeys.EARLY_SOURCES.name, v) }

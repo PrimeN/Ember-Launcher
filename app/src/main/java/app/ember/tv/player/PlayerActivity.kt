@@ -615,6 +615,9 @@ class PlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createPlayer(savedInstanceState)
+        // #473: memory for the video; apps waiting in the background are closed, never this one.
+        if (savedInstanceState == null && app.ember.tv.data.Prefs(this).freeMemoryOnPlay)
+            lifecycleScope.launch { app.ember.tv.system.Lighter.freeMemory(applicationContext) }
     }
 
     internal val panelVisible: Boolean get() = ::panel.isInitialized && panel.isVisible
