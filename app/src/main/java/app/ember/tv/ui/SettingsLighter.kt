@@ -35,7 +35,7 @@ internal fun LighterSection(app: Context, rev: Int, ready: Boolean, busy: Boolea
     val extras = remember(rev) { Lighter.EXTRAS.filter { DefaultHome.isInstalled(app, it.pkg) }.map { it to DefaultHome.isEnabled(app, it.pkg) } }
 
     Section(
-        "Make it lighter", "Memory: ${Lighter.memoryLine(memory)}.", id = "system-lighter",
+        "Make it lighter", if (memory.totalMb > 0) "Memory: ${Lighter.memoryLine(memory)}." else "More memory for Ember and your videos.", id = "system-lighter",
         info = "Each change here switches back the same way.\n\n" +
             "Closing background apps only closes apps you aren't using; they open again normally.\n\n" +
             "An app kept from running in the background still works when you open it, but can't download, refresh or play once you leave it.",
