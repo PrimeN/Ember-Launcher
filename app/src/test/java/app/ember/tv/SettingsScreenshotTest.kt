@@ -80,6 +80,21 @@ class SettingsScreenshotTest {
         save("hide-sources-end")
     }
 
+    // #473: System access › Make it lighter.
+    @Test fun lighter() {
+        compose.setContent {
+            CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides Fg, LocalReduceMotion provides true, LocalRenderOptions provides RenderOptions(device = "low")) {
+                EmberTheme(0, InterfaceStyles.MODERN) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    Column(Modifier.size(960.dp, 540.dp).background(Color(0xFF101012)).padding(24.dp)) {
+                        LighterSection(context, 0, ready = true, busy = false) {}
+                    }
+                }
+            }
+        }
+        save("lighter")
+    }
+
     @Test fun choiceMenu() {
         page(true)
         compose.onNodeWithText("Large (4K remux)").performSemanticsAction(SemanticsActions.OnClick) { it() }
