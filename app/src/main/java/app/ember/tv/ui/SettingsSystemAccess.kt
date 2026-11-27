@@ -30,6 +30,7 @@ import app.ember.tv.HomeViewModel
 import app.ember.tv.home.DefaultHome
 import app.ember.tv.home.HomeButtonService
 import app.ember.tv.system.AdBlockDns
+import app.ember.tv.system.Lighter
 import app.ember.tv.system.AdbPairPage
 import app.ember.tv.system.SystemAccess
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +59,7 @@ internal fun SystemAccessPage(vm: HomeViewModel) {
     val emberHome = remember(rev, state) { DefaultHome.emberIsDefault(app) }
     val stock = remember(rev) { DefaultHome.stockPackages(app) }
     val stockOff = remember(rev, state) { stock.isNotEmpty() && stock.none { DefaultHome.isEnabled(app, it) } }
-    val fire = remember { app.ember.tv.system.Lighter.isFireTv(app) }
+    val fire = remember { Lighter.isFireTv(app) }
     val serviceOn = remember(rev, state) { DefaultHome.serviceOn(app) }
     val adBlock = remember(rev, state) { AdBlockDns.refresh(app) }
     var busy by remember { mutableStateOf(false) }
