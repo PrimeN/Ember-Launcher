@@ -389,7 +389,7 @@ fun StatsHud(s: ControlsState) {
             horizontalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             columns.forEach { column ->
-                Column(Modifier.width(if (two) 262.dp else 300.dp)) {
+                Column(Modifier.width(if (two) 246.dp else 290.dp)) {
                     column.forEach { group -> groups[group]?.let { StatsSection(group, it) } }
                 }
             }
@@ -414,7 +414,7 @@ private fun StatsSection(group: StatsGroup, rows: List<StatsRow>) {
                 }
                 if (dot != null) Box(Modifier.size(6.dp).clip(androidx.compose.foundation.shape.CircleShape).background(dot))
             }
-            Text(row.label, fontSize = 12.sp, lineHeight = 13.sp, color = Color(0xFFB9BDC4), maxLines = 1, modifier = Modifier.width(80.dp))
+            Text(row.label, fontSize = 12.sp, lineHeight = 13.sp, color = Color(0xFFB9BDC4), maxLines = 1, modifier = Modifier.width(94.dp))
             Text(row.value, fontSize = 12.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1,
                 overflow = if (row.label == "File") TextOverflow.Clip else TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).then(if (row.label == "File") Modifier.basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2_000) else Modifier))
