@@ -36,7 +36,7 @@ import app.ember.tv.player.DeviceTuning
 @Composable
 internal fun TuningCard(plan: DeviceTuning.Plan, close: () -> Unit, review: () -> Unit) {
     val go = remember { FocusRequester() }
-    TvDialog(close, width = 820.dp, height = 640.dp, scrollContent = true) {
+    TvDialog(close, width = 720.dp, height = 640.dp, scrollContent = true) {
         Text("SET UP FOR THIS TV", color = Mute, fontSize = 12.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Medium)
         Text(plan.device.ifBlank { "This TV" }, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
         if (plan.summary.isNotBlank()) Text(plan.summary, color = Mute, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))

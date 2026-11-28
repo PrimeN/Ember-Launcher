@@ -265,6 +265,30 @@ class ShowcaseShotsTest {
         save("player")
     }
 
+    // #478: the stats panel, compact, over the picture.
+    @Test fun playerStats() {
+        val g = app.ember.tv.player.StatsGroup; val d = app.ember.tv.player.StatsDot
+        fun r(gr: app.ember.tv.player.StatsGroup, l: String, v: String, dot: app.ember.tv.player.StatsDot = d.NONE) = app.ember.tv.player.StatsRow(gr, l, v, dot)
+        val s = ControlsState().apply {
+            stats = listOf(
+                r(g.SOURCE, "Add-on", "AIOStreams"), r(g.SOURCE, "Provider", "Offcloud"), r(g.SOURCE, "Server", "cdn2-fra.example.com"),
+                r(g.SOURCE, "File", "Metropolis.1927.2160p.DV.HDR.Remux.mkv"), r(g.SOURCE, "Container", "Matroska / MKV"), r(g.SOURCE, "Size", "42.9 GB"),
+                r(g.VIDEO, "Engine", "Standard (Media3)"), r(g.VIDEO, "Video", "HEVC Main10, DV 8.1, 3840×2160, 61 Mbit/s, 23.976 fps"),
+                r(g.VIDEO, "Dropped", "0 frames", d.GOOD), r(g.VIDEO, "Display", "3840×2160 · 23.976 Hz"), r(g.VIDEO, "TV supports", "Dolby Vision, HDR10"),
+                r(g.AUDIO, "Audio", "TrueHD Atmos 7.1 · bitstream"), r(g.AUDIO, "Underruns", "0", d.GOOD), r(g.AUDIO, "Route", "HDMI"),
+                r(g.NETWORK, "Buffer", "28.4 s ahead", d.GOOD), r(g.NETWORK, "Speed", "142 Mbit/s"), r(g.NETWORK, "Server latency", "28 ms", d.GOOD),
+                r(g.NETWORK, "Load errors", "0", d.GOOD), r(g.NETWORK, "Estimate", "180 Mbit/s"),
+                r(g.SYSTEM, "App CPU", "27 %", d.GOOD), r(g.SYSTEM, "Memory", "Java heap 22/384 MB · native 170 MB", d.GOOD),
+                r(g.SYSTEM, "Heat", "Normal", d.GOOD), r(g.SYSTEM, "Device", "NVIDIA SHIELD · 3 GB RAM"),
+            )
+        }
+        compose.setContent { Frame {
+            coil.compose.AsyncImage(art("backdrop", "Metropolis"), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            app.ember.tv.player.StatsHud(s)
+        } }
+        save("player-stats")
+    }
+
     // #474: the subtitle sheet with two-line rows and the style pill.
     @Test fun playerSubtitles() {
         val s = ControlsState().apply {

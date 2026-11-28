@@ -249,7 +249,8 @@ fun OptionsPage(s: ControlsState, a: ControlsActions) {
     ) {
         AnimatedVisibility(shown, enter = slideInHorizontally { it / 2 } + fadeIn()) {
             Column(
-                Modifier.padding(24.dp).width(PlayerMenuLayout.PANEL_WIDTH.dp).fillMaxHeight(.72f)
+                // #478: as tall as its rows, up to 72% of the screen; no empty panel under a short list.
+                Modifier.padding(24.dp).width(PlayerMenuLayout.PANEL_WIDTH.dp).heightIn(max = 390.dp)
                     .clip(RoundedCornerShape((if(app.ember.tv.ui.isEmberX)8 else 20).dp)).background(MenuPanel)
                     .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape((if(app.ember.tv.ui.isEmberX)8 else 20).dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -374,19 +375,21 @@ private fun TabBar(s: ControlsState, modifier: Modifier) {
 fun StatsHud(s: ControlsState) {
     if (s.stats.isEmpty()) return
     val groups = s.stats.groupBy { it.group }
-    val two = s.stats.size > 18
+    // #478: compact for big screens: 12 sp rows 15 dp tall in narrow columns, so the panel covers
+    // about a third of the picture instead of most of it.
+    val two = s.stats.size > 12
     val columns = if (two) listOf(listOf(StatsGroup.SOURCE, StatsGroup.VIDEO), listOf(StatsGroup.AUDIO, StatsGroup.NETWORK, StatsGroup.SYSTEM))
         else listOf(StatsGroup.entries.toList())
-    Box(Modifier.fillMaxSize().padding(end = 40.dp, top = if (s.visible) 96.dp else 28.dp), contentAlignment = Alignment.TopEnd) {
+    Box(Modifier.fillMaxSize().padding(end = 28.dp, top = if (s.visible) 88.dp else 22.dp), contentAlignment = Alignment.TopEnd) {
         Row(
-            Modifier.clip(RoundedCornerShape((if (app.ember.tv.ui.isEmberX) 10 else 22).dp))
-                .background(Color(0xB8181A1F))
-                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape((if (app.ember.tv.ui.isEmberX) 10 else 22).dp))
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(28.dp),
+            Modifier.clip(RoundedCornerShape((if (app.ember.tv.ui.isEmberX) 8 else 14).dp))
+                .background(Color(0xD90E0F12))
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape((if (app.ember.tv.ui.isEmberX) 8 else 14).dp))
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             columns.forEach { column ->
-                Column(Modifier.width(if (two) 420.dp else 460.dp)) {
+                Column(Modifier.width(if (two) 262.dp else 300.dp)) {
                     column.forEach { group -> groups[group]?.let { StatsSection(group, it) } }
                 }
             }
@@ -396,23 +399,23 @@ fun StatsHud(s: ControlsState) {
 
 @Composable
 private fun StatsSection(group: StatsGroup, rows: List<StatsRow>) {
-    Text(group.title.uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp, color = Soft,
-        modifier = Modifier.padding(top = 6.dp, bottom = 3.dp))
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
-    Spacer(Modifier.height(3.dp))
+    Text(group.title.uppercase(), fontSize = 12.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp, color = Soft,
+        modifier = Modifier.padding(top = 5.dp, bottom = 2.dp))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x26FFFFFF)))
+    Spacer(Modifier.height(2.dp))
     rows.forEach { row ->
-        Row(Modifier.fillMaxWidth().height(19.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(18.dp), contentAlignment = Alignment.CenterStart) {
+        Row(Modifier.fillMaxWidth().height(15.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(11.dp), contentAlignment = Alignment.CenterStart) {
                 val dot = when (row.dot) {
                     StatsDot.GOOD -> StatsGood
                     StatsDot.WARN -> StatsWarn
                     StatsDot.BAD -> StatsBad
                     StatsDot.NONE -> null
                 }
-                if (dot != null) Box(Modifier.size(8.dp).clip(androidx.compose.foundation.shape.CircleShape).background(dot))
+                if (dot != null) Box(Modifier.size(6.dp).clip(androidx.compose.foundation.shape.CircleShape).background(dot))
             }
-            Text(row.label, fontSize = 13.sp, color = Color(0xFFD5D8DD), maxLines = 1, modifier = Modifier.width(118.dp))
-            Text(row.value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1,
+            Text(row.label, fontSize = 12.sp, lineHeight = 13.sp, color = Color(0xFFB9BDC4), maxLines = 1, modifier = Modifier.width(80.dp))
+            Text(row.value, fontSize = 12.sp, lineHeight = 13.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1,
                 overflow = if (row.label == "File") TextOverflow.Clip else TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).then(if (row.label == "File") Modifier.basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 2_000) else Modifier))
         }

@@ -49,8 +49,8 @@ internal val LocalInlineDialogs=androidx.compose.runtime.staticCompositionLocalO
 /** Bounded TV modal; callers choose a scrollable form or provide their own bounded lazy body. */
 @Composable
 internal fun TvDialog(
-    close:()->Unit,modifier:Modifier=Modifier,width:Dp=680.dp,height:Dp=540.dp,resizeForKeyboard:Boolean=false,scrollContent:Boolean=false,
-    horizontalAlignment:Alignment.Horizontal=Alignment.Start,contentPadding:Dp=TvTokens.Space.XXL.dp,glassSurface:Boolean=false,content:@Composable ColumnScope.()->Unit,
+    close:()->Unit,modifier:Modifier=Modifier,width:Dp=600.dp,height:Dp=540.dp,resizeForKeyboard:Boolean=false,scrollContent:Boolean=false,
+    horizontalAlignment:Alignment.Horizontal=Alignment.Start,contentPadding:Dp=TvTokens.Space.XL.dp,glassSurface:Boolean=false,content:@Composable ColumnScope.()->Unit,
 ) {
     // #468: screenshots draw a dialog in place; a test window can't capture another window.
     val inline=LocalInlineDialogs.current
