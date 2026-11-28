@@ -628,9 +628,9 @@ internal fun PosterRibbon(ribbon: Pair<app.ember.tv.data.PosterRibbons.Kind, Str
     val edge = ribbonEdge(ribbon.first)
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     androidx.compose.foundation.Canvas(modifier.clearAndSetSemantics { }) {
-        val base = minOf(size.width, size.height * .72f)
-        val near = base * .26f   // where the sash's inner edge meets the card's edges, from the corner
-        val far = base * .41f    // and its outer edge
+        val base = minOf(size.width, size.height)
+        val near = base * .30f   // where the sash's inner edge meets the card's edges, from the corner
+        val far = base * .50f    // and its outer edge
         val w = size.width
         val band = androidx.compose.ui.graphics.Path().apply {
             moveTo(w - far, 0f); lineTo(w - near, 0f); lineTo(w, near); lineTo(w, far); close()
@@ -641,9 +641,9 @@ internal fun PosterRibbon(ribbon: Pair<app.ember.tv.data.PosterRibbons.Kind, Str
         drawLine(edge, androidx.compose.ui.geometry.Offset(w - far, 0f), androidx.compose.ui.geometry.Offset(w, far), line)
         // The text along the middle of the sash, as large as fits.
         val mid = (near + far) / 2f
-        val room = mid * 1.414f * .78f
+        val room = mid * 1.414f * .84f
         val thick = (far - near) / 1.414f
-        var px = thick * .52f
+        var px = thick * .62f
         val style = androidx.compose.ui.text.TextStyle(color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 0.2.sp)
         var text = measurer.measure(ribbon.second, style.copy(fontSize = (px / density).sp), maxLines = 1)
         if (text.size.width > room) {
