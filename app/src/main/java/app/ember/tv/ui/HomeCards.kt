@@ -180,7 +180,6 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
             val dim = LocalDimWatched.current && LocalWatchedUi.current.title(meta)
             Box(Modifier.fillMaxSize().clearAndSetSemantics { }.then(if (dim) Modifier.alpha(0.4f) else Modifier)) {
                 LandscapeImage(meta, Modifier.fillMaxSize(), onImage = backdrop::loaded)
-                WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color(0xD9000000))))
                 Column(Modifier.align(Alignment.BottomStart).padding(start = if (small) 8.dp else 12.dp, end = 8.dp, bottom = if (meta.safeProgress != null) 12.dp else 8.dp)) {
                     LandscapeTitle(meta, if (small) 12.sp else 15.sp, logoHeight = height * 0.34f, logoWidth = width * 0.62f)
@@ -190,15 +189,9 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
                         Text(it, fontSize = 12.sp, color = Color(0xFFDADCE0), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                // #476: the corner ribbon; the "saved" dot moves to the top-left when it's there.
-                val ribbon = rememberRibbon(meta)
-                ribbon?.let { PosterRibbon(it, Modifier.matchParentSize()) }
-                if (saved) {
-                    Box(
-                        Modifier.align(if (ribbon != null) Alignment.BottomEnd else Alignment.TopEnd).padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (ribbon != null) 16.dp else 8.dp).size(9.dp).clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                    )
-                }
+                // #476: the corner ribbon. #477: watched and saved are small icons top-left.
+                rememberRibbon(meta)?.let { PosterRibbon(it, Modifier.matchParentSize()) }
+                CornerMarks(LocalWatchedUi.current.badge(meta), saved, Modifier.align(Alignment.TopStart))
                 meta.safeProgress?.let { p ->
                     Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).height(3.dp).clip(CircleShape).background(Color(0x55FFFFFF))) {
                         Box(Modifier.fillMaxWidth(p.coerceIn(0f, 1f)).fillMaxHeight().background(MaterialTheme.colorScheme.primary))

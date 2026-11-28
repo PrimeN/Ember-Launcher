@@ -191,13 +191,15 @@ class ShowcaseShotsTest {
     // #476: corner ribbons on posters and wide cards.
     @Test fun ribbons() {
         val kinds = setOf(app.ember.tv.data.PosterRibbons.Kind.NEW, app.ember.tv.data.PosterRibbons.Kind.AGE, app.ember.tv.data.PosterRibbons.Kind.GENRE)
-        compose.setContent { Frame { CompositionLocalProvider(app.ember.tv.ui.LocalRibbonKinds provides kinds) {
+        // #477: watched and saved as small corner icons too.
+        val watched = app.ember.tv.ui.WatchedUi(showBadges = true, title = { it.name in setOf("Sunrise", "Metropolis", "Bonanza") })
+        compose.setContent { Frame { CompositionLocalProvider(app.ember.tv.ui.LocalRibbonKinds provides kinds, app.ember.tv.ui.LocalWatchedUi provides watched) {
             Column(Modifier.fillMaxSize().padding(40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 ModernSection("Trending this week", "Cinemeta") {
                     MediaRow(listOf(meta("Sintel", year = "2026")) + posters.take(7), false, { it.name == "Metropolis" }) {}
                 }
                 ModernSection("Continue watching", null) {
-                    MediaRow(shows.take(4).mapIndexed { i, t -> meta(t, type = "series", progress = .3f + i * .1f) }, true, { false }) {}
+                    MediaRow(shows.take(4).mapIndexed { i, t -> meta(t, type = "series", progress = .3f + i * .1f) }, true, { it.name == "The Lucy Show" || it.name == "Bonanza" }) {}
                 }
             }
         } } }

@@ -353,7 +353,6 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
             val dim = LocalDimWatched.current && LocalWatchedUi.current.title(meta)
             Box(Modifier.clearAndSetSemantics { }.then(if (dim) Modifier.alpha(0.4f) else Modifier)) {
                 PosterImage(meta, Modifier.width(width).height(width * meta.cardRatio), onImage = backdrop::loaded)
-                WatchedBadge(LocalWatchedUi.current.badge(meta),Modifier.align(Alignment.TopStart))
                 meta.safeProgress?.let { progress ->
                     Box(
                         modifier = Modifier
@@ -370,23 +369,9 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
                         )
                     }
                 }
-                // #476: the ribbon takes the top-right corner; "Saved" then sits bottom-right.
-                val ribbon = rememberRibbon(meta)
-                ribbon?.let { PosterRibbon(it, Modifier.matchParentSize()) }
-                if (saved) {
-                    Text(
-                        stringResource(R.string.ui_saved),
-                        modifier = Modifier
-                            .align(if (ribbon != null) Alignment.BottomEnd else Alignment.TopEnd)
-                            .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = if (ribbon != null && meta.safeProgress != null) 16.dp else 6.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(MaterialTheme.colorScheme.primary)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        fontSize = TvTokens.Type.Caption.sp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                // #476: the ribbon takes the top-right corner. #477: watched and saved are small icons top-left.
+                rememberRibbon(meta)?.let { PosterRibbon(it, Modifier.matchParentSize()) }
+                CornerMarks(LocalWatchedUi.current.badge(meta), saved, Modifier.align(Alignment.TopStart))
             }
         }
         // Labels under tiles > Titles (#43): off removes the title and its line; the card keeps
