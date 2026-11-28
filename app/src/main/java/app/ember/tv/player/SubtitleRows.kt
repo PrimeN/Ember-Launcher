@@ -92,7 +92,7 @@ internal fun SubtitleChoiceRow(row: SubtitleRow, selected: Boolean, first: Boole
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(row.title, fontSize = 17.sp, color = text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 row.tags.forEach { t ->
-                    Text(t, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = soft, maxLines = 1,
+                    Text(t, fontSize = 12.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold, color = soft, maxLines = 1,
                         modifier = Modifier.border(1.dp, soft, RoundedCornerShape(5.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
                 }
             }
