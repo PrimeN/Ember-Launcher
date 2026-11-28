@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import app.ember.tv.unfinished
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import app.ember.tv.isSaved
