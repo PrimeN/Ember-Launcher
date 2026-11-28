@@ -347,8 +347,9 @@ internal fun SideSheet(title: String, start: Int = 0, wide: Boolean = false, con
                 Text(title, fontSize = 13.sp, letterSpacing = 2.5.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = .7f), modifier = Modifier.padding(start = 24.dp, top = 6.dp, bottom = 10.dp))
                 Box(Modifier.padding(horizontal = 18.dp).fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = .12f)))
                 Spacer(Modifier.height(10.dp))
-            } else
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(start = 24.dp, bottom = 10.dp))
+            } else {
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(start = 24.dp, bottom = 10.dp))
+            }
             // Opens scrolled near [start], so the row that takes focus is already on screen.
             LazyColumn(state = androidx.compose.foundation.lazy.rememberLazyListState((start - 3).coerceAtLeast(0)), content = content)
         }

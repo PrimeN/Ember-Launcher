@@ -265,15 +265,16 @@ private fun PlaybackChoices(s:ControlsState,a:ControlsActions) {
                 itemsIndexed(choices,key={i,_->i}) {index,(_,selected)->
                     SubtitleChoiceRow(subRows[index],selected,index==chosen) {s.sheet=null;if(!selected)a.pickSubtitle(index)}
                 }
-            } else
-            LazyColumn(state=rememberLazyListState(initialFirstVisibleItemIndex=(chosen-2).coerceAtLeast(0))) {
-                itemsIndexed(choices,key={i,_->i}) {index,(label,selected)->
-                    PlaybackChoice(label,selected,index==chosen) {
-                        s.sheet=null
-                        if(episodes)a.playEpisode(index) else if(!selected){if(audio)a.pickAudio(index) else a.pickSubtitle(index)}
+            } else {
+                LazyColumn(state=rememberLazyListState(initialFirstVisibleItemIndex=(chosen-2).coerceAtLeast(0))) {
+                    itemsIndexed(choices,key={i,_->i}) {index,(label,selected)->
+                        PlaybackChoice(label,selected,index==chosen) {
+                            s.sheet=null
+                            if(episodes)a.playEpisode(index) else if(!selected){if(audio)a.pickAudio(index) else a.pickSubtitle(index)}
+                        }
                     }
+                    if(more!=null)item("more") {PlaybackChoice(more,false,choices.isEmpty()) {s.sheet=null;a.openMenu("options",if(audio)"audio" else "subtitles")}}
                 }
-                if(more!=null)item("more") {PlaybackChoice(more,false,choices.isEmpty()) {s.sheet=null;a.openMenu("options",if(audio)"audio" else "subtitles")}}
             }
         }
     }
