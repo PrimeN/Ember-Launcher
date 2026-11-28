@@ -190,10 +190,12 @@ fun WideCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = Ca
                         Text(it, fontSize = 12.sp, color = Color(0xFFDADCE0), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                PosterRibbonTags(meta, Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = if (saved) 22.dp else 6.dp))
+                // #476: the corner ribbon; the "saved" dot moves to the top-left when it's there.
+                val ribbon = rememberRibbon(meta)
+                ribbon?.let { PosterRibbon(it, Modifier.matchParentSize()) }
                 if (saved) {
                     Box(
-                        Modifier.align(Alignment.TopEnd).padding(8.dp).size(9.dp).clip(CircleShape)
+                        Modifier.align(if (ribbon != null) Alignment.BottomEnd else Alignment.TopEnd).padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (ribbon != null) 16.dp else 8.dp).size(9.dp).clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary),
                     )
                 }

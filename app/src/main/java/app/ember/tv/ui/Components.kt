@@ -1,5 +1,7 @@
 package app.ember.tv.ui
 
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.drawText
 import app.ember.tv.data.TileLabels
 
 import androidx.compose.runtime.mutableIntStateOf
@@ -368,13 +370,15 @@ fun TitleCard(meta: Meta, saved: Boolean, width: androidx.compose.ui.unit.Dp = 1
                         )
                     }
                 }
-                PosterRibbonTags(meta, Modifier.align(Alignment.TopEnd).padding(top = if (saved) 32.dp else 6.dp, end = 6.dp))
+                // #476: the ribbon takes the top-right corner; "Saved" then sits bottom-right.
+                val ribbon = rememberRibbon(meta)
+                ribbon?.let { PosterRibbon(it, Modifier.matchParentSize()) }
                 if (saved) {
                     Text(
                         stringResource(R.string.ui_saved),
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
+                            .align(if (ribbon != null) Alignment.BottomEnd else Alignment.TopEnd)
+                            .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = if (ribbon != null && meta.safeProgress != null) 16.dp else 6.dp)
                             .clip(RoundedCornerShape(50))
                             .background(MaterialTheme.colorScheme.primary)
                             .padding(horizontal = 8.dp, vertical = 2.dp),
@@ -594,22 +598,61 @@ internal fun focusTint(color: Color): Color {
     return Color.hsv(hue, saturation, max.coerceAtLeast(0.88f))
 }
 
-/** #432: Ember's own corner tags (New, age rating, kind...), drawn here with no service behind them. */
+/** #476: the ribbon for [meta], or null when ribbons are off or none applies. */
 @Composable
-internal fun PosterRibbonTags(meta: Meta, modifier: Modifier = Modifier) {
+internal fun rememberRibbon(meta: Meta): Pair<app.ember.tv.data.PosterRibbons.Kind, String>? {
     val kinds = LocalRibbonKinds.current
-    if (kinds.isEmpty()) return
+    if (kinds.isEmpty()) return null
     val year = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
-    val tags = remember(meta, kinds, year) { app.ember.tv.data.PosterRibbons.of(meta, kinds, year) }
-    if (tags.isEmpty()) return
-    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        tags.forEach { tag ->
-            val isNew = tag == "New"
-            Text(tag, maxLines = 1, fontSize = TvTokens.Type.Caption.sp, fontWeight = FontWeight.SemiBold,
-                color = if (isNew) MaterialTheme.colorScheme.onPrimary else Color.White,
-                modifier = Modifier.clip(RoundedCornerShape(TvTokens.Shape.Tight.dp))
-                    .background(if (isNew) MaterialTheme.colorScheme.primary else Color(0xCC111215))
-                    .padding(horizontal = 6.dp, vertical = 1.dp))
+    return remember(meta, kinds, year) { app.ember.tv.data.PosterRibbons.top(meta, kinds, year) }
+}
+
+/** Each ribbon's edge colour; "New" takes the theme's accent. */
+@Composable
+private fun ribbonEdge(kind: app.ember.tv.data.PosterRibbons.Kind): Color = when (kind) {
+    app.ember.tv.data.PosterRibbons.Kind.NEW -> MaterialTheme.colorScheme.primary
+    app.ember.tv.data.PosterRibbons.Kind.AGE -> Color(0xFFF2B84B)
+    app.ember.tv.data.PosterRibbons.Kind.KIND -> Color(0xFF3FA9F5)
+    app.ember.tv.data.PosterRibbons.Kind.GENRE -> Color(0xFFB37FEB)
+    app.ember.tv.data.PosterRibbons.Kind.YEAR -> Color(0xFF9AA0A6)
+    app.ember.tv.data.PosterRibbons.Kind.RUNTIME -> Color(0xFF2EC4B6)
+}
+
+/**
+ * #476: a real corner ribbon: a dark sash across the card's top-right corner with a coloured line
+ * along each edge and its text running along the sash. It's sized from the card, so it looks the
+ * same on small posters and wide cards. Fill the card with [modifier] (matchParentSize).
+ */
+@Composable
+internal fun PosterRibbon(ribbon: Pair<app.ember.tv.data.PosterRibbons.Kind, String>, modifier: Modifier = Modifier) {
+    val edge = ribbonEdge(ribbon.first)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    androidx.compose.foundation.Canvas(modifier.clearAndSetSemantics { }) {
+        val base = minOf(size.width, size.height * .72f)
+        val near = base * .26f   // where the sash's inner edge meets the card's edges, from the corner
+        val far = base * .41f    // and its outer edge
+        val w = size.width
+        val band = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w - far, 0f); lineTo(w - near, 0f); lineTo(w, near); lineTo(w, far); close()
+        }
+        drawPath(band, Color(0xE6101114))
+        val line = (base * .012f).coerceAtLeast(1.5f)
+        drawLine(edge, androidx.compose.ui.geometry.Offset(w - near, 0f), androidx.compose.ui.geometry.Offset(w, near), line)
+        drawLine(edge, androidx.compose.ui.geometry.Offset(w - far, 0f), androidx.compose.ui.geometry.Offset(w, far), line)
+        // The text along the middle of the sash, as large as fits.
+        val mid = (near + far) / 2f
+        val room = mid * 1.414f * .78f
+        val thick = (far - near) / 1.414f
+        var px = thick * .52f
+        val style = androidx.compose.ui.text.TextStyle(color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 0.2.sp)
+        var text = measurer.measure(ribbon.second, style.copy(fontSize = (px / density).sp), maxLines = 1)
+        if (text.size.width > room) {
+            px *= room / text.size.width
+            text = measurer.measure(ribbon.second, style.copy(fontSize = (px / density).sp), maxLines = 1)
+        }
+        val center = androidx.compose.ui.geometry.Offset(w - mid / 2f, mid / 2f)
+        rotate(45f, pivot = center) {
+            drawText(text, topLeft = androidx.compose.ui.geometry.Offset(center.x - text.size.width / 2f, center.y - text.size.height / 2f))
         }
     }
 }

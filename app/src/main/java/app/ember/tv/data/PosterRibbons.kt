@@ -24,6 +24,13 @@ object PosterRibbons {
 
     private val YEAR = Regex("""(19|20)\d{2}""")
 
+    /**
+     * #476: the one ribbon a poster's corner shows: the first kind, in [Kind] order, that this
+     * title has. A sash across a corner has room for one.
+     */
+    fun top(meta: Meta, kinds: Set<Kind>, thisYear: Int): Pair<Kind, String>? =
+        Kind.entries.filter { it in kinds }.firstNotNullOfOrNull { k -> of(meta, setOf(k), thisYear).firstOrNull()?.let { k to it } }
+
     /** The tags for [meta], in the order of [Kind], at most [MAX_SHOWN]. */
     fun of(meta: Meta, kinds: Set<Kind>, thisYear: Int): List<String> {
         val year = meta.releaseInfo?.let { YEAR.find(it)?.value?.toIntOrNull() }
