@@ -250,7 +250,7 @@ private fun PlaybackChoices(s:ControlsState,a:ControlsActions) {
     BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress().focusProperties {onExit={cancelFocusChange()}}.focusGroup(),contentAlignment=Alignment.CenterEnd) {
         val subtitles=!audio && !episodes
         val panelWidth=if(subtitles)minOf(420.dp,maxWidth*.8f) else width.coerceIn(minOf(220.dp,maxWidth*.8f),minOf(420.dp,maxWidth*.8f))
-        Column(Modifier.padding(18.dp).width(panelWidth).heightIn(max=maxHeight*.68f).clip(RoundedCornerShape(TvTokens.Shape.Panel.dp))
+        Column(Modifier.padding(18.dp).width(panelWidth).heightIn(max=maxHeight*(if(subtitles).86f else .68f)).clip(RoundedCornerShape(TvTokens.Shape.Panel.dp))
             .background(Color(0xF01B1E23)).border(.7.dp,Color.White.copy(alpha=.14f),RoundedCornerShape(TvTokens.Shape.Panel.dp)).padding(10.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically) {
                 Text(title,color=Ivory,fontSize=16.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f).padding(8.dp))
