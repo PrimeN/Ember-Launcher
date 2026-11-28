@@ -135,8 +135,7 @@ internal object AppChoices {
             }
             Text(stringResource(R.string.tx_small_photos_and_videos_can_also),color=Mute,fontSize=13.sp)
             SettingToggle(stringResource(R.string.st_keep_screen_awake),stringResource(R.string.st_applies_only_while_the_presentation_is),opts.keepAwake){vm.launcherExtras.update {it.copy(keepAwake=!it.keepAwake)}}
-            Text(stringResource(R.string.tx_photo_duration),fontSize=15.sp)
-            StepSlider("Seconds per slide",listOf(5,10,20,30,60),opts.slideSeconds,{"${it}s"}){seconds->vm.launcherExtras.update {it.copy(slideSeconds=seconds)}}
+            StepSlider(stringResource(R.string.tx_photo_duration),listOf(5,10,20,30,60),opts.slideSeconds,{"${it}s"}){seconds->vm.launcherExtras.update {it.copy(slideSeconds=seconds)}}
             opts.slides.forEachIndexed {index,item->
                 Text("${index+1}. ${item.name}",fontSize=14.sp,maxLines=2)
                 ButtonRow {

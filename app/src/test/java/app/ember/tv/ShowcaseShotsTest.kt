@@ -247,6 +247,38 @@ class ShowcaseShotsTest {
         save("player")
     }
 
+    // #474: the subtitle sheet with two-line rows and the style pill.
+    @Test fun playerSubtitles() {
+        val s = ControlsState().apply {
+            visible = true; title = "Metropolis"
+            position = 52 * 60_000L; duration = 153 * 60_000L
+            subtitleOptions = listOf("Off" to false, "English" to true, "English SDH" to false, "English" to false, "French" to false, "German" to false)
+            subtitleRows = listOf(
+                app.ember.tv.player.SubtitleRow("None"),
+                app.ember.tv.player.SubtitleRow("English", detail = "SRT", source = "Built in"),
+                app.ember.tv.player.SubtitleRow("English", listOf("SDH"), "SRT", "Built in"),
+                app.ember.tv.player.SubtitleRow("English", listOf("MATCH"), "Metropolis.1927.1080p.BluRay.x264", "OpenSubtitles"),
+                app.ember.tv.player.SubtitleRow("French", detail = "Metropolis.1927.Restored.WEB-DL", source = "SubDL"),
+                app.ember.tv.player.SubtitleRow("German", listOf("FORCED"), "PGS", "Built in"),
+            )
+            sheet = app.ember.tv.player.SUBTITLE_SHEET
+        }
+        compose.setContent { Frame {
+            coil.compose.AsyncImage(art("backdrop", "Metropolis"), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            AdvancedControls(s, ControlsActions(playPause = {}, seekBy = {}, skip = {}, openMenu = { _, _ -> }, options = { emptyList() }, next = {}, playEpisode = {},
+                touched = {}, pickAudio = {}, pickSubtitle = {}))
+        } }
+        save("player-subtitles")
+    }
+
+    // #474: the "Set up for this TV" card.
+    @Test fun tuningCard() {
+        val plan = app.ember.tv.player.DeviceTuning.plan(app.ember.tv.player.DeviceTuning.Facts(2048, listOf(23.976f, 24f, 50f, 59.94f, 60f), listOf("Dolby Digital", "TrueHD", "DTS-HD"), true,
+            "NVIDIA SHIELD Android TV", "11", listOf("Dolby Vision", "HDR10"), true), app.ember.tv.player.PlaybackConfig())
+        compose.setContent { Frame { CompositionLocalProvider(LocalInlineDialogs provides true) { app.ember.tv.ui.TuningCard(plan, close = {}, review = {}) } } }
+        dialog("tuning-card")
+    }
+
     private val channelNames = listOf("Northline News", "Fieldhouse Sports", "Cinemora", "Wavelet Music", "Puddle Kids", "Skyline Weather", "Reelhouse Classics", "Arcadia Games",
         "Harbor 24", "Metro One", "Lumen Docs", "Gourmet Lane", "Velocity Motors", "Atlas Travel", "Comedy Corner", "Nightjar Drama")
     private val clock = 90_900_000L

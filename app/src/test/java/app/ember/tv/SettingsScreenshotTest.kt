@@ -1,5 +1,10 @@
 package app.ember.tv
 
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.outlined.CropFree
+import androidx.compose.material.icons.outlined.Timer
 import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -93,6 +98,26 @@ class SettingsScreenshotTest {
             }
         }
         save("lighter")
+    }
+
+    // #474: sliders as cards with a thick track; the first one focused.
+    @Test fun sliders() {
+        compose.setContent {
+            CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides Fg, LocalReduceMotion provides true, LocalRenderOptions provides RenderOptions(device = "low")) {
+                EmberTheme(0, InterfaceStyles.MODERN) {
+                    val first = remember { androidx.compose.ui.focus.FocusRequester() }
+                    Column(Modifier.size(960.dp, 540.dp).background(Color(0xFF101012)).padding(32.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        StepSlider("Screen margins", listOf(0, 10, 20, 30, 40, 50), 20, { if (it == 0) "None" else "${it / 10}%" }, Modifier.focusRequester(first), width = 560.dp,
+                            icon = androidx.compose.material.icons.Icons.Outlined.CropFree) {}
+                        StepSlider("Seconds per slide", listOf(5, 10, 20, 30, 60), 10, { "${it}s" }, width = 560.dp,
+                            icon = androidx.compose.material.icons.Icons.Outlined.Timer) {}
+                        StepSlider("Guide rows", listOf(5, 6, 7), 7, { "$it rows" }, width = 560.dp) {}
+                    }
+                    LaunchedEffect(Unit) { first.requestFocus() }
+                }
+            }
+        }
+        save("sliders")
     }
 
     @Test fun choiceMenu() {

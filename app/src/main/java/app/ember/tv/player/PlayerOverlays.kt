@@ -294,9 +294,29 @@ internal fun PlayerActivity.updateSubtitleSheet() {
     if (!advanced || !subsInitialized) return
     val (rows, acts) = subtitleChoices()
     subtitleActions = acts
+    controls.subtitleRows = subtitleRowInfo()
     controls.subtitleOptions = rows
     controls.subtitleShift = subs.engine.offsetMs
     changed()
+}
+
+/** #474: the two-line rows for the subtitle sheets, in the same order as [subtitleChoices]. */
+internal fun PlayerActivity.subtitleRowInfo(): List<SubtitleRow> {
+    if (!subsInitialized) return emptyList()
+    val sel = subs.selection
+    val out = ArrayList<SubtitleRow>()
+    out += SubtitleRow("None")
+    out += subs.embeddedRows()
+    subs.candidates.take(12).forEach { c ->
+        out += SubtitleRow(
+            c.languageName,
+            tags = listOfNotNull(if (c.hashMatch) "MATCH" else null, if (c.hearingImpaired) "SDH" else null, if (c.machine) "AUTO" else null),
+            detail = c.release?.take(60) ?: SubtitleRow.formatOf(c.url),
+            source = c.provider,
+        )
+    }
+    if (sel is SubtitleController.Selection.Manual) out += SubtitleRow(sel.label, source = "Added")
+    return out
 }
 
 /** #249: the subtitle choices and what each does: for the TV's sheet and the phone remote alike. */

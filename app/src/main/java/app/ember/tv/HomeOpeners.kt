@@ -285,6 +285,6 @@ internal fun HomeViewModel.tuneForThisTv() {
         val facts = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { app.ember.tv.player.DeviceTuning.facts(getApplication<android.app.Application>()) }.getOrNull() } ?: return@launch
         val plan = app.ember.tv.player.DeviceTuning.plan(facts, playerSettings.playbackConfig)
         playerSettings.updatePlaybackConfig { it.copy(buffer = plan.config.buffer, frameRate = plan.config.frameRate) }
-        tuning = plan.lines
+        tuning = plan
     }
 }

@@ -142,6 +142,27 @@ class SubtitleController(
         return out
     }
 
+    /** #474: [embedded] as rows: language, Forced and SDH tags, the format, "Built in". */
+    fun embeddedRows(): List<SubtitleRow> {
+        val p = player() ?: return emptyList()
+        val out = ArrayList<SubtitleRow>()
+        p.currentTracks.groups.forEach { g ->
+            if (g.type != C.TRACK_TYPE_TEXT) return@forEach
+            for (i in 0 until g.length) {
+                if (!g.isTrackSupported(i, true)) continue
+                val f = g.getTrackFormat(i)
+                val lang = Subtitles.languageName(Subtitles.normalise(f.language))
+                val tags = listOfNotNull(
+                    if (f.selectionFlags and C.SELECTION_FLAG_FORCED != 0) "FORCED" else null,
+                    if (f.roleFlags and C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND != 0 || f.label.orEmpty().contains(Regex("(?i)\\b(sdh|cc|hi)\\b"))) "SDH" else null,
+                )
+                val name = f.label?.takeIf { it.isNotBlank() && it != f.language && !it.equals(lang, true) }?.let { "$lang · $it" } ?: lang
+                out += SubtitleRow(name, tags, SubtitleRow.formatOf(f.codecs ?: f.sampleMimeType, f.sampleMimeType), "Built in")
+            }
+        }
+        return out
+    }
+
     private fun autoSelect() {
         if (!searched || !ready || chosenOff) return
         val p=player() ?: return

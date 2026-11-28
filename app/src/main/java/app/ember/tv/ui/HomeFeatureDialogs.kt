@@ -32,13 +32,7 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun HomeFeatureDialogs(vm:HomeViewModel,onLaunch:(AppEntry)->Unit) {
     // #431: what first-start tuning (or "Set up for this TV") chose.
-    vm.tuning?.let { lines ->
-        MediaDialog("Set up for this TV", { vm.tuning = null }) {
-            Text("Ember chose these player settings from this box and screen. You can change them in ${SettingsTab.PLAYER.path}.", color = Mute, fontSize = 15.sp)
-            lines.forEach { Text(it, fontSize = 16.sp) }
-            Chip("OK") { vm.tuning = null }
-        }
-    }
+    vm.tuning?.let { plan -> TuningCard(plan, close = { vm.tuning = null }) { vm.tuning = null; vm.openSettingsPage(SettingsTab.PLAYER.name) } }
     val context=LocalContext.current
     val scope=rememberCoroutineScope()
     var importFor by rememberSaveable {mutableStateOf<Pair<String,String>?>(null)}

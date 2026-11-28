@@ -13,6 +13,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
@@ -34,8 +35,11 @@ internal object StepSliders {
 
 /**
  * A slider over a few set values (#213), in place of a row of number buttons. One focus stop:
- * left and right move it a step (the change applies at once), OK moves it on and wraps. The chosen
- * value is written beside the track; at either end the press moves focus on like any control.
+ * left and right move it a step (the change applies at once), OK moves it on and wraps. At either
+ * end the press moves focus on like any control.
+ *
+ * #474: a rounded card with the name and value above a thick pill track, like the TV's own picture
+ * settings. Focused, the card turns light and the track dark; ‹ › show it moves with left and right.
  */
 @Composable
 internal fun StepSlider(
@@ -45,16 +49,20 @@ internal fun StepSlider(
     label: (Int) -> String,
     modifier: Modifier = Modifier,
     width: Dp = 420.dp,
+    /** False where a heading right above already names it. */
+    showName: Boolean = true,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onPick: (Int) -> Unit,
 ) {
     if (values.isEmpty()) return
     RecordSettingOption(name)
     val at = values.indexOf(selected).takeIf { it >= 0 } ?: StepSliders.nearest(values, selected)
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val accent = MaterialTheme.colorScheme.primary
+    var focused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Focusable(
         onClick = { onPick(values[(at + 1) % values.size]) },
         modifier = modifier.width(width).testTag("step_slider")
+            .onFocusChanged { focused = it.isFocused }
             .semantics {
                 contentDescription = name
                 stateDescription = label(values[at])
@@ -67,21 +75,25 @@ internal fun StepSlider(
                 if (e.type == KeyEventType.KeyDown) onPick(values[next])
                 true
             },
-        radius = TvTokens.Shape.Control, container = Wash, focusedScale = TvTokens.Focus.None,
+        radius = TvTokens.Shape.Control, container = Wash, focusedContainer = PillColor, focusedContent = OnPillColor,
+        outline = false, focusedScale = TvTokens.Focus.None,
     ) {
         val ink = androidx.tv.material3.LocalContentColor.current
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            BoxWithConstraints(Modifier.weight(1f).height(20.dp), contentAlignment = Alignment.CenterStart) {
-                val share = if (values.size <= 1) 1f else at.toFloat() / (values.size - 1)
-                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(ink.copy(alpha = .25f)))
-                Box(Modifier.fillMaxWidth(share).height(4.dp).clip(RoundedCornerShape(2.dp)).background(accent))
-                // A mark at every step, and the knob on the chosen one.
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    values.indices.forEach { i -> Box(Modifier.size(6.dp).clip(CircleShape).background(if (i <= at) accent else ink.copy(alpha = .45f))) }
-                }
-                Box(Modifier.offset(x = (maxWidth - 18.dp) * share).size(18.dp).clip(CircleShape).background(ink))
+        val accent = if (focused) OnPillColor else MaterialTheme.colorScheme.primary
+        val share = if (values.size <= 1) 1f else at.toFloat() / (values.size - 1)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (icon != null) androidx.tv.material3.Icon(icon, null, Modifier.size(20.dp), tint = ink)
+                if (showName) Text(name, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, modifier = Modifier.weight(1f),
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                else Spacer(Modifier.weight(1f))
+                Text(if (focused && at > 0) "‹" else " ", fontSize = 15.sp, color = ink.copy(alpha = .6f))
+                Text(label(values[at]), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(if (focused && at < values.lastIndex) "›" else " ", fontSize = 15.sp, color = ink.copy(alpha = .6f))
             }
-            Text(label(values[at]), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.widthIn(min = 64.dp), maxLines = 1)
+            Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(if (focused) accent.copy(alpha = .22f) else ink.copy(alpha = .16f))) {
+                if (share > 0f) Box(Modifier.fillMaxWidth(share.coerceAtLeast(.04f)).fillMaxHeight().clip(RoundedCornerShape(5.dp)).background(if (focused) accent else ink))
+            }
         }
     }
 }

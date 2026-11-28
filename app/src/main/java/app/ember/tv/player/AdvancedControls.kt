@@ -118,6 +118,8 @@ class ControlsState {
     var seekPreview by mutableFloatStateOf(-1f)
     /** Subtitle choices for the Subtitles sheet: label and whether it is the one in use. */
     var subtitleOptions by mutableStateOf<List<Pair<String, Boolean>>>(emptyList())
+    /** #474: what each subtitle choice is, for the two-line rows; same order as [subtitleOptions]. */
+    var subtitleRows by mutableStateOf<List<SubtitleRow>>(emptyList())
     /** Current subtitle timing shift, in ms. */
     var subtitleShift by mutableLongStateOf(0L)
     /** "Skip intro" / "Skip recap" / "Skip credits" while one is on screen, else null. */
@@ -335,11 +337,17 @@ internal fun InfoPanel(d: PlayerDetails) {
 
 /** A panel on the right for choosing a sound track or an episode. */
 @Composable
-internal fun SideSheet(title: String, start: Int = 0, content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
+internal fun SideSheet(title: String, start: Int = 0, wide: Boolean = false, content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
         Column(
-            Modifier.padding(18.dp).width(300.dp).fillMaxHeight(.72f).clip(RoundedCornerShape(24.dp)).background(Color(0xF21D1E22)).padding(vertical = 10.dp),
+            Modifier.padding(18.dp).width(if (wide) 400.dp else 300.dp).fillMaxHeight(if (wide) .86f else .72f).clip(RoundedCornerShape(24.dp))
+                .background(Color(0xF21D1E22)).padding(vertical = 10.dp),
         ) {
+            if (wide) {
+                Text(title, fontSize = 13.sp, letterSpacing = 2.5.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = .7f), modifier = Modifier.padding(start = 24.dp, top = 6.dp, bottom = 10.dp))
+                Box(Modifier.padding(horizontal = 18.dp).fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = .12f)))
+                Spacer(Modifier.height(10.dp))
+            } else
             Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(start = 24.dp, bottom = 10.dp))
             // Opens scrolled near [start], so the row that takes focus is already on screen.
             LazyColumn(state = androidx.compose.foundation.lazy.rememberLazyListState((start - 3).coerceAtLeast(0)), content = content)
@@ -532,12 +540,15 @@ private fun TrackSheet(s: ControlsState, a: ControlsActions) {
         }
         SUBTITLE_SHEET -> {
             val options = s.subtitleOptions
+            val rows = s.subtitleRows.takeIf { it.size == options.size }
             val on = options.indexOfFirst { it.second }.coerceAtLeast(0)
-            SideSheet("Subtitles", start = on) {
+            // #474: the style pill on top, then two-line rows: name and tags, format or release, and where it's from.
+            SideSheet("SUBTITLES", start = on + 1, wide = true) {
+                item("style") { SubtitleStylePill(first = options.isEmpty()) { s.sheet = null; a.openMenu("options", "subtitles") } }
                 itemsIndexed(options, key = { i, t -> "s$i:${t.first}" }) { i, (label, chosen) ->
-                    SheetRow(tick(if (i == 0) "Off" else label, chosen), first = i == on) { s.sheet = null; if (!chosen) a.pickSubtitle(i) }
+                    val row = rows?.get(i) ?: SubtitleRow(if (i == 0) "None" else label)
+                    SubtitleChoiceRow(row, chosen, first = i == on) { s.sheet = null; if (!chosen) a.pickSubtitle(i) }
                 }
-                item("more") { SheetRow("Subtitle settings…", first = options.isEmpty()) { s.sheet = null; a.openMenu("options", "subtitles") } }
             }
         }
     }

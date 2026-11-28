@@ -195,7 +195,7 @@ fun QuickPanel(vm: HomeViewModel, onClose: () -> Unit, onSettings: () -> Unit, o
                         Heading(stringResource(R.string.ui_sleep_timer), accent)
                         // #213: a slider instead of five buttons.
                         StepSlider(stringResource(R.string.ui_sleep_timer), listOf(0, 15, 30, 45, 60, 90, 120), vm.sleep.sleepMinutes, { m -> if (m == 0) "Off" else "$m min" },
-                            Modifier.padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 6.dp), width = 360.dp) { vm.sleep.setSleepTimer(it) }
+                            Modifier.padding(start = 22.dp, end = 22.dp, top = 4.dp, bottom = 6.dp), width = 360.dp, showName = false) { vm.sleep.setSleepTimer(it) }
                         Text(
                             vm.sleep.sleepLeftText ?: "Minutes. Stops what is playing and starts the screensaver.",
                             fontSize = TvTokens.Type.Caption.sp,

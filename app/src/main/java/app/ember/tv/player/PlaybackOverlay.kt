@@ -248,7 +248,8 @@ private fun PlaybackChoices(s:ControlsState,a:ControlsActions) {
         with(density){(choices.map {it.first}+listOfNotNull(title,more)).maxOf {measure.measure(AnnotatedString(it),TextStyle(fontSize=14.sp),maxLines=1).size.width}.toDp()}+64.dp
     }
     BoxWithConstraints(Modifier.fillMaxSize().guardOpeningPress().focusProperties {onExit={cancelFocusChange()}}.focusGroup(),contentAlignment=Alignment.CenterEnd) {
-        val panelWidth=width.coerceIn(minOf(220.dp,maxWidth*.8f),minOf(420.dp,maxWidth*.8f))
+        val subtitles=!audio && !episodes
+        val panelWidth=if(subtitles)minOf(420.dp,maxWidth*.8f) else width.coerceIn(minOf(220.dp,maxWidth*.8f),minOf(420.dp,maxWidth*.8f))
         Column(Modifier.padding(18.dp).width(panelWidth).heightIn(max=maxHeight*.68f).clip(RoundedCornerShape(TvTokens.Shape.Panel.dp))
             .background(Color(0xF01B1E23)).border(.7.dp,Color.White.copy(alpha=.14f),RoundedCornerShape(TvTokens.Shape.Panel.dp)).padding(10.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically) {
@@ -257,6 +258,14 @@ private fun PlaybackChoices(s:ControlsState,a:ControlsActions) {
                 if(choices.isEmpty() && more==null)LaunchedEffect(Unit){close.requestFocus()}
                 PlaybackControl(Icons.AutoMirrored.Outlined.ArrowBack,stringResource(R.string.player_back),false,Modifier.focusRequester(close)){s.sheet=null}
             }
+            // #474: subtitles get the style pill on top and two-line rows.
+            val subRows=s.subtitleRows.takeIf {subtitles && it.size==choices.size}
+            if(subRows!=null)LazyColumn(state=rememberLazyListState(initialFirstVisibleItemIndex=(chosen-2).coerceAtLeast(0))) {
+                item("style") {SubtitleStylePill {s.sheet=null;a.openMenu("options","subtitles")}}
+                itemsIndexed(choices,key={i,_->i}) {index,(_,selected)->
+                    SubtitleChoiceRow(subRows[index],selected,index==chosen) {s.sheet=null;if(!selected)a.pickSubtitle(index)}
+                }
+            } else
             LazyColumn(state=rememberLazyListState(initialFirstVisibleItemIndex=(chosen-2).coerceAtLeast(0))) {
                 itemsIndexed(choices,key={i,_->i}) {index,(label,selected)->
                     PlaybackChoice(label,selected,index==chosen) {

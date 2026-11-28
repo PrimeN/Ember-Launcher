@@ -186,7 +186,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     internal var restoreLiveDefault = !prefs.hasSavedNav
     /** #431: a new install is tuned for this TV once; what was set shows in a dialog. */
     private val freshInstall = !prefs.hasSavedNav
-    var tuning by mutableStateOf<List<String>?>(null)
+    var tuning by mutableStateOf<app.ember.tv.player.DeviceTuning.Plan?>(null)
 
     internal var allApps: List<AppEntry> = emptyList()
 
