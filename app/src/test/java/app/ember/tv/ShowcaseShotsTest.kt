@@ -267,19 +267,18 @@ class ShowcaseShotsTest {
 
     // #478: the stats panel, compact, over the picture.
     @Test fun playerStats() {
-        val g = app.ember.tv.player.StatsGroup; val d = app.ember.tv.player.StatsDot
-        fun r(gr: app.ember.tv.player.StatsGroup, l: String, v: String, dot: app.ember.tv.player.StatsDot = d.NONE) = app.ember.tv.player.StatsRow(gr, l, v, dot)
+        fun r(gr: app.ember.tv.player.StatsGroup, l: String, v: String, dot: app.ember.tv.player.StatsDot = app.ember.tv.player.StatsDot.NONE) = app.ember.tv.player.StatsRow(gr, l, v, dot)
         val s = ControlsState().apply {
             stats = listOf(
-                r(g.SOURCE, "Add-on", "AIOStreams"), r(g.SOURCE, "Provider", "Offcloud"), r(g.SOURCE, "Server", "cdn2-fra.example.com"),
-                r(g.SOURCE, "File", "Metropolis.1927.2160p.DV.HDR.Remux.mkv"), r(g.SOURCE, "Container", "Matroska / MKV"), r(g.SOURCE, "Size", "42.9 GB"),
-                r(g.VIDEO, "Engine", "Standard (Media3)"), r(g.VIDEO, "Video", "HEVC Main10, DV 8.1, 3840×2160, 61 Mbit/s, 23.976 fps"),
-                r(g.VIDEO, "Dropped", "0 frames", d.GOOD), r(g.VIDEO, "Display", "3840×2160 · 23.976 Hz"), r(g.VIDEO, "TV supports", "Dolby Vision, HDR10"),
-                r(g.AUDIO, "Audio", "TrueHD Atmos 7.1 · bitstream"), r(g.AUDIO, "Underruns", "0", d.GOOD), r(g.AUDIO, "Route", "HDMI"),
-                r(g.NETWORK, "Buffer", "28.4 s ahead", d.GOOD), r(g.NETWORK, "Speed", "142 Mbit/s"), r(g.NETWORK, "Server latency", "28 ms", d.GOOD),
-                r(g.NETWORK, "Load errors", "0", d.GOOD), r(g.NETWORK, "Estimate", "180 Mbit/s"),
-                r(g.SYSTEM, "App CPU", "27 %", d.GOOD), r(g.SYSTEM, "Memory", "Java heap 22/384 MB · native 170 MB", d.GOOD),
-                r(g.SYSTEM, "Heat", "Normal", d.GOOD), r(g.SYSTEM, "Device", "NVIDIA SHIELD · 3 GB RAM"),
+                r(app.ember.tv.player.StatsGroup.SOURCE, "Add-on", "AIOStreams"), r(app.ember.tv.player.StatsGroup.SOURCE, "Provider", "Offcloud"), r(app.ember.tv.player.StatsGroup.SOURCE, "Server", "cdn2-fra.example.com"),
+                r(app.ember.tv.player.StatsGroup.SOURCE, "File", "Metropolis.1927.2160p.DV.HDR.Remux.mkv"), r(app.ember.tv.player.StatsGroup.SOURCE, "Container", "Matroska / MKV"), r(app.ember.tv.player.StatsGroup.SOURCE, "Size", "42.9 GB"),
+                r(app.ember.tv.player.StatsGroup.VIDEO, "Engine", "Standard (Media3)"), r(app.ember.tv.player.StatsGroup.VIDEO, "Video", "HEVC Main10, DV 8.1, 3840×2160, 61 Mbit/s, 23.976 fps"),
+                r(app.ember.tv.player.StatsGroup.VIDEO, "Dropped", "0 frames", app.ember.tv.player.StatsDot.GOOD), r(app.ember.tv.player.StatsGroup.VIDEO, "Display", "3840×2160 · 23.976 Hz"), r(app.ember.tv.player.StatsGroup.VIDEO, "TV supports", "Dolby Vision, HDR10"),
+                r(app.ember.tv.player.StatsGroup.AUDIO, "Audio", "TrueHD Atmos 7.1 · bitstream"), r(app.ember.tv.player.StatsGroup.AUDIO, "Underruns", "0", app.ember.tv.player.StatsDot.GOOD), r(app.ember.tv.player.StatsGroup.AUDIO, "Route", "HDMI"),
+                r(app.ember.tv.player.StatsGroup.NETWORK, "Buffer", "28.4 s ahead", app.ember.tv.player.StatsDot.GOOD), r(app.ember.tv.player.StatsGroup.NETWORK, "Speed", "142 Mbit/s"), r(app.ember.tv.player.StatsGroup.NETWORK, "Server latency", "28 ms", app.ember.tv.player.StatsDot.GOOD),
+                r(app.ember.tv.player.StatsGroup.NETWORK, "Load errors", "0", app.ember.tv.player.StatsDot.GOOD), r(app.ember.tv.player.StatsGroup.NETWORK, "Estimate", "180 Mbit/s"),
+                r(app.ember.tv.player.StatsGroup.SYSTEM, "App CPU", "27 %", app.ember.tv.player.StatsDot.GOOD), r(app.ember.tv.player.StatsGroup.SYSTEM, "Memory", "Java heap 22/384 MB · native 170 MB", app.ember.tv.player.StatsDot.GOOD),
+                r(app.ember.tv.player.StatsGroup.SYSTEM, "Heat", "Normal", app.ember.tv.player.StatsDot.GOOD), r(app.ember.tv.player.StatsGroup.SYSTEM, "Device", "NVIDIA SHIELD · 3 GB RAM"),
             )
         }
         compose.setContent { Frame {
