@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import app.ember.tv.unfinished
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,13 +55,13 @@ internal fun SparkScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
             }
         }
         items(spark.couchRows, key = { it.id }) { row ->
-            ModernSection(row.title, "For you both") { MediaRow(row.items, wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen) }
+            ModernSection(row.title, "For you both") { MediaRow(vm.unfinished(row.items), wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen) }
         }
         // #438: Ask Spark, with your own AI service.
         if (app.ember.tv.tracker.Tmdb.available) item(key = "spark-ask") { SparkAskPanel(vm, onOpen) }
         items(spark.asks, key = { "ask-" + it.id }) { a ->
             ModernSection(a.row.title, "Saved · asked again weekly") {
-                MediaRow(a.row.items, wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen)
+                MediaRow(vm.unfinished(a.row.items), wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen)
             }
         }
         // #436: what Spark learns from, and bringing in your trackers' whole history.
@@ -91,7 +92,7 @@ internal fun SparkScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
         }
         items(shown, key = { it.id }) { row ->
             ModernSection(row.title, row.subtitle) {
-                MediaRow(row.items, wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen)
+                MediaRow(vm.unfinished(row.items), wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen)
             }
         }
     }
@@ -149,7 +150,7 @@ private fun SparkAskPanel(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
             color = Mute, fontSize = TvTokens.Type.Caption.sp, maxLines = 2)
         spark.askError?.let { Text(it, color = Mute, fontSize = TvTokens.Type.Caption.sp) }
         spark.answer?.takeIf { it.items.isNotEmpty() }?.let { row ->
-            ModernSection(row.title, row.subtitle) { MediaRow(row.items, wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen) }
+            ModernSection(row.title, row.subtitle) { MediaRow(vm.unfinished(row.items), wide = false, isSaved = { vm.isSaved(it) }, onOpen = onOpen) }
             ButtonRow(spacing = 10.dp) {
                 Chip("Save as a row") { spark.saveAnswer() }
                 Chip("Clear") { spark.clearAnswer() }

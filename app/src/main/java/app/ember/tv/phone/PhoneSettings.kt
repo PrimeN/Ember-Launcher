@@ -134,6 +134,7 @@ internal class PhoneSettings(private val vm: HomeViewModel) {
         toggle("home.smartRows", HOME, "Extra Home rows", "Recommended, because you watched, hidden gems", read = { vm.featureOn(Features.SMART_ROWS) }, write = { if (it != vm.featureOn(Features.SMART_ROWS)) vm.toggleFeature(Features.SMART_ROWS) })
         toggle("home.cast", HOME, "Cast & crew", read = { vm.featureOn(Features.CAST) }, write = { if (it != vm.featureOn(Features.CAST)) vm.toggleFeature(Features.CAST) })
         toggle("home.watchedBadges", HOME, "Watched indicators", read = { look.showWatchedBadges }, write = look::updateShowWatchedBadges)
+        toggle("home.hideFinished", HOME, "Hide finished titles while browsing", "Discover, Explore, collections, More like this and Spark", read = { look.hideFinished }, write = look::updateHideFinished)
         toggle("home.spoilers", HOME, "Blur unwatched episodes", read = { look.blurUnwatchedEpisodes }, write = look::updateBlurUnwatchedEpisodes)
         toggle("home.animatedCollections", HOME, "Animated collections", read = { vm.collections.heroPreviews }, write = vm.collections::enableHeroPreviews)
         toggle("home.autoPage", HOME, "Load more as I scroll", read = { vm.collections.autoPage }, write = vm.collections::updateAutoPage)

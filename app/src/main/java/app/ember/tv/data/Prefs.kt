@@ -78,6 +78,10 @@ class Prefs(context: Context) {
     var watchedOnHome:String
         get()=runCatching {sp.read(PreferenceKeys.WATCHED_ON_HOME)}.getOrDefault("show").takeIf { it in setOf("show","dim","hide") } ?: "show"
         set(value)=sp.edit {putString(PreferenceKeys.WATCHED_ON_HOME.name,value)}
+    /** #475: leave finished films and shows out while browsing. */
+    var hideFinished:Boolean
+        get()=runCatching {sp.read(PreferenceKeys.HIDE_FINISHED)}.getOrDefault(false)
+        set(value)=sp.edit {putBoolean(PreferenceKeys.HIDE_FINISHED.name,value)}
     var showWatchedBadges:Boolean
         get()=runCatching {sp.read(PreferenceKeys.SHOW_WATCHED_BADGES)}.getOrDefault(true)
         set(value)=sp.edit {putBoolean(PreferenceKeys.SHOW_WATCHED_BADGES.name,value)}

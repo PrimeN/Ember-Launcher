@@ -44,6 +44,9 @@ class LookState(
     /** #426: "show", "dim" or "hide" watched titles in Home rows. */
     var watchedOnHome by mutableStateOf(prefs.watchedOnHome);private set
     fun updateWatchedOnHome(value:String){watchedOnHome=value;prefs.watchedOnHome=value}
+    /** #475 */
+    var hideFinished by mutableStateOf(prefs.hideFinished);private set
+    fun updateHideFinished(value:Boolean){hideFinished=value;prefs.hideFinished=value}
     fun updateBlurUnwatchedEpisodes(value:Boolean){blurUnwatchedEpisodes=value;prefs.blurUnwatchedEpisodes=value}
     fun updateCardFocusStyle(value:String){cardFocusStyle=app.ember.tv.data.CardFocusStyle.normalize(value);prefs.cardFocusStyle=cardFocusStyle}
     var mediaFocusBackground by mutableStateOf(prefs.mediaFocusBackground); private set

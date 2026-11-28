@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import app.ember.tv.unfinished
 import app.ember.tv.data.TileLabels
 
 import app.ember.tv.isSaved
@@ -225,7 +226,7 @@ fun FolderScreen(vm: HomeViewModel, onOpenTitle: (Meta) -> Unit) {
                 }
                 val index = tab - if (withAll) 1 else 0
                 val current = tabs.getOrNull(index)
-                val items = (if (withAll && tab == 0) vm.collections.allItems else current?.items.orEmpty()).filter { search.isBlank() || it.name.contains(search.trim(), true) }
+                val items = vm.unfinished((if (withAll && tab == 0) vm.collections.allItems else current?.items.orEmpty()).filter { search.isBlank() || it.name.contains(search.trim(), true) })
                 when {
                     items.isNotEmpty() -> {
                         val all = withAll && tab == 0

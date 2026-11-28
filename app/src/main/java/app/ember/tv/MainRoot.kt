@@ -363,6 +363,7 @@ private fun RootContent(
                         d = d,
                         onOpenPersonTitle = vm::openDetails,
                         filterPersonTitles = vm::filterPersonTitles,
+                        unfinished = { vm.unfinished(it) },
                         personProfileKey = vm.profiles.profileId,
                         listState = detailsListState,
                         saved = vm.isSaved(d.meta),

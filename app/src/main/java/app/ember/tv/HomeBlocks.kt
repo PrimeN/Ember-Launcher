@@ -229,5 +229,13 @@ internal fun HomeViewModel.buildHomeBlocks(): List<HomeViewModel.HomeBlock> = bu
     }.let { HomeViewModel.joinShortcuts(it) }
 
 /** #426: with "Hide", watched titles leave your catalog and widget rows on Home. */
+/**
+ * #475: while browsing (Discover, Explore, collections, More like this, Spark), titles you finished
+ * are left out when [app.ember.tv.state.LookState.hideFinished] is on. A show counts once every
+ * episode is watched or it's marked watched; one you're part-way through stays.
+ */
+internal fun HomeViewModel.unfinished(items: List<Meta>): List<Meta> =
+    if (!look.hideFinished) items else items.filterNot(::isWatched)
+
 internal fun HomeViewModel.withoutWatched(row: CatalogRow): CatalogRow =
     if (look.watchedOnHome != "hide") row else row.copy(items = row.items.filterNot(::isWatched))

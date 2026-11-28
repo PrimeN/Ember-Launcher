@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import app.ember.tv.unfinished
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import app.ember.tv.isSaved
 
@@ -113,6 +114,10 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                     DiscoverSection.COLLECTIONS -> Unit
                     null -> Unit
                 }
+                // #475: one press to leave out what you've already finished, on every Discover section.
+                if (section != null) ToolbarIcon(if (vm.look.hideFinished) "Showing only titles you haven't finished" else "Hide finished titles",
+                    if (vm.look.hideFinished) androidx.compose.material.icons.Icons.Outlined.VisibilityOff else androidx.compose.material.icons.Icons.Outlined.Visibility,
+                    Modifier.testTag("discover_hide_finished"), selected = vm.look.hideFinished) { vm.look.updateHideFinished(!vm.look.hideFinished) }
                 if (sections.size <= 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -149,7 +154,7 @@ fun DiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
                             Chip("Relax one filter group") {recovery=true}
                     }
                     if (state.results.isNotEmpty()) TitleGrid(
-                        state.results.mapIndexed { i, title -> title.meta.copy(badge = "#${i + 1} · ${title.meta.badge ?: "TMDB"}") },
+                        vm.unfinished(state.results.mapIndexed { i, title -> title.meta.copy(badge = "#${i + 1} · ${title.meta.badge ?: "TMDB"}") }),
                         isSaved = { vm.isSaved(it) }, onOpen = { state.pause(); onOpen(it) }, modifier = Modifier.fillMaxWidth().weight(1f), state = grid,
                         footer = if (state.complete || state.loading) null else ({ Chip("Keep finding matches") { state.more() } }),
                     ) else if (!state.loading && !state.complete && state.error == null) {

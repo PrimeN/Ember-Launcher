@@ -1,5 +1,6 @@
 package app.ember.tv.ui
 
+import app.ember.tv.unfinished
 import app.ember.tv.clearRecent
 import app.ember.tv.removeFromList
 
@@ -145,9 +146,15 @@ internal fun AddonDiscoverScreen(vm: HomeViewModel, onOpen: (Meta) -> Unit) {
         if (vm.discover.discoverItems.isNotEmpty()) {
             val discoverGrid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
             val auto = vm.collections.autoPage
-            AutoLoadMore(discoverGrid, vm.discover.discoverItems.size, auto && !vm.discover.discoverLoading && !vm.discover.discoverEnd) { vm.discover.loadMoreDiscover() }
+            // #475: finished titles left out; a page that was all finished fetches the next one.
+            val shown = vm.unfinished(vm.discover.discoverItems)
+            LaunchedEffect(shown.size, vm.discover.discoverItems.size, vm.discover.discoverLoading) {
+                if (vm.look.hideFinished && shown.size < 12 && !vm.discover.discoverLoading && !vm.discover.discoverEnd) vm.discover.loadMoreDiscover()
+            }
+            AutoLoadMore(discoverGrid, shown.size, auto && !vm.discover.discoverLoading && !vm.discover.discoverEnd) { vm.discover.loadMoreDiscover() }
+            if (shown.isEmpty() && vm.discover.discoverEnd) Note("You've finished everything in this catalog. Turn off \"Hide finished\" to see it all.")
             TitleGrid(
-                vm.discover.discoverItems,
+                shown,
                 isSaved = { vm.isSaved(it) },
                 onOpen = onOpen,
                 modifier = Modifier.fillMaxWidth().weight(1f),

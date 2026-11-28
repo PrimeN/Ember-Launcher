@@ -138,6 +138,8 @@ fun DetailsScreen(
     onRetrySources: () -> Unit = {},
     onOpenPersonTitle: (app.ember.tv.data.Meta) -> Unit = {},
     filterPersonTitles: suspend (List<app.ember.tv.data.Meta>) -> List<app.ember.tv.data.Meta> = { it },
+    /** #475: More like this without the titles you've finished, when that's on. */
+    unfinished: (List<app.ember.tv.data.Meta>) -> List<app.ember.tv.data.Meta> = { it },
     personProfileKey: String = "default",
     /** "Load more as I scroll" (#109): more episodes load near the end of a season. */
     autoLoad: Boolean = true,
@@ -490,7 +492,7 @@ fun DetailsScreen(
 
             // #419: the film's collection and titles like it.
             d.related?.let {related->
-                item(key="related") {RelatedTitlesRows(related,meta,filterPersonTitles,onOpenPersonTitle)}
+                item(key="related") {RelatedTitlesRows(related,meta,filterPersonTitles,unfinished,onOpenPersonTitle)}
             }
 
             if(!split)sourceItems()
@@ -611,9 +613,10 @@ fun DetailsScreen(
 /** #419: "Collection | More like this" tabs over one row of landscape cards, as on the title's page. */
 @Composable
 private fun RelatedTitlesRows(related:app.ember.tv.data.RelatedTitles,current:app.ember.tv.data.Meta,
-    filter:suspend (List<app.ember.tv.data.Meta>)->List<app.ember.tv.data.Meta>,open:(app.ember.tv.data.Meta)->Unit) {
+    filter:suspend (List<app.ember.tv.data.Meta>)->List<app.ember.tv.data.Meta>,unfinished:(List<app.ember.tv.data.Meta>)->List<app.ember.tv.data.Meta>,open:(app.ember.tv.data.Meta)->Unit) {
     val collection by produceState(emptyList<app.ember.tv.data.Meta>(),related) {value=filter(related.collection)}
-    val similar by produceState(emptyList<app.ember.tv.data.Meta>(),related) {value=filter(related.moreLikeThis)}
+    val similarAll by produceState(emptyList<app.ember.tv.data.Meta>(),related) {value=filter(related.moreLikeThis)}
+    val similar=unfinished(similarAll)
     val tabs=buildList {
         if(collection.isNotEmpty())add("Collection" to collection)
         if(similar.isNotEmpty())add("More like this" to similar)
